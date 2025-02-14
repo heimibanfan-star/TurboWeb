@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.turbo.core.http.request.HttpInfoRequest;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -42,20 +43,17 @@ public class HttpInfoRequestPackageUtils {
      */
     private static Map<String, List<String>> parseQueryParams(String uri) {
         Map<String, List<String>> paramsForSearch = new HashMap<>();
-        URI uriObj = URI.create(uri);
-        // 获取查询字符串
-        String query = uriObj.getQuery();
-        // 判断是否为空
-        if (query == null || query.isBlank()) {
-            return paramsForSearch;
-        }
-        URIBuilder uriBuilder = new URIBuilder(uriObj);
-        // 获取所有的查询参数
-        List<NameValuePair> params = uriBuilder.getQueryParams();
-        for (NameValuePair param : params) {
-            paramsForSearch
-                .computeIfAbsent(param.getName(), k -> new ArrayList<>(1))
-                .add(param.getValue());
+        try {
+            URIBuilder uriBuilder = new URIBuilder(uri);
+            // 获取所有的查询参数
+            List<NameValuePair> params = uriBuilder.getQueryParams();
+            for (NameValuePair param : params) {
+                paramsForSearch
+                    .computeIfAbsent(param.getName(), k -> new ArrayList<>(1))
+                    .add(param.getValue());
+            }
+        } catch (Exception e) {
+            log.error("解析url参数失败", e);
         }
         return paramsForSearch;
     }
