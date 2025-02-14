@@ -1,11 +1,15 @@
 package org.turbo.utils.http;
 
 import io.netty.handler.codec.http.FullHttpRequest;
+import org.apache.hc.core5.http.NameValuePair;
+import org.apache.hc.core5.net.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.core.http.request.HttpInfoRequest;
 
+import java.net.URI;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -30,46 +34,29 @@ public class HttpInfoRequestPackageUtils {
         return new HttpInfoRequest(request);
     }
 
+    /**
+     * 解析url中的参数
+     *
+     * @param uri uri地址
+     * @return 参数map
+     */
     private static Map<String, List<String>> parseQueryParams(String uri) {
         Map<String, List<String>> paramsForSearch = new HashMap<>();
-        if (uri == null || uri.isEmpty()) {
+        URI uriObj = URI.create(uri);
+        // 获取查询字符串
+        String query = uriObj.getQuery();
+        // 判断是否为空
+        if (query == null || query.isBlank()) {
             return paramsForSearch;
         }
-        // 获取搜索参数
-        if (uri.contains("?")) {
-            String[] split = uri.split("\\?");
-            // 处理没有参数的情况
-            if (split.length < 2) {
-                return paramsForSearch;
-            }
-            String[] searchParams = split[1].split("&");
-            for (String searchParam : searchParams) {
-                if (!searchParam.contains("=")) {
-                    continue;
-                }
-                String[] args = searchParam.split("=", 2);
-                // 处理参数
-                String key, value;
-                try {
-                    key = URLDecoder.decode(args[0], StandardCharsets.UTF_8);
-                    value =URLDecoder.decode(args[1], StandardCharsets.UTF_8);
-                } catch (Exception e) {
-                    log.error("参数解码失败：", e);
-                    key = args[0];
-                    value = args[1];
-                }
-                // 保存参数
-                paramsForSearch
-                    .computeIfAbsent(key, k -> new ArrayList<>(1))
-                    .add(value);
-            }
+        URIBuilder uriBuilder = new URIBuilder(uriObj);
+        // 获取所有的查询参数
+        List<NameValuePair> params = uriBuilder.getQueryParams();
+        for (NameValuePair param : params) {
+            paramsForSearch
+                .computeIfAbsent(param.getName(), k -> new ArrayList<>(1))
+                .add(param.getValue());
         }
         return paramsForSearch;
-    }
-
-    public static void main(String[] args) {
-        String s = "hello=";
-        String[] split = s.split("=", 2);
-        System.out.println(Arrays.toString(split));
     }
 }
