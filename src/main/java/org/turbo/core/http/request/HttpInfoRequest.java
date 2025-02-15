@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,94 +19,38 @@ public class HttpInfoRequest {
 
 
     private final FullHttpRequest request;
-    // 用户存储搜索参数
-    private final Map<String, Object> paramsForSearch = new HashMap<>();
-    // 用户存储body参数
-    private final Map<String, Object> paramsForBody = new HashMap<>();
-    // 用户存储文件
-    private final Map<String, FileUpload> files = new HashMap<>();
+    private final Map<String, List<String>> queryParams;
+    private final HttpContent content;
+    private final String contentType;
 
-    public HttpInfoRequest(FullHttpRequest request) {
+    public HttpInfoRequest(FullHttpRequest request, Map<String, List<String>> queryParams, HttpContent content) {
         this.request = request;
-        handleSearchParam();
-//        handleMultipart();
+        this.queryParams = queryParams;
+        this.content = content;
+        if (content != null) {
+            this.contentType = content.getContentType();
+        } else {
+            this.contentType = null;
+        }
     }
 
-    /**
-     * 处理搜索参数
-     */
-    private void handleSearchParam() {
-        // 获取请求路径
-        String uri = request.uri();
-
+    public FullHttpRequest getRequest() {
+        return request;
     }
 
-//    private void handleMultipart() {
-//        if (!HttpPostRequestDecoder.isMultipart(request)) {
-//            return;
-//        }
-//        // 处理多部份表单
-//        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(new DefaultHttpDataFactory(DefaultHttpDataFactory.MAXSIZE), request);
-//        while (decoder.hasNext()) {
-//            InterfaceHttpData httpData = decoder.next();
-//            if (httpData instanceof Attribute) {
-//                Attribute attribute = (Attribute) httpData;
-//                try {
-//                    System.out.println(attribute.getName() + ":" + attribute.getValue());
-//                } catch (IOException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            } else if (httpData instanceof FileUpload) {
-//                FileUpload fileUpload = (FileUpload) httpData;
-//                String name = fileUpload.getName();
-//            }
-//        }
-//
-//    }
-
-    /**
-     * 获取请求头
-     *
-     * @return 请求头
-     */
-    public HttpHeaders getHeaders() {
-        return request.headers();
+    public Map<String, List<String>> getQueryParams() {
+        return queryParams;
     }
 
-    /**
-     * 获取请求头
-     *
-     * @param name 请求头名称
-     * @return 请求头
-     */
-    public String getHeader(String name) {
-        return request.headers().get(name);
+    public HttpContent getContent() {
+        return content;
     }
 
-    /**
-     * 获取请求的uri
-     *
-     * @return 请求uri
-     */
-    public String getUri() {
-        return request.uri();
+    public String getContentType() {
+        return contentType;
     }
 
-    /**
-     * 获取cookie
-     *
-     * @return cookie
-     */
-    public String getCookie(String name) {
-        return request.headers().get(HttpHeaderNames.COOKIE);
-    }
-
-    /**
-     * 获取请求方式
-     *
-     * @return java.lang.String
-     */
-    public String getMethod() {
-        return request.method().name();
+    public HttpVersion getProtocolVersion() {
+        return request.protocolVersion();
     }
 }

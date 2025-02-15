@@ -7,6 +7,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.core.handler.TurboChannelHandler;
+import org.turbo.core.http.execetor.HttpExecuteAdaptor;
+import org.turbo.core.http.execetor.impl.DefaultHttpExecuteAdaptor;
 
 /**
  * 默认服务器实现类
@@ -18,6 +20,7 @@ public class DefaultTurboServer implements TurboServer{
     private final NioEventLoopGroup bossGroup;
     private final NioEventLoopGroup workerGroup;
     private int maxContentLength = 1024 * 1024 * 10;
+    private final HttpExecuteAdaptor executeAdaptor = new DefaultHttpExecuteAdaptor();
 
     /**
      * 构造方法
@@ -45,7 +48,7 @@ public class DefaultTurboServer implements TurboServer{
         // 设置管道
         serverBootstrap.channel(NioServerSocketChannel.class);
         // 设置处理器
-        serverBootstrap.childHandler(new TurboChannelHandler(maxContentLength));
+        serverBootstrap.childHandler(new TurboChannelHandler(executeAdaptor, maxContentLength));
     }
 
     /**
