@@ -11,10 +11,7 @@ import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.core.http.execetor.HttpExecuteAdaptor;
-import org.turbo.core.http.execetor.impl.DefaultHttpExecuteAdaptor;
-import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
-import org.turbo.utils.http.HttpInfoRequestPackageUtils;
 import org.turbo.utils.thread.LoomThreadUtils;
 
 import java.util.HashMap;

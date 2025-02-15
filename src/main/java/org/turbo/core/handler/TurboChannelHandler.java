@@ -18,12 +18,12 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
 
     private static final Logger log = LoggerFactory.getLogger(TurboChannelHandler.class);
     private final int maxContentLength;
-    private final HttpExecuteAdaptor httpExecuteAdaptor;
+    private final HttpWorkerDispatcherHandler httpWorkerDispatcherHandler;
 
     public TurboChannelHandler(HttpExecuteAdaptor httpExecuteAdaptor, int maxContentLength) {
         super();
         this.maxContentLength = maxContentLength;
-        this.httpExecuteAdaptor = httpExecuteAdaptor;
+        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpExecuteAdaptor);
     }
 
     @Override
@@ -32,6 +32,6 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
         pipeline.addLast(new LoggingHandler());
         pipeline.addLast(new HttpServerCodec());
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
-        pipeline.addLast(new HttpWorkerDispatcherHandler(httpExecuteAdaptor));
+        pipeline.addLast(httpWorkerDispatcherHandler);
     }
 }
