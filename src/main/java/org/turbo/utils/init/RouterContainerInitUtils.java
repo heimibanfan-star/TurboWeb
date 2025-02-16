@@ -2,6 +2,7 @@ package org.turbo.utils.init;
 
 import org.turbo.anno.*;
 import org.turbo.constants.ParameterType;
+import org.turbo.constants.TypeConstants;
 import org.turbo.core.router.container.AnnoRouterContainer;
 import org.turbo.core.router.container.RouterContainer;
 import org.turbo.core.router.definition.ParameterDefinition;
@@ -32,7 +33,7 @@ public class RouterContainerInitUtils {
      * @param controllerList 控制器类集合
      * @return 路由容器
      */
-    public static RouterContainer ininContainer(List<Class<?>> controllerList) {
+    public static RouterContainer initContainer(List<Class<?>> controllerList) {
         RouterContainer routerContainer = new AnnoRouterContainer();
         for (Class<?> aClass : controllerList) {
             // 判断类上是否有注解
@@ -241,15 +242,6 @@ public class RouterContainerInitUtils {
      * @return 是否是包装类型
      */
     private static boolean isWrapperType(String className) {
-        return className.equals(Boolean.class.getName()) ||
-            className.equals(Character.class.getName()) ||
-            className.equals(Byte.class.getName()) ||
-            className.equals(Short.class.getName()) ||
-            className.equals(Integer.class.getName()) ||
-            className.equals(Long.class.getName()) ||
-            className.equals(Float.class.getName()) ||
-            className.equals(Double.class.getName()) ||
-            className.equals(Void.class.getName()) ||
-            className.equals(String.class.getName());
+        return TypeConstants.WRAPPER_TYPE.contains(className);
     }
 }
