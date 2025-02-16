@@ -19,9 +19,9 @@ import java.util.regex.Pattern;
  */
 public class RouterContainerInitUtils {
 
-    private static final String PATH_PARAM_PATTERN = "^(/(\\{[^/]+}))+$";
-    private static final String PATH_VALUE_SEARCH_PATTERN = "\\{(.*?)}";
-    private static final Pattern PATH_PARAM_PARSE = Pattern.compile(PATH_VALUE_SEARCH_PATTERN);
+    private static final String PATH_VAR_CHECK_REGEX = "^(/(\\{[^/]+}))+$";
+    private static final String PATH_VALUE_SEARCH_REGEX = "\\{(.*?)}";
+    private static final Pattern PATH_VALUE_GET_PATTERN = Pattern.compile(PATH_VALUE_SEARCH_REGEX);
 
     private RouterContainerInitUtils() {
     }
@@ -46,12 +46,8 @@ public class RouterContainerInitUtils {
             // 获取类中所有的方法
             Method[] methods = aClass.getMethods();
             for (Method method : methods) {
-                // 判断方法的权限是否是公开
-                if (!Modifier.isPublic(method.getModifiers())) {
-                    continue;
-                }
-                // 判断方法上是否有注解
-                if (method.getAnnotations().length == 0) {
+                // 跳过非公开和没有注解的方法
+                if (!Modifier.isPublic(method.getModifiers()) || method.getAnnotations().length == 0) {
                     continue;
                 }
                 // 初始化方法路由
@@ -92,29 +88,24 @@ public class RouterContainerInitUtils {
         RequestPath annotation = clazz.getAnnotation(RequestPath.class);
         String prePath = annotation.value();
         // 获取方法的注解
-        Get getAnno = method.getAnnotation(Get.class);
-        if (getAnno != null) {
-            String path = prePath + getAnno.value();
+        if (method.isAnnotationPresent(Get.class)) {
+            String path = prePath + method.getAnnotation(Get.class).value();
             doInitRouterDefinition(container, method, path);
             return;
         }
-        Post postAnno = method.getAnnotation(Post.class);
-        if (postAnno != null) {
-            String path = prePath + postAnno.value();
+        if (method.isAnnotationPresent(Post.class)) {
+            String path = prePath + method.getAnnotation(Post.class).value();
             doInitRouterDefinition(container, method, path);
             return;
         }
-        Put putAnno = method.getAnnotation(Put.class);
-        if (putAnno != null) {
-            String path = prePath + putAnno.value();
+        if (method.isAnnotationPresent(Put.class)) {
+            String path = prePath + method.getAnnotation(Put.class).value();
             doInitRouterDefinition(container, method, path);
             return;
         }
-        Delete deleteAnno = method.getAnnotation(Delete.class);
-        if (deleteAnno != null) {
-            String path = prePath + deleteAnno.value();
+        if (method.isAnnotationPresent(Delete.class)) {
+            String path = prePath + method.getAnnotation(Delete.class).value();
             doInitRouterDefinition(container, method, path);
-            return;
         }
     }
 
@@ -140,44 +131,29 @@ public class RouterContainerInitUtils {
         for (Parameter parameter : parameters) {
             // 判断是否是路径参数
             if (parameter.isAnnotationPresent(PathParam.class)) {
-                ParameterDefinition definition = new ParameterDefinition();
                 PathParam anno = parameter.getAnnotation(PathParam.class);
-                definition.setName(anno.value());
-                definition.setType(parameter.getType());
-                definition.setVariableType(ParameterType.PATH);
+                String value = anno.value();
+                if (value.isEmpty()) {
+                    throw new TurboRouterDefinitionCreateException("路径参数不能为空");
+                }
+                ParameterDefinition definition = new ParameterDefinition(value, parameter.getType(), ParameterType.PATH);
                 routerMethodDefinition.addVariable(definition);
                 continue;
             }
             // 封装请求体的参数
             if (parameter.isAnnotationPresent(BodyParam.class)) {
-                Class<?> type = parameter.getType();
-                BodyParam bodyParam = parameter.getAnnotation(BodyParam.class);
-                if (type.isPrimitive() || isWrapperType(type.getName())) {
-                    if ("".equals(bodyParam.value())) {
-                        String className = method.getDeclaringClass().getName();
-                        String methodName = method.getName();
-                        throw new TurboRouterDefinitionCreateException("class:%s, method:%s, BodyParam是基本类型，但注解的value为空".formatted(className, methodName));
-                    }
-                }
-                ParameterDefinition definition = new ParameterDefinition();
-                definition.setName(bodyParam.value());
-                definition.setType(parameter.getType());
-                definition.setVariableType(ParameterType.BODY);
+                BodyParam anno = parameter.getAnnotation(BodyParam.class);
+                // 对基本类型的参数进行校验
+                checkForThePrimitiveType(parameter, anno.value(), method);
+                ParameterDefinition definition = new ParameterDefinition(anno.value(), parameter.getType(), ParameterType.BODY);
                 routerMethodDefinition.addVariable(definition);
                 continue;
             }
             // 处理查询参数
-            Class<?> type = parameter.getType();
-            if (type.isPrimitive() || isWrapperType(type.getName())) {
-                QueryParam queryParam = parameter.getAnnotation(QueryParam.class);
-                if (queryParam == null || "".equals(queryParam.value())) {
-                    String className = method.getDeclaringClass().getName();
-                    String methodName = method.getName();
-                    throw new TurboRouterDefinitionCreateException("class:%s, method:%s, QueryParam是基本类型，但注解的value为空".formatted(className, methodName));
-                }
-            }
-            ParameterDefinition definition = new ParameterDefinition();
             QueryParam queryParam = parameter.getAnnotation(QueryParam.class);
+            // 处理基本类型的参数校验
+            checkForThePrimitiveType(parameter, queryParam != null ? queryParam.value(): "", method);
+            ParameterDefinition definition = new ParameterDefinition();
             if (queryParam == null) {
                 definition.setName(parameter.getName());
             } else {
@@ -188,6 +164,24 @@ public class RouterContainerInitUtils {
             routerMethodDefinition.addVariable(definition);
         }
         return routerMethodDefinition;
+    }
+    
+    /**
+     * 检查参数是否是基本类型
+     *
+     * @param parameter 参数
+     * @param paramName 参数名
+     * @param method    方法
+     */
+    private static void checkForThePrimitiveType(Parameter parameter, String paramName, Method method) {
+        Class<?> type = parameter.getType();
+        if (type.isPrimitive() || isWrapperType(type.getName())) {
+            if ("".equals(paramName)) {
+                String className = method.getDeclaringClass().getName();
+                String methodName = method.getName();
+                throw new TurboRouterDefinitionCreateException("class:%s, method:%s, Param是基本类型，但注解不存在或注解value为空".formatted(className, methodName));
+            }
+        }
     }
 
     /**
@@ -218,11 +212,11 @@ public class RouterContainerInitUtils {
                 subStr = subStr.substring(0, subStr.length() - 1);
             }
             // 判断是否符合路径参数格式
-            if (!subStr.matches(PATH_PARAM_PATTERN)) {
+            if (!subStr.matches(PATH_VAR_CHECK_REGEX)) {
                 throw new TurboRouterDefinitionCreateException("路径参数格式错误: %s".formatted(path));
             }
             // 解析出所有的参数
-            Matcher matcher = PATH_PARAM_PARSE.matcher(subStr);
+            Matcher matcher = PATH_VALUE_GET_PATTERN.matcher(subStr);
             while (matcher.find()) {
                 String param = matcher.group(1);
                 if (definition.getPathParameters().contains(param)) {
@@ -231,13 +225,13 @@ public class RouterContainerInitUtils {
                 definition.getPathParameters().add(param);
             }
             // 将路径修改为正则表达式模板
-            path = path.replaceAll(PATH_VALUE_SEARCH_PATTERN, "([^/]*)");
+            path = path.replaceAll(PATH_VALUE_SEARCH_REGEX, "([^/]*)");
             definition.setPattern(Pattern.compile(path));
             definition.setPathVariableCount(definition.getPathParameters().size());
             container.addPathRouter(type, path, definition);
             return;
         }
-        container.addExtraRouter(type, path, definition);
+        container.addCompleteRouter(type, path, definition);
     }
 
     /**

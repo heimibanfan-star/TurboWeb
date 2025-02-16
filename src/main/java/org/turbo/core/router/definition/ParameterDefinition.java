@@ -8,6 +8,15 @@ public class ParameterDefinition {
     Class<?> type;
     String variableType;
 
+    public ParameterDefinition(String name, Class<?> type, String variableType) {
+        this.name = name;
+        this.type = type;
+        this.variableType = variableType;
+    }
+
+    public ParameterDefinition() {
+    }
+
     public String getName() {
         return name;
     }

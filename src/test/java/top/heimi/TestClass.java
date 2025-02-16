@@ -9,8 +9,8 @@ import org.turbo.anno.*;
 public class TestClass {
 
     @Get
-    public void test(@QueryParam("name") String name) {
-        System.out.println(name);
+    public void test(User user) {
+        System.out.println(user);
     }
 
     @Post

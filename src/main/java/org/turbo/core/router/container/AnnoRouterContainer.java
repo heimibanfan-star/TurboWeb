@@ -12,8 +12,8 @@ public class AnnoRouterContainer extends RouterContainer {
 
 
     @Override
-    public void addExtraRouter(String method, String path, RouterMethodDefinition definition) {
-        RouterInfo routerInfo = super.extractRouterInfo;
+    public void addCompleteRouter(String method, String path, RouterMethodDefinition definition) {
+        RouterInfo routerInfo = super.completeRouterInfo;
         this.checkRepeatAndSaveRouter(routerInfo, method, path, definition);
     }
 

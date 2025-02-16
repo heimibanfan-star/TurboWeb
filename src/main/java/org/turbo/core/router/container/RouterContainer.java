@@ -43,7 +43,7 @@ public abstract class RouterContainer {
     /**
      * 存储精确路由的容器
      */
-    protected final RouterInfo extractRouterInfo = new RouterInfo();
+    protected final RouterInfo completeRouterInfo = new RouterInfo();
 
     /**
      * 存储路径参数路由的容器
@@ -62,7 +62,7 @@ public abstract class RouterContainer {
      * @param path       路径
      * @param definition 路由定义
      */
-    public abstract void addExtraRouter(String method, String path, RouterMethodDefinition definition);
+    public abstract void addCompleteRouter(String method, String path, RouterMethodDefinition definition);
 
     /**
      * 添加路径参数路由
