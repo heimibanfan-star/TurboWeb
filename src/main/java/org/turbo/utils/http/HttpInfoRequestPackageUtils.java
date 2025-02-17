@@ -48,8 +48,10 @@ public class HttpInfoRequestPackageUtils {
         // 获取请求方式
         String method = request.method().name();
         if (HttpMethod.POST.name().equals(method) || HttpMethod.PUT.name().equals(method) || HttpMethod.PATCH.name().equals(method)) {
-            // 只有当请求方式为post、put、patch时，才进行解析
-            content = parseBodyInfo(request);
+            if (request.headers().get(HttpHeaderNames.CONTENT_TYPE) != null) {
+                // 只有当请求方式为post、put、patch时，并且请求体不为空时，才进行解析
+                content = parseBodyInfo(request);
+            }
         }
         return new HttpInfoRequest(request, queryParams, content);
     }

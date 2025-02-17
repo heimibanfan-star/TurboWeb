@@ -30,10 +30,6 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
         colors.put("DELETE", FontColors.RED);
     }
 
-    public DefaultHttpExecuteAdaptor() {
-        this(new DefaultHttpDispatcher());
-    }
-
     public DefaultHttpExecuteAdaptor(HttpDispatcher httpDispatcher) {
         this.httpDispatcher = httpDispatcher;
     }
@@ -66,5 +62,6 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
         } else {
             System.out.println(color + "%s  %s  耗时: <1ms".formatted(method, uri));
         }
+        System.out.print(FontColors.BLACK);
     }
 }

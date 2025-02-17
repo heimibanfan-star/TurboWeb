@@ -1,5 +1,6 @@
 package org.turbo.core.handler.piplines;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.core.http.execetor.HttpExecuteAdaptor;
 import org.turbo.core.http.response.HttpInfoResponse;
+import org.turbo.exception.TurboRouterNotMatchException;
 import org.turbo.utils.thread.LoomThreadUtils;
 
 import java.util.HashMap;
@@ -54,19 +56,38 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
             if (future.isSuccess()) {
                 channelHandlerContext.writeAndFlush(future.getNow());
             } else {
-                log.error("业务逻辑处理失败", future.cause());
-                // 创建响应对象
-                HttpInfoResponse response = new HttpInfoResponse(fullHttpRequest.protocolVersion(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
-                Map<String, String> errorMap = new HashMap<>();
-                errorMap.put("code", "500");
-                errorMap.put("msg", future.cause().getMessage());
-                String errorMsg = objectMapper.writeValueAsString(errorMap);
-                response.setContent(errorMsg);
-                response.setContentType("application/json");
+                HttpInfoResponse response = doNotHandleException(fullHttpRequest, future.cause());
                 channelHandlerContext.writeAndFlush(response);
             }
             // 释放资源
             fullHttpRequest.release();
         });
+    }
+
+    /**
+     * 处理异常
+     *
+     * @param request 请求对象
+     * @param cause 异常
+     * @return 响应对象
+     */
+    private HttpInfoResponse doNotHandleException(FullHttpRequest request, Throwable cause) throws JsonProcessingException {
+        log.error("业务逻辑处理失败", cause);
+        Map<String, String> errorMsg = new HashMap<>();
+        if (cause instanceof TurboRouterNotMatchException) {
+            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.NOT_FOUND);
+            errorMsg.put("code", "404");
+            errorMsg.put("msg", "Router Handler Not Found For: %s".formatted(request.uri()));
+            response.setContent(objectMapper.writeValueAsString(errorMsg));
+            response.setContentType("application/json");
+            return response;
+        } else {
+            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            errorMsg.put("code", "500");
+            errorMsg.put("msg", cause.getMessage());
+            response.setContent(objectMapper.writeValueAsString(errorMsg));
+            response.setContentType("application/json");
+            return response;
+        }
     }
 }

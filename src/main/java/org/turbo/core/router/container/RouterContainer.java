@@ -1,6 +1,7 @@
 package org.turbo.core.router.container;
 
 import org.turbo.core.router.definition.RouterMethodDefinition;
+import org.turbo.core.router.matcher.RouterMatcher;
 import org.turbo.exception.TurboMethodNotSupportException;
 
 import java.util.HashMap;
@@ -80,5 +81,25 @@ public abstract class RouterContainer {
      */
     public Map<Class<?>, Object> getControllerInstances() {
         return controllerInstances;
+    }
+
+    /**
+     * 获取精确路由定义
+     *
+     * @param method 方法
+     * @return 路由定义
+     */
+    public Map<String, RouterMethodDefinition> getCompleteRouterDefinitions(String method) {
+        return completeRouterInfo.getDefinitionsByMethod(method);
+    }
+
+    /**
+     * 获取路径参数路由定义
+     *
+     * @param method 方法
+     * @return 路由定义
+     */
+    public Map<String, RouterMethodDefinition> getPathRouterDefinitions(String method) {
+        return pathRouterInfo.getDefinitionsByMethod(method);
     }
 }
