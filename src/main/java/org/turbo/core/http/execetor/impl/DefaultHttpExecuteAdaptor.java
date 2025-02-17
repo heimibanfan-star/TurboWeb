@@ -43,10 +43,9 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
             long endTime = System.currentTimeMillis();
             log(httpInfoRequest, endTime - startTime);
             return response;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             // TODO 进行异常处理器的匹配
-            log.error("执行请求失败", e);
-            return new HttpInfoResponse(httpInfoRequest.getProtocolVersion(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            throw e;
         }
     }
 

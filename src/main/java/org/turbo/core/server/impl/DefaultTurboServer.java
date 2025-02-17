@@ -117,4 +117,14 @@ public class DefaultTurboServer implements TurboServer {
             }
         });
     }
+
+    @Override
+    public void addController(Class<?> controller) {
+        controllerList.add(controller);
+    }
+
+    @Override
+    public void addController(Class<?>... controllers) {
+        controllerList.addAll(List.of(controllers));
+    }
 }

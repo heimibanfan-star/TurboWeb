@@ -25,4 +25,18 @@ public interface TurboServer {
      * @param port 端口
      */
     public void start(int port);
+
+    /**
+     * 添加控制器
+     *
+     * @param controller 控制器
+     */
+    public void addController(Class<?> controller);
+
+    /**
+     * 添加控制器
+     *
+     * @param controllers 控制器
+     */
+    public void addController(Class<?>... controllers);
 }

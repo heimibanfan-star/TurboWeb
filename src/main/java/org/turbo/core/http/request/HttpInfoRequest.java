@@ -53,4 +53,22 @@ public class HttpInfoRequest {
     public HttpVersion getProtocolVersion() {
         return request.protocolVersion();
     }
+
+    /**
+     * 获取请求方法
+     *
+     * @return 请求方法
+     */
+    public String getMethod() {
+        return request.method().name();
+    }
+
+    /**
+     * 获取请求路径
+     *
+     * @return 请求路径
+     */
+    public String getUri() {
+        return request.uri();
+    }
 }

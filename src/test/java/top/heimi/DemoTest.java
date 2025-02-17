@@ -7,6 +7,8 @@ import org.turbo.core.server.impl.DefaultTurboServer;
  */
 public class DemoTest {
     public static void main(String[] args) {
-        new DefaultTurboServer(1).start(8080);
+        DefaultTurboServer turboServer = new DefaultTurboServer(1);
+        turboServer.addController(TestClass.class);
+        turboServer.start(8080);
     }
 }
