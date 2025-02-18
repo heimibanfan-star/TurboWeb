@@ -2,6 +2,7 @@ package org.turbo.core.router.definition;
 
 import org.turbo.constants.ParameterType;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -27,17 +28,19 @@ public class RouterMethodDefinition {
     private Pattern pattern;
 
     /**
+     * 方法
+     */
+    private final Method method;
+
+    /**
      * 路径参数
      */
     private final List<String> pathParameters = new ArrayList<>(1);
 
-    /**
-     * 方法中参数
-     */
-    private final List<ParameterDefinition> parameterDefinitions = new ArrayList<>(1);
 
-    public RouterMethodDefinition(Class<?> controllerClass) {
+    public RouterMethodDefinition(Class<?> controllerClass, Method method) {
         this.controllerClass = controllerClass;
+        this.method = method;
     }
 
     /**
@@ -58,24 +61,6 @@ public class RouterMethodDefinition {
     }
 
     /**
-     * 添加变量
-     *
-     * @param parameterDefinition 变量定义
-     */
-    public void addVariable(ParameterDefinition parameterDefinition) {
-        parameterDefinitions.add(parameterDefinition);
-    }
-
-    /**
-     * 获取变量定义
-     *
-     * @return 变量定义
-     */
-    public List<ParameterDefinition> getParameterDefinitions() {
-        return parameterDefinitions;
-    }
-
-    /**
      * 获取路径参数
      *
      * @return 路径参数
@@ -90,5 +75,9 @@ public class RouterMethodDefinition {
 
     public void setPattern(Pattern pattern) {
         this.pattern = pattern;
+    }
+
+    public Method getMethod() {
+        return method;
     }
 }

@@ -1,5 +1,6 @@
 package org.turbo.core.http.execetor;
 
+import org.turbo.core.http.context.HttpContext;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
 
@@ -11,8 +12,8 @@ public interface HttpDispatcher {
     /**
      * 执行http请求的分发操作
      *
-     * @param request 请求对象
+     * @param ctx 请求上下文
      * @return 响应数据
      */
-    HttpInfoResponse dispatch(HttpInfoRequest request);
+    Object dispatch(HttpContext ctx);
 }

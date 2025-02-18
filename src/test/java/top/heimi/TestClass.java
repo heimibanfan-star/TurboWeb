@@ -1,6 +1,7 @@
 package top.heimi;
 
 import org.turbo.anno.*;
+import org.turbo.core.http.context.HttpContext;
 
 /**
  * TODO
@@ -9,21 +10,20 @@ import org.turbo.anno.*;
 public class TestClass {
 
     @Get
-    public void test(User user) {
-        System.out.println(user);
+    public String test(HttpContext ctx) {
+        return "hello world";
     }
 
     @Post
-    public void test2(@QueryParam("name") String name, @QueryParam("age") int age) {
-        System.out.println(name + " " + age);
+    public void test2(HttpContext ctx) {
+        ctx.text("hello world");
     }
 
-    @Put("/user/{name}")
-    public void test3(@PathParam("name") String name, @QueryParam("age") int age) {
-        System.out.println(name + " " + age);
+    @Get("/user/{name}")
+    public void test3(HttpContext ctx) throws InterruptedException {
+        String name = ctx.getPathVariable("name");
+        User user = new User(name, 18);
+        Thread.sleep(50);
+        ctx.json(user);
     }
-
-//    @Get
-//    public void test2(int age) {
-//    }
 }

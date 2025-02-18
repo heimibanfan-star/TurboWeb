@@ -2,8 +2,10 @@ package org.turbo.core.router.matcher.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.constants.MatchType;
 import org.turbo.core.router.container.RouterContainer;
 import org.turbo.core.router.definition.RouterMethodDefinition;
+import org.turbo.core.router.matcher.MatchResult;
 import org.turbo.core.router.matcher.RouterMatcher;
 
 import java.net.URI;
@@ -24,7 +26,7 @@ public class DefaultRouterMatcher implements RouterMatcher {
     }
 
     @Override
-    public RouterMethodDefinition match(String method, String path) {
+    public MatchResult match(String method, String path) {
         try {
             // 解析路径
             URI uri = URI.create(path);
@@ -41,13 +43,18 @@ public class DefaultRouterMatcher implements RouterMatcher {
             Map<String, RouterMethodDefinition> completeRouterDefinitions = routerContainer.getCompleteRouterDefinitions(method);
             RouterMethodDefinition definition = completeRouterDefinitions.get(path);
             if (definition != null) {
-                return definition;
+                return new MatchResult(definition, MatchType.COMPLETE);
             }
-            return mathPathRouter(method, path);
+            return new MatchResult(mathPathRouter(method, path), MatchType.PATH);
         } catch (Exception e) {
             log.error("路由匹配失败", e);
             return null;
         }
+    }
+
+    @Override
+    public Object getInstance(Class<?> clazz) {
+        return routerContainer.getControllerInstances().get(clazz);
     }
 
     /**

@@ -1,7 +1,5 @@
 package org.turbo.core.router.matcher;
 
-import org.turbo.core.router.definition.RouterMethodDefinition;
-
 /**
  * 路由匹配器
  */
@@ -14,5 +12,13 @@ public interface RouterMatcher {
      * @param path   请求路径
      * @return 路由方法定义
      */
-    RouterMethodDefinition match(String method, String path);
+    MatchResult match(String method, String path);
+
+    /**
+     * 获取实例
+     *
+     * @param clazz 字节码对象
+     * @return 实例对象
+     */
+    Object getInstance(Class<?> clazz);
 }

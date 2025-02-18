@@ -1,14 +1,13 @@
 package org.turbo.utils.init;
 
 import org.turbo.anno.*;
-import org.turbo.constants.ParameterType;
-import org.turbo.constants.TypeConstants;
+import org.turbo.core.http.context.HttpContext;
 import org.turbo.core.router.container.AnnoRouterContainer;
 import org.turbo.core.router.container.RouterContainer;
-import org.turbo.core.router.definition.ParameterDefinition;
 import org.turbo.core.router.definition.RouterMethodDefinition;
 import org.turbo.exception.TurboControllerCreateException;
 import org.turbo.exception.TurboRouterDefinitionCreateException;
+import org.turbo.utils.other.TypeUtils;
 
 import java.lang.reflect.*;
 import java.util.List;
@@ -114,59 +113,18 @@ public class RouterContainerInitUtils {
         if (path.isEmpty()) {
             throw new TurboRouterDefinitionCreateException("组合后的路径不能为空路径");
         }
-        RouterMethodDefinition definition = createRouterMethodDefinition(method);
+        // 判断参数中是否存在http数据交换上下文
+        Parameter[] parameters = method.getParameters();
+        if (parameters.length != 1) {
+            throw new TurboRouterDefinitionCreateException("方法参数只能有一个HttpContext");
+        }
+        if (!parameters[0].getType().equals(HttpContext.class)) {
+            throw new TurboRouterDefinitionCreateException("方法参数只能有一个HttpContext");
+        }
+        RouterMethodDefinition definition = new RouterMethodDefinition(method.getDeclaringClass(), method);
         parsePathAndSaveDefinition(container, method, path, definition);
     }
 
-    /**
-     * 创建路由方法定义
-     *
-     * @param method   方法
-     * @return 路由方法定义
-     */
-    private static RouterMethodDefinition createRouterMethodDefinition(Method method) {
-        RouterMethodDefinition routerMethodDefinition = new RouterMethodDefinition(method.getDeclaringClass());
-        // 获取所有的参数列表
-        Parameter[] parameters = method.getParameters();
-        // 遍历参数
-        for (Parameter parameter : parameters) {
-            // 判断是否是路径参数
-            if (parameter.isAnnotationPresent(PathParam.class)) {
-                PathParam anno = parameter.getAnnotation(PathParam.class);
-                String value = anno.value();
-                if (value.isEmpty()) {
-                    throw new TurboRouterDefinitionCreateException("路径参数不能为空");
-                }
-                ParameterDefinition definition = new ParameterDefinition(value, parameter.getType(), ParameterType.PATH);
-                routerMethodDefinition.addVariable(definition);
-                continue;
-            }
-            // 封装请求体的参数
-            if (parameter.isAnnotationPresent(BodyParam.class)) {
-                BodyParam anno = parameter.getAnnotation(BodyParam.class);
-                // 对基本类型的参数进行校验
-                checkForThePrimitiveType(parameter, anno.value(), method);
-                ParameterDefinition definition = new ParameterDefinition(anno.value(), parameter.getType(), ParameterType.BODY);
-                routerMethodDefinition.addVariable(definition);
-                continue;
-            }
-            // 处理查询参数
-            QueryParam queryParam = parameter.getAnnotation(QueryParam.class);
-            // 处理基本类型的参数校验
-            checkForThePrimitiveType(parameter, queryParam != null ? queryParam.value(): "", method);
-            ParameterDefinition definition = new ParameterDefinition();
-            if (queryParam == null) {
-                definition.setName(parameter.getName());
-            } else {
-                definition.setName(queryParam.value());
-            }
-            definition.setType(parameter.getType());
-            definition.setVariableType(ParameterType.QUERY);
-            routerMethodDefinition.addVariable(definition);
-        }
-        return routerMethodDefinition;
-    }
-    
     /**
      * 检查参数是否是基本类型
      *
@@ -176,7 +134,7 @@ public class RouterContainerInitUtils {
      */
     private static void checkForThePrimitiveType(Parameter parameter, String paramName, Method method) {
         Class<?> type = parameter.getType();
-        if (type.isPrimitive() || isWrapperType(type.getName())) {
+        if (TypeUtils.isWrapperType(type.getName())) {
             if ("".equals(paramName)) {
                 String className = method.getDeclaringClass().getName();
                 String methodName = method.getName();
@@ -233,15 +191,5 @@ public class RouterContainerInitUtils {
             return;
         }
         container.addCompleteRouter(type, path, definition);
-    }
-
-    /**
-     * 判断是否是包装类型
-     *
-     * @param className 类型
-     * @return 是否是包装类型
-     */
-    private static boolean isWrapperType(String className) {
-        return TypeConstants.WRAPPER_TYPE.contains(className);
     }
 }
