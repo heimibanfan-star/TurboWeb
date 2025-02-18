@@ -6,6 +6,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.core.config.ServerParamConfig;
 import org.turbo.core.handler.TurboChannelHandler;
 import org.turbo.core.http.execetor.HttpDispatcher;
 import org.turbo.core.http.execetor.HttpExecuteAdaptor;
@@ -15,6 +16,7 @@ import org.turbo.core.router.container.RouterContainer;
 import org.turbo.core.router.matcher.RouterMatcher;
 import org.turbo.core.router.matcher.impl.DefaultRouterMatcher;
 import org.turbo.core.server.TurboServer;
+import org.turbo.utils.http.HttpInfoRequestPackageUtils;
 import org.turbo.utils.init.RouterContainerInitUtils;
 
 import java.util.ArrayList;
@@ -29,7 +31,7 @@ public class DefaultTurboServer implements TurboServer {
     private final ServerBootstrap serverBootstrap;
     private final NioEventLoopGroup bossGroup;
     private final NioEventLoopGroup workerGroup;
-    private int maxContentLength = 1024 * 1024 * 10;
+    private ServerParamConfig config = new ServerParamConfig();
     private final List<Class<?>> controllerList = new ArrayList<>();
 
     /**
@@ -59,9 +61,12 @@ public class DefaultTurboServer implements TurboServer {
         serverBootstrap.channel(NioServerSocketChannel.class);
         HttpDispatcher routerDispatcher = createRouterDispatcher();
         HttpExecuteAdaptor httpExecuteAdaptor = new DefaultHttpExecuteAdaptor(routerDispatcher);
+        httpExecuteAdaptor.setShowRequestLog(config.isShowRequestLog());
+        // 设置请求封装工具的字符集
+        HttpInfoRequestPackageUtils.setCharset(config.getCharset());
         log.info("http适配器初始化成功");
         // 设置处理器
-        serverBootstrap.childHandler(new TurboChannelHandler(httpExecuteAdaptor, maxContentLength));
+        serverBootstrap.childHandler(new TurboChannelHandler(httpExecuteAdaptor, config.getMaxContentLength()));
     }
 
     /**
@@ -77,16 +82,6 @@ public class DefaultTurboServer implements TurboServer {
         RouterMatcher routerMatcher = new DefaultRouterMatcher(routerContainer);
         // 创建http请求分发器
         return new DefaultHttpDispatcher(routerMatcher);
-    }
-
-    /**
-     * 设置最大内容长度
-     *
-     * @param maxContentLength 最大内容长度
-     */
-    @Override
-    public void setMaxContentLength(int maxContentLength) {
-        this.maxContentLength = maxContentLength;
     }
 
     /**
@@ -126,5 +121,12 @@ public class DefaultTurboServer implements TurboServer {
     @Override
     public void addController(Class<?>... controllers) {
         controllerList.addAll(List.of(controllers));
+    }
+
+    @Override
+    public void setConfig(ServerParamConfig config) {
+        if (config != null) {
+            this.config = config;
+        }
     }
 }

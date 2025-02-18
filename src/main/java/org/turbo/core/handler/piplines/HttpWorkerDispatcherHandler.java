@@ -44,7 +44,7 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         // 执行异步任务
         LoomThreadUtils.execute(() -> {
             try {
-                HttpInfoResponse response = httpExecuteAdaptor.doExecutor(fullHttpRequest);
+                HttpInfoResponse response = httpExecuteAdaptor.execute(fullHttpRequest);
                 promise.setSuccess(response);
             } catch (Throwable throwable) {
                 promise.setFailure(throwable);

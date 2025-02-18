@@ -13,6 +13,7 @@ import org.turbo.core.http.request.HttpContent;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.exception.TurboHttpParseException;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +28,8 @@ public class HttpInfoRequestPackageUtils {
 
     private static final Map<String, Function<FullHttpRequest, HttpContent>> bodyInfoParseFunctions = new ConcurrentHashMap<>();
 
+    private static Charset charset = StandardCharsets.UTF_8;
+
     static {
         bodyInfoParseFunctions.put("application/json", HttpInfoRequestPackageUtils::doParseJsonBodyInfo);
         bodyInfoParseFunctions.put("application/x-www-form-urlencoded", HttpInfoRequestPackageUtils::doParseFormBodyInfo);
@@ -34,6 +37,10 @@ public class HttpInfoRequestPackageUtils {
     }
 
     private HttpInfoRequestPackageUtils() {
+    }
+
+    public static void setCharset(Charset charset) {
+        HttpInfoRequestPackageUtils.charset = charset;
     }
 
     /**
@@ -112,7 +119,7 @@ public class HttpInfoRequestPackageUtils {
         // 获取请求体的内容
         ByteBuf contentBuf = request.content();
         // 将请求体转化为字符串
-        String jsonContent = contentBuf.toString(StandardCharsets.UTF_8);
+        String jsonContent = contentBuf.toString(charset);
         // 判断是否是json格式
         if (jsonContent.startsWith("{") && jsonContent.endsWith("}")) {
             content.setJsonContent(jsonContent);

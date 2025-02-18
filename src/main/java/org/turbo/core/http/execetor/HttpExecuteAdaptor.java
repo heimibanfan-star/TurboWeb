@@ -14,5 +14,12 @@ public interface HttpExecuteAdaptor {
      * @param request 完整的请求对象
      * @return org.turbo.core.http.response.HttpInfoResponse
      */
-    HttpInfoResponse doExecutor(FullHttpRequest request);
+    HttpInfoResponse execute(FullHttpRequest request);
+
+    /**
+     * 是否显示请求日志
+     *
+     * @param showRequestLog true显示，false不显示
+     */
+    void setShowRequestLog(boolean showRequestLog);
 }

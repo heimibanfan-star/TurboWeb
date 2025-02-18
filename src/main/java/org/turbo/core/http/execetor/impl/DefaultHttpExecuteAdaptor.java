@@ -27,6 +27,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
     private final HttpDispatcher httpDispatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private boolean showRequestLog = true;
 
     {
         colors.put("GET", FontColors.GREEN);
@@ -40,8 +41,20 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
     }
 
     @Override
-    public HttpInfoResponse doExecutor(FullHttpRequest request) {
-        long startTime = System.currentTimeMillis();
+    public HttpInfoResponse execute(FullHttpRequest request) {
+        if (showRequestLog) {
+            long startTime = System.currentTimeMillis();
+            try {
+                return doExecutor(request);
+            } finally {
+                log(request, System.currentTimeMillis() - startTime);
+            }
+        } else {
+            return doExecutor(request);
+        }
+    }
+
+    private HttpInfoResponse doExecutor(FullHttpRequest request) {
         HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
         try {
             // 创建响应对象
@@ -69,19 +82,21 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
             return response;
         } catch (Throwable e) {
             throw e;
-        } finally {
-            long endTime = System.currentTimeMillis();
-            log(httpInfoRequest, endTime - startTime);
         }
     }
 
-    private void log(HttpInfoRequest request, long ms) {
-        String method = request.getRequest().method().name();
+    @Override
+    public void setShowRequestLog(boolean showRequestLog) {
+        this.showRequestLog = showRequestLog;
+    }
+
+    private void log(FullHttpRequest request, long ms) {
+        String method = request.method().name();
         if (!colors.containsKey(method)) {
             return;
         }
         String color = colors.get(method);
-        String uri = request.getRequest().uri();
+        String uri = request.uri();
         if (ms > 0) {
             System.out.println(color + "%s  %s  耗时:%sms".formatted(method, uri, ms));
         } else {
