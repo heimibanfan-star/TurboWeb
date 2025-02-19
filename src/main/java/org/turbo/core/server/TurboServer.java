@@ -55,4 +55,18 @@ public interface TurboServer {
      * @param middleware 中间件
      */
     public void addMiddleware(Middleware... middleware);
+
+    /**
+     * 添加异常处理器
+     *
+     * @param exceptionHandler 异常处理器
+     */
+    public void addExceptionHandler(Class<?> exceptionHandler);
+
+    /**
+     * 添加异常处理器
+     *
+     * @param exceptionHandler 异常处理器
+     */
+    public void addExceptionHandler(Class<?>... exceptionHandler);
 }

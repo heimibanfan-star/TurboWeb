@@ -10,15 +10,20 @@ import org.turbo.constants.FontColors;
 import org.turbo.core.http.context.HttpContext;
 import org.turbo.core.http.execetor.HttpDispatcher;
 import org.turbo.core.http.execetor.HttpExecuteAdaptor;
+import org.turbo.core.http.handler.ExceptionHandlerDefinition;
+import org.turbo.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.core.http.middleware.HttpDispatcherExecuteMiddleware;
 import org.turbo.core.http.middleware.Middleware;
 import org.turbo.core.http.middleware.SentinelMiddleware;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
+import org.turbo.exception.TurboExceptionHandlerInvokeExceprion;
 import org.turbo.exception.TurboSerializableException;
 import org.turbo.utils.common.BeanUtils;
 import org.turbo.utils.http.HttpInfoRequestPackageUtils;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +35,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultHttpExecuteAdaptor.class);
     private final Middleware sentinelMiddleware = new SentinelMiddleware();
+    private final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
     private boolean showRequestLog = true;
@@ -41,8 +47,9 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
         colors.put("DELETE", FontColors.RED);
     }
 
-    public DefaultHttpExecuteAdaptor(HttpDispatcher httpDispatcher, List<Middleware> middlewares) {
+    public DefaultHttpExecuteAdaptor(HttpDispatcher httpDispatcher, List<Middleware> middlewares, ExceptionHandlerMatcher exceptionHandlerMatcher) {
         initMiddleware(httpDispatcher, middlewares);
+        this.exceptionHandlerMatcher = exceptionHandlerMatcher;
     }
 
     /**
@@ -101,7 +108,33 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
             }
             return response;
         } catch (Throwable e) {
-            throw e;
+            // 获取异常处理器的定义信息
+            ExceptionHandlerDefinition definition = exceptionHandlerMatcher.match(e.getClass());
+            // 判断是否获取到
+            if (definition == null) {
+                throw e;
+            }
+            // 获取异常处理器实例
+            Object handler = exceptionHandlerMatcher.getInstance(definition.getHandlerClass());
+            if (handler == null) {
+                throw new TurboExceptionHandlerInvokeExceprion("未获取到异常处理器实例");
+            }
+            // 调用异常处理器
+            try {
+                HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
+                Method method = definition.getMethod();
+                Object result = method.invoke(handler, e);
+                // 序列化内容
+                response.setContent(objectMapper.writeValueAsString(result));
+                response.setContentType("application/json;charset=utf-8");
+                return response;
+            } catch (IllegalAccessException | InvocationTargetException ex) {
+                log.error("异常处理器中调用方法时出现错误" + e);
+                throw new TurboExceptionHandlerInvokeExceprion("异常处理器中出现错误：" + ex.getMessage());
+            } catch (JsonProcessingException ex) {
+                log.error("序列化失败", ex);
+                throw new TurboSerializableException(ex.getMessage());
+            }
         }
     }
 

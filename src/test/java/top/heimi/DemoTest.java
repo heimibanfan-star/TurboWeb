@@ -13,6 +13,7 @@ public class DemoTest {
         config.setShowRequestLog(true);
         turboServer.setConfig(config);
         turboServer.addMiddleware(new LoginMiddleware());
+        turboServer.addExceptionHandler(GlobalExceptionHandler.class);
         turboServer.addController(TestClass.class);
         turboServer.start(8080);
     }

@@ -58,6 +58,9 @@ public class DefaultHttpDispatcher implements HttpDispatcher {
         }
         // 获取调度器
         Object instance = routerMatcher.getInstance(methodDefinition.getControllerClass());
+        if (Objects.isNull(instance)) {
+            throw new TurboRouterInvokeException("未找到对应的控制器实例");
+        }
         // 获取方法
         Method method  = methodDefinition.getMethod();
         // 调用方法

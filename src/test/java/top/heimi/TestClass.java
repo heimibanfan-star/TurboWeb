@@ -13,6 +13,7 @@ public class TestClass {
     public String test(HttpContext ctx) {
         User user = ctx.loadJsonParamToBean(User.class);
         System.out.println(user);
+        int i = 1/0;
         return "hello world";
     }
 

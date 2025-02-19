@@ -12,12 +12,16 @@ import org.turbo.core.http.execetor.HttpDispatcher;
 import org.turbo.core.http.execetor.HttpExecuteAdaptor;
 import org.turbo.core.http.execetor.impl.DefaultHttpDispatcher;
 import org.turbo.core.http.execetor.impl.DefaultHttpExecuteAdaptor;
+import org.turbo.core.http.handler.DefaultExceptionHandlerMatcher;
+import org.turbo.core.http.handler.ExceptionHandlerContainer;
+import org.turbo.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.core.http.middleware.Middleware;
 import org.turbo.core.router.container.RouterContainer;
 import org.turbo.core.router.matcher.RouterMatcher;
 import org.turbo.core.router.matcher.impl.DefaultRouterMatcher;
 import org.turbo.core.server.TurboServer;
 import org.turbo.utils.http.HttpInfoRequestPackageUtils;
+import org.turbo.utils.init.ExceptionHandlerContainerInitUtils;
 import org.turbo.utils.init.RouterContainerInitUtils;
 
 import java.util.ArrayList;
@@ -35,6 +39,7 @@ public class DefaultTurboServer implements TurboServer {
     private ServerParamConfig config = new ServerParamConfig();
     private final List<Class<?>> controllerList = new ArrayList<>();
     private final List<Middleware> middlewareList = new ArrayList<>();
+    private final List<Class<?>> exceptionHandlerList = new ArrayList<>(1);
 
     /**
      * 构造方法
@@ -61,8 +66,12 @@ public class DefaultTurboServer implements TurboServer {
         serverBootstrap.group(bossGroup, workerGroup);
         // 设置管道
         serverBootstrap.channel(NioServerSocketChannel.class);
+        // 初始化异常处理器
+        ExceptionHandlerContainer exceptionHandlerContainer = ExceptionHandlerContainerInitUtils.initContainer(exceptionHandlerList);
+        ExceptionHandlerMatcher exceptionHandlerMatcher = new DefaultExceptionHandlerMatcher(exceptionHandlerContainer);
+        log.info("异常处理器初始化成功");
         HttpDispatcher routerDispatcher = createRouterDispatcher();
-        HttpExecuteAdaptor httpExecuteAdaptor = new DefaultHttpExecuteAdaptor(routerDispatcher, middlewareList);
+        HttpExecuteAdaptor httpExecuteAdaptor = new DefaultHttpExecuteAdaptor(routerDispatcher, middlewareList, exceptionHandlerMatcher);
         httpExecuteAdaptor.setShowRequestLog(config.isShowRequestLog());
         // 设置请求封装工具的字符集
         HttpInfoRequestPackageUtils.setCharset(config.getCharset());
@@ -140,5 +149,15 @@ public class DefaultTurboServer implements TurboServer {
     @Override
     public void addMiddleware(Middleware... middleware) {
         middlewareList.addAll(List.of(middleware));
+    }
+
+    @Override
+    public void addExceptionHandler(Class<?> exceptionHandler) {
+        exceptionHandlerList.add(exceptionHandler);
+    }
+
+    @Override
+    public void addExceptionHandler(Class<?>... exceptionHandler) {
+        exceptionHandlerList.addAll(List.of(exceptionHandler));
     }
 }

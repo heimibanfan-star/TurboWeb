@@ -9,6 +9,9 @@ import org.turbo.core.http.middleware.Middleware;
 public class LoginMiddleware extends Middleware {
     @Override
     public Object invoke(HttpContext ctx) {
-        return ctx.doNext();
+        System.out.println("执行之前的逻辑...");
+        Object object = ctx.doNext();
+        System.out.println("执行之后的逻辑...");
+        return object;
     }
 }
