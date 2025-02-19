@@ -13,6 +13,7 @@ import org.turbo.core.http.execetor.HttpExecuteAdaptor;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
 import org.turbo.exception.TurboSerializableException;
+import org.turbo.utils.common.BeanUtils;
 import org.turbo.utils.http.HttpInfoRequestPackageUtils;
 
 import java.util.Map;
@@ -26,7 +27,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
     private static final Logger log = LoggerFactory.getLogger(DefaultHttpExecuteAdaptor.class);
     private final HttpDispatcher httpDispatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
     private boolean showRequestLog = true;
 
     {

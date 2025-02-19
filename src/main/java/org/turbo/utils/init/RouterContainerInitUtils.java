@@ -1,5 +1,7 @@
 package org.turbo.utils.init;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.turbo.anno.*;
 import org.turbo.core.http.context.HttpContext;
 import org.turbo.core.router.container.AnnoRouterContainer;
@@ -7,7 +9,7 @@ import org.turbo.core.router.container.RouterContainer;
 import org.turbo.core.router.definition.RouterMethodDefinition;
 import org.turbo.exception.TurboControllerCreateException;
 import org.turbo.exception.TurboRouterDefinitionCreateException;
-import org.turbo.utils.other.TypeUtils;
+import org.turbo.utils.common.TypeUtils;
 
 import java.lang.reflect.*;
 import java.util.List;
@@ -22,6 +24,7 @@ public class RouterContainerInitUtils {
     private static final String PATH_VAR_CHECK_REGEX = "^(/(\\{[^/]+}))+$";
     private static final String PATH_VALUE_SEARCH_REGEX = "\\{(.*?)}";
     private static final Pattern PATH_VALUE_GET_PATTERN = Pattern.compile(PATH_VALUE_SEARCH_REGEX);
+    private static final Logger log = LoggerFactory.getLogger(RouterContainerInitUtils.class);
 
     private RouterContainerInitUtils() {
     }
@@ -65,15 +68,14 @@ public class RouterContainerInitUtils {
      */
     private static Object createInstance(Class<?> clazz) {
         try {
-            // 获取默认构造方法
-            Constructor<?>[] constructors = clazz.getConstructors();
-            for (Constructor<?> constructor : constructors) {
-                if (constructor.getParameterCount() == 0) {
-                    return constructor.newInstance();
-                }
-            }
-            throw new TurboControllerCreateException("没有默认构造方法");
+            // 获取无参构造方法
+            Constructor<?> constructor = clazz.getConstructor();
+            return constructor.newInstance();
+        } catch (NoSuchMethodException e) {
+            log.error("类上没有无参构造方法", e);
+            throw new TurboControllerCreateException(e.getMessage());
         } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            log.error("controller实例创建失败：{}", clazz, e);
             throw new TurboControllerCreateException(e.getMessage());
         }
     }

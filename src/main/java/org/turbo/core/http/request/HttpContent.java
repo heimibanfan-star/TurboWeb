@@ -2,6 +2,7 @@ package org.turbo.core.http.request;
 
 import io.netty.handler.codec.http.multipart.FileUpload;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -60,5 +61,12 @@ public class HttpContent {
 
     public void setFormFiles(Map<String, List<FileUpload>> formFiles) {
         this.formFiles = formFiles;
+    }
+
+    public static HttpContent empty() {
+        HttpContent content = new HttpContent();
+        content.setFormParams(new HashMap<>(0));
+        content.setFormFiles(new HashMap<>(0));
+        return content;
     }
 }

@@ -1,4 +1,4 @@
-package org.turbo.utils.other;
+package org.turbo.utils.common;
 
 import org.turbo.constants.TypeConstants;
 

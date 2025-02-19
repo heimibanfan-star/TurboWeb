@@ -2,6 +2,7 @@ package top.heimi;
 
 import com.google.common.reflect.TypeToken;
 import org.turbo.core.router.container.RouterContainer;
+import org.turbo.utils.common.BeanUtils;
 import org.turbo.utils.init.RouterContainerInitUtils;
 
 import java.io.InputStream;
@@ -19,12 +20,12 @@ public class DemoTest02 {
 //        List<Class<?>> controllerList = new ArrayList<>();
 //        controllerList.add(TestClass.class);
 //        RouterContainer routerContainer = RouterContainerInitUtils.initContainer(controllerList);
-        String url = "/user";
-        String regex = "/user/([^/]*)/([^/]*)";
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(url);
-        System.out.println(matcher.groupCount());
-        System.out.println(matcher.find());
+//        String url = "/user";
+//        String regex = "/user/([^/]*)/([^/]*)";
+//        Pattern pattern = Pattern.compile(regex);
+//        Matcher matcher = pattern.matcher(url);
+//        System.out.println(matcher.groupCount());
+//        System.out.println(matcher.find());
 //        Class<TestClass> testClassClass = TestClass.class;
 //        TestClass obj = new TestClass();
 //        Method test2 = testClassClass.getMethod("test2", int.class);
@@ -42,7 +43,13 @@ public class DemoTest02 {
 //                }
 //            }
 //        }
-        String s = "java.util.List";
-        Class<?> aClass = Class.forName(s);
+//        String s = "java.util.List";
+//        Class<?> aClass = Class.forName(s);
+        Map<String, Object> map = new HashMap<>();
+        map.put("name", "zhangsan");
+        map.put("sex", "男");
+        User user = new User();
+        BeanUtils.mapToBean(map, user);
+        System.out.println(user);
     }
 }

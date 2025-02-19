@@ -3,12 +3,19 @@ package org.turbo.core.http.context;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
+import org.turbo.exception.TurboParamParseException;
 import org.turbo.exception.TurboResponseRepeatWriteException;
 import org.turbo.exception.TurboSerializableException;
+import org.turbo.utils.common.BeanUtils;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,10 +23,11 @@ import java.util.Map;
  */
 public class HttpContext {
 
+    private static final Logger log = LoggerFactory.getLogger(HttpContext.class);
     private final HttpInfoRequest request;
     private final HttpInfoResponse response;
     private final Map<String, String> pathVariables = new HashMap<>();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
 
     /**
      * 是否已经写入内容
@@ -105,5 +113,84 @@ public class HttpContext {
 
     public String getPathVariable(String name) {
         return pathVariables.get(name);
+    }
+
+    /**
+     * 将查询参数封装为对象
+     *
+     * @param beanType 对象类型
+     * @return 对象
+     */
+    public <T> T loadQueryParamToBean(Class<T> beanType) {
+        try {
+            // 获取无参构造方法
+            Constructor<T> constructor = beanType.getConstructor();
+            // 创建实例对象
+            T instance = constructor.newInstance();
+            // 处理map集合
+            Map<String, Object> newMap = handleOldMap(request.getQueryParams());
+            // 将集合转化为对象
+            BeanUtils.mapToBean(newMap, instance);
+            return instance;
+        } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            log.error("封装查询参数失败", e);
+            throw new TurboParamParseException(e.getMessage());
+        }
+    }
+
+    /**
+     * 将表单参数封装成对象
+     *
+     * @param beanType 对象类型
+     * @return T 对象
+     */
+    public <T> T loadFormParamToBean(Class<T> beanType) {
+        // 获取无参构造方法
+        try {
+            Constructor<T> constructor = beanType.getConstructor();
+            T instance = constructor.newInstance();
+            Map<String, Object> newMap = handleOldMap(request.getContent().getFormParams());
+            BeanUtils.mapToBean(newMap, instance);
+            return instance;
+        } catch (InvocationTargetException | NoSuchMethodException | InstantiationException | IllegalAccessException e) {
+            log.error("封装表单参数失败", e);
+            throw new TurboParamParseException(e.getMessage());
+        }
+    }
+
+    /**
+     * 将json参数封装成对象
+     *
+     * @param beanType 对象类型
+     * @return 对象
+     */
+    public <T> T loadJsonParamToBean(Class<T> beanType) {
+        // 获取json请求体
+        String jsonContent = request.getContent().getJsonContent();
+        // 序列化对象
+        try {
+            return objectMapper.readValue(jsonContent, beanType);
+        } catch (JsonProcessingException e) {
+            log.error("序列化失败", e);
+            throw new TurboSerializableException(e.getMessage());
+        }
+    }
+
+    /**
+     * 处理旧的map，将单个内容提取出来
+     *
+     * @param oldMap 旧集合
+     * @return 新集合
+     */
+    public Map<String, Object> handleOldMap(Map<String, List<String>> oldMap) {
+        Map<String, Object> newMap = new HashMap<>();
+        oldMap.forEach((key, value) -> {
+            if (value.size() == 1) {
+                newMap.put(key, value.getFirst());
+            } else {
+                newMap.put(key, value);
+            }
+        });
+        return newMap;
     }
 }
