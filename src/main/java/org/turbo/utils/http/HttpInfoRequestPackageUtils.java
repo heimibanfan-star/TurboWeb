@@ -61,6 +61,8 @@ public class HttpInfoRequestPackageUtils {
             } else {
                 content = HttpContent.empty();
             }
+        } else {
+            content = HttpContent.empty();
         }
         return new HttpInfoRequest(request, queryParams, content);
     }

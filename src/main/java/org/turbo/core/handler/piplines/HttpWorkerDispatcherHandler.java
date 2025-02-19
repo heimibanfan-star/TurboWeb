@@ -77,7 +77,7 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         if (cause instanceof TurboRouterNotMatchException) {
             HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.NOT_FOUND);
             errorMsg.put("code", "404");
-            errorMsg.put("msg", "Router Handler Not Found For: %s".formatted(request.uri()));
+            errorMsg.put("msg", "Router Handler Not Found For: %s %s".formatted(request.method(), request.uri()));
             response.setContent(objectMapper.writeValueAsString(errorMsg));
             response.setContentType("application/json");
             return response;

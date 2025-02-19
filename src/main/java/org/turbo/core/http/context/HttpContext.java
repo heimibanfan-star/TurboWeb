@@ -183,6 +183,9 @@ public class HttpContext {
     public <T> T loadJsonParamToBean(Class<T> beanType) {
         // 获取json请求体
         String jsonContent = request.getContent().getJsonContent();
+        if (jsonContent == null) {
+            throw new TurboParamParseException("json请求体为空");
+        }
         // 序列化对象
         try {
             return objectMapper.readValue(jsonContent, beanType);
