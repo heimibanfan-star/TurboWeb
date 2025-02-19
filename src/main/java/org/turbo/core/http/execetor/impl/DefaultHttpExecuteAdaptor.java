@@ -10,12 +10,16 @@ import org.turbo.constants.FontColors;
 import org.turbo.core.http.context.HttpContext;
 import org.turbo.core.http.execetor.HttpDispatcher;
 import org.turbo.core.http.execetor.HttpExecuteAdaptor;
+import org.turbo.core.http.middleware.HttpDispatcherExecuteMiddleware;
+import org.turbo.core.http.middleware.Middleware;
+import org.turbo.core.http.middleware.SentinelMiddleware;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
 import org.turbo.exception.TurboSerializableException;
 import org.turbo.utils.common.BeanUtils;
 import org.turbo.utils.http.HttpInfoRequestPackageUtils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultHttpExecuteAdaptor.class);
-    private final HttpDispatcher httpDispatcher;
+    private final Middleware sentinelMiddleware = new SentinelMiddleware();
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
     private boolean showRequestLog = true;
@@ -37,8 +41,23 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
         colors.put("DELETE", FontColors.RED);
     }
 
-    public DefaultHttpExecuteAdaptor(HttpDispatcher httpDispatcher) {
-        this.httpDispatcher = httpDispatcher;
+    public DefaultHttpExecuteAdaptor(HttpDispatcher httpDispatcher, List<Middleware> middlewares) {
+        initMiddleware(httpDispatcher, middlewares);
+    }
+
+    /**
+     * 初始化中间件
+     *
+     * @param httpDispatcher http请求分发器
+     * @param middlewares 中间件
+     */
+    private void initMiddleware(HttpDispatcher httpDispatcher, List<Middleware> middlewares) {
+        Middleware ptr = sentinelMiddleware;
+        for (Middleware middleware : middlewares) {
+            ptr.setNext(middleware);
+            ptr = middleware;
+        }
+        ptr.setNext(new HttpDispatcherExecuteMiddleware(httpDispatcher));
     }
 
     @Override
@@ -60,8 +79,8 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
         try {
             // 创建响应对象
             HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
-            HttpContext context = new HttpContext(httpInfoRequest, response);
-            Object result =  httpDispatcher.dispatch(context);
+            HttpContext context = new HttpContext(httpInfoRequest, response, sentinelMiddleware);
+            Object result = context.doNext();
             // 判断是否写入内容
             if (context.isWrite()) {
                 return response;

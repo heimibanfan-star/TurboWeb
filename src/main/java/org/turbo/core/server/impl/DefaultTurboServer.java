@@ -12,6 +12,7 @@ import org.turbo.core.http.execetor.HttpDispatcher;
 import org.turbo.core.http.execetor.HttpExecuteAdaptor;
 import org.turbo.core.http.execetor.impl.DefaultHttpDispatcher;
 import org.turbo.core.http.execetor.impl.DefaultHttpExecuteAdaptor;
+import org.turbo.core.http.middleware.Middleware;
 import org.turbo.core.router.container.RouterContainer;
 import org.turbo.core.router.matcher.RouterMatcher;
 import org.turbo.core.router.matcher.impl.DefaultRouterMatcher;
@@ -33,6 +34,7 @@ public class DefaultTurboServer implements TurboServer {
     private final NioEventLoopGroup workerGroup;
     private ServerParamConfig config = new ServerParamConfig();
     private final List<Class<?>> controllerList = new ArrayList<>();
+    private final List<Middleware> middlewareList = new ArrayList<>();
 
     /**
      * 构造方法
@@ -60,7 +62,7 @@ public class DefaultTurboServer implements TurboServer {
         // 设置管道
         serverBootstrap.channel(NioServerSocketChannel.class);
         HttpDispatcher routerDispatcher = createRouterDispatcher();
-        HttpExecuteAdaptor httpExecuteAdaptor = new DefaultHttpExecuteAdaptor(routerDispatcher);
+        HttpExecuteAdaptor httpExecuteAdaptor = new DefaultHttpExecuteAdaptor(routerDispatcher, middlewareList);
         httpExecuteAdaptor.setShowRequestLog(config.isShowRequestLog());
         // 设置请求封装工具的字符集
         HttpInfoRequestPackageUtils.setCharset(config.getCharset());
@@ -128,5 +130,15 @@ public class DefaultTurboServer implements TurboServer {
         if (config != null) {
             this.config = config;
         }
+    }
+
+    @Override
+    public void addMiddleware(Middleware middleware) {
+        middlewareList.add(middleware);
+    }
+
+    @Override
+    public void addMiddleware(Middleware... middleware) {
+        middlewareList.addAll(List.of(middleware));
     }
 }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.core.http.middleware.Middleware;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
 import org.turbo.exception.TurboParamParseException;
@@ -26,6 +27,7 @@ public class HttpContext {
     private static final Logger log = LoggerFactory.getLogger(HttpContext.class);
     private final HttpInfoRequest request;
     private final HttpInfoResponse response;
+    private Middleware chain;
     private final Map<String, String> pathVariables = new HashMap<>();
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
 
@@ -34,9 +36,23 @@ public class HttpContext {
      */
     private boolean isWrite = false;
 
-    public HttpContext(HttpInfoRequest request, HttpInfoResponse response) {
+    public HttpContext(HttpInfoRequest request, HttpInfoResponse response, Middleware chain) {
         this.request = request;
         this.response = response;
+        this.chain = chain;
+    }
+
+    /**
+     * 执行下一个中间件
+     *
+     * @return 执行结果
+     */
+    public Object doNext() {
+        chain = chain.getNext();
+        if (chain == null) {
+            return null;
+        }
+        return chain.invoke(this);
     }
 
     public HttpInfoRequest getRequest() {

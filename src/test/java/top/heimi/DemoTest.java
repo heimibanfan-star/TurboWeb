@@ -12,6 +12,7 @@ public class DemoTest {
         ServerParamConfig config = new ServerParamConfig();
         config.setShowRequestLog(true);
         turboServer.setConfig(config);
+        turboServer.addMiddleware(new LoginMiddleware());
         turboServer.addController(TestClass.class);
         turboServer.start(8080);
     }

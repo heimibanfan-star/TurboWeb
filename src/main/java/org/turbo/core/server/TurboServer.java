@@ -2,6 +2,7 @@ package org.turbo.core.server;
 
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.turbo.core.config.ServerParamConfig;
+import org.turbo.core.http.middleware.Middleware;
 
 /**
  * 服务器接口
@@ -40,4 +41,18 @@ public interface TurboServer {
      * @param config 配置
      */
     public void setConfig(ServerParamConfig config);
+
+    /**
+     * 添加中间件
+     *
+     * @param middleware 中间件
+     */
+    public void addMiddleware(Middleware middleware);
+
+    /**
+     * 添加中间件
+     *
+     * @param middleware 中间件
+     */
+    public void addMiddleware(Middleware... middleware);
 }
