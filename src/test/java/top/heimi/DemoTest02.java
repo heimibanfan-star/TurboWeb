@@ -1,6 +1,5 @@
 package top.heimi;
 
-import com.google.common.reflect.TypeToken;
 import org.turbo.core.router.container.RouterContainer;
 import org.turbo.utils.common.BeanUtils;
 import org.turbo.utils.init.RouterContainerInitUtils;

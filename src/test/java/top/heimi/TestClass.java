@@ -32,4 +32,10 @@ public class TestClass {
         session.removeAttribute("name");
         ctx.json("successful");
     }
+
+    @Post
+    public void testPost(HttpContext ctx) {
+        User user = ctx.loadValidJsonParamToBean(User.class);
+        ctx.json(user);
+    }
 }

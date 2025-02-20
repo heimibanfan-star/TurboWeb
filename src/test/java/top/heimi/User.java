@@ -1,9 +1,12 @@
 package top.heimi;
 
+import jakarta.validation.constraints.NotBlank;
+
 /**
  * TODO
  */
 public class User {
+    @NotBlank(message = "name不能为空")
     public String name;
     public int age;
 

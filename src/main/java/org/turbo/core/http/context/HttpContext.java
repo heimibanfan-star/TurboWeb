@@ -8,10 +8,12 @@ import org.slf4j.LoggerFactory;
 import org.turbo.core.http.middleware.Middleware;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
+import org.turbo.exception.TurboArgsValidationException;
 import org.turbo.exception.TurboParamParseException;
 import org.turbo.exception.TurboResponseRepeatWriteException;
 import org.turbo.exception.TurboSerializableException;
 import org.turbo.utils.common.BeanUtils;
+import org.turbo.utils.common.ValidationUtils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -155,6 +157,18 @@ public class HttpContext {
     }
 
     /**
+     * 将查询参数封装为对象并进行数据校验
+     *
+     * @param beanType 对象类型
+     * @return 对象
+     */
+    public <T> T loadValidQueryParamToBean(Class<T> beanType) {
+        T bean = this.loadQueryParamToBean(beanType);
+        validate(bean);
+        return bean;
+    }
+
+    /**
      * 将表单参数封装成对象
      *
      * @param beanType 对象类型
@@ -172,6 +186,18 @@ public class HttpContext {
             log.error("封装表单参数失败", e);
             throw new TurboParamParseException(e.getMessage());
         }
+    }
+
+    /**
+     * 将表单参数封装成对象并进行数据校验
+     *
+     * @param beanType 对象类型
+     * @return 对象
+     */
+    public <T> T loadValidJsonParamToBean(Class<T> beanType) {
+        T bean = this.loadJsonParamToBean(beanType);
+        validate(bean);
+        return bean;
     }
 
     /**
@@ -196,6 +222,18 @@ public class HttpContext {
     }
 
     /**
+     * 将表单参数封装成对象并进行数据校验
+     *
+     * @param beanType 对象类型
+     * @return 对象
+     */
+    public <T> T loadValidFormParamToBean(Class<T> beanType) {
+        T bean = this.loadFormParamToBean(beanType);
+        validate(bean);
+        return bean;
+    }
+
+    /**
      * 处理旧的map，将单个内容提取出来
      *
      * @param oldMap 旧集合
@@ -211,5 +249,17 @@ public class HttpContext {
             }
         });
         return newMap;
+    }
+
+    /**
+     * 校验对象
+     *
+     * @param obj 对象
+     */
+    public void validate(Object obj) {
+        List<String> errorMsg = ValidationUtils.validate(obj);
+        if (!errorMsg.isEmpty()) {
+            throw new TurboArgsValidationException(errorMsg);
+        }
     }
 }
