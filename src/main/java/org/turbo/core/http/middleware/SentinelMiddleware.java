@@ -8,6 +8,6 @@ import org.turbo.core.http.context.HttpContext;
 public class SentinelMiddleware extends Middleware{
     @Override
     public Object invoke(HttpContext ctx) {
-        return null;
+        return ctx.doNext();
     }
 }

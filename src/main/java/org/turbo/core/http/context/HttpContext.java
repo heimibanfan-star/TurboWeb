@@ -51,11 +51,12 @@ public class HttpContext {
      * @return 执行结果
      */
     public Object doNext() {
-        chain = chain.getNext();
-        if (chain == null) {
+        Middleware current = chain;
+        if (current == null) {
             return null;
         }
-        return chain.invoke(this);
+        chain = chain.getNext();
+        return current.invoke(this);
     }
 
     public HttpInfoRequest getRequest() {
