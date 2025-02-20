@@ -26,12 +26,12 @@ public class ServerParamConfig {
     /**
      * session检查时间间隔
      */
-    private long sessionCheckTime = 1000 * 10;
+    private long sessionCheckTime = 300000;
 
     /**
      * session最大不活跃时间
      */
-    private long sessionMaxNotUseTime = 1000 * 20;
+    private long sessionMaxNotUseTime = -1;
 
     public int getMaxContentLength() {
         return maxContentLength;
