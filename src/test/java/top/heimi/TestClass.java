@@ -16,11 +16,12 @@ import java.util.List;
 public class TestClass {
 
     @Get("/set")
-    public String test(HttpContext ctx) {
+    public String test(HttpContext ctx) throws InterruptedException {
         Session session = ctx.getRequest().getSession();
         session.setAttribute("name", "zhangsan", 10000);
 //        User user = ctx.loadJsonParamToBean(User.class);
 //        System.out.println(user);
+        Thread.sleep(50);
         return "successful";
     }
 
