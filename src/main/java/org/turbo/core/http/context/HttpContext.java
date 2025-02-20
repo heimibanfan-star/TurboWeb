@@ -3,6 +3,7 @@ package org.turbo.core.http.context;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.multipart.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.core.http.middleware.Middleware;
@@ -231,6 +232,16 @@ public class HttpContext {
         T bean = this.loadFormParamToBean(beanType);
         validate(bean);
         return bean;
+    }
+
+    /**
+     * 获取文件上传的信息
+     *
+     * @param name 属性名
+     * @return 文件上传的列表
+     */
+    public List<FileUpload> getFileUploads(String name) {
+        return request.getContent().getFormFiles().get(name);
     }
 
     /**

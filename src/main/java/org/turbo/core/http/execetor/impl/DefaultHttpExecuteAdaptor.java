@@ -6,6 +6,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.multipart.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.constants.FontColors;
@@ -89,8 +90,9 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
     }
 
     private HttpInfoResponse doExecutor(FullHttpRequest request) {
+        HttpInfoRequest httpInfoRequest = null;
         try {
-            HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
+             httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
             // 初始化session
             Cookies cookies = httpInfoRequest.getCookies();
             String jsessionid = cookies.getCookie("JSESSIONID");
@@ -147,6 +149,26 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
             } catch (JsonProcessingException ex) {
                 log.error("序列化失败", ex);
                 throw new TurboSerializableException(ex.getMessage());
+            }
+        } finally {
+            if (httpInfoRequest != null) {
+                releaseFileUploads(httpInfoRequest);
+            }
+        }
+    }
+
+    /**
+     * 释放文件上传
+     *
+     * @param request 请求信息
+     */
+    private void releaseFileUploads(HttpInfoRequest request) {
+        Map<String, List<FileUpload>> fileUploads = request.getContent().getFormFiles();
+        if (fileUploads != null) {
+            for (List<FileUpload> fileUploadList : fileUploads.values()) {
+                for (FileUpload fileUpload : fileUploadList) {
+                    fileUpload.release();
+                }
             }
         }
     }

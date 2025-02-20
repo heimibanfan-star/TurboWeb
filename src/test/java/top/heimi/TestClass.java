@@ -1,8 +1,13 @@
 package top.heimi;
 
+import io.netty.handler.codec.http.multipart.FileUpload;
 import org.turbo.anno.*;
 import org.turbo.core.http.context.HttpContext;
 import org.turbo.core.http.session.Session;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
 
 /**
  * TODO
@@ -34,8 +39,14 @@ public class TestClass {
     }
 
     @Post
-    public void testPost(HttpContext ctx) {
-        User user = ctx.loadValidJsonParamToBean(User.class);
-        ctx.json(user);
+    public void testPost(HttpContext ctx) throws IOException {
+        List<FileUpload> files = ctx.getFileUploads("file");
+        if (files != null) {
+            FileUpload fileUpload = files.getFirst();
+            // 获取字节数组
+            byte[] bytes = fileUpload.get();
+            System.out.println(bytes.length);
+        }
+        ctx.text("hello world");
     }
 }
