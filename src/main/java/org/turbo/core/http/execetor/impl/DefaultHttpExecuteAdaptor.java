@@ -3,6 +3,8 @@ package org.turbo.core.http.execetor.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,11 +17,16 @@ import org.turbo.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.core.http.middleware.HttpDispatcherExecuteMiddleware;
 import org.turbo.core.http.middleware.Middleware;
 import org.turbo.core.http.middleware.SentinelMiddleware;
+import org.turbo.core.http.request.Cookies;
+import org.turbo.core.http.request.HttpContent;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
+import org.turbo.core.http.session.Session;
+import org.turbo.core.http.session.SessionContainer;
 import org.turbo.exception.TurboExceptionHandlerInvokeExceprion;
 import org.turbo.exception.TurboSerializableException;
 import org.turbo.utils.common.BeanUtils;
+import org.turbo.utils.common.RandomUtils;
 import org.turbo.utils.http.HttpInfoRequestPackageUtils;
 
 import java.lang.reflect.InvocationTargetException;
@@ -82,12 +89,18 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
     }
 
     private HttpInfoResponse doExecutor(FullHttpRequest request) {
-        HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
         try {
+            HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
+            // 初始化session
+            Cookies cookies = httpInfoRequest.getCookies();
+            String jsessionid = cookies.getCookie("JSESSIONID");
+            initSession(httpInfoRequest, jsessionid);
             // 创建响应对象
             HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
             HttpContext context = new HttpContext(httpInfoRequest, response, sentinelMiddleware);
             Object result = context.doNext();
+            // 处理session的结果
+            handleSessionAfterRequest(context, jsessionid);
             // 判断是否写入内容
             if (context.isWrite()) {
                 return response;
@@ -135,6 +148,40 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
                 log.error("序列化失败", ex);
                 throw new TurboSerializableException(ex.getMessage());
             }
+        }
+    }
+
+    /**
+     * 初始化session
+     *
+     * @param httpInfoRequest 请求信息
+     */
+    private void initSession(HttpInfoRequest httpInfoRequest, String jsessionid) {
+        if (jsessionid != null) {
+            Session session = SessionContainer.getSession(jsessionid);
+            // 设置使用时间，防止被销毁
+            if (session != null) {
+                session.setUseTime();
+            }
+            httpInfoRequest.setSession(session);
+        }
+    }
+
+    private void handleSessionAfterRequest(HttpContext ctx, String jsessionid) {
+        HttpInfoRequest request = ctx.getRequest();
+        if (request.sessionIsNull()) {
+            return;
+        }
+        if (jsessionid == null) {
+           jsessionid = RandomUtils.uuidWithoutHyphen();
+        }
+        // 从容器中获取session
+        Session session = SessionContainer.getSession(jsessionid);
+        if (session == null) {
+            SessionContainer.addSession(jsessionid, request.getSession());
+            HttpInfoResponse response = ctx.getResponse();
+            // 设置响应头
+            response.headers().add("Set-Cookie", "JSESSIONID=" + jsessionid + "; Path=/; HttpOnly");
         }
     }
 

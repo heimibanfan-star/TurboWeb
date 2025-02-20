@@ -23,6 +23,15 @@ public class ServerParamConfig {
      */
     private boolean showRequestLog = true;
 
+    /**
+     * session检查时间间隔
+     */
+    private long sessionCheckTime = 1000 * 10;
+
+    /**
+     * session最大不活跃时间
+     */
+    private long sessionMaxNotUseTime = 1000 * 20;
 
     public int getMaxContentLength() {
         return maxContentLength;
@@ -46,5 +55,21 @@ public class ServerParamConfig {
 
     public void setShowRequestLog(boolean showRequestLog) {
         this.showRequestLog = showRequestLog;
+    }
+
+    public long getSessionCheckTime() {
+        return sessionCheckTime;
+    }
+
+    public void setSessionCheckTime(long sessionCheckTime) {
+        this.sessionCheckTime = sessionCheckTime;
+    }
+
+    public long getSessionMaxNotUseTime() {
+        return sessionMaxNotUseTime;
+    }
+
+    public void setSessionMaxNotUseTime(long sessionMaxNotUseTime) {
+        this.sessionMaxNotUseTime = sessionMaxNotUseTime;
     }
 }

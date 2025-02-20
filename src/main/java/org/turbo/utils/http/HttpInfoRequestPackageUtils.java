@@ -9,6 +9,7 @@ import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.net.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.core.http.request.Cookies;
 import org.turbo.core.http.request.HttpContent;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.exception.TurboHttpParseException;
@@ -51,6 +52,7 @@ public class HttpInfoRequestPackageUtils {
      */
     public static HttpInfoRequest packageRequest(FullHttpRequest request) {
         Map<String, List<String>> queryParams = parseQueryParams(request.uri());
+        Cookies cookies = initCookies(request);
         HttpContent content = null;
         // 获取请求方式
         String method = request.method().name();
@@ -64,7 +66,30 @@ public class HttpInfoRequestPackageUtils {
         } else {
             content = HttpContent.empty();
         }
-        return new HttpInfoRequest(request, queryParams, content);
+        return new HttpInfoRequest(request, cookies, queryParams, content);
+    }
+
+    /**
+     * 初始化cookies
+     *
+     * @param request 请求对象
+     * @return cookies
+     */
+    private static Cookies initCookies(FullHttpRequest request) {
+        Map<String, String> cookies = new HashMap<>();
+        String cookie = request.headers().get(HttpHeaderNames.COOKIE);
+        if (cookie != null) {
+            String[] cookieArray = cookie.split(";");
+            for (String s : cookieArray) {
+                String[] cookieItem = s.split("=");
+                if (cookieItem.length == 2) {
+                    String key = cookieItem[0];
+                    String value = cookieItem[1];
+                    cookies.put(key != null ? key.trim() : "", value != null ? value.trim() : "");
+                }
+            }
+        }
+        return new Cookies(cookies);
     }
 
     /**

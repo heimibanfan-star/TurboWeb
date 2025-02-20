@@ -16,6 +16,7 @@ import org.turbo.core.http.handler.DefaultExceptionHandlerMatcher;
 import org.turbo.core.http.handler.ExceptionHandlerContainer;
 import org.turbo.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.core.http.middleware.Middleware;
+import org.turbo.core.http.session.SessionContainer;
 import org.turbo.core.router.container.RouterContainer;
 import org.turbo.core.router.matcher.RouterMatcher;
 import org.turbo.core.router.matcher.impl.DefaultRouterMatcher;
@@ -76,6 +77,8 @@ public class DefaultTurboServer implements TurboServer {
         // 设置请求封装工具的字符集
         HttpInfoRequestPackageUtils.setCharset(config.getCharset());
         log.info("http适配器初始化成功");
+        // 初始化session容器
+        initSessionContainer();
         // 设置处理器
         serverBootstrap.childHandler(new TurboChannelHandler(httpExecuteAdaptor, config.getMaxContentLength()));
     }
@@ -93,6 +96,11 @@ public class DefaultTurboServer implements TurboServer {
         RouterMatcher routerMatcher = new DefaultRouterMatcher(routerContainer);
         // 创建http请求分发器
         return new DefaultHttpDispatcher(routerMatcher);
+    }
+
+    private void initSessionContainer() {
+        SessionContainer.startSentinel(config.getSessionCheckTime(), config.getSessionMaxNotUseTime());
+        log.info("session检查哨兵启动成功");
     }
 
     /**

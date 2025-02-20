@@ -4,6 +4,8 @@ import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.core.http.session.HttpSession;
+import org.turbo.core.http.session.Session;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -19,12 +21,15 @@ public class HttpInfoRequest {
 
 
     private final FullHttpRequest request;
+    private final Cookies cookies;
+    private Session session;
     private final Map<String, List<String>> queryParams;
     private final HttpContent content;
     private final String contentType;
 
-    public HttpInfoRequest(FullHttpRequest request, Map<String, List<String>> queryParams, HttpContent content) {
+    public HttpInfoRequest(FullHttpRequest request, Cookies cookies, Map<String, List<String>> queryParams, HttpContent content) {
         this.request = request;
+        this.cookies = cookies;
         this.queryParams = queryParams;
         this.content = content;
         if (content != null) {
@@ -70,5 +75,47 @@ public class HttpInfoRequest {
      */
     public String getUri() {
         return request.uri();
+    }
+
+    public Logger getLog() {
+        return log;
+    }
+
+    public Session getSession() {
+        if (session == null) {
+            session = new HttpSession();
+        }
+        return session;
+    }
+
+    public void setSession(Session session) {
+        this.session = session;
+    }
+
+    /**
+     * 判断session是否为空
+     *
+     * @return true:session为空
+     */
+    public boolean sessionIsNull() {
+        return session == null;
+    }
+
+    /**
+     * 获取请求头
+     *
+     * @return 请求头
+     */
+    public HttpHeaders getHeaders() {
+        return request.headers();
+    }
+
+    /**
+     * 获取请求cookie
+     *
+     * @return 请求cookie
+     */
+    public Cookies getCookies() {
+        return cookies;
     }
 }
