@@ -19,12 +19,11 @@ import org.turbo.core.http.middleware.HttpDispatcherExecuteMiddleware;
 import org.turbo.core.http.middleware.Middleware;
 import org.turbo.core.http.middleware.SentinelMiddleware;
 import org.turbo.core.http.request.Cookies;
-import org.turbo.core.http.request.HttpContent;
 import org.turbo.core.http.request.HttpInfoRequest;
 import org.turbo.core.http.response.HttpInfoResponse;
 import org.turbo.core.http.session.Session;
 import org.turbo.core.http.session.SessionContainer;
-import org.turbo.exception.TurboExceptionHandlerInvokeExceprion;
+import org.turbo.exception.TurboExceptionHandlerException;
 import org.turbo.exception.TurboSerializableException;
 import org.turbo.utils.common.BeanUtils;
 import org.turbo.utils.common.RandomUtils;
@@ -132,7 +131,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
             // 获取异常处理器实例
             Object handler = exceptionHandlerMatcher.getInstance(definition.getHandlerClass());
             if (handler == null) {
-                throw new TurboExceptionHandlerInvokeExceprion("未获取到异常处理器实例");
+                throw new TurboExceptionHandlerException("未获取到异常处理器实例");
             }
             // 调用异常处理器
             try {
@@ -145,7 +144,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
                 return response;
             } catch (IllegalAccessException | InvocationTargetException ex) {
                 log.error("异常处理器中调用方法时出现错误" + e);
-                throw new TurboExceptionHandlerInvokeExceprion("异常处理器中出现错误：" + ex.getMessage());
+                throw new TurboExceptionHandlerException("异常处理器中出现错误：" + ex.getMessage());
             } catch (JsonProcessingException ex) {
                 log.error("序列化失败", ex);
                 throw new TurboSerializableException(ex.getMessage());

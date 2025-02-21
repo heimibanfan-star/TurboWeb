@@ -1,6 +1,6 @@
 package org.turbo.core.http.handler;
 
-import org.turbo.exception.TurboExceptionHandlerRepeatException;
+import org.turbo.exception.TurboExceptionHandlerException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +28,7 @@ public class ExceptionHandlerContainer {
     public void addExceptionHandler(ExceptionHandlerDefinition exceptionHandlerDefinition) {
         // 判断是否有重复的异常处理器
         if (exceptionHandlerDefinitions.containsKey(exceptionHandlerDefinition.getExceptionClass())) {
-            throw new TurboExceptionHandlerRepeatException("重复的异常处理器：" + exceptionHandlerDefinition.getExceptionClass().getName());
+            throw new TurboExceptionHandlerException("重复的异常处理器：" + exceptionHandlerDefinition.getExceptionClass().getName());
         }
         // 将异常处理器添加到容器中
         exceptionHandlerDefinitions.put(exceptionHandlerDefinition.getExceptionClass(), exceptionHandlerDefinition);

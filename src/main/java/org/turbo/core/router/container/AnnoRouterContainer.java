@@ -1,7 +1,7 @@
 package org.turbo.core.router.container;
 
 import org.turbo.core.router.definition.RouterMethodDefinition;
-import org.turbo.exception.TurboRouterRepeatException;
+import org.turbo.exception.TurboRouterException;
 
 import java.util.Map;
 
@@ -35,7 +35,7 @@ public class AnnoRouterContainer extends RouterContainer {
         Map<String, RouterMethodDefinition> definitions = routerInfo.getDefinitionsByMethod(method);
         // 判断是否包含该路径
         if (definitions.containsKey(path)) {
-            throw new TurboRouterRepeatException("路由重复: method:%s, path:%s".formatted(method, path));
+            throw new TurboRouterException("路由重复: method:%s, path:%s".formatted(method, path), TurboRouterException.ROUTER_REPEAT);
         }
         definitions.put(path, definition);
     }

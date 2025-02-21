@@ -7,7 +7,7 @@ import org.turbo.anno.ExceptionHandler;
 import org.turbo.anno.ExceptionResponseStatus;
 import org.turbo.core.http.handler.ExceptionHandlerContainer;
 import org.turbo.core.http.handler.ExceptionHandlerDefinition;
-import org.turbo.exception.TurboExceptionHandlerInitException;
+import org.turbo.exception.TurboExceptionHandlerException;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -63,10 +63,10 @@ public class ExceptionHandlerContainerInitUtils {
             return constructor.newInstance();
         } catch (NoSuchMethodException e) {
             log.error("类上没有无参构造方法", e);
-            throw new TurboExceptionHandlerInitException(e.getMessage());
+            throw new TurboExceptionHandlerException(e.getMessage());
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             log.error("异常处理器实例创建失败：{}", clazz, e);
-            throw new TurboExceptionHandlerInitException(e.getMessage());
+            throw new TurboExceptionHandlerException(e.getMessage());
         }
     }
 

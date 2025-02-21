@@ -13,11 +13,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.core.http.execetor.HttpExecuteAdaptor;
 import org.turbo.core.http.response.HttpInfoResponse;
-import org.turbo.exception.TurboRouterNotMatchException;
+import org.turbo.exception.TurboRouterException;
 import org.turbo.utils.thread.LoomThreadUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 转交http请求
@@ -74,7 +75,7 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
     private HttpInfoResponse doNotHandleException(FullHttpRequest request, Throwable cause) throws JsonProcessingException {
         log.error("业务逻辑处理失败", cause);
         Map<String, String> errorMsg = new HashMap<>();
-        if (cause instanceof TurboRouterNotMatchException) {
+        if (cause instanceof TurboRouterException exception && Objects.equals(exception.getCode(), TurboRouterException.ROUTER_NOT_MATCH)) {
             HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.NOT_FOUND);
             errorMsg.put("code", "404");
             errorMsg.put("msg", "Router Handler Not Found For: %s %s".formatted(request.method(), request.uri()));
