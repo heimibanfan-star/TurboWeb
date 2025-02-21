@@ -112,9 +112,11 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
             }
             if (result instanceof String) {
                 response.setContent((String) result);
+                response.setContentType("text/plain;charset=utf-8");
             } else {
                 try {
-                    response.setContentType(objectMapper.writeValueAsString(result));
+                    response.setContent(objectMapper.writeValueAsString(result));
+                    response.setContentType("application/json;charset=utf-8");
                 } catch (JsonProcessingException e) {
                     log.error("序列化失败:", e);
                     throw new TurboSerializableException(e.getMessage());
