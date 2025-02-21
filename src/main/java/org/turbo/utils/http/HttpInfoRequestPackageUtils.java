@@ -185,6 +185,8 @@ public class HttpInfoRequestPackageUtils {
                 } catch (IOException e) {
                     log.error("解析失败", e);
                     throw new TurboHttpParseException("解析请求体失败");
+                } finally {
+                    attribute.release();
                 }
                 // 加入到集合中
                 formParams.computeIfAbsent(name, k -> new ArrayList<>(1)).add(value);
