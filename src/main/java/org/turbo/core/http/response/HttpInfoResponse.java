@@ -35,4 +35,14 @@ public class HttpInfoResponse extends DefaultFullHttpResponse {
     public void setContentType(String contentType) {
         this.headers().set("Content-Type", contentType);
     }
+
+    /**
+     * 设置响应cookie
+     *
+     * @param key   键
+     * @param value 值
+     */
+    public void setCookie(String key, String value) {
+        this.headers().set("Set-Cookie", key + "=" + value);
+    }
 }

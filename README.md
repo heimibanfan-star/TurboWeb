@@ -417,6 +417,60 @@ public String handleRuntimeException(RuntimeException e) {
 ```
 > 注意：异常处理器中参数是注解中异常类或者父类，异常处理器可以通过return确定要返回的结果，会直接当作json处理。
 
+## Cookie的使用
+Cookie的获取通过HttpContext的request对象来获取:
+```java
+@Get
+public void hello(HttpContext ctx) {
+    HttpInfoRequest request = ctx.getRequest();
+    Cookies cookies = request.getCookies();
+    String name = cookies.getCookie("name");
+    ctx.text("hello " + name);
+}
+```
+如果要设置Cookie，需要通过HttpContext的response对象来设置:
+```java
+@Get
+public void hello(HttpContext ctx) {
+    ctx.getResponse().setCookie("name", "turbo");
+    ctx.text("success");
+}
+```
+
+## Session的使用
+Session的获取通过HttpContext的request对象来获取。
+设置Session的内容:
+```java
+@Get
+public void hello(HttpContext ctx) {
+    HttpInfoRequest request = ctx.getRequest();
+    Session session = request.getSession();
+    session.setAttribute("name", "turbo");
+    ctx.text("success");
+}
+```
+设置Session的时可以指定过期事件，单位是毫秒:
+```java
+@Get
+public void hello(HttpContext ctx) {
+    HttpInfoRequest request = ctx.getRequest();
+    Session session = request.getSession();
+    session.setAttribute("name", "turbo", 1000 * 10);
+    ctx.text("success");
+}
+```
+获取Session中的数据:
+```java
+@Get
+public void hello(HttpContext ctx) {
+    HttpInfoRequest request = ctx.getRequest();
+    Session session = request.getSession();
+    String name = (String) session.getAttribute("name");
+    ctx.text("hello " + name);
+}
+```
+session中获取的结果会以Object类型返回，需要手动转换类型。
+
 ## 服务器参数配置
 Turbo-web提供了配置类，可以通过重新设置配置类的方式进行配置设置，如果不设置采用默认的参数。
 ```java
