@@ -23,7 +23,7 @@
 ### 安装到maven仓库
 下载好对应的jar包之后在当前jar包的目录执行如下命令：
 ```bash
-mvn install:install-file -Dfile=my-turbo-web-xxx.jar \
+mvn install:install-file -Dfile=turbo-web-xxx.jar \
                          -DgroupId=org.turbo \
                          -DartifactId=turbo-web \
                          -Dversion=xxx \
