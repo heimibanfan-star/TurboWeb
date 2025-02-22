@@ -40,11 +40,8 @@ public class TestClass {
         ctx.json("successful");
     }
 
-    @Post
-    public void testPost(HttpContext ctx) throws IOException {
-        List<FileUpload> files = ctx.getFileUploads("file");
-        User user = ctx.loadFormParamToBean(User.class);
-        System.out.println(user);
+    @Get
+    public void test01(HttpContext ctx) throws IOException {
         ctx.text("hello world");
     }
 }

@@ -2,6 +2,7 @@ package org.turbo.core.http.session;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.lock.Locks;
 
 import java.time.LocalDateTime;
 import java.util.Iterator;
@@ -28,26 +29,33 @@ public class SessionContainer {
     public static void startSentinel(long checkTime, long maxNotUseTime) {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
-            log.debug("哨兵检查机制触发");
-            Iterator<Map.Entry<String, Session>> iterator = sessions.entrySet().iterator();
-            while (iterator.hasNext()) {
-                Map.Entry<String, Session> entry = iterator.next();
-                Session session = entry.getValue();
-                if (session.isTimeout(maxNotUseTime)) {
-                    iterator.remove();
-                    log.debug("释放长时间不用的session:{}", session);
-                }
-                // 判断里面的key是否过期
-                Map<String, SessionAttributeDefinition> attributeDefinitions = session.getAllAttributeDefinitions();
-                Iterator<Map.Entry<String, SessionAttributeDefinition>> entryIterator = attributeDefinitions.entrySet().iterator();
-                while (entryIterator.hasNext()) {
-                    Map.Entry<String, SessionAttributeDefinition> attributeDefinitionEntry = entryIterator.next();
-                    SessionAttributeDefinition value = attributeDefinitionEntry.getValue();
-                    if (value.isTimeout()) {
-                        entryIterator.remove();
-                        log.debug("释放过期的key：{}", attributeDefinitionEntry.getKey());
+            // 获取session的写锁
+            Locks.SESSION_LOCK.writeLock().lock();
+            try {
+                log.debug("哨兵检查机制触发");
+                Iterator<Map.Entry<String, Session>> iterator = sessions.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<String, Session> entry = iterator.next();
+                    Session session = entry.getValue();
+                    if (session.isTimeout(maxNotUseTime)) {
+                        iterator.remove();
+                        log.debug("释放长时间不用的session:{}", session);
+                    }
+                    // 判断里面的key是否过期
+                    Map<String, SessionAttributeDefinition> attributeDefinitions = session.getAllAttributeDefinitions();
+                    Iterator<Map.Entry<String, SessionAttributeDefinition>> entryIterator = attributeDefinitions.entrySet().iterator();
+                    while (entryIterator.hasNext()) {
+                        Map.Entry<String, SessionAttributeDefinition> attributeDefinitionEntry = entryIterator.next();
+                        SessionAttributeDefinition value = attributeDefinitionEntry.getValue();
+                        if (value.isTimeout()) {
+                            entryIterator.remove();
+                            log.debug("释放过期的key：{}", attributeDefinitionEntry.getKey());
+                        }
                     }
                 }
+            } finally {
+                log.debug("哨兵检查机制结束，当前时间：{}", LocalDateTime.now());
+                Locks.SESSION_LOCK.writeLock().unlock();
             }
         }, checkTime, checkTime, TimeUnit.MILLISECONDS);
     }

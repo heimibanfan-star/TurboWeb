@@ -25,6 +25,7 @@ import org.turbo.core.http.session.Session;
 import org.turbo.core.http.session.SessionContainer;
 import org.turbo.exception.TurboExceptionHandlerException;
 import org.turbo.exception.TurboSerializableException;
+import org.turbo.lock.Locks;
 import org.turbo.utils.common.BeanUtils;
 import org.turbo.utils.common.RandomUtils;
 import org.turbo.utils.http.HttpInfoRequestPackageUtils;
@@ -89,6 +90,8 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
     }
 
     private HttpInfoResponse doExecutor(FullHttpRequest request) {
+        // 添加读锁
+        Locks.SESSION_LOCK.readLock().lock();
         HttpInfoRequest httpInfoRequest = null;
         try {
              httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
@@ -152,6 +155,8 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
                 throw new TurboSerializableException(ex.getMessage());
             }
         } finally {
+            // 释放读锁
+            Locks.SESSION_LOCK.readLock().unlock();
             if (httpInfoRequest != null) {
                 releaseFileUploads(httpInfoRequest);
             }
