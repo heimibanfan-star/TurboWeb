@@ -1,14 +1,11 @@
 package top.heimi;
 
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.multipart.FileUpload;
-import org.turbo.anno.*;
-import org.turbo.core.http.context.HttpContext;
-import org.turbo.core.http.session.Session;
+import org.turbo.web.anno.Get;
+import org.turbo.web.anno.RequestPath;
+import org.turbo.web.core.http.context.HttpContext;
+import org.turbo.web.core.http.session.Session;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
 /**
  * TODO

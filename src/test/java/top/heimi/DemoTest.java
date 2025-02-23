@@ -1,7 +1,7 @@
 package top.heimi;
 
-import org.turbo.core.config.ServerParamConfig;
-import org.turbo.core.server.impl.DefaultTurboServer;
+import org.turbo.web.core.config.ServerParamConfig;
+import org.turbo.web.core.server.impl.DefaultTurboServer;
 
 /**
  * TODO
