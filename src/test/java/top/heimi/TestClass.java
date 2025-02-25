@@ -10,35 +10,15 @@ import java.io.IOException;
 /**
  * TODO
  */
-@RequestPath("/user")
+@RequestPath("/user/")
 public class TestClass {
 
-    @Get("/set")
-    public String test(HttpContext ctx) throws InterruptedException {
-        Session session = ctx.getRequest().getSession();
-        session.setAttribute("name", "zhangsan", 10000);
-//        User user = ctx.loadJsonParamToBean(User.class);
-//        System.out.println(user);
-        Thread.sleep(50);
-        return "successful";
-    }
-
-    @Get("/get")
-    public void set(HttpContext ctx) {
-        Session session = ctx.getRequest().getSession();
-        String name = (String) session.getAttribute("name");
-        ctx.json(name);
-    }
-
-    @Get("/remove")
-    public void remove(HttpContext ctx) {
-        Session session = ctx.getRequest().getSession();
-        session.removeAttribute("name");
-        ctx.json("successful");
-    }
-
-    @Get
-    public void test01(HttpContext ctx) throws IOException {
-        ctx.text("hello world");
+    @Get("/{name}/{age}/")
+    public void test(HttpContext ctx) {
+        String name = ctx.getPathVariable("name");
+        String age = ctx.getPathVariable("age");
+        System.out.println(age);
+        System.out.println(name);
+        ctx.json("hello world");
     }
 }

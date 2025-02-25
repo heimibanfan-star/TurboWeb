@@ -89,6 +89,9 @@ public class RouterContainerInitUtils {
     private static void initRouterDefinition(RouterContainer container, Method method, Class<?> clazz) {
         RequestPath annotation = clazz.getAnnotation(RequestPath.class);
         String prePath = annotation.value();
+        if (prePath.endsWith("/")) {
+            prePath = prePath.substring(0, prePath.length() - 1);
+        }
         // 获取方法的注解
         if (method.isAnnotationPresent(Get.class)) {
             String path = prePath + method.getAnnotation(Get.class).value();
@@ -114,6 +117,9 @@ public class RouterContainerInitUtils {
     private static void doInitRouterDefinition(RouterContainer container, Method method, String path) {
         if (path.isEmpty()) {
             throw new TurboRouterDefinitionCreateException("组合后的路径不能为空路径");
+        }
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
         }
         // 判断参数中是否存在http数据交换上下文
         Parameter[] parameters = method.getParameters();
@@ -169,9 +175,6 @@ public class RouterContainerInitUtils {
         int index = path.indexOf("{");
         if (index != -1) {
             String subStr = path.substring(index - 1);
-            if (subStr.endsWith("/")) {
-                subStr = subStr.substring(0, subStr.length() - 1);
-            }
             // 判断是否符合路径参数格式
             if (!subStr.matches(PATH_VAR_CHECK_REGEX)) {
                 throw new TurboRouterDefinitionCreateException("路径参数格式错误: %s".formatted(path));
