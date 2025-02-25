@@ -9,7 +9,7 @@ import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.net.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turbo.web.core.http.request.Cookies;
+import org.turbo.web.core.http.cookie.Cookies;
 import org.turbo.web.core.http.request.HttpContent;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.exception.TurboHttpParseException;

@@ -1,6 +1,7 @@
 package org.turbo.web.core.http.response;
 
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 
@@ -43,6 +44,12 @@ public class HttpInfoResponse extends DefaultFullHttpResponse {
      * @param value 值
      */
     public void setCookie(String key, String value) {
-        this.headers().set("Set-Cookie", key + "=" + value);
+        if (this.headers().contains(HttpHeaderNames.SET_COOKIE)) {
+            // 如果存在，则添加
+            this.headers().add(HttpHeaderNames.SET_COOKIE, key + "=" + value);
+        } else {
+            // 如果不存在，则设置
+            this.headers().set(HttpHeaderNames.SET_COOKIE, key + "=" + value);
+        }
     }
 }

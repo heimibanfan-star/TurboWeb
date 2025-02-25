@@ -6,9 +6,12 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.web.core.http.cookie.HttpCookie;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
+import org.turbo.web.core.http.session.HttpSession;
+import org.turbo.web.core.http.session.Session;
 import org.turbo.web.exception.TurboArgsValidationException;
 import org.turbo.web.exception.TurboParamParseException;
 import org.turbo.web.exception.TurboResponseRepeatWriteException;
@@ -273,5 +276,23 @@ public class HttpContext {
         if (!errorMsg.isEmpty()) {
             throw new TurboArgsValidationException(errorMsg);
         }
+    }
+
+    /**
+     * 获取cookie
+     *
+     * @return cookie
+     */
+    public HttpCookie getHttpCookie() {
+        return new HttpCookie(request.getCookies(), response);
+    }
+
+    /**
+     * 获取session
+     *
+     * @return session
+     */
+    public Session getSession() {
+        return request.getSession();
     }
 }
