@@ -29,6 +29,7 @@ public class SessionContainer {
     public static void startSentinel(long checkTime, long maxNotUseTime) {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
+            long start = System.currentTimeMillis();
             // 获取session的写锁
             Locks.SESSION_LOCK.writeLock().lock();
             try {
@@ -54,8 +55,9 @@ public class SessionContainer {
                     }
                 }
             } finally {
-                log.debug("哨兵检查机制结束，当前时间：{}", LocalDateTime.now());
                 Locks.SESSION_LOCK.writeLock().unlock();
+                long end = System.currentTimeMillis();
+                log.info("哨兵检查机制结束，耗时：{}ms", end - start);
             }
         }, checkTime, checkTime, TimeUnit.MILLISECONDS);
     }
