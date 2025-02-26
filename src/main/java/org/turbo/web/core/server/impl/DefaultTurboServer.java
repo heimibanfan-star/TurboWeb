@@ -122,7 +122,11 @@ public class DefaultTurboServer implements TurboServer {
      * 初始化session容器
      */
     private void initSessionContainer() {
-        SessionContainer.startSentinel(config.getSessionCheckTime(), config.getSessionMaxNotUseTime());
+        SessionContainer.startSentinel(
+            config.getSessionCheckTime(),
+            config.getSessionMaxNotUseTime(),
+            config.getCheckForSessionNum()
+        );
         log.info("session检查哨兵启动成功");
     }
 

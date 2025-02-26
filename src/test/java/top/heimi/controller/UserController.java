@@ -12,6 +12,7 @@ public class UserController {
     @Get
     public void index(HttpContext ctx) throws InterruptedException {
         Thread.sleep(300);
+        ctx.getSession().setAttribute("test", "test");
         ctx.json(LocalDateTime.now());
     }
 }

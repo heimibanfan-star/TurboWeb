@@ -33,6 +33,16 @@ public class ServerParamConfig {
      */
     private long sessionMaxNotUseTime = -1;
 
+    private long checkForSessionNum = 256;
+
+    public long getCheckForSessionNum() {
+        return checkForSessionNum;
+    }
+
+    public void setCheckForSessionNum(long checkForSessionNum) {
+        this.checkForSessionNum = checkForSessionNum;
+    }
+
     public int getMaxContentLength() {
         return maxContentLength;
     }

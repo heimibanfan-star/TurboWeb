@@ -26,9 +26,13 @@ public class SessionContainer {
      * @param checkTime      检查间隔时间
      * @param maxNotUseTime  最大不活跃时间
      */
-    public static void startSentinel(long checkTime, long maxNotUseTime) {
+    public static void startSentinel(long checkTime, long maxNotUseTime, long checkForSessioNums) {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
+            // 判断是否到达检查条件
+            if (sessions.size() < checkForSessioNums) {
+                return;
+            }
             long start = System.currentTimeMillis();
             // 获取session的写锁
             Locks.SESSION_LOCK.writeLock().lock();
