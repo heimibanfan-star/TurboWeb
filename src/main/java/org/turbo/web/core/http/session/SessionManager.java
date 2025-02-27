@@ -33,7 +33,7 @@ public interface SessionManager {
      * @param maxNotUseTime session最大不活跃时间
      * @param checkForSessionNums 每次检查session的数量
      */
-    void startSentinel(long checkTime, long maxNotUseTime, long checkForSessionNums);
+    void startSessionGC(long checkTime, long maxNotUseTime, long checkForSessionNums);
 
     /**
      * 获取session管理器名称

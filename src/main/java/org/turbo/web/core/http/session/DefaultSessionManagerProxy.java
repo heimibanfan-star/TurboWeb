@@ -20,7 +20,7 @@ public class DefaultSessionManagerProxy implements SessionManagerProxy {
     public DefaultSessionManagerProxy(SessionManager sessionManager, ServerParamConfig config) {
         this.sessionManager = sessionManager;
         // 启动session检测哨兵
-        sessionManager.startSentinel(
+        sessionManager.startSessionGC(
             config.getSessionCheckTime(),
             config.getSessionMaxNotUseTime(),
             config.getCheckForSessionNum()

@@ -13,6 +13,7 @@ public class Application {
         TurboServer server = new DefaultTurboServer(8);
         ServerParamConfig config = new ServerParamConfig();
         config.setSessionCheckTime(10000);
+        config.setSessionMaxNotUseTime(30000);
         config.setCheckForSessionNum(1);
         server.addController(UserController.class);
         server.setConfig(config);

@@ -35,7 +35,7 @@ public class MemorySessionManager implements SessionManager {
     }
 
     @Override
-    public void startSentinel(long checkTime, long maxNotUseTime, long checkForSessionNums) {
+    public void startSessionGC(long checkTime, long maxNotUseTime, long checkForSessionNums) {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
             // 判断是否到达检查条件
@@ -46,7 +46,7 @@ public class MemorySessionManager implements SessionManager {
             // 获取session的写锁
             Locks.SESSION_LOCK.writeLock().lock();
             try {
-                log.debug("哨兵检查机制触发");
+                log.debug("session垃圾回收器触发");
                 Iterator<Map.Entry<String, Session>> iterator = sessions.entrySet().iterator();
                 while (iterator.hasNext()) {
                     Map.Entry<String, Session> entry = iterator.next();
@@ -70,7 +70,7 @@ public class MemorySessionManager implements SessionManager {
             } finally {
                 Locks.SESSION_LOCK.writeLock().unlock();
                 long end = System.currentTimeMillis();
-                log.info("哨兵检查机制结束，耗时：{}ms", end - start);
+                log.info("session垃圾回收器检查结束，耗时：{}ms", end - start);
             }
         }, checkTime, checkTime, TimeUnit.MILLISECONDS);
     }

@@ -1,6 +1,7 @@
 package org.turbo.web.core.http.middleware;
 
 import org.turbo.web.core.http.context.HttpContext;
+import org.turbo.web.exception.TurboRequestRejectException;
 
 /**
  * 哨兵节点的中间件
@@ -8,6 +9,10 @@ import org.turbo.web.core.http.context.HttpContext;
 public class SentinelMiddleware extends Middleware{
     @Override
     public Object invoke(HttpContext ctx) {
+        String uri = ctx.getRequest().getUri();
+        if (uri.contains("..")) {
+            throw new TurboRequestRejectException("请求路径中存在非法字符");
+        }
         return ctx.doNext();
     }
 }
