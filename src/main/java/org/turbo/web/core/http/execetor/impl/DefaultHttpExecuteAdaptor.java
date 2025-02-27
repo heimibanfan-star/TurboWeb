@@ -20,7 +20,7 @@ import org.turbo.web.core.http.cookie.Cookies;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
-import org.turbo.web.core.http.session.SessionContainer;
+import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.exception.TurboExceptionHandlerException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.lock.Locks;
@@ -44,6 +44,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
     private final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
+    private final SessionManagerProxy sessionManagerProxy;
     private boolean showRequestLog = true;
 
     {
@@ -53,9 +54,15 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
         colors.put("DELETE", FontColors.RED);
     }
 
-    public DefaultHttpExecuteAdaptor(HttpDispatcher httpDispatcher, List<Middleware> middlewares, ExceptionHandlerMatcher exceptionHandlerMatcher) {
+    public DefaultHttpExecuteAdaptor(
+        HttpDispatcher httpDispatcher,
+        SessionManagerProxy sessionManagerProxy,
+        List<Middleware> middlewares,
+        ExceptionHandlerMatcher exceptionHandlerMatcher
+    ) {
         initMiddleware(httpDispatcher, middlewares);
         this.exceptionHandlerMatcher = exceptionHandlerMatcher;
+        this.sessionManagerProxy = sessionManagerProxy;
     }
 
     /**
@@ -184,7 +191,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
      */
     private void initSession(HttpInfoRequest httpInfoRequest, String jsessionid) {
         if (jsessionid != null) {
-            Session session = SessionContainer.getSession(jsessionid);
+            Session session = sessionManagerProxy.getSession(jsessionid);
             // 设置使用时间，防止被销毁
             if (session != null) {
                 session.setUseTime();
@@ -202,12 +209,13 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
            jsessionid = RandomUtils.uuidWithoutHyphen();
         }
         // 从容器中获取session
-        Session session = SessionContainer.getSession(jsessionid);
+        Session session = sessionManagerProxy.getSession(jsessionid);
         if (session == null) {
-            SessionContainer.addSession(jsessionid, request.getSession());
+            session = request.getSession();
+            sessionManagerProxy.addSession(jsessionid, session);
             HttpInfoResponse response = ctx.getResponse();
             // 设置响应头
-            response.headers().add("Set-Cookie", "JSESSIONID=" + jsessionid + "; Path=/; HttpOnly");
+            response.headers().add("Set-Cookie", "JSESSIONID=" + jsessionid + "; Path="+ session.getPath() +"; HttpOnly");
         }
     }
 

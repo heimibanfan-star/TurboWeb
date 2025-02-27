@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.lock.Locks;
 
-import java.time.LocalDateTime;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,24 +12,34 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * session的容器
+ * 呢哦村session管理器
  */
-public class SessionContainer {
+public class MemorySessionManager implements SessionManager {
 
     private static final Map<String, Session> sessions = new ConcurrentHashMap<>();
-    private static final Logger log = LoggerFactory.getLogger(SessionContainer.class);
+    private static final Logger log = LoggerFactory.getLogger(SessionManagerProxy.class);
 
-    /**
-     * 启动session哨兵
-     *
-     * @param checkTime      检查间隔时间
-     * @param maxNotUseTime  最大不活跃时间
-     */
-    public static void startSentinel(long checkTime, long maxNotUseTime, long checkForSessioNums) {
+    @Override
+    public Session getSession(String sessionId) {
+        return sessions.get(sessionId);
+    }
+
+    @Override
+    public void addSession(String sessionId, Session session) {
+        sessions.put(sessionId, session);
+    }
+
+    @Override
+    public Map<String, Session> getAllSession() {
+        return sessions;
+    }
+
+    @Override
+    public void startSentinel(long checkTime, long maxNotUseTime, long checkForSessionNums) {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
             // 判断是否到达检查条件
-            if (sessions.size() < checkForSessioNums) {
+            if (sessions.size() < checkForSessionNums) {
                 return;
             }
             long start = System.currentTimeMillis();
@@ -66,15 +75,8 @@ public class SessionContainer {
         }, checkTime, checkTime, TimeUnit.MILLISECONDS);
     }
 
-    public static Session getSession(String sessionId) {
-        return sessions.get(sessionId);
-    }
-
-    public static void addSession(String sessionId, Session session) {
-        sessions.put(sessionId, session);
-    }
-
-    public static Map<String, Session> getAllSession() {
-        return sessions;
+    @Override
+    public String getSessionManagerName() {
+        return "MemorySessionManager";
     }
 }

@@ -16,7 +16,10 @@ import org.turbo.web.core.http.handler.DefaultExceptionHandlerMatcher;
 import org.turbo.web.core.http.handler.ExceptionHandlerContainer;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
-import org.turbo.web.core.http.session.SessionContainer;
+import org.turbo.web.core.http.session.DefaultSessionManagerProxy;
+import org.turbo.web.core.http.session.MemorySessionManager;
+import org.turbo.web.core.http.session.SessionManager;
+import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.init.DefaultJacksonTurboServerInit;
 import org.turbo.web.core.init.TurboServerInit;
 import org.turbo.web.core.router.container.RouterContainer;
@@ -37,16 +40,26 @@ public class DefaultTurboServer implements TurboServer {
 
     private final Logger log = LoggerFactory.getLogger(DefaultTurboServer.class);
     private final ServerBootstrap serverBootstrap;
+    // boss事件循环组
     private final NioEventLoopGroup bossGroup;
+    // worker事件循环组
     private final NioEventLoopGroup workerGroup;
+    // 服务器参数的配置
     private ServerParamConfig config = new ServerParamConfig();
+    // 控制器的字节码
     private final List<Class<?>> controllerList = new ArrayList<>();
+    // 中间件
     private final List<Middleware> middlewareList = new ArrayList<>();
+    // 异常处理器
     private final List<Class<?>> exceptionHandlerList = new ArrayList<>(1);
+    // session管理器
+    private SessionManager sessionManager = new MemorySessionManager();
+    // 是否执行默认的初始化器
     private boolean doDefaultInit = true;
+    // 存储默认初始化器的列表
     private final List<TurboServerInit> defaultTurboServerInitList = new ArrayList<>();
+    // 用户自定义的初始化器的列表
     private final List<TurboServerInit> customizeTurboServerInitList = new ArrayList<>();
-    private final List<TurboServerInit> turboServerInitList = new ArrayList<>();
 
     {
         defaultTurboServerInitList.add(new DefaultJacksonTurboServerInit());
@@ -81,12 +94,12 @@ public class DefaultTurboServer implements TurboServer {
         HttpDispatcher routerDispatcher = initHttpRouterDispatcher();
         // 初始化异常处理器
         ExceptionHandlerMatcher exceptionHandlerMatcher = initExceptionHandler();
+        // 初始化session管理器代理
+        SessionManagerProxy sessionManagerProxy = initSessionManagerProxy();
         // 初始化http请求适配器
-        HttpExecuteAdaptor httpExecuteAdaptor = initHttpExecuteAdaptor(routerDispatcher, exceptionHandlerMatcher);
+        HttpExecuteAdaptor httpExecuteAdaptor = initHttpExecuteAdaptor(routerDispatcher, sessionManagerProxy, exceptionHandlerMatcher);
         // 设置请求封装工具的字符集
         HttpInfoRequestPackageUtils.setCharset(config.getCharset());
-        // 初始化session容器
-        initSessionContainer();
         // 设置处理器
         serverBootstrap.childHandler(new TurboChannelHandler(httpExecuteAdaptor, config.getMaxContentLength()));
     }
@@ -121,13 +134,9 @@ public class DefaultTurboServer implements TurboServer {
     /**
      * 初始化session容器
      */
-    private void initSessionContainer() {
-        SessionContainer.startSentinel(
-            config.getSessionCheckTime(),
-            config.getSessionMaxNotUseTime(),
-            config.getCheckForSessionNum()
-        );
-        log.info("session检查哨兵启动成功");
+    private SessionManagerProxy initSessionManagerProxy() {
+        // 创建session管理器代理
+        return new DefaultSessionManagerProxy(sessionManager, config);
     }
 
     /**
@@ -137,8 +146,12 @@ public class DefaultTurboServer implements TurboServer {
      * @param matcher          异常处理器匹配器
      * @return                 http请求适配器
      */
-    private HttpExecuteAdaptor initHttpExecuteAdaptor(HttpDispatcher dispatcher, ExceptionHandlerMatcher matcher) {
-        DefaultHttpExecuteAdaptor adaptor = new DefaultHttpExecuteAdaptor(dispatcher, middlewareList, matcher);
+    private HttpExecuteAdaptor initHttpExecuteAdaptor(
+        HttpDispatcher dispatcher,
+        SessionManagerProxy sessionManagerProxy,
+        ExceptionHandlerMatcher matcher
+    ) {
+        DefaultHttpExecuteAdaptor adaptor = new DefaultHttpExecuteAdaptor(dispatcher, sessionManagerProxy, middlewareList, matcher);
         adaptor.setShowRequestLog(config.isShowRequestLog());
         log.info("http适配器初始化成功");
         return adaptor;
@@ -159,6 +172,7 @@ public class DefaultTurboServer implements TurboServer {
     @Override
     public void start(int port) {
         long start = System.currentTimeMillis();
+        List<TurboServerInit> turboServerInitList = new ArrayList<>();
         // 判断是否需要加载默认初始化
         if (doDefaultInit) {
             // 将默认初始化加入初始化列表
@@ -228,5 +242,10 @@ public class DefaultTurboServer implements TurboServer {
     @Override
     public void doDefaultTurboInit(boolean flag) {
         this.doDefaultInit = flag;
+    }
+
+    @Override
+    public void setSessionManager(SessionManager sessionManager) {
+        this.sessionManager = sessionManager;
     }
 }

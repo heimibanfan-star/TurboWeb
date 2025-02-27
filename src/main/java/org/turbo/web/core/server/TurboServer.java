@@ -2,6 +2,7 @@ package org.turbo.web.core.server;
 
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.middleware.Middleware;
+import org.turbo.web.core.http.session.SessionManager;
 import org.turbo.web.core.init.TurboServerInit;
 
 /**
@@ -62,4 +63,11 @@ public interface TurboServer {
      * @param flag 是否默认初始化
      */
     void doDefaultTurboInit(boolean flag);
+
+    /**
+     * 设置SessionManager
+     *
+     * @param sessionManager SessionManager
+     */
+    void setSessionManager(SessionManager sessionManager);
 }

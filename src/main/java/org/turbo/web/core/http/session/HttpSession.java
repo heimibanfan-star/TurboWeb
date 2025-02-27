@@ -10,6 +10,7 @@ public class HttpSession implements Session {
 
     private final Map<String, SessionAttributeDefinition> attributes = new ConcurrentHashMap<>();
     private long lastUseTime;
+    private String path = "/";
 
     public HttpSession() {
         lastUseTime = System.currentTimeMillis();
@@ -67,5 +68,15 @@ public class HttpSession implements Session {
     @Override
     public void setUseTime() {
         lastUseTime = System.currentTimeMillis();
+    }
+
+    @Override
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    @Override
+    public String getPath() {
+        return this.path;
     }
 }

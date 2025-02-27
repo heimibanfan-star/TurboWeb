@@ -58,4 +58,16 @@ public interface Session {
      * 使用时设置时间
      */
     void setUseTime();
+
+    /**
+     * 设置session路径
+     * @param path 路径
+     */
+    void setPath(String path);
+
+    /**
+     * 获取session路径
+     * @return 路径
+     */
+    String getPath();
 }
