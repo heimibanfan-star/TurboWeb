@@ -10,13 +10,15 @@ import org.slf4j.LoggerFactory;
 import org.turbo.web.constants.FontColors;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.execetor.HttpDispatcher;
-import org.turbo.web.core.http.execetor.HttpExecuteAdaptor;
+import org.turbo.web.core.http.execetor.HttpScheduler;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.HttpDispatcherExecuteMiddleware;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.middleware.SentinelMiddleware;
 import org.turbo.web.core.http.cookie.Cookies;
+import org.turbo.web.core.http.middleware.aware.ExceptionHandlerMatcherAware;
+import org.turbo.web.core.http.middleware.aware.MainClassAware;
 import org.turbo.web.core.http.middleware.aware.SessionManagerProxyAware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
@@ -36,17 +38,18 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 默认http 处理适配器
+ * 默认http调度器
  */
-public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
+public class DefaultHttpScheduler implements HttpScheduler {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultHttpExecuteAdaptor.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultHttpScheduler.class);
     private final Middleware sentinelMiddleware = new SentinelMiddleware();
     private final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
     private final SessionManagerProxy sessionManagerProxy;
     private boolean showRequestLog = true;
+    private final Class<?> mainClass;
 
     {
         colors.put("GET", FontColors.GREEN);
@@ -55,16 +58,22 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
         colors.put("DELETE", FontColors.RED);
     }
 
-    public DefaultHttpExecuteAdaptor(
+    public DefaultHttpScheduler(
         HttpDispatcher httpDispatcher,
         SessionManagerProxy sessionManagerProxy,
+        Class<?> mainClass,
         List<Middleware> middlewares,
         ExceptionHandlerMatcher exceptionHandlerMatcher
     ) {
-        initMiddleware(httpDispatcher, middlewares);
         this.exceptionHandlerMatcher = exceptionHandlerMatcher;
         this.sessionManagerProxy = sessionManagerProxy;
+        this.mainClass = mainClass;
+        // 初始化中间件链
+        initMiddleware(httpDispatcher, middlewares);
+        // 对中间件进行依赖注入
         initMiddlewareChainForAware();
+        // 调用中间件的初始化方法
+        doMiddlewareChainInit();
     }
 
     /**
@@ -80,6 +89,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
             ptr = middleware;
         }
         ptr.setNext(new HttpDispatcherExecuteMiddleware(httpDispatcher));
+        log.debug("中间件链组装完成");
     }
 
     /**
@@ -88,12 +98,31 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
     private void initMiddlewareChainForAware() {
         Middleware ptr = sentinelMiddleware;
         while (ptr != null) {
-            // 判断是否继承Aware
+            // 判断是否实现Aware
             if (ptr instanceof SessionManagerProxyAware aware) {
                 aware.setSessionManagerProxy(sessionManagerProxy);
             }
+            if (ptr instanceof ExceptionHandlerMatcherAware aware) {
+                aware.setExceptionHandlerMatcher(exceptionHandlerMatcher);
+            }
+            if (ptr instanceof MainClassAware aware) {
+                aware.setMainClass(mainClass);
+            }
             ptr = ptr.getNext();
         }
+        log.debug("中间件依赖注入完成");
+    }
+
+    /**
+     * 执行中间件的初始化方法
+     */
+    private void doMiddlewareChainInit() {
+        Middleware ptr = sentinelMiddleware;
+        while (ptr != null) {
+            ptr.init(this.sentinelMiddleware);
+            ptr = ptr.getNext();
+        }
+        log.debug("中间件初始化方法执行完成");
     }
 
     @Override
@@ -130,20 +159,26 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
             if (context.isWrite()) {
                 return response;
             }
-            if (result == null) {
-                response.setStatus(HttpResponseStatus.NO_CONTENT);
-                return response;
-            }
-            if (result instanceof String) {
-                response.setContent((String) result);
-                response.setContentType("text/plain;charset=utf-8");
-            } else {
-                try {
-                    response.setContent(objectMapper.writeValueAsString(result));
-                    response.setContentType("application/json;charset=utf-8");
-                } catch (JsonProcessingException e) {
-                    log.error("序列化失败:", e);
-                    throw new TurboSerializableException(e.getMessage());
+            switch (result) {
+                case null -> {
+                    response.setStatus(HttpResponseStatus.NO_CONTENT);
+                    return response;
+                }
+                case HttpInfoResponse httpInfoResponse -> {
+                    return httpInfoResponse;
+                }
+                case String s -> {
+                    response.setContent(s);
+                    response.setContentType("text/plain;charset=utf-8");
+                }
+                default -> {
+                    try {
+                        response.setContent(objectMapper.writeValueAsString(result));
+                        response.setContentType("application/json;charset=utf-8");
+                    } catch (JsonProcessingException e) {
+                        log.error("序列化失败:", e);
+                        throw new TurboSerializableException(e.getMessage());
+                    }
                 }
             }
             return response;
@@ -190,6 +225,9 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
      * @param request 请求信息
      */
     private void releaseFileUploads(HttpInfoRequest request) {
+        if (request == null) {
+            return;
+        }
         Map<String, List<FileUpload>> fileUploads = request.getContent().getFormFiles();
         if (fileUploads != null) {
             for (List<FileUpload> fileUploadList : fileUploads.values()) {

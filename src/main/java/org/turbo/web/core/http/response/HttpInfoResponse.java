@@ -1,5 +1,6 @@
 package org.turbo.web.core.http.response;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -14,6 +15,10 @@ public class HttpInfoResponse extends DefaultFullHttpResponse {
 
     public HttpInfoResponse(HttpVersion version, HttpResponseStatus status) {
         super(version, status);
+    }
+
+    public HttpInfoResponse(HttpVersion version, HttpResponseStatus status, ByteBuf content) {
+        super(version, status, content);
     }
 
     /**

@@ -11,10 +11,8 @@ import java.time.LocalDateTime;
 public class UserController {
 
     @Get
-    public void index(HttpContext ctx) throws InterruptedException {
-        Thread.sleep(300);
-        ctx.getSession().setAttribute("test", "test", 10000);
-        ctx.json(LocalDateTime.now());
+    public String index(HttpContext ctx) throws InterruptedException {
+        return "index";
     }
 
     @Get("/test")

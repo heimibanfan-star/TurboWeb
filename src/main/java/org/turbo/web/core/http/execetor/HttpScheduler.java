@@ -6,7 +6,7 @@ import org.turbo.web.core.http.response.HttpInfoResponse;
 /**
  * http处理的适配器
  */
-public interface HttpExecuteAdaptor {
+public interface HttpScheduler {
 
     /**
      * http执行器的代理类

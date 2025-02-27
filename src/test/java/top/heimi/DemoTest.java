@@ -1,5 +1,6 @@
 package top.heimi;
 
+import java.io.InputStream;
 import java.net.URI;
 
 /**
@@ -7,8 +8,7 @@ import java.net.URI;
  */
 public class DemoTest {
     public static void main(String[] args) {
-        String url = "../../hello";
-        URI uri = URI.create(url);
-        System.out.println(uri.getPath());
+        InputStream is = DemoTest.class.getClassLoader().getResourceAsStream("/static/index.html");
+        System.out.println(is);
     }
 }

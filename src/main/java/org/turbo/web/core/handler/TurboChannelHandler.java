@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.handler.piplines.HttpWorkerDispatcherHandler;
-import org.turbo.web.core.http.execetor.HttpExecuteAdaptor;
+import org.turbo.web.core.http.execetor.HttpScheduler;
 
 /**
  * 通道处理器
@@ -18,10 +18,10 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
     private final int maxContentLength;
     private final HttpWorkerDispatcherHandler httpWorkerDispatcherHandler;
 
-    public TurboChannelHandler(HttpExecuteAdaptor httpExecuteAdaptor, int maxContentLength) {
+    public TurboChannelHandler(HttpScheduler httpScheduler, int maxContentLength) {
         super();
         this.maxContentLength = maxContentLength;
-        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpExecuteAdaptor);
+        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpScheduler);
     }
 
     @Override

@@ -23,6 +23,7 @@
         <hibernate.version>7.0.0.Final</hibernate.version>
         <jakarta.el-api.version>5.0.0</jakarta.el-api.version>
         <jakarta.el.version>5.0.0-M1</jakarta.el.version>
+        <tika.version>2.9.2</tika.version>
     </properties>
 
     <dependencies>
@@ -81,6 +82,11 @@
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>${tika.version}</version>
         </dependency>
     </dependencies>
 

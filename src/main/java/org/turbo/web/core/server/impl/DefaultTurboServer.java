@@ -9,9 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.handler.TurboChannelHandler;
 import org.turbo.web.core.http.execetor.HttpDispatcher;
-import org.turbo.web.core.http.execetor.HttpExecuteAdaptor;
+import org.turbo.web.core.http.execetor.HttpScheduler;
 import org.turbo.web.core.http.execetor.impl.DefaultHttpDispatcher;
-import org.turbo.web.core.http.execetor.impl.DefaultHttpExecuteAdaptor;
+import org.turbo.web.core.http.execetor.impl.DefaultHttpScheduler;
 import org.turbo.web.core.http.handler.DefaultExceptionHandlerMatcher;
 import org.turbo.web.core.http.handler.ExceptionHandlerContainer;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
@@ -40,6 +40,8 @@ public class DefaultTurboServer implements TurboServer {
 
     private final Logger log = LoggerFactory.getLogger(DefaultTurboServer.class);
     private final ServerBootstrap serverBootstrap;
+    // 主类字节码对象
+    private final Class<?> mainClass;
     // boss事件循环组
     private final NioEventLoopGroup bossGroup;
     // worker事件循环组
@@ -66,11 +68,13 @@ public class DefaultTurboServer implements TurboServer {
     }
 
     /**
-     * 构造方法
+     * 构造函数
      *
-     * @param workerThreadNum 哨兵线程的数量
+     * @param mainClass       主类
+     * @param workerThreadNum 工作线程数
      */
-    public DefaultTurboServer(int workerThreadNum) {
+    public DefaultTurboServer(Class<?> mainClass,int workerThreadNum) {
+        this.mainClass = mainClass;
         serverBootstrap = new ServerBootstrap();
         bossGroup = new NioEventLoopGroup(1);
         if (workerThreadNum <= 0) {
@@ -85,6 +89,15 @@ public class DefaultTurboServer implements TurboServer {
         workerGroup = new NioEventLoopGroup(workerThreadNum);
     }
 
+    /**
+     * 构造函数
+     *
+     * @param mainClass 主类
+     */
+    public DefaultTurboServer(Class<?> mainClass) {
+        this(mainClass, 0);
+    }
+
     private void init() {
         // 设置线程组
         serverBootstrap.group(bossGroup, workerGroup);
@@ -97,11 +110,11 @@ public class DefaultTurboServer implements TurboServer {
         // 初始化session管理器代理
         SessionManagerProxy sessionManagerProxy = initSessionManagerProxy();
         // 初始化http请求适配器
-        HttpExecuteAdaptor httpExecuteAdaptor = initHttpExecuteAdaptor(routerDispatcher, sessionManagerProxy, exceptionHandlerMatcher);
+        HttpScheduler httpScheduler = initHttpScheduler(routerDispatcher, sessionManagerProxy, exceptionHandlerMatcher);
         // 设置请求封装工具的字符集
         HttpInfoRequestPackageUtils.setCharset(config.getCharset());
         // 设置处理器
-        serverBootstrap.childHandler(new TurboChannelHandler(httpExecuteAdaptor, config.getMaxContentLength()));
+        serverBootstrap.childHandler(new TurboChannelHandler(httpScheduler, config.getMaxContentLength()));
     }
 
     /**
@@ -140,21 +153,21 @@ public class DefaultTurboServer implements TurboServer {
     }
 
     /**
-     * 初始化http请求适配器
+     * 初始化http请求调度器
      *
      * @param dispatcher       路由分发器
      * @param matcher          异常处理器匹配器
-     * @return                 http请求适配器
+     * @return                 http请求调度器
      */
-    private HttpExecuteAdaptor initHttpExecuteAdaptor(
+    private HttpScheduler initHttpScheduler(
         HttpDispatcher dispatcher,
         SessionManagerProxy sessionManagerProxy,
         ExceptionHandlerMatcher matcher
     ) {
-        DefaultHttpExecuteAdaptor adaptor = new DefaultHttpExecuteAdaptor(dispatcher, sessionManagerProxy, middlewareList, matcher);
-        adaptor.setShowRequestLog(config.isShowRequestLog());
-        log.info("http适配器初始化成功");
-        return adaptor;
+        DefaultHttpScheduler scheduler = new DefaultHttpScheduler(dispatcher, sessionManagerProxy, mainClass, middlewareList, matcher);
+        scheduler.setShowRequestLog(config.isShowRequestLog());
+        log.info("http调度器初始化成功");
+        return scheduler;
     }
 
     /**

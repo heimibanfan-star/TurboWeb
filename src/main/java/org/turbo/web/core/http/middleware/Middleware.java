@@ -24,4 +24,12 @@ public abstract class Middleware {
     public void setNext(Middleware next) {
         this.next = next;
     }
+
+    /**
+     * 初始化
+     *
+     * @param chain 中间件链
+     */
+    public void init(Middleware chain) {
+    }
 }

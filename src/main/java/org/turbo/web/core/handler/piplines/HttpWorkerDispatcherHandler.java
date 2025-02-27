@@ -11,7 +11,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turbo.web.core.http.execetor.HttpExecuteAdaptor;
+import org.turbo.web.core.http.execetor.HttpScheduler;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.exception.TurboRouterException;
 import org.turbo.web.utils.thread.LoomThreadUtils;
@@ -27,11 +27,11 @@ import java.util.Objects;
 public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private static final Logger log = LoggerFactory.getLogger(HttpWorkerDispatcherHandler.class);
-    private final HttpExecuteAdaptor httpExecuteAdaptor;
+    private final HttpScheduler httpScheduler;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public HttpWorkerDispatcherHandler(HttpExecuteAdaptor httpExecuteAdaptor) {
-        this.httpExecuteAdaptor = httpExecuteAdaptor;
+    public HttpWorkerDispatcherHandler(HttpScheduler httpScheduler) {
+        this.httpScheduler = httpScheduler;
     }
 
     @Override
@@ -45,7 +45,7 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         // 执行异步任务
         LoomThreadUtils.execute(() -> {
             try {
-                HttpInfoResponse response = httpExecuteAdaptor.execute(fullHttpRequest);
+                HttpInfoResponse response = httpScheduler.execute(fullHttpRequest);
                 promise.setSuccess(response);
             } catch (Throwable throwable) {
                 promise.setFailure(throwable);
