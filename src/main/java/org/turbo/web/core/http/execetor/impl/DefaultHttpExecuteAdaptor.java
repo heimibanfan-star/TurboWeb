@@ -83,7 +83,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
     }
 
     /**
-     * 初始化中间件链路
+     * 对中间件进行依赖注入
      */
     private void initMiddlewareChainForAware() {
         Middleware ptr = sentinelMiddleware;
