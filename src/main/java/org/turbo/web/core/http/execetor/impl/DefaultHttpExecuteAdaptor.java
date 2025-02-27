@@ -17,6 +17,7 @@ import org.turbo.web.core.http.middleware.HttpDispatcherExecuteMiddleware;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.middleware.SentinelMiddleware;
 import org.turbo.web.core.http.cookie.Cookies;
+import org.turbo.web.core.http.middleware.aware.SessionManagerProxyAware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
@@ -63,6 +64,7 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
         initMiddleware(httpDispatcher, middlewares);
         this.exceptionHandlerMatcher = exceptionHandlerMatcher;
         this.sessionManagerProxy = sessionManagerProxy;
+        initMiddlewareChainForAware();
     }
 
     /**
@@ -78,6 +80,20 @@ public class DefaultHttpExecuteAdaptor implements HttpExecuteAdaptor {
             ptr = middleware;
         }
         ptr.setNext(new HttpDispatcherExecuteMiddleware(httpDispatcher));
+    }
+
+    /**
+     * 初始化中间件链路
+     */
+    private void initMiddlewareChainForAware() {
+        Middleware ptr = sentinelMiddleware;
+        while (ptr != null) {
+            // 判断是否继承Aware
+            if (ptr instanceof SessionManagerProxyAware aware) {
+                aware.setSessionManagerProxy(sessionManagerProxy);
+            }
+            ptr = ptr.getNext();
+        }
     }
 
     @Override
