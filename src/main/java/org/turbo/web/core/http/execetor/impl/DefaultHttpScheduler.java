@@ -8,6 +8,7 @@ import io.netty.handler.codec.http.multipart.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.constants.FontColors;
+import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.execetor.HttpDispatcher;
 import org.turbo.web.core.http.execetor.HttpScheduler;
@@ -17,6 +18,7 @@ import org.turbo.web.core.http.middleware.HttpDispatcherExecuteMiddleware;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.middleware.SentinelMiddleware;
 import org.turbo.web.core.http.cookie.Cookies;
+import org.turbo.web.core.http.middleware.aware.CharsetAware;
 import org.turbo.web.core.http.middleware.aware.ExceptionHandlerMatcherAware;
 import org.turbo.web.core.http.middleware.aware.MainClassAware;
 import org.turbo.web.core.http.middleware.aware.SessionManagerProxyAware;
@@ -50,6 +52,7 @@ public class DefaultHttpScheduler implements HttpScheduler {
     private final SessionManagerProxy sessionManagerProxy;
     private boolean showRequestLog = true;
     private final Class<?> mainClass;
+    private final ServerParamConfig config;
 
     {
         colors.put("GET", FontColors.GREEN);
@@ -63,11 +66,13 @@ public class DefaultHttpScheduler implements HttpScheduler {
         SessionManagerProxy sessionManagerProxy,
         Class<?> mainClass,
         List<Middleware> middlewares,
-        ExceptionHandlerMatcher exceptionHandlerMatcher
+        ExceptionHandlerMatcher exceptionHandlerMatcher,
+        ServerParamConfig config
     ) {
         this.exceptionHandlerMatcher = exceptionHandlerMatcher;
         this.sessionManagerProxy = sessionManagerProxy;
         this.mainClass = mainClass;
+        this.config = config;
         // 初始化中间件链
         initMiddleware(httpDispatcher, middlewares);
         // 对中间件进行依赖注入
@@ -107,6 +112,9 @@ public class DefaultHttpScheduler implements HttpScheduler {
             }
             if (ptr instanceof MainClassAware aware) {
                 aware.setMainClass(mainClass);
+            }
+            if (ptr instanceof CharsetAware aware) {
+                aware.setCharset(config.getCharset());
             }
             ptr = ptr.getNext();
         }

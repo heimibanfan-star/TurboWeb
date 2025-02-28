@@ -164,7 +164,14 @@ public class DefaultTurboServer implements TurboServer {
         SessionManagerProxy sessionManagerProxy,
         ExceptionHandlerMatcher matcher
     ) {
-        DefaultHttpScheduler scheduler = new DefaultHttpScheduler(dispatcher, sessionManagerProxy, mainClass, middlewareList, matcher);
+        DefaultHttpScheduler scheduler = new DefaultHttpScheduler(
+            dispatcher,
+            sessionManagerProxy,
+            mainClass,
+            middlewareList,
+            matcher,
+            config
+        );
         scheduler.setShowRequestLog(config.isShowRequestLog());
         log.info("http调度器初始化成功");
         return scheduler;

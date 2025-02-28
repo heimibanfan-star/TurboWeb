@@ -1,7 +1,9 @@
 package top.heimi;
 
 import org.turbo.web.core.config.ServerParamConfig;
+import org.turbo.web.core.http.middleware.FreemarkerTemplateMiddleware;
 import org.turbo.web.core.http.middleware.StaticResourceMiddleware;
+import org.turbo.web.core.http.middleware.TemplateMiddleware;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
 import top.heimi.controller.UserController;
@@ -19,8 +21,13 @@ public class Application {
         config.setCheckForSessionNum(1);
         server.addController(UserController.class);
         server.setConfig(config);
-        StaticResourceMiddleware middleware = new StaticResourceMiddleware();
-        server.addMiddleware(new ConfigMiddleware(), middleware);
+        StaticResourceMiddleware staticResourceMiddleware = new StaticResourceMiddleware();
+        TemplateMiddleware templateMiddleware = new FreemarkerTemplateMiddleware();
+        server.addMiddleware(
+            new ConfigMiddleware(),
+            staticResourceMiddleware,
+            templateMiddleware
+        );
         server.start(8080);
     }
 }
