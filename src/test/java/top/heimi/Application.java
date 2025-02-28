@@ -22,6 +22,7 @@ public class Application {
         server.addController(UserController.class);
         server.setConfig(config);
         StaticResourceMiddleware staticResourceMiddleware = new StaticResourceMiddleware();
+        staticResourceMiddleware.setStaticResourceUri("/aaa");
         TemplateMiddleware templateMiddleware = new FreemarkerTemplateMiddleware();
         server.addMiddleware(
             new ConfigMiddleware(),

@@ -45,9 +45,8 @@ public class StaticResourceMiddleware extends Middleware implements MainClassAwa
             if (uri.contains("?")) {
                 uri = uri.substring(0, uri.indexOf("?"));
             }
-            if (uri.startsWith("/")) {
-                uri = uri.substring(1);
-            }
+            // 去除前缀
+            uri = uri.replace(staticResourceUri, staticResourcePath);
             byte[] bytes = loadAndCacheStaticResource(uri);
             if (bytes != null) {
                 HttpInfoResponse response = buildResponse(ctx, bytes, uri);
