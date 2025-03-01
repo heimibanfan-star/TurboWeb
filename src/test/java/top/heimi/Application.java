@@ -7,7 +7,9 @@ import org.turbo.web.core.http.middleware.TemplateMiddleware;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
 import top.heimi.controller.UserController;
+import top.heimi.handler.GlobalExceptionHandler;
 import top.heimi.middleware.ConfigMiddleware;
+import top.heimi.middleware.TestMiddleware;
 
 /**
  * TODO
@@ -26,9 +28,11 @@ public class Application {
         TemplateMiddleware templateMiddleware = new FreemarkerTemplateMiddleware();
         server.addMiddleware(
             new ConfigMiddleware(),
+            new TestMiddleware(),
             staticResourceMiddleware,
             templateMiddleware
         );
+        server.addExceptionHandler(GlobalExceptionHandler.class);
         server.start(8080);
     }
 }

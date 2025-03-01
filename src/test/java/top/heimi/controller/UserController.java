@@ -24,6 +24,7 @@ public class UserController {
 
     @Get("/test")
     public String test(HttpContext ctx) {
+        int i = 1/0;
         return "hello world";
     }
 }

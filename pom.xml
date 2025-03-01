@@ -25,6 +25,7 @@
         <jakarta.el.version>5.0.0-M1</jakarta.el.version>
         <tika.version>2.9.2</tika.version>
         <freemarker.version>2.3.32</freemarker.version>
+        <reactor.version>3.3.14.RELEASE</reactor.version>
     </properties>
 
     <dependencies>
@@ -93,6 +94,11 @@
             <groupId>org.freemarker</groupId>
             <artifactId>freemarker</artifactId>
             <version>${freemarker.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
+            <version>${reactor.version}</version>
         </dependency>
     </dependencies>
 

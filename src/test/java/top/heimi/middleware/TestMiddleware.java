@@ -6,17 +6,12 @@ import org.turbo.web.core.http.middleware.Middleware;
 /**
  * TODO
  */
-public class ConfigMiddleware extends Middleware {
+public class TestMiddleware extends Middleware {
     @Override
     public Object invoke(HttpContext ctx) {
-        System.out.println("111111 start");
+        System.out.println("22222 start");
         Object object = ctx.doNext();
-        System.out.println("111111 end");
+        System.out.println("22222 end");
         return object;
-    }
-
-    @Override
-    public void init(Middleware chain) {
-        System.out.println("ConfigMiddleware init");
     }
 }
