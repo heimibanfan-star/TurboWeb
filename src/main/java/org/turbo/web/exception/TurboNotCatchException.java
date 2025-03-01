@@ -1,0 +1,14 @@
+package org.turbo.web.exception;
+
+/**
+ * 非捕获异常
+ */
+public class TurboNotCatchException extends RuntimeException {
+    public TurboNotCatchException(String message) {
+        super(message);
+    }
+
+    public TurboNotCatchException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

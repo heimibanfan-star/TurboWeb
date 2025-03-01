@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.multipart.FileUpload;
+import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.constants.FontColors;
@@ -27,11 +28,13 @@ import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.exception.TurboExceptionHandlerException;
+import org.turbo.web.exception.TurboNotCatchException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.lock.Locks;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.common.RandomUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
+import org.turbo.web.utils.thread.LoomThreadUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -40,11 +43,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 默认http调度器
+ * 使用虚拟县城的阻塞线程调度器
  */
-public class DefaultHttpScheduler implements HttpScheduler {
+public class LoomThreadHttpScheduler implements HttpScheduler {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultHttpScheduler.class);
+    private static final Logger log = LoggerFactory.getLogger(LoomThreadHttpScheduler.class);
     private final Middleware sentinelMiddleware = new SentinelMiddleware();
     private final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
@@ -61,7 +64,7 @@ public class DefaultHttpScheduler implements HttpScheduler {
         colors.put("DELETE", FontColors.RED);
     }
 
-    public DefaultHttpScheduler(
+    public LoomThreadHttpScheduler(
         HttpDispatcher httpDispatcher,
         SessionManagerProxy sessionManagerProxy,
         Class<?> mainClass,
@@ -134,23 +137,36 @@ public class DefaultHttpScheduler implements HttpScheduler {
     }
 
     @Override
-    public HttpInfoResponse execute(FullHttpRequest request) {
-        if (showRequestLog) {
-            long startTime = System.currentTimeMillis();
-            try {
-                return doExecutor(request);
-            } finally {
-                log(request, System.currentTimeMillis() - startTime);
+    public void execute(FullHttpRequest request, Promise<HttpInfoResponse> promise) {
+        LoomThreadUtils.execute(() -> {
+            if (showRequestLog) {
+                long startTime = System.currentTimeMillis();
+                try {
+                    try {
+                        HttpInfoResponse response = doExecute(request);
+                        promise.setSuccess(response);
+                    } catch (Throwable throwable) {
+                        promise.setFailure(throwable);
+                    }
+                } finally {
+                    log(request, System.currentTimeMillis() - startTime);
+                }
+            } else {
+                try {
+                    HttpInfoResponse response = doExecute(request);
+                    promise.setSuccess(response);
+                } catch (Throwable throwable) {
+                    promise.setFailure(throwable);
+                }
             }
-        } else {
-            return doExecutor(request);
-        }
+        });
     }
 
-    private HttpInfoResponse doExecutor(FullHttpRequest request) {
+    private HttpInfoResponse doExecute(FullHttpRequest request) {
         // 添加读锁
         Locks.SESSION_LOCK.readLock().lock();
         HttpInfoRequest httpInfoRequest = null;
+        HttpInfoResponse response = null;
         try {
              httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
             // 初始化session
@@ -158,66 +174,19 @@ public class DefaultHttpScheduler implements HttpScheduler {
             String jsessionid = cookies.getCookie("JSESSIONID");
             initSession(httpInfoRequest, jsessionid);
             // 创建响应对象
-            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
+            response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
             HttpContext context = new HttpContext(httpInfoRequest, response, sentinelMiddleware);
             Object result = context.doNext();
             // 处理session的结果
             handleSessionAfterRequest(context, jsessionid);
-            // 判断是否写入内容
-            if (context.isWrite()) {
-                return response;
-            }
-            switch (result) {
-                case null -> {
-                    response.setStatus(HttpResponseStatus.NO_CONTENT);
-                    return response;
-                }
-                case HttpInfoResponse httpInfoResponse -> {
-                    return httpInfoResponse;
-                }
-                case String s -> {
-                    response.setContent(s);
-                    response.setContentType("text/plain;charset=utf-8");
-                }
-                default -> {
-                    try {
-                        response.setContent(objectMapper.writeValueAsString(result));
-                        response.setContentType("application/json;charset=utf-8");
-                    } catch (JsonProcessingException e) {
-                        log.error("序列化失败:", e);
-                        throw new TurboSerializableException(e.getMessage());
-                    }
-                }
-            }
-            return response;
+            // 处理响应数据
+            return handleResponse(result, context);
         } catch (Throwable e) {
-            // 获取异常处理器的定义信息
-            ExceptionHandlerDefinition definition = exceptionHandlerMatcher.match(e.getClass());
-            // 判断是否获取到
-            if (definition == null) {
-                throw e;
+            // 释放内存
+            if (response != null) {
+                response.release();
             }
-            // 获取异常处理器实例
-            Object handler = exceptionHandlerMatcher.getInstance(definition.getHandlerClass());
-            if (handler == null) {
-                throw new TurboExceptionHandlerException("未获取到异常处理器实例");
-            }
-            // 调用异常处理器
-            try {
-                HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
-                Method method = definition.getMethod();
-                Object result = method.invoke(handler, e);
-                // 序列化内容
-                response.setContent(objectMapper.writeValueAsString(result));
-                response.setContentType("application/json;charset=utf-8");
-                return response;
-            } catch (IllegalAccessException | InvocationTargetException ex) {
-                log.error("异常处理器中调用方法时出现错误" + e);
-                throw new TurboExceptionHandlerException("异常处理器中出现错误：" + ex.getMessage());
-            } catch (JsonProcessingException ex) {
-                log.error("序列化失败", ex);
-                throw new TurboSerializableException(ex.getMessage());
-            }
+            return handleException(request, e);
         } finally {
             // 释放读锁
             Locks.SESSION_LOCK.readLock().unlock();
@@ -225,6 +194,77 @@ public class DefaultHttpScheduler implements HttpScheduler {
                 releaseFileUploads(httpInfoRequest);
             }
         }
+    }
+
+    /**
+     * 处理非捕获的异常
+     *
+     * @param request 请求对象
+     * @param e 异常
+     * @return 响应对象
+     */
+    private HttpInfoResponse handleException(FullHttpRequest request, Throwable e) {
+        // 获取异常处理器的定义信息
+        ExceptionHandlerDefinition definition = exceptionHandlerMatcher.match(e.getClass());
+        // 判断是否获取到
+        if (definition == null) {
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new TurboNotCatchException(e.getMessage(), e);
+        }
+        // 获取异常处理器实例
+        Object handler = exceptionHandlerMatcher.getInstance(definition.getHandlerClass());
+        if (handler == null) {
+            throw new TurboExceptionHandlerException("未获取到异常处理器实例");
+        }
+        // 调用异常处理器
+        try {
+            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
+            Method method = definition.getMethod();
+            Object result = method.invoke(handler, e);
+            // 序列化内容
+            response.setContent(objectMapper.writeValueAsString(result));
+            response.setContentType("application/json;charset=utf-8");
+            return response;
+        } catch (IllegalAccessException | InvocationTargetException ex) {
+            log.error("异常处理器中调用方法时出现错误" + e);
+            throw new TurboExceptionHandlerException("异常处理器中出现错误：" + ex.getMessage());
+        } catch (JsonProcessingException ex) {
+            log.error("序列化失败", ex);
+            throw new TurboSerializableException(ex.getMessage());
+        }
+    }
+
+    /**
+     * 处理响应对象
+     *
+     * @param result 返回值
+     * @param ctx 上下文对象
+     * @return org.turbo.web.core.http.response.HttpInfoResponse
+     */
+    private HttpInfoResponse handleResponse(Object result, HttpContext ctx) {
+        // 判断是否写入内容
+        if (ctx.isWrite()) {
+            return ctx.getResponse();
+        }
+        // 判断返回值是否是响应对象
+        if (result instanceof HttpInfoResponse httpInfoResponse) {
+            // 判断是否需要释放内存
+            if (ctx.getResponse() != httpInfoResponse) {
+                ctx.getResponse().release();
+            }
+            return httpInfoResponse;
+        }
+        // 处理字符串类型
+        if (result instanceof String s) {
+            // 写入ctx
+            ctx.text(s);
+            return ctx.getResponse();
+        }
+        // 其他类型作为json写入
+        ctx.json(result);
+        return ctx.getResponse();
     }
 
     /**

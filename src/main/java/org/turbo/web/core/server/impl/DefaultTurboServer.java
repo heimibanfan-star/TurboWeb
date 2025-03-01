@@ -11,7 +11,7 @@ import org.turbo.web.core.handler.TurboChannelHandler;
 import org.turbo.web.core.http.execetor.HttpDispatcher;
 import org.turbo.web.core.http.execetor.HttpScheduler;
 import org.turbo.web.core.http.execetor.impl.DefaultHttpDispatcher;
-import org.turbo.web.core.http.execetor.impl.DefaultHttpScheduler;
+import org.turbo.web.core.http.execetor.impl.LoomThreadHttpScheduler;
 import org.turbo.web.core.http.handler.DefaultExceptionHandlerMatcher;
 import org.turbo.web.core.http.handler.ExceptionHandlerContainer;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
@@ -164,7 +164,7 @@ public class DefaultTurboServer implements TurboServer {
         SessionManagerProxy sessionManagerProxy,
         ExceptionHandlerMatcher matcher
     ) {
-        DefaultHttpScheduler scheduler = new DefaultHttpScheduler(
+        LoomThreadHttpScheduler scheduler = new LoomThreadHttpScheduler(
             dispatcher,
             sessionManagerProxy,
             mainClass,

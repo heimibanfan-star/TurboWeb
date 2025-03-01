@@ -43,14 +43,7 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         // 增加引用，防止被房前处理器给释放内存
         fullHttpRequest.retain();
         // 执行异步任务
-        LoomThreadUtils.execute(() -> {
-            try {
-                HttpInfoResponse response = httpScheduler.execute(fullHttpRequest);
-                promise.setSuccess(response);
-            } catch (Throwable throwable) {
-                promise.setFailure(throwable);
-            }
-        });
+        httpScheduler.execute(fullHttpRequest, promise);
         // 监听业务逻辑处理完成
         promise.addListener(future -> {
             // 判断成功
