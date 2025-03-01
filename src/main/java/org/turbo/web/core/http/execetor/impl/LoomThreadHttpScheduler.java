@@ -134,9 +134,9 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
         if (handler == null) {
             throw new TurboExceptionHandlerException("未获取到异常处理器实例");
         }
+        HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
         // 调用异常处理器
         try {
-            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
             Method method = definition.getMethod();
             Object result = method.invoke(handler, e);
             // 序列化内容
@@ -144,9 +144,11 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
             response.setContentType("application/json;charset=utf-8");
             return response;
         } catch (IllegalAccessException | InvocationTargetException ex) {
+            response.release();
             log.error("异常处理器中调用方法时出现错误" + e);
             throw new TurboExceptionHandlerException("异常处理器中出现错误：" + ex.getMessage());
         } catch (JsonProcessingException ex) {
+            response.release();
             log.error("序列化失败", ex);
             throw new TurboSerializableException(ex.getMessage());
         }

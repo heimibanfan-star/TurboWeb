@@ -2,6 +2,9 @@ package top.heimi.middleware;
 
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.middleware.Middleware;
+import reactor.core.CorePublisher;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * TODO
@@ -9,9 +12,7 @@ import org.turbo.web.core.http.middleware.Middleware;
 public class TestMiddleware extends Middleware {
     @Override
     public Object invoke(HttpContext ctx) {
-        System.out.println("22222 start");
-        Object object = ctx.doNext();
-        System.out.println("22222 end");
-        return object;
+        return Mono.just("111111")
+            .flatMapMany(s -> ctx.doSubscribe());
     }
 }

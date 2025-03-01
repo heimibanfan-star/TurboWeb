@@ -38,7 +38,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     private final SessionManagerProxy sessionManagerProxy;
     protected boolean showRequestLog = true;
     private final Class<?> mainClass;
-    private final ServerParamConfig config;
+    protected final ServerParamConfig config;
 
     {
         colors.put("GET", FontColors.GREEN);

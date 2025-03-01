@@ -33,6 +33,7 @@ public class Application {
             templateMiddleware
         );
         server.addExceptionHandler(GlobalExceptionHandler.class);
+        server.setIsReactiveServer(true);
         server.start(8080);
     }
 }

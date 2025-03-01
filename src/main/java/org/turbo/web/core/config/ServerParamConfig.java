@@ -29,6 +29,19 @@ public class ServerParamConfig {
     private long sessionCheckTime = 300000;
 
     /**
+     * reactive线程池大小
+     */
+    private int reactiveServiceThreadNum = 8;
+
+    public int getReactiveServiceThreadNum() {
+        return reactiveServiceThreadNum;
+    }
+
+    public void setReactiveServiceThreadNum(int reactiveServiceThreadNum) {
+        this.reactiveServiceThreadNum = reactiveServiceThreadNum;
+    }
+
+    /**
      * session最大不活跃时间
      */
     private long sessionMaxNotUseTime = -1;

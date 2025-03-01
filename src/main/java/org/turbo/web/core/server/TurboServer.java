@@ -70,4 +70,11 @@ public interface TurboServer {
      * @param sessionManager SessionManager
      */
     void setSessionManager(SessionManager sessionManager);
+
+    /**
+     * 设置是否为响应式服务器
+     *
+     * @param flag 是否为响应式服务器
+     */
+    void setIsReactiveServer(boolean flag);
 }

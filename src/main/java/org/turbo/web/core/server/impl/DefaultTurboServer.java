@@ -12,6 +12,7 @@ import org.turbo.web.core.http.execetor.HttpDispatcher;
 import org.turbo.web.core.http.execetor.HttpScheduler;
 import org.turbo.web.core.http.execetor.impl.DefaultHttpDispatcher;
 import org.turbo.web.core.http.execetor.impl.LoomThreadHttpScheduler;
+import org.turbo.web.core.http.execetor.impl.ReactiveHttpScheduler;
 import org.turbo.web.core.http.handler.DefaultExceptionHandlerMatcher;
 import org.turbo.web.core.http.handler.ExceptionHandlerContainer;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
@@ -62,6 +63,8 @@ public class DefaultTurboServer implements TurboServer {
     private final List<TurboServerInit> defaultTurboServerInitList = new ArrayList<>();
     // 用户自定义的初始化器的列表
     private final List<TurboServerInit> customizeTurboServerInitList = new ArrayList<>();
+    // 是否是反应式服务器
+    private boolean isReactiveServer = false;
 
     {
         defaultTurboServerInitList.add(new DefaultJacksonTurboServerInit());
@@ -164,14 +167,27 @@ public class DefaultTurboServer implements TurboServer {
         SessionManagerProxy sessionManagerProxy,
         ExceptionHandlerMatcher matcher
     ) {
-        LoomThreadHttpScheduler scheduler = new LoomThreadHttpScheduler(
-            dispatcher,
-            sessionManagerProxy,
-            mainClass,
-            middlewareList,
-            matcher,
-            config
-        );
+        HttpScheduler scheduler;
+        // 判断是否采用反应式编程
+        if (isReactiveServer) {
+            scheduler = new ReactiveHttpScheduler(
+                dispatcher,
+                sessionManagerProxy,
+                mainClass,
+                middlewareList,
+                matcher,
+                config
+            );
+        } else {
+            scheduler = new LoomThreadHttpScheduler(
+                dispatcher,
+                sessionManagerProxy,
+                mainClass,
+                middlewareList,
+                matcher,
+                config
+            );
+        }
         scheduler.setShowRequestLog(config.isShowRequestLog());
         log.info("http调度器初始化成功");
         return scheduler;
@@ -267,5 +283,10 @@ public class DefaultTurboServer implements TurboServer {
     @Override
     public void setSessionManager(SessionManager sessionManager) {
         this.sessionManager = sessionManager;
+    }
+
+    @Override
+    public void setIsReactiveServer(boolean flag) {
+        this.isReactiveServer = flag;
     }
 }

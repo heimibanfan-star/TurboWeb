@@ -6,6 +6,7 @@ import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.response.ViewModel;
 import org.turbo.web.core.http.session.Session;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,8 +24,7 @@ public class UserController {
     }
 
     @Get("/test")
-    public String test(HttpContext ctx) {
-        int i = 1/0;
-        return "hello world";
+    public Mono<String> test(HttpContext ctx) {
+        return Mono.just("hello world");
     }
 }
