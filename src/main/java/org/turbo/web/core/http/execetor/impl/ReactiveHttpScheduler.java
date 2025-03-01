@@ -21,8 +21,6 @@ import org.turbo.web.exception.TurboReactiveException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
-import reactor.core.CorePublisher;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.InvocationTargetException;
@@ -84,18 +82,10 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             // 执行链式结构
             Object result = context.doNext();
             // 判断返回结果
-            if (result instanceof CorePublisher<?>) {
-                if (result instanceof Mono<?> mono) {
-                    return mono.map(o -> handleResponse(response, o));
-                }
-                ;
-                if (result instanceof Flux<?> flux) {
-                    return flux.collectList().map(o -> handleResponse(response, o));
-                } else {
-                    return Mono.error(new TurboReactiveException("返回结果必须是Mono或Flux"));
-                }
+            if (result instanceof Mono<?> mono) {
+                return mono.map(o -> handleResponse(response, o));
             } else {
-                return Mono.error(new TurboReactiveException("返回结果不是反应式对象"));
+                return Mono.error(new TurboReactiveException("Turbo仅支持Mono类型的反应式对象"));
             }
         } catch (Throwable cause) {
             return Mono.error(cause);
@@ -148,17 +138,10 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             Method method = definition.getMethod();
             Object result = method.invoke(handler, e);
             // 判断结果的类型
-            if (result instanceof CorePublisher<?>) {
-                if (result instanceof Mono<?> mono) {
-                    return mono.map(o -> handleResponse(response, o));
-                }
-                if (result instanceof Flux<?> flux) {
-                    return flux.collectList().map(o -> handleResponse(response, o));
-                } else {
-                    return Mono.error(new TurboReactiveException("异常处理器返回结果必须是Mono或Flux"));
-                }
+            if (result instanceof Mono<?> mono) {
+                return mono.map(o -> handleResponse(response, o));
             } else {
-                return Mono.error(new TurboReactiveException("异常处理器返回结果必须是反应式对象"));
+                return Mono.error(new TurboReactiveException("反应式中异常处理器仅支持Mono"));
             }
         } catch (IllegalAccessException | InvocationTargetException ex) {
             log.error("异常处理器中调用方法时出现错误" + e);

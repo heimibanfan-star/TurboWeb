@@ -10,6 +10,7 @@ import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.exception.*;
 import org.turbo.web.utils.common.BeanUtils;
+import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -48,6 +49,20 @@ public class HttpContext extends AbstractHttpContext{
         }
         chain = chain.getNext();
         return current.invoke(this);
+    }
+
+    /**
+     * 执行流式响应
+     *
+     * @return 响应对象
+     */
+    public Mono<?> doNextMono() {
+        Object object = doNext();
+        if (object instanceof Mono<?> mono) {
+            return mono;
+        } else {
+            throw new TurboReactiveException("反应式结果类型应该是Mono");
+        }
     }
 
     /**
