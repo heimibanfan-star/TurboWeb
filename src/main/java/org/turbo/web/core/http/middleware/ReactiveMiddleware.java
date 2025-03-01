@@ -9,7 +9,7 @@ import reactor.core.publisher.Mono;
 public abstract class ReactiveMiddleware extends Middleware{
     @Override
     public Object invoke(HttpContext ctx) {
-        return null;
+        return doSubscribe(ctx);
     }
 
     /**
@@ -17,5 +17,5 @@ public abstract class ReactiveMiddleware extends Middleware{
      * @param ctx 上下文
      * @return mono对象
      */
-    public abstract  <T> Mono<T> doSubscribe(HttpContext ctx);
+    public abstract Mono<?> doSubscribe(HttpContext ctx);
 }
