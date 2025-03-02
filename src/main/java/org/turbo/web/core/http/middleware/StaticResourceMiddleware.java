@@ -49,10 +49,7 @@ public class StaticResourceMiddleware extends Middleware implements MainClassAwa
             uri = uri.replace(staticResourceUri, staticResourcePath);
             byte[] bytes = loadAndCacheStaticResource(uri);
             if (bytes != null) {
-                HttpInfoResponse response = buildResponse(ctx, bytes, uri);
-                // 释放原有内存
-                ctx.getResponse().content().release();
-                return response;
+                return buildResponse(ctx, bytes, uri);
             } else {
                 throw new TurboRouterException("找不到静态资源", TurboRouterException.ROUTER_NOT_MATCH);
             }
