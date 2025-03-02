@@ -1,5 +1,6 @@
 package org.turbo.web.core.http.execetor.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.slf4j.Logger;
@@ -9,6 +10,7 @@ import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.execetor.HttpDispatcher;
 import org.turbo.web.core.http.execetor.HttpScheduler;
+import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.HttpDispatcherExecuteMiddleware;
 import org.turbo.web.core.http.middleware.Middleware;
@@ -21,7 +23,13 @@ import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
 import org.turbo.web.core.http.session.SessionManagerProxy;
+import org.turbo.web.exception.TurboExceptionHandlerException;
+import org.turbo.web.exception.TurboNotCatchException;
+import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.common.RandomUtils;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,6 +47,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     protected boolean showRequestLog = true;
     private final Class<?> mainClass;
     protected final ServerParamConfig config;
+    protected final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
 
     {
         colors.put("GET", FontColors.GREEN);
@@ -203,5 +212,41 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
             System.out.println(color + "%s  %s  耗时: <1ms".formatted(method, uri));
         }
         System.out.print(FontColors.BLACK);
+    }
+
+    /**
+     * 执行异常处理器
+     *
+     * @param definition 异常定义信息
+     * @param e 异常对象
+     * @return 异常处理器的执行结果
+     */
+    protected Object doHandleException(ExceptionHandlerDefinition definition, Throwable e) throws InvocationTargetException, IllegalAccessException {
+        // 获取异常处理器实例
+        Object handler = exceptionHandlerMatcher.getInstance(definition.getHandlerClass());
+        if (handler == null) {
+            throw new TurboExceptionHandlerException("未获取到异常处理器实例");
+        }
+        Method method = definition.getMethod();
+        return method.invoke(handler, e);
+    }
+
+    /**
+     * 匹配异常处理器的定义信息
+     *
+     * @param e 异常对象
+     * @return 异常处理器的定义信息
+     */
+    protected ExceptionHandlerDefinition matchExceptionHandlerDefinition(Throwable e) {
+        // 获取异常处理器的定义信息
+        ExceptionHandlerDefinition definition = exceptionHandlerMatcher.match(e.getClass());
+        // 判断是否获取到
+        if (definition == null) {
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new TurboNotCatchException(e.getMessage(), e);
+        }
+        return definition;
     }
 }

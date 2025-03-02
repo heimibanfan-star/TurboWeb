@@ -34,8 +34,6 @@ import java.util.List;
  */
 public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
 
-    private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
-
     public LoomThreadHttpScheduler(
         HttpDispatcher httpDispatcher,
         SessionManagerProxy sessionManagerProxy,
@@ -122,25 +120,12 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
      * @return 响应对象
      */
     private HttpInfoResponse handleException(FullHttpRequest request, Throwable e) {
-        // 获取异常处理器的定义信息
-        ExceptionHandlerDefinition definition = exceptionHandlerMatcher.match(e.getClass());
-        // 判断是否获取到
-        if (definition == null) {
-            if (e instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            throw new TurboNotCatchException(e.getMessage(), e);
-        }
-        // 获取异常处理器实例
-        Object handler = exceptionHandlerMatcher.getInstance(definition.getHandlerClass());
-        if (handler == null) {
-            throw new TurboExceptionHandlerException("未获取到异常处理器实例");
-        }
+        // 获取异常定义信息
+        ExceptionHandlerDefinition definition = matchExceptionHandlerDefinition(e);
         HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
-        // 调用异常处理器
         try {
-            Method method = definition.getMethod();
-            Object result = method.invoke(handler, e);
+            // 调用异常处理器
+            Object result = doHandleException(definition, e);
             // 序列化内容
             response.setContent(objectMapper.writeValueAsString(result));
             response.setContentType("application/json;charset=utf-8");

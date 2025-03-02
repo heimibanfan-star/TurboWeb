@@ -18,7 +18,6 @@ import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.http.sse.SSESession;
 import org.turbo.web.exception.TurboExceptionHandlerException;
-import org.turbo.web.exception.TurboNotCatchException;
 import org.turbo.web.exception.TurboReactiveException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
@@ -26,7 +25,6 @@ import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
@@ -67,7 +65,7 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
                 (err) -> {
                     try {
                         handleException(request, err)
-                            .subscribe(promise::setSuccess);
+                            .subscribe(promise::setSuccess, promise::setFailure);
                     } catch (Throwable cause) {
                         promise.setFailure(cause);
                     }
@@ -110,7 +108,6 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
         } else if (result instanceof String string) {
             response.setContent(string);
             response.setContentType("text/plain;charset=" + config.getCharset().name());
-            response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, string.length());
             return response;
         } else {
             try {
@@ -124,26 +121,20 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
         }
     }
 
+    /**
+     * 调度异常处理器
+     *
+     * @param request 请求对象
+     * @param e 异常对象
+     * @return 响应结果
+     */
     private Mono<HttpResponse> handleException(FullHttpRequest request, Throwable e) {
         // 获取异常处理器的定义信息
-        ExceptionHandlerDefinition definition = exceptionHandlerMatcher.match(e.getClass());
-        // 判断是否获取到
-        if (definition == null) {
-            if (e instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            throw new TurboNotCatchException(e.getMessage(), e);
-        }
-        // 获取异常处理器实例
-        Object handler = exceptionHandlerMatcher.getInstance(definition.getHandlerClass());
-        if (handler == null) {
-            throw new TurboExceptionHandlerException("未获取到异常处理器实例");
-        }
+        ExceptionHandlerDefinition definition = matchExceptionHandlerDefinition(e);
         // 调用异常处理器
         try {
             HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
-            Method method = definition.getMethod();
-            Object result = method.invoke(handler, e);
+            Object result = doHandleException(definition, e);
             // 判断结果的类型
             if (result instanceof Mono<?> mono) {
                 return mono.map(o -> handleResponse(response, o));

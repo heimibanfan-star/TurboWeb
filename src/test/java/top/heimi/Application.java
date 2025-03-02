@@ -18,6 +18,12 @@ public class Application {
     public static void main(String[] args) {
         TurboServer server = new DefaultTurboServer(Application.class, 8);
         server.addController(UserController.class);
+        ServerParamConfig config = new ServerParamConfig();
+        config.setShowRequestLog(false);
+        server.setConfig(config);
+        server.addExceptionHandler(GlobalExceptionHandler.class);
+        server.setIsReactiveServer(true);
+//        server.setIsReactiveServer(true);
         server.start(8080);
     }
 }

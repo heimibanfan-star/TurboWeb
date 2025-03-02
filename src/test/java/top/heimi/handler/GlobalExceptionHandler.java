@@ -1,6 +1,7 @@
 package top.heimi.handler;
 
 import org.turbo.web.anno.ExceptionHandler;
+import reactor.core.publisher.Mono;
 
 /**
  * 异常处理器
@@ -8,8 +9,7 @@ import org.turbo.web.anno.ExceptionHandler;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
-    public String handleException(Exception e) {
-        e.printStackTrace();
-        return "<h1>500</h1>";
+    public Mono<String> handleException(Exception e) {
+        return Mono.just("发生错误：" + e.getMessage());
     }
 }

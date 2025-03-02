@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class HttpConnectPromiseContainer {
 
-    private static final Map<String, Promise<Boolean>> CONTAINER = new ConcurrentHashMap<>(1024);
+    private static final Map<String, Promise<Boolean>> CONTAINER = new ConcurrentHashMap<>(5280);
 
     public static void put(String channelId, Promise<Boolean> promise) {
         CONTAINER.put(channelId, promise);
