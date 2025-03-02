@@ -62,7 +62,7 @@ mvn install:install-file -Dfile=turbo-web-xxx.jar \
     <dependency>
         <groupId>org.turbo</groupId>
         <artifactId>turbo-web</artifactId>
-        <version>1.2.0-alpha</version>
+        <version>2025.03-alpha</version>
     </dependency>
 </dependencies>
 ```
