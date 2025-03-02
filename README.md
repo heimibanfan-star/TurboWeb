@@ -1,4 +1,26 @@
 # Turbo-web使用手册
+> 版本 = 2025.03
+
+## 升级内容
+### 新增功能
+> 1.增加StaticResourceMiddleware中间件，提供了对静态资源的支持。
+> 
+> 2.增加FreemarkerTemplateMiddleware中间件，提供了对freemarker模板的支持。
+> 
+> 3.提供一系列Aware接口，可以对Middleware进行底层对象依赖注入。
+> 
+> 4.增加了对SSE技术的支持。
+> 
+> 5.支持反应式编程，用户可以在服务启动时选择使用同步编程或反应式编程。
+> 
+> 6.提供了一系列系统生命周期的钩子操作。
+
+### 原有功能的优化
+> 1.简化用户对Cookie和Session操作的API。
+> 
+> 2.支持用户在返回值直接返回HttpResponse对象，框架会自动根据类型进行解析。
+> 
+> 3.对session进行了优化，优化了垃圾回收策略，抽象依赖，方便扩展。
 
 ## 简介
 ### 项目概述
@@ -40,7 +62,7 @@ mvn install:install-file -Dfile=turbo-web-xxx.jar \
     <dependency>
         <groupId>org.turbo</groupId>
         <artifactId>turbo-web</artifactId>
-        <version>1.0.0-alpha</version>
+        <version>1.2.0-alpha</version>
     </dependency>
 </dependencies>
 ```
@@ -59,7 +81,7 @@ public class HelloController {
 ```java
 public class Application {
     public static void main(String[] args) {
-        TurboServer turboServer = new DefaultTurboServer(8);
+        TurboServer turboServer = new DefaultTurboServer(Application.class, 8);
         turboServer.addController(HelloController.class);
         turboServer.start(8080);
     }
@@ -354,6 +376,18 @@ public void hello(HttpContext ctx) {
 ```
 > 注意：不推荐在response中写入内容，这会造成内容重复写入，推荐使用HttpContext的方法写入内容，如果要设置状态码需要在调用写入方法知乎，因为写入时不指定状态码会默认设置200。
 
+### 响应自定义的response对象
+```java
+@Get
+public HttpResponse index(HttpContext ctx) {
+    HttpInfoResponse response = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+    response.setContent("Hello World!");
+    response.setContentType("text/plain;charset=UTF-8");
+    return response;
+}
+```
+> 这里的response对象也可以直接使用HttpContext中的response对象，调度器会自动检测是否使用的是Context来保证资源的释放。
+
 ## 中间件
 Middleware 类是所有中间件的基类。它定义了中间件的基本结构和行为，允许开发者通过继承该类并实现 invoke 方法来创建自定义中间件。每个中间件都持有一个指向下一个中间件的引用（通过 next 字段），这使得多个中间件可以按顺序执行。
 
@@ -436,6 +470,25 @@ public void hello(HttpContext ctx) {
     ctx.text("success");
 }
 ```
+Cookie也支持直接通过HttpContext获取HttpCookie进行操作。
+```java
+@Get
+public void index(HttpContext ctx) {
+    HttpCookie httpCookie = ctx.getHttpCookie();
+    httpCookie.setCookie("name", "turbo");
+    httpCookie.setCookie("version", "1.2.0");
+    ctx.text("hello world");
+}
+```
+HttpCookie不仅可以存储Cookie，也可以获取Cookie
+```java
+@Get
+public void index(HttpContext ctx) {
+    HttpCookie httpCookie = ctx.getHttpCookie();
+    String name = httpCookie.getCookie("name");
+    ctx.text(name);
+}
+```
 
 ## Session的使用
 Session的获取通过HttpContext的request对象来获取。
@@ -471,6 +524,126 @@ public void hello(HttpContext ctx) {
 ```
 session中获取的结果会以Object类型返回，需要手动转换类型。
 
+
+HttpContext也提供了对Session的简化操作。
+```java
+@Get
+public void index(HttpContext ctx) {
+    Session session = ctx.getSession();
+    session.setAttribute("name", "turbo");
+    ctx.json("success");
+}
+```
+也支持从中获取session
+```java
+@Get
+public void index(HttpContext ctx) {
+    Session session = ctx.getSession();
+    String name = (String) session.getAttribute("name");
+    ctx.json(name);
+}
+```
+## 静态资源的支持
+### 使用步骤
+1.注册静态资源中间件
+```java
+TurboServer server = new DefaultTurboServer(Application.class, 8);
+server.addMiddleware(new StaticResourceMiddleware());
+```
+2.将静态资源放入static目录之下即可访问
+### 配置静态资源
+```java
+StaticResourceMiddleware staticResourceMiddleware = new StaticResourceMiddleware();
+// 请求以/static开头会被拦截作为静态资源处理
+staticResourceMiddleware.setStaticResourceUri("/static");
+// 静态资源在resource中的位置
+staticResourceMiddleware.setStaticResourcePath("static");
+// 是否对静态资源进行缓存
+staticResourceMiddleware.setCacheStaticResource(true);
+// 缓存多大内存以内的静态资源
+staticResourceMiddleware.setCacheFileSize(1024 * 1024 * 10);
+```
+
+## 模板的使用
+> TurboWeb默认提供了Freemarker模板
+
+1.注册中间件
+```java
+server.addMiddleware(new FreemarkerTemplateMiddleware());
+```
+2.在templates文件夹下创建模板
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<#list names as name>
+    ${name}
+    <br/>
+</#list>
+</body>
+</html>
+```
+3.在控制器中渲染模板
+```java
+@Get
+public ViewModel index(HttpContext ctx) {
+    ViewModel viewModel = new ViewModel();
+    List<String> names = List.of("张三", "李四", "王五");
+    viewModel.addAttribute("names", names);
+    viewModel.setViewName("index");
+    return viewModel;
+}
+```
+> 注意：注册模板中间件之后只要返回值类型是ViewModel会自动被拦截进行渲染，其他类型的不受影响。
+### 模板渲染中间件的配置
+```java
+FreemarkerTemplateMiddleware templateMiddleware = new FreemarkerTemplateMiddleware();
+// 设置模板的路径
+templateMiddleware.setTemplatePath("templates");
+// 设置模板的后缀
+templateMiddleware.setTemplateSuffix(".ftl");
+// 是否开启模板缓存
+templateMiddleware.setOpenCache(true);
+```
+
+## SSE的使用
+> SSE（Server-Sent Events，服务器推送事件）是一种基于 HTTP 的单向数据推送技术，允许 服务器主动向客户端发送数据，而客户端使用 EventSource API 监听和处理这些数据。
+
+SSE在TurboWeb中使用比较简单，在HttpContext中操作即可
+```java
+@Get
+public HttpResponse index(HttpContext ctx) {
+    // 开启SSE会话
+    SseResultObject sseResultObject = ctx.openSseSession();
+    // 获取SSE会话
+    SSESession session = sseResultObject.getSseSession();
+    // 不断发送消息
+    Thread thread = Thread.ofVirtual().start(() -> {
+        while (true) {
+            session.send("hello world");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                System.out.println("thread interrupt");
+                return;
+            }
+        }
+    });
+    // 监听session的销毁事件
+    session.closeListener(() ->{
+        thread.interrupt();
+        System.out.println("session destroy");
+    });
+    // 通知浏览器，SSE会话已经建立
+    return sseResultObject.getHttpResponse();
+}
+```
+> 注意：若想使用SSE，返回值必须使用SseResultObject中的HttpResponse进行返回，因为该对象设置了相关的响应内容。
+
 ## 服务器参数配置
 Turbo-web提供了配置类，可以通过重新设置配置类的方式进行配置设置，如果不设置采用默认的参数。
 ```java
@@ -484,3 +657,182 @@ public class Application {
     }
 }
 ```
+
+## 生命周期相关
+> TurboWeb提供了两种生命周期相关的方法，分别是：服务器启动过程的生命周期，和http调度器的生命周期。
+
+### 服务器启动相关的生命周期
+1.创建初始化类
+```java
+public class ServerInitConfig implements TurboServerInit {
+    @Override
+    public void beforeTurboServerInit(ServerBootstrap serverBootstrap) {
+        System.out.println("""
+            这个是对serverBootStrap初始化之前调用，
+            这时的serverBootStrap是刚创建的对象
+            """);
+    }
+
+    @Override
+    public void afterTurboServerInit(ServerBootstrap serverBootstrap) {
+        System.out.println("""
+            这是在serverBootStrap调用初始化方法之后调用，
+            这时eventLoop和系统内置的handler被设置完成。
+            """);
+    }
+
+    @Override
+    public void afterTurboServerStart() {
+        System.out.println("""
+            这是在服务器启动之后调用的方法
+            """);
+    }
+}
+```
+2.在server中添加初始化对象
+```java
+server.addTurboServerInit(new ServerInitConfig());
+```
+> 初始化器可以添加多个，多个初始化器按照顺序执行，先调用所有的beforeTurboServerInit，之后初始化完成是调用所有的afterTurboServerInit，等服务器启动之后调用所有的afterTurboServerStart。
+
+### 中间件相关的生命周期
+> 中间件的初始化分为三步：
+> 
+> 1.创建中间件的执行链，中间件的执行顺序被确定。
+> 
+> 2.依赖注入阶段，调度器会判断中间件实现了那些Aware接口，并且为其注入框架内部资源。
+> 
+> 3.init方法执行阶段，这时所有依赖被注入完毕，开始调用所有中间件的init方法，在init方法中可以拿到中间件的执行链，可以对其结构进行修改(但是不推荐)。
+
+定义中间件，实现Aware接口
+```java
+public class MyMiddleware extends Middleware implements CharsetAware, ExceptionHandlerMatcherAware, MainClassAware, SessionManagerProxyAware {
+
+    private Charset charset;
+    private ExceptionHandlerMatcher exceptionHandlerMatcher;
+    private Class<?> mainClass;
+    private SessionManagerProxy sessionManagerProxy;
+
+
+    @Override
+    public Object invoke(HttpContext ctx) {
+        return ctx.doNext();
+    }
+
+    @Override
+    public void init(Middleware chain) {
+        System.out.println("MyMiddleware init");
+    }
+
+    @Override
+    public void setCharset(Charset charset) {
+        this.charset = charset;
+    }
+
+    @Override
+    public void setExceptionHandlerMatcher(ExceptionHandlerMatcher matcher) {
+        this.exceptionHandlerMatcher = matcher;
+    }
+
+    @Override
+    public void setMainClass(Class<?> mainClass) {
+        this.mainClass = mainClass;
+    }
+
+    @Override
+    public void setSessionManagerProxy(SessionManagerProxy sessionManagerProxy) {
+        this.sessionManagerProxy = sessionManagerProxy;
+    }
+}
+```
+## 反应式编程的支持
+
+> TurboWeb中使用反应式编程比较简单，用户在server中切换使用反应式调度器即可，由于大多数的web操作都是请求响应模型，因此当异步对象到达http调度器时必须是Mono这种单流对象，否则会报错。
+
+1.切换为反应式编程
+
+```java
+public class Application {
+    public static void main(String[] args) {
+        TurboServer server = new DefaultTurboServer(Application.class, 8);
+        server.addController(HelloController.class);
+        // 切换为反应式编程
+        server.setIsReactiveServer(true);
+        server.start(8080);
+    }
+}
+```
+
+> 注意：不同同时使用反应式编程和同步代码。
+
+2.在反应式中使用SSE
+
+```java
+@Get
+public Mono<HttpResponse> index(HttpContext ctx) {
+    // 开启SSE会话
+    SseResultObject sseResultObject = ctx.openSseSession();
+    // 获取SSE会话
+    SSESession session = sseResultObject.getSseSession();
+    // 不断发送消息
+    Thread thread = Thread.ofVirtual().start(() -> {
+        while (true) {
+            session.send("hello world");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                System.out.println("thread interrupt");
+                return;
+            }
+        }
+    });
+    // 监听session的销毁事件
+    session.closeListener(() ->{
+        thread.interrupt();
+        System.out.println("session destroy");
+    });
+    // 通知浏览器，SSE会话已经建立
+    return Mono.just(sseResultObject.getHttpResponse());
+}
+```
+
+反应式的整体操作对于TurboWeb来说差异不大，只不过返回值需要返回用户所构造的反应式流。
+
+> 注意：反应式中不能使用HttpContext进行返回结果，例如json,html,text等操作禁止使用，需要通过返回值返回。
+
+Turbo原生的中间件也支持反应式，但是在反应式编程使用原生的中间件操作可能需要强制类型转换再进行操作。
+
+```java
+public class MyMiddleware extends Middleware {
+
+    @Override
+    public Object invoke(HttpContext ctx) {
+        return ((Mono<?>) ctx.doNext())
+            .map(r ->{
+                System.out.println("执行之后的逻辑...");
+                return r;
+            });
+    }
+
+}
+```
+
+TurboWeb提供了ReactiveMiddleware继承Middleware，与原来的没有区别，只不过返回值是Mono<?>。
+
+在反应式中推荐使用ctx.doNextMono()，这样可以避免手动强制类型转化，这个操作会自动将Mono<?>转换出，doNextMono()和doNext()的作用是一样的，因此同时使用都可以，都会调用下一个中间件，但是推荐使用一种。
+
+```
+public class MyMiddleware extends ReactiveMiddleware {
+
+    @Override
+    public Mono<?> doSubscribe(HttpContext ctx) {
+        return ctx.doNextMono()
+            .map(r -> {
+                System.out.println("执行之后的逻辑...");
+                return r;
+            });
+    }
+}
+```
+
+> 注意：TurboWeb如果使用反应式编程，异常处理器的返回值也是需要Mono类型的。
