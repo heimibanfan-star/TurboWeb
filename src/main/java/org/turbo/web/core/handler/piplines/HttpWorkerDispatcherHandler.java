@@ -2,17 +2,18 @@ package org.turbo.web.core.handler.piplines;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.EventLoop;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.http.execetor.HttpScheduler;
 import org.turbo.web.core.http.response.HttpInfoResponse;
+import org.turbo.web.core.http.sse.HttpConnectPromiseContainer;
+import org.turbo.web.core.http.sse.SSESession;
 import org.turbo.web.exception.TurboRouterException;
 import org.turbo.web.utils.thread.LoomThreadUtils;
 
@@ -39,11 +40,19 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         // 获取当前管道绑定的eventLoop
         EventLoop eventLoop = channelHandlerContext.channel().eventLoop();
         // 创建异步对象
-        Promise<HttpInfoResponse> promise = eventLoop.newPromise();
+        Promise<HttpResponse> promise = eventLoop.newPromise();
         // 增加引用，防止被房前处理器给释放内存
         fullHttpRequest.retain();
+        // 构建SSE对象
+        Promise<Boolean> connectPromise = HttpConnectPromiseContainer.get(channelHandlerContext.channel().id().asLongText());
+        SSESession sseSession = null;
+        if (connectPromise != null) {
+            sseSession = new SSESession(eventLoop, channelHandlerContext.channel(), connectPromise);
+        } else {
+            log.warn("连接事件异常，容器中找不到该连接的事件对象:{}", channelHandlerContext.channel().id().asLongText());
+        }
         // 执行异步任务
-        httpScheduler.execute(fullHttpRequest, promise);
+        httpScheduler.execute(fullHttpRequest, promise, sseSession);
         // 监听业务逻辑处理完成
         promise.addListener(future -> {
             // 判断成功
@@ -82,6 +91,28 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
             response.setContent(objectMapper.writeValueAsString(errorMsg));
             response.setContentType("application/json");
             return response;
+        }
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        // 获取通道的唯一标识
+        ChannelId channelId = ctx.channel().id();
+        // 创建promise对象
+        Promise<Boolean> promise = new DefaultPromise<>(ctx.executor());
+        // 存入容器
+        HttpConnectPromiseContainer.put(channelId.asLongText(), promise);
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        // 获取通道的唯一标识
+        ChannelId channelId = ctx.channel().id();
+        // 从容器中获取promise对象
+        Promise<Boolean> promise = HttpConnectPromiseContainer.get(channelId.asLongText());
+        if (promise != null) {
+            promise.setSuccess(true);
+            HttpConnectPromiseContainer.remove(channelId.asLongText());
         }
     }
 }

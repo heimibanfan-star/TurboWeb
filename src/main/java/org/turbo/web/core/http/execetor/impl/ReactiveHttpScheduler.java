@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
 import org.turbo.web.core.config.ServerParamConfig;
@@ -15,6 +16,7 @@ import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
+import org.turbo.web.core.http.sse.SSESession;
 import org.turbo.web.exception.TurboExceptionHandlerException;
 import org.turbo.web.exception.TurboNotCatchException;
 import org.turbo.web.exception.TurboReactiveException;
@@ -56,10 +58,10 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
     }
 
     @Override
-    public void execute(FullHttpRequest request, Promise<HttpInfoResponse> promise) {
+    public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SSESession session) {
         SERVICE_POOL.execute(() -> {
             HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
-            Mono<HttpInfoResponse> responseMono = doExecute(request, response);
+            Mono<HttpResponse> responseMono = doExecute(request, response, session);
             responseMono.subscribe(
                 promise::setSuccess,
                 (err) -> {
@@ -73,12 +75,12 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
         });
     }
 
-    private Mono<HttpInfoResponse> doExecute(FullHttpRequest request, HttpInfoResponse response) {
+    private Mono<HttpResponse> doExecute(FullHttpRequest request, HttpInfoResponse response, SSESession session) {
         try {
             // 封装请求对象
             HttpInfoRequest infoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
             // 创建上下文对象
-            HttpContext context = new HttpContext(infoRequest, response, sentinelMiddleware);
+            HttpContext context = new HttpContext(infoRequest, response, sentinelMiddleware, session);
             // 执行链式结构
             Object result = context.doNext();
             // 判断返回结果
@@ -99,8 +101,13 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
      * @param result   结果
      * @return 响应对象
      */
-    private HttpInfoResponse handleResponse(HttpInfoResponse response, Object result) {
-        if (result instanceof String string) {
+    private HttpResponse handleResponse(HttpInfoResponse response, Object result) {
+        if (result instanceof HttpResponse httpResponse) {
+            if (response != httpResponse) {
+                response.release();
+            }
+            return httpResponse;
+        } else if (result instanceof String string) {
             response.setContent(string);
             response.setContentType("text/plain;charset=" + config.getCharset().name());
             response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, string.length());
@@ -117,7 +124,7 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
         }
     }
 
-    private Mono<HttpInfoResponse> handleException(FullHttpRequest request, Throwable e) {
+    private Mono<HttpResponse> handleException(FullHttpRequest request, Throwable e) {
         // 获取异常处理器的定义信息
         ExceptionHandlerDefinition definition = exceptionHandlerMatcher.match(e.getClass());
         // 判断是否获取到

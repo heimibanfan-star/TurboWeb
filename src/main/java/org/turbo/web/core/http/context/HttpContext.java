@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
+import org.turbo.web.core.http.sse.SSESession;
 import org.turbo.web.exception.*;
 import org.turbo.web.utils.common.BeanUtils;
 import reactor.core.publisher.Mono;
@@ -32,8 +33,8 @@ public class HttpContext extends AbstractHttpContext{
      */
     private boolean isWrite = false;
 
-    public HttpContext(HttpInfoRequest request, HttpInfoResponse response, Middleware chain) {
-        super(request, response);
+    public HttpContext(HttpInfoRequest request, HttpInfoResponse response, Middleware chain, SSESession session) {
+        super(request, response, session);
         this.chain = chain;
     }
 

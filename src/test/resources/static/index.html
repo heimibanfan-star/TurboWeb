@@ -8,6 +8,13 @@
 <body>
 <div id="app">
     <h1>hello world</h1>
+    <script>
+        const eventSource = new EventSource('http://localhost:8080/user/sse'); // URL 需要指向你提供 SSE 数据的端点
+
+        eventSource.onmessage = function(event) {
+            console.log('New message:', event.data);
+        };
+    </script>
 </div>
 </body>
 </html>

@@ -1,8 +1,10 @@
 package org.turbo.web.core.http.execetor;
 
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.concurrent.Promise;
 import org.turbo.web.core.http.response.HttpInfoResponse;
+import org.turbo.web.core.http.sse.SSESession;
 
 /**
  * http处理的适配器
@@ -15,7 +17,7 @@ public interface HttpScheduler {
      * @param request 完整的请求对象
      * @param promise 回调对象
      */
-    void execute(FullHttpRequest request, Promise<HttpInfoResponse> promise);
+    void execute(FullHttpRequest request, Promise<HttpResponse> promise, SSESession session);
 
     /**
      * 是否显示请求日志

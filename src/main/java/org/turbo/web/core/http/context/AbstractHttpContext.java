@@ -2,6 +2,7 @@ package org.turbo.web.core.http.context;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,9 +10,12 @@ import org.turbo.web.core.http.cookie.HttpCookie;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
+import org.turbo.web.core.http.sse.SSESession;
+import org.turbo.web.core.http.sse.SseResultObject;
 import org.turbo.web.exception.TurboArgsValidationException;
 import org.turbo.web.exception.TurboParamParseException;
 import org.turbo.web.exception.TurboSerializableException;
+import org.turbo.web.exception.TurboSseException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.common.ValidationUtils;
 
@@ -30,10 +34,12 @@ public abstract class AbstractHttpContext {
     protected final HttpInfoResponse response;
     private final Map<String, String> pathVariables = new HashMap<>();
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
+    protected final SSESession sseSession;
 
-    public AbstractHttpContext(HttpInfoRequest request, HttpInfoResponse response) {
+    public AbstractHttpContext(HttpInfoRequest request, HttpInfoResponse response, SSESession session) {
         this.request = request;
         this.response = response;
+        this.sseSession = session;
     }
 
     public HttpInfoRequest getRequest() {
@@ -50,6 +56,26 @@ public abstract class AbstractHttpContext {
 
     public String getPathVariable(String name) {
         return pathVariables.get(name);
+    }
+
+    /**
+     * 打开sse会话
+     *
+     * @return sse会话
+     */
+    public SseResultObject openSseSession() {
+        if (sseSession == null) {
+            throw new TurboSseException("sseSession为空");
+        } else {
+            HttpResponse sseResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            sseResponse.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream");
+            sseResponse.headers().set(HttpHeaderNames.CACHE_CONTROL, "no-cache");
+            sseResponse.headers().set(HttpHeaderNames.CONNECTION, "keep-alive");
+            sseResponse.headers().set(HttpHeaderNames.TRANSFER_ENCODING, "chunked");
+            HttpUtil.setTransferEncodingChunked(sseResponse, true); // 开启 Chunked 传输
+            // 封装对象
+            return new SseResultObject(sseResponse, sseSession);
+        }
     }
 
     /**

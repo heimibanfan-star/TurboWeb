@@ -17,23 +17,7 @@ import top.heimi.middleware.TestMiddleware;
 public class Application {
     public static void main(String[] args) {
         TurboServer server = new DefaultTurboServer(Application.class, 8);
-        ServerParamConfig config = new ServerParamConfig();
-        config.setSessionCheckTime(10000);
-        config.setSessionMaxNotUseTime(30000);
-        config.setCheckForSessionNum(1);
         server.addController(UserController.class);
-        server.setConfig(config);
-        StaticResourceMiddleware staticResourceMiddleware = new StaticResourceMiddleware();
-        staticResourceMiddleware.setStaticResourceUri("/aaa");
-        TemplateMiddleware templateMiddleware = new FreemarkerTemplateMiddleware();
-        server.addMiddleware(
-            new ConfigMiddleware(),
-            new TestMiddleware(),
-            staticResourceMiddleware,
-            templateMiddleware
-        );
-        server.addExceptionHandler(GlobalExceptionHandler.class);
-        server.setIsReactiveServer(true);
         server.start(8080);
     }
 }

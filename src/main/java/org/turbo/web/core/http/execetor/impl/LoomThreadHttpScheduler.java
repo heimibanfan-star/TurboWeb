@@ -3,6 +3,7 @@ package org.turbo.web.core.http.execetor.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
 import org.turbo.web.core.config.ServerParamConfig;
@@ -15,6 +16,7 @@ import org.turbo.web.core.http.cookie.Cookies;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
+import org.turbo.web.core.http.sse.SSESession;
 import org.turbo.web.exception.TurboExceptionHandlerException;
 import org.turbo.web.exception.TurboNotCatchException;
 import org.turbo.web.exception.TurboSerializableException;
@@ -53,13 +55,13 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
     }
 
     @Override
-    public void execute(FullHttpRequest request, Promise<HttpInfoResponse> promise) {
+    public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SSESession session) {
         LoomThreadUtils.execute(() -> {
             if (showRequestLog) {
                 long startTime = System.currentTimeMillis();
                 try {
                     try {
-                        HttpInfoResponse response = doExecute(request);
+                        HttpResponse response = doExecute(request, session);
                         promise.setSuccess(response);
                     } catch (Throwable throwable) {
                         promise.setFailure(throwable);
@@ -69,7 +71,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
                 }
             } else {
                 try {
-                    HttpInfoResponse response = doExecute(request);
+                    HttpResponse response = doExecute(request, session);
                     promise.setSuccess(response);
                 } catch (Throwable throwable) {
                     promise.setFailure(throwable);
@@ -78,7 +80,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
         });
     }
 
-    private HttpInfoResponse doExecute(FullHttpRequest request) {
+    private HttpResponse doExecute(FullHttpRequest request, SSESession session) {
         // 添加读锁
         Locks.SESSION_LOCK.readLock().lock();
         HttpInfoRequest httpInfoRequest = null;
@@ -91,7 +93,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
             initSession(httpInfoRequest, jsessionid);
             // 创建响应对象
             response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
-            HttpContext context = new HttpContext(httpInfoRequest, response, sentinelMiddleware);
+            HttpContext context = new HttpContext(httpInfoRequest, response, sentinelMiddleware, session);
             Object result = context.doNext();
             // 处理session的结果
             handleSessionAfterRequest(context, jsessionid);
@@ -161,27 +163,36 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
      * @param ctx 上下文对象
      * @return org.turbo.web.core.http.response.HttpInfoResponse
      */
-    private HttpInfoResponse handleResponse(Object result, HttpContext ctx) {
+    private HttpResponse handleResponse(Object result, HttpContext ctx) {
         // 判断是否写入内容
         if (ctx.isWrite()) {
             return ctx.getResponse();
         }
-        // 判断返回值是否是响应对象
-        if (result instanceof HttpInfoResponse httpInfoResponse) {
-            // 判断是否需要释放内存
-            if (ctx.getResponse() != httpInfoResponse) {
-                ctx.getResponse().release();
+        // 如果为空返回空内容
+        switch (result) {
+            case null -> {
+                ctx.text("");
+                return ctx.getResponse();
             }
-            return httpInfoResponse;
+            // 判断返回值是否是响应对象
+            case HttpResponse httpResponse -> {
+                // 判断是否需要释放内存
+                if (ctx.getResponse() != httpResponse) {
+                    ctx.getResponse().release();
+                }
+                return httpResponse;
+            }
+            // 处理字符串类型
+            case String s -> {
+                // 写入ctx
+                ctx.text(s);
+                return ctx.getResponse();
+            }
+            default -> {
+                // 其他类型作为json写入
+                ctx.json(result);
+                return ctx.getResponse();
+            }
         }
-        // 处理字符串类型
-        if (result instanceof String s) {
-            // 写入ctx
-            ctx.text(s);
-            return ctx.getResponse();
-        }
-        // 其他类型作为json写入
-        ctx.json(result);
-        return ctx.getResponse();
     }
 }
