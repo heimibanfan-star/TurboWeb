@@ -8,6 +8,7 @@ import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
 import top.heimi.controller.UserController;
 import top.heimi.handler.GlobalExceptionHandler;
+import top.heimi.middleware.AuthMiddleware;
 import top.heimi.middleware.ConfigMiddleware;
 import top.heimi.middleware.TestMiddleware;
 
@@ -22,6 +23,7 @@ public class Application {
         config.setShowRequestLog(false);
         server.setConfig(config);
         server.addExceptionHandler(GlobalExceptionHandler.class);
+        server.addMiddleware(new ConfigMiddleware(), new AuthMiddleware());
         server.setIsReactiveServer(true);
 //        server.setIsReactiveServer(true);
         server.start(8080);

@@ -25,8 +25,20 @@
         <jakarta.el.version>5.0.0-M1</jakarta.el.version>
         <tika.version>2.9.2</tika.version>
         <freemarker.version>2.3.32</freemarker.version>
-        <reactor.version>3.3.14.RELEASE</reactor.version>
+        <reactor.version>2024.0.3</reactor.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.projectreactor</groupId>
+                <artifactId>reactor-bom</artifactId>
+                <version>${reactor.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- netty -->
@@ -98,7 +110,6 @@
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-core</artifactId>
-            <version>${reactor.version}</version>
         </dependency>
     </dependencies>
 

@@ -10,6 +10,8 @@ import org.turbo.web.core.http.session.Session;
 import org.turbo.web.core.http.sse.SSESession;
 import org.turbo.web.core.http.sse.SseResultObject;
 import reactor.core.publisher.Mono;
+import top.heimi.pojos.Result;
+import top.heimi.pojos.User;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -21,9 +23,21 @@ public class UserController {
     private AtomicInteger atomicInteger = new AtomicInteger(0);
     private List<SSESession> sessions = new ArrayList<>();
 
+//    @Get
+//    public Mono<String> test(HttpContext ctx) {
+//        return Mono.just("hello world");
+//    }
+
     @Get
-    public Mono<String> test(HttpContext ctx) {
-        return Mono.just("hello world");
+    public Mono<Result<User>> getUser(HttpContext ctx) {
+        return Mono.deferContextual(context -> {
+            // 获取上下文中的内容
+            Object object = context.get("name");
+            System.out.println(object);
+            // 封装请求对象
+            User user = ctx.loadValidQueryParamToBean(User.class);
+            return Mono.just(new Result<>(200, user, "success"));
+        });
     }
 
 //    @Get
