@@ -18,7 +18,7 @@ public class Application {
         server.addController(HelloController.class);
         // 切换为反应式编程
         server.setIsReactiveServer(true);
-        server.addMiddleware(new MyMiddleware());
+//        server.addMiddleware(new MyMiddleware());
         server.start(8080);
     }
 }

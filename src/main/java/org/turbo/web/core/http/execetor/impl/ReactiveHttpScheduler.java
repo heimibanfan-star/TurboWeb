@@ -23,6 +23,7 @@ import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
@@ -57,20 +58,21 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
 
     @Override
     public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SSESession session) {
-        SERVICE_POOL.execute(() -> {
-            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
-            Mono<HttpResponse> responseMono = doExecute(request, response, session);
-            responseMono.subscribe(
-                promise::setSuccess,
-                (err) -> {
-                    try {
-                        handleException(request, err)
-                            .subscribe(promise::setSuccess, promise::setFailure);
-                    } catch (Throwable cause) {
-                        promise.setFailure(cause);
-                    }
-                });
-        });
+        HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
+        Mono<HttpResponse> responseMono = doExecute(request, response, session);
+        responseMono
+            .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
+            .subscribe(
+            promise::setSuccess,
+            (err) -> {
+                try {
+                    handleException(request, err)
+                        .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
+                        .subscribe(promise::setSuccess, promise::setFailure);
+                } catch (Throwable cause) {
+                    promise.setFailure(cause);
+                }
+            });
     }
 
     private Mono<HttpResponse> doExecute(FullHttpRequest request, HttpInfoResponse response, SSESession session) {
