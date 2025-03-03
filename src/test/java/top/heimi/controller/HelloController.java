@@ -24,18 +24,30 @@ import java.util.List;
 public class HelloController {
 
     @Get
-    public Mono<String> index(HttpContext ctx) {
-        return Mono.create(sink -> {
-            Thread.ofVirtual().start(() -> {
+    public Mono<HttpResponse> index(HttpContext ctx) {
+        // 开启SSE会话
+        SseResultObject sseResultObject = ctx.openSseSession();
+        // 获取SSE会话
+        SSESession session = sseResultObject.getSseSession();
+        // 不断发送消息
+        Thread thread = Thread.ofVirtual().start(() -> {
+            while (true) {
+                session.send("hello world");
                 try {
-                    Thread.sleep(50);
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    sink.error(new RuntimeException(e));
+                    System.out.println("thread interrupt");
                     return;
                 }
-            });
-            sink.success("hello world");
+            }
         });
+        // 监听session的销毁事件
+        session.closeListener(() ->{
+            thread.interrupt();
+            System.out.println("session destroy");
+        });
+        // 通知浏览器，SSE会话已经建立
+        return Mono.just(sseResultObject.getHttpResponse());
     }
 
     @Get("/test")

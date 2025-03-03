@@ -23,7 +23,6 @@ import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
@@ -58,21 +57,20 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
 
     @Override
     public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SSESession session) {
-        HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
-        Mono<HttpResponse> responseMono = doExecute(request, response, session);
-        responseMono
-            .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
-            .subscribe(
+        SERVICE_POOL.execute(() -> {
+            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
+            Mono<HttpResponse> responseMono = doExecute(request, response, session);
+            responseMono.subscribe(
                 promise::setSuccess,
                 (err) -> {
                     try {
                         handleException(request, err)
-                            .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
                             .subscribe(promise::setSuccess, promise::setFailure);
                     } catch (Throwable cause) {
                         promise.setFailure(cause);
                     }
                 });
+        });
     }
 
     private Mono<HttpResponse> doExecute(FullHttpRequest request, HttpInfoResponse response, SSESession session) {
@@ -127,7 +125,7 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
      * 调度异常处理器
      *
      * @param request 请求对象
-     * @param e       异常对象
+     * @param e 异常对象
      * @return 响应结果
      */
     private Mono<HttpResponse> handleException(FullHttpRequest request, Throwable e) {
