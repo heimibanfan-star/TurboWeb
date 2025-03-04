@@ -23,7 +23,7 @@ public class MyMiddleware extends ReactiveMiddleware {
     public Mono<?> doSubscribe(HttpContext ctx) {
         return ctx.doNextMono()
             .map(r -> {
-                System.out.println(Thread.currentThread().getName());
+                System.out.println("执行之后的逻辑...");
                 return r;
             });
     }

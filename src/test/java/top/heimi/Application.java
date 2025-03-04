@@ -1,7 +1,6 @@
 package top.heimi;
 
 import org.turbo.web.core.http.middleware.FreemarkerTemplateMiddleware;
-import org.turbo.web.core.http.middleware.ReactiveStaticResourceMiddleware;
 import org.turbo.web.core.http.middleware.StaticResourceMiddleware;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
@@ -19,7 +18,7 @@ public class Application {
         server.addController(HelloController.class);
         // 切换为反应式编程
         server.setIsReactiveServer(true);
-        server.addMiddleware(new ReactiveStaticResourceMiddleware());
+//        server.addMiddleware(new MyMiddleware());
         server.start(8080);
     }
 }
