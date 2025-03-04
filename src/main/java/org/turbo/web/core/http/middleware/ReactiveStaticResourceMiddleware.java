@@ -26,6 +26,8 @@ import java.nio.channels.CompletionHandler;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 反应式静态资源处理中间件
@@ -39,6 +41,12 @@ public class ReactiveStaticResourceMiddleware extends ReactiveMiddleware impleme
     private String staticResourceUri = "/static";
     // 静态资源路径
     private String staticResourcePath = "static";
+    // 是否缓存静态文件
+    private boolean cacheStaticResource = true;
+    // 多少字节以内的文件进行缓存
+    private int cacheFileSize = 1024 * 1024;
+
+    private final Map<String, byte[]> cache = new ConcurrentHashMap<>();
 
     // 用于缓存静态文件的缓存
     private final Tika tika = new Tika();
@@ -49,6 +57,14 @@ public class ReactiveStaticResourceMiddleware extends ReactiveMiddleware impleme
 
     public void setStaticResourcePath(String staticResourcePath) {
         this.staticResourcePath = staticResourcePath;
+    }
+
+    public void setCacheStaticResource(boolean cacheStaticResource) {
+        this.cacheStaticResource = cacheStaticResource;
+    }
+
+    public void setCacheFileSize(int cacheFileSize) {
+        this.cacheFileSize = cacheFileSize;
     }
 
     @Override
@@ -66,6 +82,18 @@ public class ReactiveStaticResourceMiddleware extends ReactiveMiddleware impleme
             uri = uri.substring(0, uri.indexOf("?"));
         }
         String path = uri.replace(staticResourceUri, staticResourcePath);
+        if (cache.get(path) != null) {
+            byte[] buffer = cache.get(path);
+            return Mono.create(sink ->{
+               HttpInfoResponse response = new HttpInfoResponse(
+                        HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(buffer)
+                    );
+               response.headers().set(headers);
+               response.setContentType(tika.detect(path));
+               response.headers().set(HttpHeaderNames.CONTENT_LENGTH, buffer.length);
+               sink.success(response);
+            });
+        }
         // 获取文件路径
         URL url = mainClass.getClassLoader().getResource(path);
         // 获取路径
@@ -84,7 +112,15 @@ public class ReactiveStaticResourceMiddleware extends ReactiveMiddleware impleme
                     public void completed(Integer result, ByteBuffer attachment) {
                         if (result > 0) {
                             attachment.flip();
-                            ByteBuf content = Unpooled.wrappedBuffer(attachment);
+                            ByteBuf content;
+                            if (cacheStaticResource && result < cacheFileSize) {
+                                byte[] bytes = new byte[result];
+                                attachment.get(bytes);
+                                cache.put(path, bytes);
+                                content = Unpooled.wrappedBuffer(bytes);
+                            } else {
+                                content = Unpooled.wrappedBuffer(attachment);
+                            }
                             HttpInfoResponse response = new HttpInfoResponse(
                                 HttpVersion.HTTP_1_1, HttpResponseStatus.OK, content
                             );
