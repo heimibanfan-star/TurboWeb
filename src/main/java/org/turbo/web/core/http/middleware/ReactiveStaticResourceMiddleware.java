@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * TODO DEV
  */
 public class ReactiveStaticResourceMiddleware extends ReactiveMiddleware implements MainClassAware {
-    private static final Logger log = LoggerFactory.getLogger(StaticResourceMiddleware.class);
+    private static final Logger log = LoggerFactory.getLogger(ReactiveStaticResourceMiddleware.class);
     // 主启动类
     private Class<?> mainClass;
     // 默认的静态请求路径
