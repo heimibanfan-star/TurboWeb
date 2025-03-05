@@ -3,6 +3,7 @@ package org.turbo.web.core.server;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.session.SessionManager;
+import org.turbo.web.core.http.ws.WebSocketHandler;
 import org.turbo.web.core.init.TurboServerInit;
 
 /**
@@ -77,4 +78,12 @@ public interface TurboServer {
      * @param flag 是否为响应式服务器
      */
     void setIsReactiveServer(boolean flag);
+
+    /**
+     * 增加websocket处理器
+     *
+     * @param path websocket处理的路径
+     * @param webSocketHandler 处理器
+     */
+    void setWebSocketHandler(String path, WebSocketHandler webSocketHandler);
 }

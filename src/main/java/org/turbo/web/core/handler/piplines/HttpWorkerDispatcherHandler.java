@@ -102,6 +102,8 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         Promise<Boolean> promise = new DefaultPromise<>(ctx.executor());
         // 存入容器
         HttpConnectPromiseContainer.put(channelId.asLongText(), promise);
+        // 调用后续的处理器
+        ctx.fireChannelActive();
     }
 
     @Override
@@ -114,5 +116,6 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
             promise.setSuccess(true);
             HttpConnectPromiseContainer.remove(channelId.asLongText());
         }
+        ctx.fireChannelActive();
     }
 }

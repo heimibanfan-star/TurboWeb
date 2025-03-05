@@ -4,10 +4,12 @@ import io.netty.channel.*;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.handler.piplines.HttpWorkerDispatcherHandler;
+import org.turbo.web.core.handler.piplines.WebSocketDispatcherHandler;
 import org.turbo.web.core.http.execetor.HttpScheduler;
 
 /**
@@ -18,11 +20,15 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
     private static final Logger log = LoggerFactory.getLogger(TurboChannelHandler.class);
     private final int maxContentLength;
     private final HttpWorkerDispatcherHandler httpWorkerDispatcherHandler;
+    private final WebSocketDispatcherHandler webSocketDispatcherHandler;
+    private final String websocketPath;
 
-    public TurboChannelHandler(HttpScheduler httpScheduler, int maxContentLength) {
+    public TurboChannelHandler(HttpScheduler httpScheduler, int maxContentLength, WebSocketDispatcherHandler webSocketDispatcherHandler, String websocketPath) {
         super();
         this.maxContentLength = maxContentLength;
         this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpScheduler);
+        this.webSocketDispatcherHandler = webSocketDispatcherHandler;
+        this.websocketPath = websocketPath;
     }
 
     @Override
@@ -31,6 +37,10 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
         pipeline.addLast(new HttpServerCodec());
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
         pipeline.addLast(new ChunkedWriteHandler());
+        if (webSocketDispatcherHandler != null) {
+            pipeline.addLast(new WebSocketServerProtocolHandler(websocketPath));
+            pipeline.addLast(webSocketDispatcherHandler);
+        }
         pipeline.addLast(httpWorkerDispatcherHandler);
     }
 }

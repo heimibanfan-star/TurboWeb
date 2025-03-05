@@ -4,10 +4,12 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.handler.TurboChannelHandler;
+import org.turbo.web.core.handler.piplines.WebSocketDispatcherHandler;
 import org.turbo.web.core.http.execetor.HttpDispatcher;
 import org.turbo.web.core.http.execetor.HttpScheduler;
 import org.turbo.web.core.http.execetor.impl.DefaultHttpDispatcher;
@@ -21,12 +23,14 @@ import org.turbo.web.core.http.session.DefaultSessionManagerProxy;
 import org.turbo.web.core.http.session.MemorySessionManager;
 import org.turbo.web.core.http.session.SessionManager;
 import org.turbo.web.core.http.session.SessionManagerProxy;
+import org.turbo.web.core.http.ws.WebSocketHandler;
 import org.turbo.web.core.init.DefaultJacksonTurboServerInit;
 import org.turbo.web.core.init.TurboServerInit;
 import org.turbo.web.core.router.container.RouterContainer;
 import org.turbo.web.core.router.matcher.RouterMatcher;
 import org.turbo.web.core.router.matcher.impl.DefaultRouterMatcher;
 import org.turbo.web.core.server.TurboServer;
+import org.turbo.web.exception.TurboWebSocketException;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 import org.turbo.web.utils.init.ExceptionHandlerContainerInitUtils;
 import org.turbo.web.utils.init.RouterContainerInitUtils;
@@ -65,6 +69,12 @@ public class DefaultTurboServer implements TurboServer {
     private final List<TurboServerInit> customizeTurboServerInitList = new ArrayList<>();
     // 是否是反应式服务器
     private boolean isReactiveServer = false;
+    // 是否使用websocket
+    private boolean useWebSocket = false;
+    // websocket的处理器
+    private WebSocketHandler webSocketHandler;
+    // websocket处理的路径
+    private String websocketPath;
 
     {
         defaultTurboServerInitList.add(new DefaultJacksonTurboServerInit());
@@ -76,7 +86,7 @@ public class DefaultTurboServer implements TurboServer {
      * @param mainClass       主类
      * @param workerThreadNum 工作线程数
      */
-    public DefaultTurboServer(Class<?> mainClass,int workerThreadNum) {
+    public DefaultTurboServer(Class<?> mainClass, int workerThreadNum) {
         this.mainClass = mainClass;
         serverBootstrap = new ServerBootstrap();
         bossGroup = new NioEventLoopGroup(1);
@@ -117,7 +127,11 @@ public class DefaultTurboServer implements TurboServer {
         // 设置请求封装工具的字符集
         HttpInfoRequestPackageUtils.setCharset(config.getCharset());
         // 设置处理器
-        serverBootstrap.childHandler(new TurboChannelHandler(httpScheduler, config.getMaxContentLength()));
+        if (useWebSocket) {
+            serverBootstrap.childHandler(new TurboChannelHandler(httpScheduler, config.getMaxContentLength(), initWebSocketDispatcherHandler() , websocketPath));
+        } else {
+            serverBootstrap.childHandler(new TurboChannelHandler(httpScheduler, config.getMaxContentLength(), null, null));
+        }
     }
 
     /**
@@ -130,6 +144,18 @@ public class DefaultTurboServer implements TurboServer {
         ExceptionHandlerMatcher matcher = new DefaultExceptionHandlerMatcher(container);
         log.info("异常处理器初始化成功");
         return matcher;
+    }
+
+    private WebSocketDispatcherHandler initWebSocketDispatcherHandler() {
+        if (webSocketHandler == null) {
+            throw new TurboWebSocketException("websocket处理器不能为空");
+        }
+        if (StringUtils.isBlank(websocketPath)) {
+            throw new TurboWebSocketException("websocket路径不能为空");
+        }
+        WebSocketDispatcherHandler webSocketDispatcherHandler = new WebSocketDispatcherHandler(webSocketHandler);
+        log.info("websocket处理器初始化成功");
+        return webSocketDispatcherHandler;
     }
 
     /**
@@ -158,9 +184,9 @@ public class DefaultTurboServer implements TurboServer {
     /**
      * 初始化http请求调度器
      *
-     * @param dispatcher       路由分发器
-     * @param matcher          异常处理器匹配器
-     * @return                 http请求调度器
+     * @param dispatcher 路由分发器
+     * @param matcher    异常处理器匹配器
+     * @return http请求调度器
      */
     private HttpScheduler initHttpScheduler(
         HttpDispatcher dispatcher,
@@ -203,6 +229,7 @@ public class DefaultTurboServer implements TurboServer {
 
     /**
      * 启动服务器
+     *
      * @param port 端口
      */
     @Override
@@ -288,5 +315,12 @@ public class DefaultTurboServer implements TurboServer {
     @Override
     public void setIsReactiveServer(boolean flag) {
         this.isReactiveServer = flag;
+    }
+
+    @Override
+    public void setWebSocketHandler(String path, WebSocketHandler webSocketHandler) {
+        useWebSocket = true;
+        this.websocketPath = path;
+        this.webSocketHandler = webSocketHandler;
     }
 }
