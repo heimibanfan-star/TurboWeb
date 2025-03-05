@@ -39,7 +39,7 @@ public class StaticResourceMiddleware extends AbstractStaticResourceMiddleware{
             if (cacheStaticResource) {
                 byte[] bytes = caches.get(uri);
                 if (bytes != null) {
-                    return bytes;
+                    return buildResponse(ctx, bytes, uri);
                 }
             }
             byte[] bytes = loadAndCacheStaticResource(uri);
