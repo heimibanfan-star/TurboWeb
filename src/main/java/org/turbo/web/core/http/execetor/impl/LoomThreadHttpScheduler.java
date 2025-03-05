@@ -6,8 +6,6 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.execetor.HttpDispatcher;
@@ -50,8 +48,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
             mainClass,
             middlewares,
             exceptionHandlerMatcher,
-            config,
-            LoomThreadHttpScheduler.class
+            config
         );
     }
 
