@@ -12,7 +12,7 @@ import java.util.Map;
 public class BeanUtils {
 
     private static final Logger log = LoggerFactory.getLogger(BeanUtils.class);
-    private static final ObjectMapper OBJECT_MAPPER;
+    private static ObjectMapper OBJECT_MAPPER;
 
     static {
         OBJECT_MAPPER = new ObjectMapper();
@@ -124,5 +124,9 @@ public class BeanUtils {
      */
     public static ObjectMapper getObjectMapper() {
         return OBJECT_MAPPER;
+    }
+
+    public static void setObjectMapper(ObjectMapper objectMapper) {
+        OBJECT_MAPPER = objectMapper;
     }
 }

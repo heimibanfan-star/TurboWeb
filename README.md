@@ -82,7 +82,7 @@ public class HelloController {
 public class Application {
     public static void main(String[] args) {
         TurboServer turboServer = new DefaultTurboServer(Application.class, 8);
-        turboServer.addController(HelloController.class);
+        turboServer.addController(new HelloController());
         turboServer.start(8080);
     }
 }
@@ -94,7 +94,7 @@ public class Application {
 - HttpContext：该参数表示请求的上下文，包含了请求的参数、响应、请求体等信息，开发者可以利用该参数进行业务逻辑处理。
 - TurboServer：该类是框架的核心类，用于启动服务器，并管理请求处理逻辑，参数表示worker线程数量，即用于监听read事件的线程数量。
 - DefaultTurboServer：该类是TurboServer的默认实现，提供了一些常用的功能，如添加控制器、启动服务器等。
-- addController：该方法用于添加控制器，参数表示控制器的字节码对象，框架会自动扫描控制器的方法，并根据方法的注解进行路由映射。
+- addController：该方法用于添加控制器，参数表示控制器对象，框架会自动扫描控制器的方法，并根据方法的注解进行路由映射。
 - start：该方法用于启动服务器，参数表示监听端口号，启动成功后，服务器将开始监听请求，并根据路由映射规则处理请求。
 
 ## 路由的映射
@@ -410,7 +410,7 @@ public class SimpleMiddleware extends Middleware {
 public class Application {
     public static void main(String[] args) {
         TurboServer turboServer = new DefaultTurboServer(8);
-        turboServer.addController(HelloController.class);
+        turboServer.addController(new HelloController());
         turboServer.addMiddleware(new SimpleMiddleware());
         turboServer.start(8080);
     }
@@ -435,8 +435,8 @@ public class GlobalExceptionHandler {
 public class Application {
     public static void main(String[] args) {
         TurboServer turboServer = new DefaultTurboServer(8);
-        turboServer.addController(HelloController.class);
-        turboServer.addExceptionHandler(GlobalExceptionHandler.class);
+        turboServer.addController(new HelloController());
+        turboServer.addExceptionHandler(new GlobalExceptionHandler());
         turboServer.start(8080);
     }
 }
