@@ -51,7 +51,8 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             mainClass,
             middlewares,
             exceptionHandlerMatcher,
-            config
+            config,
+            ReactiveHttpScheduler.class
         );
         SERVICE_POOL = new ForkJoinPool(config.getReactiveServiceThreadNum());
     }

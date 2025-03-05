@@ -48,7 +48,8 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
             mainClass,
             middlewares,
             exceptionHandlerMatcher,
-            config
+            config,
+            LoomThreadHttpScheduler.class
         );
     }
 
