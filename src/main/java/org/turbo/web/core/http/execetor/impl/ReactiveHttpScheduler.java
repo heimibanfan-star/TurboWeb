@@ -7,12 +7,15 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.execetor.HttpDispatcher;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
+import org.turbo.web.core.http.middleware.ReactiveMiddleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
@@ -51,7 +54,8 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             mainClass,
             middlewares,
             exceptionHandlerMatcher,
-            config
+            config,
+            ReactiveMiddleware.class
         );
         SERVICE_POOL = new ForkJoinPool(config.getReactiveServiceThreadNum());
     }

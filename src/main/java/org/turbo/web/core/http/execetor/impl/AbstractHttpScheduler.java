@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class AbstractHttpScheduler implements HttpScheduler {
 
-    protected static final Logger log = LoggerFactory.getLogger(LoomThreadHttpScheduler.class);
+    protected final Logger log;
     protected final Middleware sentinelMiddleware = new SentinelMiddleware();
     protected final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
@@ -62,8 +62,10 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         Class<?> mainClass,
         List<Middleware> middlewares,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
-        ServerParamConfig config
+        ServerParamConfig config,
+        Class<?> clazz
     ) {
+        this.log = LoggerFactory.getLogger(clazz);
         this.exceptionHandlerMatcher = exceptionHandlerMatcher;
         this.sessionManagerProxy = sessionManagerProxy;
         this.mainClass = mainClass;
