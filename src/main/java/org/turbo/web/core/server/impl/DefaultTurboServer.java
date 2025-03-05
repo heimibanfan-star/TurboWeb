@@ -50,11 +50,11 @@ public class DefaultTurboServer implements TurboServer {
     // 服务器参数的配置
     private ServerParamConfig config = new ServerParamConfig();
     // 控制器的字节码
-    private final List<Class<?>> controllerList = new ArrayList<>();
+    private final List<Object> controllerList = new ArrayList<>();
     // 中间件
     private final List<Middleware> middlewareList = new ArrayList<>();
     // 异常处理器
-    private final List<Class<?>> exceptionHandlerList = new ArrayList<>(1);
+    private final List<Object> exceptionHandlerList = new ArrayList<>(1);
     // session管理器
     private SessionManager sessionManager = new MemorySessionManager();
     // 是否执行默认的初始化器
@@ -247,7 +247,7 @@ public class DefaultTurboServer implements TurboServer {
     }
 
     @Override
-    public void addController(Class<?>... controllers) {
+    public void addController(Object... controllers) {
         controllerList.addAll(List.of(controllers));
     }
 
@@ -266,7 +266,7 @@ public class DefaultTurboServer implements TurboServer {
 
 
     @Override
-    public void addExceptionHandler(Class<?>... exceptionHandler) {
+    public void addExceptionHandler(Object... exceptionHandler) {
         exceptionHandlerList.addAll(List.of(exceptionHandler));
     }
 

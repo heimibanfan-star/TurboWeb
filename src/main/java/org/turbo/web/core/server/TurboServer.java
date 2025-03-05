@@ -27,7 +27,7 @@ public interface TurboServer {
      *
      * @param controllers 控制器
      */
-    void addController(Class<?>... controllers);
+    void addController(Object... controllers);
 
     /**
      * 设置配置
@@ -48,7 +48,7 @@ public interface TurboServer {
      *
      * @param exceptionHandler 异常处理器
      */
-    void addExceptionHandler(Class<?>... exceptionHandler);
+    void addExceptionHandler(Object... exceptionHandler);
 
     /**
      * 添加初始化器

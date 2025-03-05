@@ -35,17 +35,16 @@ public class RouterContainerInitUtils {
      * @param controllerList 控制器类集合
      * @return 路由容器
      */
-    public static RouterContainer initContainer(List<Class<?>> controllerList) {
+    public static RouterContainer initContainer(List<Object> controllerList) {
         RouterContainer routerContainer = new AnnoRouterContainer();
-        for (Class<?> aClass : controllerList) {
+        for (Object controller : controllerList) {
             // 判断类上是否有注解
+            Class<?> aClass = controller.getClass();
             RequestPath annotation = aClass.getAnnotation(RequestPath.class);
             if (annotation == null) {
-                throw new TurboControllerCreateException("类上没有RequestPath注解");
+                throw new TurboControllerCreateException("类上没有RequestPath注解:" + aClass);
             }
-            // 创建类的实例
-            Object instance = createInstance(aClass);
-            routerContainer.getControllerInstances().put(aClass, instance);
+            routerContainer.getControllerInstances().put(aClass, controller);
             // 获取类中所有的方法
             Method[] methods = aClass.getMethods();
             for (Method method : methods) {
@@ -58,26 +57,6 @@ public class RouterContainerInitUtils {
             }
         }
         return routerContainer;
-    }
-
-    /**
-     * 创建实例
-     *
-     * @param clazz 类
-     * @return 实例
-     */
-    private static Object createInstance(Class<?> clazz) {
-        try {
-            // 获取无参构造方法
-            Constructor<?> constructor = clazz.getConstructor();
-            return constructor.newInstance();
-        } catch (NoSuchMethodException e) {
-            log.error("类上没有无参构造方法", e);
-            throw new TurboControllerCreateException(e.getMessage());
-        } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-            log.error("controller实例创建失败：{}", clazz, e);
-            throw new TurboControllerCreateException(e.getMessage());
-        }
     }
 
     /**

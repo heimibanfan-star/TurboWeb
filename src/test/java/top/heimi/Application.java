@@ -9,6 +9,7 @@ import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
 import top.heimi.controller.HelloController;
 import top.heimi.controller.UserController;
+import top.heimi.handler.GlobalExceptionHandler;
 import top.heimi.init.ServerInitConfig;
 import top.heimi.middleware.MyMiddleware;
 
@@ -18,7 +19,7 @@ import top.heimi.middleware.MyMiddleware;
 public class Application {
     public static void main(String[] args) {
         TurboServer server = new DefaultTurboServer(Application.class, 8);
-        server.addController(HelloController.class);
+        server.addController(new HelloController());
         // 切换为反应式编程
         server.setIsReactiveServer(true);
         AbstractStaticResourceMiddleware staticResourceMiddleware = new ReactiveStaticResourceMiddleware();
@@ -26,7 +27,8 @@ public class Application {
         ServerParamConfig config = new ServerParamConfig();
         config.setShowRequestLog(false);
         server.setConfig(config);
-        server.addMiddleware(staticResourceMiddleware);
+        server.addExceptionHandler(new GlobalExceptionHandler());
+//        server.addMiddleware(staticResourceMiddleware);
         server.start(8080);
     }
 }

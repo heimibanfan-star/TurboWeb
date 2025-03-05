@@ -26,14 +26,7 @@ public class HelloController {
     @Get
     public Mono<String> index(HttpContext ctx) {
         return Mono.create(sink-> {
-            Thread.ofVirtual().start(() -> {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                sink.success("hello world");
-            });
+            sink.error(new RuntimeException("出现异常了"));
         });
     }
 

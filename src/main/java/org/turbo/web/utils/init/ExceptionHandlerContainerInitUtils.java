@@ -31,13 +31,12 @@ public class ExceptionHandlerContainerInitUtils {
      * @param exceptionHandlerClassList 异常处理器类集合
      * @return 异常处理器容器
      */
-    public static ExceptionHandlerContainer initContainer(List<Class<?>> exceptionHandlerClassList) {
+    public static ExceptionHandlerContainer initContainer(List<Object> exceptionHandlerClassList) {
         ExceptionHandlerContainer container = new ExceptionHandlerContainer();
-        for (Class<?> aClass : exceptionHandlerClassList) {
-            // 创建实例对象
-            Object instance = createInstance(aClass);
+        for (Object handler : exceptionHandlerClassList) {
+            Class<?> aClass = handler.getClass();
             // 放入容器中
-            container.getHandlerClassInstances().put(aClass, instance);
+            container.getHandlerClassInstances().put(aClass, handler);
             // 获取所有的方法
             Method[] methods = aClass.getMethods();
             for (Method method : methods) {
