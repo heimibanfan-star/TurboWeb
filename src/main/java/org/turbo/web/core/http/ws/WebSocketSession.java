@@ -18,4 +18,16 @@ public interface WebSocketSession {
      * @return 连接信息
      */
     WebSocketConnectInfo getWebSocketConnectInfo();
+
+    /**
+     * 发送ping
+     *
+     */
+    void sendPing();
+
+    /**
+     * 发送pong
+     *
+     */
+    void sendPong();
 }

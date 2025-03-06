@@ -34,6 +34,7 @@ public interface WebSocketHandler {
      * @param session websocket session回话
      */
     default void onPing(WebSocketSession session) {
+        session.sendPong();
     }
 
     /**
