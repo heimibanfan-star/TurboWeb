@@ -40,6 +40,11 @@ public class StandardWebSocketSession implements WebSocketSession{
     }
 
     @Override
+    public void close() {
+        eventLoop.execute(channel::close);
+    }
+
+    @Override
     public void sendMessage(String message) {
         TextWebSocketFrame textWebSocketFrame = new TextWebSocketFrame(message);
         eventLoop.execute(() -> channel.writeAndFlush(textWebSocketFrame));

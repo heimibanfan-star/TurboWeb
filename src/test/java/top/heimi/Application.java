@@ -18,14 +18,17 @@ public class Application {
             public void onOpen(WebSocketSession session) {
                 System.out.println("onOpen:" +session.getWebSocketConnectInfo().getWebsocketPath());
                 Thread.ofVirtual().start(() -> {
-                    while (true) {
+                    int num = 0;
+                    while (num <20) {
                         try {
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
+                        num++;
                         session.sendMessage("你好");
                     }
+                    session.close();
                 });
             }
 
@@ -42,7 +45,7 @@ public class Application {
 
             @Override
             public void onPing(WebSocketSession session) {
-
+                System.out.println("onPing");
             }
         });
         server.addController(new UserController());

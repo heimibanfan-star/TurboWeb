@@ -14,7 +14,9 @@
     ws.onmessage = function (event) {
         console.log('message', event.data);
     };
-    ws.pin
+    setInterval(function () {
+        ws.send()
+    }, 2000)
 </script>
 </body>
 </html>

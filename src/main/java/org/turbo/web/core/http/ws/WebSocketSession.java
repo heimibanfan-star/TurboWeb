@@ -30,4 +30,10 @@ public interface WebSocketSession {
      *
      */
     void sendPong();
+
+    /**
+     * 关闭连接
+     *
+     */
+    void close();
 }
