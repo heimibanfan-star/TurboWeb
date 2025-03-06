@@ -20,15 +20,11 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
     private static final Logger log = LoggerFactory.getLogger(TurboChannelHandler.class);
     private final int maxContentLength;
     private final HttpWorkerDispatcherHandler httpWorkerDispatcherHandler;
-    private final WebSocketDispatcherHandler webSocketDispatcherHandler;
-    private final String websocketPath;
 
     public TurboChannelHandler(HttpScheduler httpScheduler, int maxContentLength, WebSocketDispatcherHandler webSocketDispatcherHandler, String websocketPath) {
         super();
         this.maxContentLength = maxContentLength;
-        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpScheduler);
-        this.webSocketDispatcherHandler = webSocketDispatcherHandler;
-        this.websocketPath = websocketPath;
+        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpScheduler, webSocketDispatcherHandler, websocketPath);
     }
 
     @Override
@@ -37,10 +33,6 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
         pipeline.addLast(new HttpServerCodec());
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
         pipeline.addLast(new ChunkedWriteHandler());
-        if (webSocketDispatcherHandler != null) {
-            pipeline.addLast(new WebSocketServerProtocolHandler(websocketPath));
-            pipeline.addLast(webSocketDispatcherHandler);
-        }
         pipeline.addLast(httpWorkerDispatcherHandler);
     }
 }

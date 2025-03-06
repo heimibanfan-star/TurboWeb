@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.DefaultPromise;
@@ -14,6 +15,10 @@ import org.turbo.web.core.http.execetor.HttpScheduler;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.sse.HttpConnectPromiseContainer;
 import org.turbo.web.core.http.sse.SSESession;
+import org.turbo.web.core.http.ws.PathWebSocketPreInit;
+import org.turbo.web.core.http.ws.WebSocketConnectInfo;
+import org.turbo.web.core.http.ws.WebSocketConnectInfoContainer;
+import org.turbo.web.core.http.ws.WebSocketPreInit;
 import org.turbo.web.exception.TurboRouterException;
 import org.turbo.web.utils.thread.LoomThreadUtils;
 
@@ -30,13 +35,26 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
     private static final Logger log = LoggerFactory.getLogger(HttpWorkerDispatcherHandler.class);
     private final HttpScheduler httpScheduler;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final WebSocketDispatcherHandler webSocketDispatcherHandler;
+    private final WebSocketPreInit webSocketPreInit;
 
-    public HttpWorkerDispatcherHandler(HttpScheduler httpScheduler) {
+    public HttpWorkerDispatcherHandler(HttpScheduler httpScheduler, WebSocketDispatcherHandler webSocketDispatcherHandler, String websocketPath) {
         this.httpScheduler = httpScheduler;
+        this.webSocketDispatcherHandler = webSocketDispatcherHandler;
+        this.webSocketPreInit = new PathWebSocketPreInit(websocketPath, webSocketDispatcherHandler);
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, FullHttpRequest fullHttpRequest) throws Exception {
+        if (webSocketDispatcherHandler != null) {
+            // 判断是否是websocket协议
+            if (fullHttpRequest.headers().contains(HttpHeaderNames.UPGRADE, "websocket", true)) {
+                handleInitWebSocket(channelHandlerContext, fullHttpRequest);
+                fullHttpRequest.retain();
+                channelHandlerContext.fireChannelRead(fullHttpRequest);
+                return;
+            }
+        }
         // 获取当前管道绑定的eventLoop
         EventLoop eventLoop = channelHandlerContext.channel().eventLoop();
         // 创建异步对象
@@ -65,6 +83,21 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
             // 释放资源
             fullHttpRequest.release();
         });
+    }
+
+    /**
+     * 初始化websocket请求
+     *
+     * @param request 请求对象
+     */
+    private void handleInitWebSocket(ChannelHandlerContext ctx, FullHttpRequest request) {
+        // 初始化handler链
+        webSocketPreInit.handle(ctx, request);
+        String channelId = ctx.channel().id().asLongText();
+        String uri = request.uri();
+        WebSocketConnectInfo connectInfo = new WebSocketConnectInfo();
+        connectInfo.setWebsocketPath(uri);
+        WebSocketConnectInfoContainer.putWebSocketConnectInfo(channelId, connectInfo);
     }
 
     /**
@@ -116,6 +149,6 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
             promise.setSuccess(true);
             HttpConnectPromiseContainer.remove(channelId.asLongText());
         }
-        ctx.fireChannelActive();
+        ctx.fireChannelInactive();
     }
 }

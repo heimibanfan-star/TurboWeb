@@ -11,10 +11,17 @@ public class StandardWebSocketSession implements WebSocketSession{
 
     private final EventLoop eventLoop;
     private final Channel channel;
+    private final WebSocketConnectInfo webSocketConnectInfo;
 
-    public StandardWebSocketSession(EventLoop eventLoop, Channel channel) {
+    public StandardWebSocketSession(EventLoop eventLoop, Channel channel, WebSocketConnectInfo connectInfo) {
         this.eventLoop = eventLoop;
         this.channel = channel;
+        this.webSocketConnectInfo = connectInfo;
+    }
+
+    @Override
+    public WebSocketConnectInfo getWebSocketConnectInfo() {
+        return this.webSocketConnectInfo;
     }
 
     @Override

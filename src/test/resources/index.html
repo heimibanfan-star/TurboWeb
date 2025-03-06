@@ -6,7 +6,7 @@
 </head>
 <body>
 <script>
-    const ws = new WebSocket('ws://localhost:8080/ws');
+    const ws = new WebSocket('ws://localhost:8080/ws/name/12456');
     ws.onopen = function (event) {
         console.log('open');
         ws.send('hello');

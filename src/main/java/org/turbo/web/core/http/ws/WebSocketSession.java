@@ -11,4 +11,11 @@ public interface WebSocketSession {
      * @param message 信息
      */
     void sendMessage(String message);
+
+    /**
+     * 获取连接信息
+     *
+     * @return 连接信息
+     */
+    WebSocketConnectInfo getWebSocketConnectInfo();
 }

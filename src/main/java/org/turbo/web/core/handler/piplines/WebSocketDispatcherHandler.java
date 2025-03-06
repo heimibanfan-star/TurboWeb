@@ -5,9 +5,7 @@ import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
-import org.turbo.web.core.http.ws.StandardWebSocketSession;
-import org.turbo.web.core.http.ws.WebSocketHandler;
-import org.turbo.web.core.http.ws.WebSocketSession;
+import org.turbo.web.core.http.ws.*;
 import org.turbo.web.exception.TurboWebSocketException;
 import org.turbo.web.utils.thread.LoomThreadUtils;
 
@@ -34,18 +32,18 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
             WebSocketSession webSocketSession = getWebSocketSession(channelHandlerContext);
             // 获取收到的消息
             String message = textWebSocketFrame.text();
-            LoomThreadUtils.execute(() ->{
+            LoomThreadUtils.execute(() -> {
                 // 调度处理器
                 webSocketHandler.onMessage(webSocketSession, message);
             });
         } else if (webSocketFrame instanceof PingWebSocketFrame) {
             WebSocketSession webSocketSession = getWebSocketSession(channelHandlerContext);
-            LoomThreadUtils.execute(() ->{
+            LoomThreadUtils.execute(() -> {
                 webSocketHandler.onPing(webSocketSession);
             });
         } else if (webSocketFrame instanceof PongWebSocketFrame) {
             WebSocketSession webSocketSession = getWebSocketSession(channelHandlerContext);
-            LoomThreadUtils.execute(() ->{
+            LoomThreadUtils.execute(() -> {
                 webSocketHandler.onPong(webSocketSession);
             });
         }
@@ -63,10 +61,17 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
         WebSocketSession webSocketSession = sessionMap.get(channelId);
         if (webSocketSession == null) {
             // 锁住当前管道
-                synchronized (channelId.intern()) {
+            synchronized (channelId.intern()) {
                 webSocketSession = sessionMap.get(channelId);
                 if (webSocketSession == null) {
-                    webSocketSession = new StandardWebSocketSession(ctx.channel().eventLoop(), ctx.channel());
+                    // 获取websocket的连接信息
+                    WebSocketConnectInfo connectInfo = WebSocketConnectInfoContainer.getWebSocketConnectInfo(channelId);
+                    if (connectInfo == null) {
+                        // 关闭channel
+                        ctx.channel().close();
+                        throw new TurboWebSocketException("websocket连接信息为空");
+                    }
+                    webSocketSession = new StandardWebSocketSession(ctx.channel().eventLoop(), ctx.channel(), connectInfo);
                     sessionMap.put(channelId, webSocketSession);
                     webSocketHandler.onOpen(webSocketSession);
                 }
@@ -81,13 +86,13 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
         ChannelId channelId = ctx.channel().id();
         try {
             // 获取session
-            WebSocketSession webSocketSession = sessionMap.get(channelId.asLongText());
+            WebSocketSession webSocketSession = sessionMap.remove(channelId.asLongText());
+            WebSocketConnectInfoContainer.removeWebSocketConnectInfo(channelId.asLongText());
             // 调用close方法
             webSocketHandler.onClose(webSocketSession);
         } finally {
-            sessionMap.remove(channelId.asLongText());
+            ctx.fireChannelInactive();
         }
-        ctx.fireChannelInactive();
     }
 }
 
