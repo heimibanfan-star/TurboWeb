@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.web.anno.End;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
@@ -67,12 +68,23 @@ public class HttpContext extends AbstractHttpContext{
     }
 
     /**
+     * 结束响应
+     *
+     * @return 结果
+     */
+    @End
+    public Object end() {
+        return null;
+    }
+
+    /**
      * 响应json数据
      *
      * @param status 响应状态
      * @param data   响应数据
      */
-    public void json(HttpResponseStatus status, Object data) {
+    @End
+    public Object json(HttpResponseStatus status, Object data) {
         if (isWrite) {
             throw new TurboResponseRepeatWriteException("response repeat write");
         }
@@ -84,17 +96,22 @@ public class HttpContext extends AbstractHttpContext{
         }
         response.setContentType("application/json;charset=utf-8");
         isWrite = true;
+        chain = null;
+        return end();
     }
 
-    public void json(Object data) {
-        json(HttpResponseStatus.OK, data);
+    @End
+    public Object json(Object data) {
+        return json(HttpResponseStatus.OK, data);
     }
 
-    public void json(HttpResponseStatus status) {
-        json(status, "");
+    @End
+    public Object json(HttpResponseStatus status) {
+        return json(status, "");
     }
 
-    public void text(HttpResponseStatus status, String data) {
+    @End
+    public Object text(HttpResponseStatus status, String data) {
         if (isWrite) {
             throw new TurboResponseRepeatWriteException("response repeat write");
         }
@@ -102,13 +119,17 @@ public class HttpContext extends AbstractHttpContext{
         response.setContent(data);
         response.setContentType("text/plain;charset=utf-8");
         isWrite = true;
+        chain = null;
+        return end();
     }
 
-    public void text(String data) {
-        text(HttpResponseStatus.OK, data);
+    @End
+    public Object text(String data) {
+        return text(HttpResponseStatus.OK, data);
     }
 
-    public void html(HttpResponseStatus status, String data) {
+    @End
+    public Object html(HttpResponseStatus status, String data) {
         if (isWrite) {
             throw new TurboResponseRepeatWriteException("response repeat write");
         }
@@ -116,10 +137,13 @@ public class HttpContext extends AbstractHttpContext{
         response.setContent(data);
         response.setContentType("text/html;charset=utf-8");
         isWrite = true;
+        chain = null;
+        return end();
     }
 
-    public void html(String data) {
-        html(HttpResponseStatus.OK, data);
+    @End
+    public Object html(String data) {
+        return html(HttpResponseStatus.OK, data);
     }
 
     public boolean isWrite() {
@@ -232,5 +256,57 @@ public class HttpContext extends AbstractHttpContext{
         T bean = this.loadFormParamToBean(beanType);
         validate(bean);
         return bean;
+    }
+
+    /**
+     * 获取路径参数
+     *
+     * @param name 参数名
+     * @return 参数值
+     */
+    public String param(String name) {
+        return getPathVariable(name);
+    }
+
+    /**
+     * 将查询参数封装为对象
+     *
+     * @param beanType 对象类型
+     * @return 对象
+     */
+    public <T> T loadQuery(Class<T> beanType) {
+        return loadQueryParamToBean(beanType);
+    }
+
+    public <T> T loadValidQuery(Class<T> beanType) {
+        return loadValidQueryParamToBean(beanType);
+    }
+
+    /**
+     * 将表单参数封装成对象
+     *
+     * @param beanType 对象类型
+     * @return 对象
+     */
+    public <T> T loadForm(Class<T> beanType) {
+        return loadFormParamToBean(beanType);
+    }
+
+    public <T> T loadValidForm(Class<T> beanType) {
+        return loadValidFormParamToBean(beanType);
+    }
+
+    /**
+     * 将json参数封装成对象
+     *
+     * @param beanType 对象类型
+     * @return 对象
+     */
+    public <T> T loadJson(Class<T> beanType) {
+        return loadJsonParamToBean(beanType);
+    }
+
+    public <T> T loadValidJson(Class<T> beanType) {
+        return loadValidJsonParamToBean(beanType);
     }
 }
