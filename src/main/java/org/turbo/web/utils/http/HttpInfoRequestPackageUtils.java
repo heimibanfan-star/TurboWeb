@@ -149,6 +149,9 @@ public class HttpInfoRequestPackageUtils {
         ByteBuf contentBuf = request.content();
         // 将请求体转化为字符串
         String jsonContent = contentBuf.toString(charset);
+        if (jsonContent == null || jsonContent.isBlank()) {
+            jsonContent = "{}";
+        }
         // 判断是否是json格式
         if (jsonContent.startsWith("{") && jsonContent.endsWith("}")) {
             content.setJsonContent(jsonContent);
