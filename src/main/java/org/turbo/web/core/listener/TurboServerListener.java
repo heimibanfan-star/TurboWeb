@@ -1,11 +1,11 @@
-package org.turbo.web.core.init;
+package org.turbo.web.core.listener;
 
 import io.netty.bootstrap.ServerBootstrap;
 
 /**
- * 服务器初始化接口
+ * 服务器生命周期监听器
  */
-public interface TurboServerInit {
+public interface TurboServerListener {
 
     /**
      * 在服务器初始化之前调用

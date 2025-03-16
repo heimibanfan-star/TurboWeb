@@ -42,12 +42,16 @@
 
     <dependencies>
         <!-- netty -->
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-            <version>${netty.version}</version>
-        </dependency>
+        <!--<dependency>-->
+        <!--    <groupId>io.netty</groupId>-->
+        <!--    <artifactId>netty-all</artifactId>-->
+        <!--    <version>${netty.version}</version>-->
+        <!--</dependency>-->
         <!-- logback -->
+        <dependency>
+            <groupId>io.projectreactor.netty</groupId>
+            <artifactId>reactor-netty</artifactId>
+        </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
@@ -107,10 +111,10 @@
             <artifactId>freemarker</artifactId>
             <version>${freemarker.version}</version>
         </dependency>
-        <dependency>
-            <groupId>io.projectreactor</groupId>
-            <artifactId>reactor-core</artifactId>
-        </dependency>
+        <!--<dependency>-->
+        <!--    <groupId>io.projectreactor</groupId>-->
+        <!--    <artifactId>reactor-core</artifactId>-->
+        <!--</dependency>-->
     </dependencies>
 
 

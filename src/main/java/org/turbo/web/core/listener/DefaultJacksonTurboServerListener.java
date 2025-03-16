@@ -1,4 +1,4 @@
-package org.turbo.web.core.init;
+package org.turbo.web.core.listener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * 默认的jackson初始化器
  */
-public class DefaultJacksonTurboServerInit extends JacksonTurboServerInit{
+public class DefaultJacksonTurboServerListener extends JacksonTurboServerListener {
 
     @Override
     public void init(ObjectMapper objectMapper) {
