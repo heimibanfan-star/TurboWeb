@@ -60,22 +60,10 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
         // 获取建立的session
         WebSocketSession webSocketSession = sessionMap.get(channelId);
         if (webSocketSession == null) {
-            // 锁住当前管道
-            synchronized (channelId.intern()) {
-                webSocketSession = sessionMap.get(channelId);
-                if (webSocketSession == null) {
-                    // 获取websocket的连接信息
-                    WebSocketConnectInfo connectInfo = WebSocketConnectInfoContainer.getWebSocketConnectInfo(channelId);
-                    if (connectInfo == null) {
-                        // 关闭channel
-                        ctx.channel().close();
-                        throw new TurboWebSocketException("websocket连接信息为空");
-                    }
-                    webSocketSession = new StandardWebSocketSession(ctx.channel().eventLoop(), ctx.channel(), connectInfo);
-                    sessionMap.put(channelId, webSocketSession);
-                    webSocketHandler.onOpen(webSocketSession);
-                }
-            }
+            // 关闭管道
+            ctx.channel().close();
+            // 连接信息失效
+            throw new TurboWebSocketException("websocket连接信息为空");
         }
         return webSocketSession;
     }
@@ -93,6 +81,26 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
         } finally {
             ctx.fireChannelInactive();
         }
+    }
+
+    /**
+     * 通知websocket握手完成
+     *
+     * @param ctx 管道上下文
+     */
+    public void noticeFinishShakeHand(ChannelHandlerContext ctx) {
+        // 获取websocket的连接信息
+        WebSocketConnectInfo connectInfo = WebSocketConnectInfoContainer.getWebSocketConnectInfo(ctx.channel().id().asLongText());
+        if (connectInfo == null) {
+            // 关闭channel
+            ctx.channel().close();
+            throw new TurboWebSocketException("websocket连接信息为空");
+        }
+        // 创建websocket的回话
+        WebSocketSession webSocketSession = new StandardWebSocketSession(ctx.channel().eventLoop(), ctx.channel(), connectInfo);
+        sessionMap.put(ctx.channel().id().asLongText(), webSocketSession);
+        // 调用open方法
+        webSocketHandler.onOpen(webSocketSession);
     }
 }
 

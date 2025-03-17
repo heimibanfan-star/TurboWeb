@@ -21,17 +21,20 @@ public class PathWebSocketPreInit implements WebSocketPreInit {
 
     @Override
     public void handle(ChannelHandlerContext ctx, FullHttpRequest request) {
-        if (ctx.pipeline().get(WebSocketServerProtocolHandler.class) != null) {
-            return;
-        }
-        synchronized (ctx.channel().id().asLongText().intern()) {
-            String uri = request.uri();
-            if (uri.matches(path)) {
-                ChannelPipeline pipeline = ctx.pipeline();
-                if (pipeline.get(WebSocketServerProtocolHandler.class) == null) {
-                    pipeline.addLast(new WebSocketServerProtocolHandler(uri));
-                    pipeline.addLast(webSocketDispatcherHandler);
-                }
+        String uri = request.uri();
+        if (uri.matches(path)) {
+            ChannelPipeline pipeline = ctx.pipeline();
+            if (pipeline.get(WebSocketServerProtocolHandler.class) == null) {
+                pipeline.addLast(new WebSocketServerProtocolHandler(uri) {
+                    @Override
+                    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+                        if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete) {
+                            webSocketDispatcherHandler.noticeFinishShakeHand(ctx);
+                        }
+                        super.userEventTriggered(ctx, evt);
+                    }
+                });
+                pipeline.addLast(webSocketDispatcherHandler);
             }
         }
     }
