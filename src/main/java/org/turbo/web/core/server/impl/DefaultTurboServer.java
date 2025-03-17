@@ -10,30 +10,22 @@ import org.slf4j.LoggerFactory;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.handler.TurboChannelHandler;
 import org.turbo.web.core.handler.piplines.WebSocketDispatcherHandler;
-import org.turbo.web.core.http.execetor.HttpDispatcher;
-import org.turbo.web.core.http.execetor.HttpScheduler;
-import org.turbo.web.core.http.execetor.impl.DefaultHttpDispatcher;
-import org.turbo.web.core.http.execetor.impl.LoomThreadHttpScheduler;
-import org.turbo.web.core.http.execetor.impl.ReactiveHttpScheduler;
-import org.turbo.web.core.http.handler.DefaultExceptionHandlerMatcher;
-import org.turbo.web.core.http.handler.ExceptionHandlerContainer;
+import org.turbo.web.core.http.scheduler.HttpScheduler;
+import org.turbo.web.core.http.scheduler.impl.LoomThreadHttpScheduler;
+import org.turbo.web.core.http.scheduler.impl.ReactiveHttpScheduler;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.session.DefaultSessionManagerProxy;
-import org.turbo.web.core.http.session.MemorySessionManager;
 import org.turbo.web.core.http.session.SessionManager;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.http.ws.WebSocketHandler;
+import org.turbo.web.core.initializer.*;
+import org.turbo.web.core.initializer.impl.*;
 import org.turbo.web.core.listener.DefaultJacksonTurboServerListener;
 import org.turbo.web.core.listener.TurboServerListener;
-import org.turbo.web.core.router.container.RouterContainer;
-import org.turbo.web.core.router.matcher.RouterMatcher;
-import org.turbo.web.core.router.matcher.impl.DefaultRouterMatcher;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.exception.TurboWebSocketException;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
-import org.turbo.web.utils.init.ExceptionHandlerContainerInitUtils;
-import org.turbo.web.utils.init.RouterContainerInitUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,36 +39,35 @@ public class DefaultTurboServer implements TurboServer {
     private final ServerBootstrap serverBootstrap;
     // 主类字节码对象
     private final Class<?> mainClass;
+    // 中间件初始化器
+    private final MiddlewareInitializer middlewareInitializer;
+    // 异常处理器初始化器
+    private final ExceptionHandlerInitializer exceptionHandlerInitializer;
+    // session管理器初始化器
+    private final SessionManagerProxyInitializer sessionManagerProxyInitializer;
+    // http调度器初始化器
+    private final HttpSchedulerInitializer httpSchedulerInitializer;
+    // websocket初始化器
+    private final WebSocketHandlerInitializer webSocketHandlerInitializer;
     // boss事件循环组
     private final NioEventLoopGroup bossGroup;
     // worker事件循环组
     private final NioEventLoopGroup workerGroup;
     // 服务器参数的配置
     private ServerParamConfig config = new ServerParamConfig();
-    // 控制器的字节码
-    private final List<Object> controllerList = new ArrayList<>();
-    // 中间件
-    private final List<Middleware> middlewareList = new ArrayList<>();
-    // 异常处理器
-    private final List<Object> exceptionHandlerList = new ArrayList<>(1);
-    // session管理器
-    private SessionManager sessionManager = new MemorySessionManager();
-    // 是否执行默认的初始化器
+    // 是否执行默认的监听器
     private boolean doDefaultInit = true;
-    // 存储默认初始化器的列表
+    // 存储默认监听器的列表
     private final List<TurboServerListener> defaultTurboServerListenerList = new ArrayList<>();
-    // 用户自定义的初始化器的列表
+    // 用户自定义的监听器的列表
     private final List<TurboServerListener> customizeTurboServerListenerList = new ArrayList<>();
-    // 是否是反应式服务器
-    private boolean isReactiveServer = false;
-    // 是否使用websocket
-    private boolean useWebSocket = false;
-    // websocket的处理器
-    private WebSocketHandler webSocketHandler;
-    // websocket处理的路径
-    private String websocketPath;
 
     {
+        middlewareInitializer = new DefaultMiddlewareInitializer();
+        exceptionHandlerInitializer = new DefaultExceptionHandlerInitializer();
+        sessionManagerProxyInitializer = new DefaultSessionManagerProxyInitializer();
+        httpSchedulerInitializer = new DefaultHttpSchedulerInitializer();
+        webSocketHandlerInitializer = new DefaultWebSocketHandlerInitializer();
         defaultTurboServerListenerList.add(new DefaultJacksonTurboServerListener());
     }
 
@@ -116,107 +107,32 @@ public class DefaultTurboServer implements TurboServer {
         serverBootstrap.group(bossGroup, workerGroup);
         // 设置管道
         serverBootstrap.channel(NioServerSocketChannel.class);
-        // 初始化路由分发器
-        HttpDispatcher routerDispatcher = initHttpRouterDispatcher();
         // 初始化异常处理器
-        ExceptionHandlerMatcher exceptionHandlerMatcher = initExceptionHandler();
+        ExceptionHandlerMatcher exceptionHandlerMatcher = exceptionHandlerInitializer.init();
         // 初始化session管理器代理
-        SessionManagerProxy sessionManagerProxy = initSessionManagerProxy();
+        SessionManagerProxy sessionManagerProxy = sessionManagerProxyInitializer.init(config);
+        // 初始化中间件
+        Middleware chainSentinel = middlewareInitializer.init(sessionManagerProxy, mainClass, exceptionHandlerMatcher, config);
         // 初始化http请求适配器
-        HttpScheduler httpScheduler = initHttpScheduler(routerDispatcher, sessionManagerProxy, exceptionHandlerMatcher);
+        HttpScheduler httpScheduler = httpSchedulerInitializer.init(sessionManagerProxy, exceptionHandlerMatcher, chainSentinel, config);
         // 设置请求封装工具的字符集
         HttpInfoRequestPackageUtils.setCharset(config.getCharset());
         // 设置处理器
-        if (useWebSocket) {
-            serverBootstrap.childHandler(new TurboChannelHandler(httpScheduler, config.getMaxContentLength(), initWebSocketDispatcherHandler() , websocketPath));
+        if (webSocketHandlerInitializer.isUse()) {
+            serverBootstrap.childHandler(new TurboChannelHandler(
+                httpScheduler,
+                config.getMaxContentLength(),
+                webSocketHandlerInitializer.init() ,
+                webSocketHandlerInitializer.getPath()
+            ));
         } else {
-            serverBootstrap.childHandler(new TurboChannelHandler(httpScheduler, config.getMaxContentLength(), null, null));
+            serverBootstrap.childHandler(new TurboChannelHandler(
+                httpScheduler,
+                config.getMaxContentLength(),
+                null,
+                null
+            ));
         }
-    }
-
-    /**
-     * 初始化异常处理器
-     *
-     * @return 异常处理器
-     */
-    private ExceptionHandlerMatcher initExceptionHandler() {
-        ExceptionHandlerContainer container = ExceptionHandlerContainerInitUtils.initContainer(exceptionHandlerList);
-        ExceptionHandlerMatcher matcher = new DefaultExceptionHandlerMatcher(container);
-        log.info("异常处理器初始化成功");
-        return matcher;
-    }
-
-    private WebSocketDispatcherHandler initWebSocketDispatcherHandler() {
-        if (webSocketHandler == null) {
-            throw new TurboWebSocketException("websocket处理器不能为空");
-        }
-        if (StringUtils.isBlank(websocketPath)) {
-            throw new TurboWebSocketException("websocket路径不能为空");
-        }
-        WebSocketDispatcherHandler webSocketDispatcherHandler = new WebSocketDispatcherHandler(webSocketHandler);
-        log.info("websocket处理器初始化成功");
-        return webSocketDispatcherHandler;
-    }
-
-    /**
-     * 初始化路由分发器
-     *
-     * @return 路由分发器
-     */
-    private HttpDispatcher initHttpRouterDispatcher() {
-        // 初始化路由定义
-        RouterContainer routerContainer = RouterContainerInitUtils.initContainer(controllerList);
-        log.info("http分发器初始化成功");
-        // 创建路由匹配器
-        RouterMatcher routerMatcher = new DefaultRouterMatcher(routerContainer);
-        // 创建http请求分发器
-        return new DefaultHttpDispatcher(routerMatcher);
-    }
-
-    /**
-     * 初始化session容器
-     */
-    private SessionManagerProxy initSessionManagerProxy() {
-        // 创建session管理器代理
-        return new DefaultSessionManagerProxy(sessionManager, config);
-    }
-
-    /**
-     * 初始化http请求调度器
-     *
-     * @param dispatcher 路由分发器
-     * @param matcher    异常处理器匹配器
-     * @return http请求调度器
-     */
-    private HttpScheduler initHttpScheduler(
-        HttpDispatcher dispatcher,
-        SessionManagerProxy sessionManagerProxy,
-        ExceptionHandlerMatcher matcher
-    ) {
-        HttpScheduler scheduler;
-        // 判断是否采用反应式编程
-        if (isReactiveServer) {
-            scheduler = new ReactiveHttpScheduler(
-                dispatcher,
-                sessionManagerProxy,
-                mainClass,
-                middlewareList,
-                matcher,
-                config
-            );
-        } else {
-            scheduler = new LoomThreadHttpScheduler(
-                dispatcher,
-                sessionManagerProxy,
-                mainClass,
-                middlewareList,
-                matcher,
-                config
-            );
-        }
-        scheduler.setShowRequestLog(config.isShowRequestLog());
-        log.info("http调度器初始化成功");
-        return scheduler;
     }
 
     /**
@@ -275,7 +191,7 @@ public class DefaultTurboServer implements TurboServer {
 
     @Override
     public void addController(Object... controllers) {
-        controllerList.addAll(List.of(controllers));
+        middlewareInitializer.addController(controllers);
     }
 
     @Override
@@ -288,13 +204,13 @@ public class DefaultTurboServer implements TurboServer {
 
     @Override
     public void addMiddleware(Middleware... middleware) {
-        middlewareList.addAll(List.of(middleware));
+        middlewareInitializer.addMiddleware(middleware);
     }
 
 
     @Override
     public void addExceptionHandler(Object... exceptionHandler) {
-        exceptionHandlerList.addAll(List.of(exceptionHandler));
+        exceptionHandlerInitializer.addExceptionHandler(exceptionHandler);
     }
 
     @Override
@@ -309,18 +225,16 @@ public class DefaultTurboServer implements TurboServer {
 
     @Override
     public void setSessionManager(SessionManager sessionManager) {
-        this.sessionManager = sessionManager;
+        this.sessionManagerProxyInitializer.setSessionManager(sessionManager);
     }
 
     @Override
     public void setIsReactiveServer(boolean flag) {
-        this.isReactiveServer = flag;
+        httpSchedulerInitializer.isReactive(flag);
     }
 
     @Override
     public void setWebSocketHandler(String path, WebSocketHandler webSocketHandler) {
-        useWebSocket = true;
-        this.websocketPath = path;
-        this.webSocketHandler = webSocketHandler;
+        webSocketHandlerInitializer.setWebSocketHandler(path, webSocketHandler);
     }
 }

@@ -1,4 +1,4 @@
-package org.turbo.web.core.http.execetor.impl;
+package org.turbo.web.core.http.scheduler.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -8,11 +8,9 @@ import org.slf4j.LoggerFactory;
 import org.turbo.web.constants.FontColors;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.execetor.HttpDispatcher;
-import org.turbo.web.core.http.execetor.HttpScheduler;
+import org.turbo.web.core.http.scheduler.HttpScheduler;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
-import org.turbo.web.core.http.middleware.HttpDispatcherExecuteMiddleware;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.middleware.SentinelMiddleware;
 import org.turbo.web.core.http.middleware.aware.CharsetAware;
@@ -40,12 +38,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public abstract class AbstractHttpScheduler implements HttpScheduler {
 
     protected final Logger log;
-    protected final Middleware sentinelMiddleware = new SentinelMiddleware();
+    protected final Middleware sentinelMiddleware;
     protected final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     private final SessionManagerProxy sessionManagerProxy;
     protected boolean showRequestLog = true;
-    private final Class<?> mainClass;
     protected final ServerParamConfig config;
     protected final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
 
@@ -57,10 +54,8 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     }
 
     public AbstractHttpScheduler(
-        HttpDispatcher httpDispatcher,
         SessionManagerProxy sessionManagerProxy,
-        Class<?> mainClass,
-        List<Middleware> middlewares,
+        Middleware chain,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
         ServerParamConfig config,
         Class<?> subClass
@@ -68,66 +63,8 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         this.log = LoggerFactory.getLogger(subClass);
         this.exceptionHandlerMatcher = exceptionHandlerMatcher;
         this.sessionManagerProxy = sessionManagerProxy;
-        this.mainClass = mainClass;
         this.config = config;
-        // 初始化中间件链
-        initMiddleware(httpDispatcher, middlewares);
-        // 对中间件进行依赖注入
-        initMiddlewareChainForAware();
-        // 调用中间件的初始化方法
-        doMiddlewareChainInit();
-    }
-
-    /**
-     * 初始化中间件
-     *
-     * @param httpDispatcher http请求分发器
-     * @param middlewares 中间件
-     */
-    private void initMiddleware(HttpDispatcher httpDispatcher, List<Middleware> middlewares) {
-        Middleware ptr = sentinelMiddleware;
-        for (Middleware middleware : middlewares) {
-            ptr.setNext(middleware);
-            ptr = middleware;
-        }
-        ptr.setNext(new HttpDispatcherExecuteMiddleware(httpDispatcher));
-        log.debug("中间件链组装完成");
-    }
-
-    /**
-     * 对中间件进行依赖注入
-     */
-    private void initMiddlewareChainForAware() {
-        Middleware ptr = sentinelMiddleware;
-        while (ptr != null) {
-            // 判断是否实现Aware
-            if (ptr instanceof SessionManagerProxyAware aware) {
-                aware.setSessionManagerProxy(sessionManagerProxy);
-            }
-            if (ptr instanceof ExceptionHandlerMatcherAware aware) {
-                aware.setExceptionHandlerMatcher(exceptionHandlerMatcher);
-            }
-            if (ptr instanceof MainClassAware aware) {
-                aware.setMainClass(mainClass);
-            }
-            if (ptr instanceof CharsetAware aware) {
-                aware.setCharset(config.getCharset());
-            }
-            ptr = ptr.getNext();
-        }
-        log.debug("中间件依赖注入完成");
-    }
-
-    /**
-     * 执行中间件的初始化方法
-     */
-    private void doMiddlewareChainInit() {
-        Middleware ptr = sentinelMiddleware;
-        while (ptr != null) {
-            ptr.init(this.sentinelMiddleware);
-            ptr = ptr.getNext();
-        }
-        log.debug("中间件初始化方法执行完成");
+        this.sentinelMiddleware = chain;
     }
 
     /**

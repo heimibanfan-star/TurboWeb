@@ -4,13 +4,12 @@ import io.netty.channel.*;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.handler.piplines.HttpWorkerDispatcherHandler;
 import org.turbo.web.core.handler.piplines.WebSocketDispatcherHandler;
-import org.turbo.web.core.http.execetor.HttpScheduler;
+import org.turbo.web.core.http.scheduler.HttpScheduler;
 
 /**
  * 通道处理器

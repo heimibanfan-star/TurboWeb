@@ -1,15 +1,14 @@
-package org.turbo.web.core.http.execetor.impl;
+package org.turbo.web.core.http.scheduler.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.execetor.HttpDispatcher;
+import org.turbo.web.core.http.router.dispatcher.HttpDispatcher;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
@@ -38,18 +37,14 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
 
     public ReactiveHttpScheduler(
-        HttpDispatcher httpDispatcher,
         SessionManagerProxy sessionManagerProxy,
-        Class<?> mainClass,
-        List<Middleware> middlewares,
+        Middleware chain,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
         ServerParamConfig config
     ) {
         super(
-            httpDispatcher,
             sessionManagerProxy,
-            mainClass,
-            middlewares,
+            chain,
             exceptionHandlerMatcher,
             config,
             ReactiveHttpScheduler.class

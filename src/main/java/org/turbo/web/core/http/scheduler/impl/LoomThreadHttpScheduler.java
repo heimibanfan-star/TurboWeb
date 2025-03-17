@@ -1,14 +1,13 @@
-package org.turbo.web.core.http.execetor.impl;
+package org.turbo.web.core.http.scheduler.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.execetor.HttpDispatcher;
+import org.turbo.web.core.http.router.dispatcher.HttpDispatcher;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
@@ -18,15 +17,12 @@ import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.http.sse.SSESession;
 import org.turbo.web.exception.TurboExceptionHandlerException;
-import org.turbo.web.exception.TurboNotCatchException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.lock.Locks;
-import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 import org.turbo.web.utils.thread.LoomThreadUtils;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.List;
 
 /**
@@ -35,18 +31,14 @@ import java.util.List;
 public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
 
     public LoomThreadHttpScheduler(
-        HttpDispatcher httpDispatcher,
         SessionManagerProxy sessionManagerProxy,
-        Class<?> mainClass,
-        List<Middleware> middlewares,
+        Middleware chain,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
         ServerParamConfig config
     ) {
         super(
-            httpDispatcher,
             sessionManagerProxy,
-            mainClass,
-            middlewares,
+            chain,
             exceptionHandlerMatcher,
             config,
             LoomThreadHttpScheduler.class
@@ -133,7 +125,6 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
             return response;
         } catch (IllegalAccessException | InvocationTargetException ex) {
             response.release();
-            log.error("异常处理器中调用方法时出现错误" + e);
             throw new TurboExceptionHandlerException("异常处理器中出现错误：" + ex.getMessage());
         } catch (JsonProcessingException ex) {
             response.release();

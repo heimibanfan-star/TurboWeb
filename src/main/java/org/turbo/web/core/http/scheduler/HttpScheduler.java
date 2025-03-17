@@ -1,9 +1,8 @@
-package org.turbo.web.core.http.execetor;
+package org.turbo.web.core.http.scheduler;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.concurrent.Promise;
-import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.sse.SSESession;
 
 /**

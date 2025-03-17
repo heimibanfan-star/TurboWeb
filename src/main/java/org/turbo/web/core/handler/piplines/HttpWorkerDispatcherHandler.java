@@ -11,7 +11,7 @@ import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turbo.web.core.http.execetor.HttpScheduler;
+import org.turbo.web.core.http.scheduler.HttpScheduler;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.sse.HttpConnectPromiseContainer;
 import org.turbo.web.core.http.sse.SSESession;
@@ -20,7 +20,6 @@ import org.turbo.web.core.http.ws.WebSocketConnectInfo;
 import org.turbo.web.core.http.ws.WebSocketConnectInfoContainer;
 import org.turbo.web.core.http.ws.WebSocketPreInit;
 import org.turbo.web.exception.TurboRouterException;
-import org.turbo.web.utils.thread.LoomThreadUtils;
 
 import java.util.HashMap;
 import java.util.Map;

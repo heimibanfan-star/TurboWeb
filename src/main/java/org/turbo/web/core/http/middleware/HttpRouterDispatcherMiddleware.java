@@ -1,16 +1,16 @@
 package org.turbo.web.core.http.middleware;
 
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.execetor.HttpDispatcher;
+import org.turbo.web.core.http.router.dispatcher.HttpDispatcher;
 
 /**
  * 用于执行http请求分发器的middleware
  */
-public class HttpDispatcherExecuteMiddleware extends Middleware {
+public class HttpRouterDispatcherMiddleware extends Middleware {
 
     private final HttpDispatcher httpDispatcher;
 
-    public HttpDispatcherExecuteMiddleware(HttpDispatcher httpDispatcher) {
+    public HttpRouterDispatcherMiddleware(HttpDispatcher httpDispatcher) {
         this.httpDispatcher = httpDispatcher;
     }
 
