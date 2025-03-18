@@ -40,13 +40,10 @@ public class Client {
                     HttpResponse httpResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
                     httpResponse.headers().add(response.responseHeaders());
                     promise.setSuccess(httpResponse);
-                    return content.map(buf -> {
-//                            System.out.println(buf.refCnt());
-                            buf.retain();
-//                        buf.release();
-                            // 发送 chunked 数据
-                            return new DefaultHttpContent(buf);
-                        });
+                    //                            System.out.println(buf.refCnt());
+                    //                        buf.release();
+                    // 发送 chunked 数据
+                    return content.map(DefaultHttpContent::new);
                 } else {
                     return content.map(buf -> {
                             buf.retain();
@@ -62,6 +59,7 @@ public class Client {
                 }
             })
             .subscribe(val -> {
+                val.retain();
                 loop.execute(() -> {
 //                    try {
 //                        Thread.sleep(2000);
