@@ -1,9 +1,8 @@
 package top.heimi.controller;
 
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
-import org.turbo.web.anno.Get;
-import org.turbo.web.anno.Post;
-import org.turbo.web.anno.RequestPath;
+import org.turbo.web.anno.*;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.response.ViewModel;
 import org.turbo.web.core.http.sse.SSESession;
@@ -18,6 +17,25 @@ public class HelloController {
 
     @Get
     public void hello(HttpContext ctx) {
+        System.out.println(ctx.getRequest().getHeaders().get(HttpHeaderNames.CONTENT_TYPE));
+        ctx.json("hello world");
+    }
+
+    @Post
+    public void hello2(HttpContext ctx) {
+        System.out.println(ctx.getRequest().getHeaders().get(HttpHeaderNames.CONTENT_TYPE));
+        ctx.json("hello world");
+    }
+
+    @Put
+    public void hello3(HttpContext ctx) {
+        System.out.println(ctx.getRequest().getHeaders().get(HttpHeaderNames.CONTENT_TYPE));
+        ctx.json("hello world");
+    }
+
+    @Delete
+    public void hello4(HttpContext ctx) {
+        System.out.println(ctx.getRequest().getHeaders().get(HttpHeaderNames.CONTENT_TYPE));
         ctx.json("hello world");
     }
 
