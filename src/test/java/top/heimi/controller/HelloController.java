@@ -17,7 +17,7 @@ public class HelloController {
 
     @Get
     public void hello(HttpContext ctx) {
-        System.out.println(ctx.getRequest().getHeaders().get(HttpHeaderNames.CONTENT_TYPE));
+//        System.out.println(ctx.getRequest().getHeaders().get(HttpHeaderNames.CONTENT_TYPE));
         ctx.json("hello world");
     }
 
@@ -35,7 +35,7 @@ public class HelloController {
 
     @Delete
     public void hello4(HttpContext ctx) {
-        System.out.println(ctx.getRequest().getHeaders().get(HttpHeaderNames.CONTENT_TYPE));
+//        System.out.println(ctx.getRequest().getHeaders().get(HttpHeaderNames.CONTENT_TYPE));
         ctx.json("hello world");
     }
 

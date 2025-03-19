@@ -4,18 +4,14 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.config.ServerParamConfig;
+import org.turbo.web.core.gateway.Gateway;
 import org.turbo.web.core.handler.TurboChannelHandler;
-import org.turbo.web.core.handler.piplines.WebSocketDispatcherHandler;
 import org.turbo.web.core.http.scheduler.HttpScheduler;
-import org.turbo.web.core.http.scheduler.impl.LoomThreadHttpScheduler;
-import org.turbo.web.core.http.scheduler.impl.ReactiveHttpScheduler;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
-import org.turbo.web.core.http.session.DefaultSessionManagerProxy;
 import org.turbo.web.core.http.session.SessionManager;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.http.ws.WebSocketHandler;
@@ -24,7 +20,6 @@ import org.turbo.web.core.initializer.impl.*;
 import org.turbo.web.core.listener.DefaultJacksonTurboServerListener;
 import org.turbo.web.core.listener.TurboServerListener;
 import org.turbo.web.core.server.TurboServer;
-import org.turbo.web.exception.TurboWebSocketException;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 
 import java.util.ArrayList;
@@ -49,6 +44,8 @@ public class DefaultTurboServer implements TurboServer {
     private final HttpSchedulerInitializer httpSchedulerInitializer;
     // websocket初始化器
     private final WebSocketHandlerInitializer webSocketHandlerInitializer;
+    // http客户端的初始化器
+    private final HttpClientInitializer httpClientInitializer;
     // boss事件循环组
     private final NioEventLoopGroup bossGroup;
     // worker事件循环组
@@ -59,6 +56,8 @@ public class DefaultTurboServer implements TurboServer {
     private boolean doDefaultInit = true;
     // 存储默认监听器的列表
     private final List<TurboServerListener> defaultTurboServerListenerList = new ArrayList<>();
+    // 网关
+    private Gateway gateway;
     // 用户自定义的监听器的列表
     private final List<TurboServerListener> customizeTurboServerListenerList = new ArrayList<>();
 
@@ -68,6 +67,7 @@ public class DefaultTurboServer implements TurboServer {
         sessionManagerProxyInitializer = new DefaultSessionManagerProxyInitializer();
         httpSchedulerInitializer = new DefaultHttpSchedulerInitializer();
         webSocketHandlerInitializer = new DefaultWebSocketHandlerInitializer();
+        httpClientInitializer = new DefaultHttpClientInitializer();
         defaultTurboServerListenerList.add(new DefaultJacksonTurboServerListener());
     }
 
@@ -115,22 +115,29 @@ public class DefaultTurboServer implements TurboServer {
         Middleware chainSentinel = middlewareInitializer.init(sessionManagerProxy, mainClass, exceptionHandlerMatcher, config);
         // 初始化http请求适配器
         HttpScheduler httpScheduler = httpSchedulerInitializer.init(sessionManagerProxy, exceptionHandlerMatcher, chainSentinel, config);
+        // 初始化http客户端
+        httpClientInitializer.init(workerGroup);
         // 设置请求封装工具的字符集
         HttpInfoRequestPackageUtils.setCharset(config.getCharset());
+        if (gateway != null) {
+            log.info("gateway已启用");
+        }
         // 设置处理器
         if (webSocketHandlerInitializer.isUse()) {
             serverBootstrap.childHandler(new TurboChannelHandler(
                 httpScheduler,
                 config.getMaxContentLength(),
                 webSocketHandlerInitializer.init() ,
-                webSocketHandlerInitializer.getPath()
+                webSocketHandlerInitializer.getPath(),
+                gateway
             ));
         } else {
             serverBootstrap.childHandler(new TurboChannelHandler(
                 httpScheduler,
                 config.getMaxContentLength(),
                 null,
-                null
+                null,
+                gateway
             ));
         }
     }
@@ -236,5 +243,15 @@ public class DefaultTurboServer implements TurboServer {
     @Override
     public void setWebSocketHandler(String path, WebSocketHandler webSocketHandler) {
         webSocketHandlerInitializer.setWebSocketHandler(path, webSocketHandler);
+    }
+
+    @Override
+    public HttpClientInitializer httpClient() {
+        return this.httpClientInitializer;
+    }
+
+    @Override
+    public void setGateway(Gateway gateway) {
+        this.gateway = gateway;
     }
 }

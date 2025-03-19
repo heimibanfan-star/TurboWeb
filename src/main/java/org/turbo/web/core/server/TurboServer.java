@@ -1,9 +1,11 @@
 package org.turbo.web.core.server;
 
 import org.turbo.web.core.config.ServerParamConfig;
+import org.turbo.web.core.gateway.Gateway;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.session.SessionManager;
 import org.turbo.web.core.http.ws.WebSocketHandler;
+import org.turbo.web.core.initializer.HttpClientInitializer;
 import org.turbo.web.core.listener.TurboServerListener;
 
 /**
@@ -86,4 +88,16 @@ public interface TurboServer {
      * @param webSocketHandler 处理器
      */
     void setWebSocketHandler(String path, WebSocketHandler webSocketHandler);
+
+    /**
+     * 获取http客户端的初始化器
+     * http客户端的初始化器
+     */
+    HttpClientInitializer httpClient();
+
+    /**
+     * 设置网关
+     * @param gateway 网关
+     */
+    void setGateway(Gateway gateway);
 }

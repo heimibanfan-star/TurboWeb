@@ -15,6 +15,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -25,7 +26,23 @@ public class Demo {
         HttpClientConfig config = new HttpClientConfig();
         HttpClientUtils.initClient(config, new NioEventLoopGroup());
         PromiseHttpClient promiseHttpClient = HttpClientUtils.promiseHttpClient();
-        Promise<RestResponseResult<String>> resultPromise = promiseHttpClient.postJson("http://localhost:8080/hello", new HashMap<>(), null, String.class);
-        System.out.println(resultPromise.get().getBody());
+        long start = System.currentTimeMillis();
+        CountDownLatch latch = new CountDownLatch(10000);
+        for (int j = 0; j < 10000; j++) {
+            Thread.ofVirtual().start(() -> {
+                for (int i = 0; i < 100; i++) {
+                    Promise<RestResponseResult<String>> resultPromise = promiseHttpClient.get("http://localhost:8080/hello", new HashMap<>(), String.class);
+                    try {
+                        RestResponseResult<String> responseResult = resultPromise.get();
+//                        System.out.println(responseResult.getBody());
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                latch.countDown();
+            });
+        }
+        latch.await();
+        System.out.println("耗时：" + (System.currentTimeMillis() - start) + "ms");
     }
 }

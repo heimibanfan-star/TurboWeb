@@ -51,7 +51,6 @@ public class HttpClientUtils {
                     .build();
             httpClient = HttpClient.create(provider).runOn(group);
             init = true;
-            log.info("HttpClientUtils初始化成功");
         }
     }
 

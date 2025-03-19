@@ -11,6 +11,7 @@ import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.web.core.gateway.Gateway;
 import org.turbo.web.core.http.scheduler.HttpScheduler;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.sse.HttpConnectPromiseContainer;
@@ -36,11 +37,18 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final WebSocketDispatcherHandler webSocketDispatcherHandler;
     private final WebSocketPreInit webSocketPreInit;
+    private final Gateway gateway;
 
-    public HttpWorkerDispatcherHandler(HttpScheduler httpScheduler, WebSocketDispatcherHandler webSocketDispatcherHandler, String websocketPath) {
+    public HttpWorkerDispatcherHandler(
+        HttpScheduler httpScheduler,
+        WebSocketDispatcherHandler webSocketDispatcherHandler,
+        String websocketPath,
+        Gateway gateway
+    ) {
         this.httpScheduler = httpScheduler;
         this.webSocketDispatcherHandler = webSocketDispatcherHandler;
         this.webSocketPreInit = new PathWebSocketPreInit(websocketPath, webSocketDispatcherHandler);
+        this.gateway = gateway;
     }
 
     @Override
@@ -51,6 +59,16 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
                 handleInitWebSocket(channelHandlerContext, fullHttpRequest);
                 fullHttpRequest.retain();
                 channelHandlerContext.fireChannelRead(fullHttpRequest);
+                return;
+            }
+        }
+        // 判断是否启用网关
+        if (gateway != null) {
+            String url = gateway.matchNode(fullHttpRequest.uri());
+            if (url != null) {
+                url = url + fullHttpRequest.uri();
+                fullHttpRequest.retain();
+                gateway.forwardRequest(url, fullHttpRequest, channelHandlerContext.channel());
                 return;
             }
         }
@@ -103,7 +121,7 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
      * 处理异常
      *
      * @param request 请求对象
-     * @param cause 异常
+     * @param cause   异常
      * @return 响应对象
      */
     private HttpInfoResponse doNotHandleException(FullHttpRequest request, Throwable cause) throws JsonProcessingException {

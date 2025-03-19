@@ -7,6 +7,7 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turbo.web.core.gateway.Gateway;
 import org.turbo.web.core.handler.piplines.HttpWorkerDispatcherHandler;
 import org.turbo.web.core.handler.piplines.WebSocketDispatcherHandler;
 import org.turbo.web.core.http.scheduler.HttpScheduler;
@@ -19,11 +20,19 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
     private static final Logger log = LoggerFactory.getLogger(TurboChannelHandler.class);
     private final int maxContentLength;
     private final HttpWorkerDispatcherHandler httpWorkerDispatcherHandler;
+    private final Gateway gateway;
 
-    public TurboChannelHandler(HttpScheduler httpScheduler, int maxContentLength, WebSocketDispatcherHandler webSocketDispatcherHandler, String websocketPath) {
+    public TurboChannelHandler(
+        HttpScheduler httpScheduler,
+        int maxContentLength,
+        WebSocketDispatcherHandler webSocketDispatcherHandler,
+        String websocketPath,
+        Gateway gateway
+    ) {
         super();
         this.maxContentLength = maxContentLength;
-        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpScheduler, webSocketDispatcherHandler, websocketPath);
+        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpScheduler, webSocketDispatcherHandler, websocketPath, gateway);
+        this.gateway = gateway;
     }
 
     @Override
