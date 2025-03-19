@@ -9,6 +9,7 @@ import org.turbo.web.core.gateway.matcher.RoundRobinRouterMatcher;
 import org.turbo.web.utils.client.HttpClientUtils;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.http.client.PrematureCloseException;
 
 import java.util.Objects;
 
@@ -78,6 +79,11 @@ public class DefaultGateway implements Gateway{
                             promise.setSuccess(httpResponse);
                             return Mono.empty();
                         });
+                }
+            })
+            .doOnError(e -> {
+                if (e instanceof PrematureCloseException) {
+                    channel.close();
                 }
             })
             .subscribe(httpContent -> {
