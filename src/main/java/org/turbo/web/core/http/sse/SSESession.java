@@ -8,6 +8,7 @@ import io.netty.channel.nio.NioEventLoop;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.Promise;
+import org.turbo.web.exception.TurboSseException;
 
 /**
  * sse的回话对象
@@ -30,6 +31,9 @@ public class SSESession {
      * @param message 消息
      */
     public void send(String message) {
+        if (!channel.isActive()) {
+            throw new TurboSseException("链接已关闭，不能推送数据");
+        }
         channelExecutor.execute(() -> {
             String msg = "data: " + message + "\n\n";
             ByteBuf buf = Unpooled.copiedBuffer(msg, CharsetUtil.UTF_8);
@@ -53,7 +57,17 @@ public class SSESession {
      * 关闭连接
      */
     public void close() {
-        channelExecutor.execute(channel::close);
+        channelExecutor.execute(() -> {
+            if (!channel.isActive()) {
+                return;
+            }
+            // 刷新数据
+            channel.flush();
+            // 发送结束信号
+            channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(future -> {
+                channel.close();
+            });
+        });
     }
 
 }
