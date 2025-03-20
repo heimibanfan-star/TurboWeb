@@ -1,21 +1,29 @@
 package org.turbo.web.core.gateway;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.timeout.TimeoutException;
 import io.netty.util.concurrent.Promise;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.turbo.web.core.gateway.matcher.LoadBalanceRouterMatcher;
 import org.turbo.web.core.gateway.matcher.RoundRobinRouterMatcher;
+import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.utils.client.HttpClientUtils;
+import org.turbo.web.utils.common.BeanUtils;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.PrematureCloseException;
 import reactor.util.retry.Retry;
 
-import java.net.SocketTimeoutException;
+import java.nio.charset.Charset;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -23,6 +31,7 @@ import java.util.Objects;
  */
 public class DefaultGateway implements Gateway {
 
+    private static final Logger log = LoggerFactory.getLogger(DefaultGateway.class);
     private final LoadBalanceRouterMatcher routerMatcher;
     private final int retryNum;
     private final int retryInterval;
@@ -59,12 +68,14 @@ public class DefaultGateway implements Gateway {
         Promise<HttpResponse> promise = channel.eventLoop().newPromise();
         // 处理响应对象到达时
         promise.addListener(future -> {
+            if (!channel.isActive()) {
+                return;
+            }
             if (future.isSuccess()) {
-                channel.writeAndFlush(future.get());
+                channel.writeAndFlush(future.getNow());
             } else {
-                FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_GATEWAY);
-                response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-                channel.writeAndFlush(response);
+                Throwable cause = future.cause();
+                responseError(channel, cause);
             }
         });
         httpClient
@@ -84,7 +95,9 @@ public class DefaultGateway implements Gateway {
                     httpResponse.headers().add(response.responseHeaders());
                     promise.setSuccess(httpResponse);
                     // 处理sse推送结束
-                    return content.map(DefaultHttpContent::new).doOnComplete(() -> channel.eventLoop().execute(channel::close));
+                    return content.map(DefaultHttpContent::new).doFinally(signalType -> {
+                        channel.eventLoop().execute(channel::close);
+                    });
                 } else {
                     // 增加引用
                     return content.map(buf -> {
@@ -109,16 +122,13 @@ public class DefaultGateway implements Gateway {
                 }
             })
             // 出现异常时触发重试机制
-            .retryWhen(
-                Retry.backoff(retryNum, Duration.ofMillis(retryInterval))
-                    .filter(e -> (e instanceof TimeoutException) || (e instanceof ConnectTimeoutException))
-            )
-            // 当远程通道关闭时关闭自身通道
+            .retryWhen(Retry.backoff(retryNum, Duration.ofMillis(retryInterval)))
+            // 重试失败之后对channel关闭
             .doOnError(e -> {
-                if (e instanceof PrematureCloseException) {
-                    if (channel.isActive()) {
-                        channel.close();
-                    }
+                if (channel.isActive()) {
+                    responseError(channel, e).addListener(future -> {
+                       channel.close();
+                    });
                 }
             })
             // 触发订阅，将sse内容写入channel
@@ -131,5 +141,36 @@ public class DefaultGateway implements Gateway {
                 }
             );
 
+    }
+
+    /**
+     * 生成网关异常信息
+     *
+     * @param msg 信息
+     * @return 异常信息
+     */
+    private String gatewayBadContent(String msg) {
+        Map<String, String> map = new HashMap<>();
+        map.put("code", String.valueOf(HttpResponseStatus.BAD_GATEWAY.code()));
+        map.put("msg", msg);
+        try {
+            return BeanUtils.getObjectMapper().writeValueAsString(map);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 回写错误信息
+     *
+     * @param channel 管道
+     * @param throwable 异常
+     * @return 异步对象
+     */
+    private ChannelFuture responseError(Channel channel, Throwable throwable) {
+        String content = gatewayBadContent(throwable.getMessage());
+        HttpInfoResponse httpInfoResponse = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_GATEWAY);
+        httpInfoResponse.setContent(Objects.requireNonNullElse(content, ""));
+        return channel.writeAndFlush(httpInfoResponse);
     }
 }
