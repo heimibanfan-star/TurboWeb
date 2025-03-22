@@ -2,6 +2,7 @@ package org.turbo.web.core.gateway;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ConnectTimeoutException;
@@ -33,21 +34,13 @@ public class DefaultGateway implements Gateway {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultGateway.class);
     private final LoadBalanceRouterMatcher routerMatcher;
-    private final int retryNum;
-    private final int retryInterval;
 
     public DefaultGateway() {
-        this(1, 100);
+        this(new RoundRobinRouterMatcher());
     }
 
-    public DefaultGateway(int retryNum, int retryInterval) {
-        this(new RoundRobinRouterMatcher(), retryNum, retryInterval);
-    }
-
-    public DefaultGateway(LoadBalanceRouterMatcher loadBalanceRouterMatcher, int retryNum, int retryInterval) {
+    public DefaultGateway(LoadBalanceRouterMatcher loadBalanceRouterMatcher) {
         routerMatcher = loadBalanceRouterMatcher;
-        this.retryNum = retryNum;
-        this.retryInterval = retryInterval;
     }
 
 
@@ -106,9 +99,9 @@ public class DefaultGateway implements Gateway {
                         })
                         .collectList().flatMap(bufList -> {
                             if (!bufList.isEmpty()) {
-                                // 如果包含请求体正常写入内容
-                                ByteBuf buf = bufList.getFirst();
-                                FullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, response.status(), buf);
+                                CompositeByteBuf compositeByteBuf = channel.alloc().compositeBuffer();
+                                compositeByteBuf.addComponents(true, bufList);
+                                FullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, response.status(), compositeByteBuf);
                                 httpResponse.headers().add(response.responseHeaders());
                                 promise.setSuccess(httpResponse);
                             } else {
@@ -121,8 +114,6 @@ public class DefaultGateway implements Gateway {
                         });
                 }
             })
-            // 出现异常时触发重试机制
-            .retryWhen(Retry.backoff(retryNum, Duration.ofMillis(retryInterval)))
             // 重试失败之后对channel关闭
             .doOnError(e -> {
                 if (channel.isActive()) {

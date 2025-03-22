@@ -1,6 +1,7 @@
 package org.turbo.web.core.http.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.*;
 import io.netty.util.concurrent.Promise;
@@ -14,6 +15,7 @@ import reactor.netty.http.client.HttpClient;
 
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -388,12 +390,17 @@ public class PromiseHttpClient {
      * @param type 返回类型
      */
     private <T> void packageResponsePromise(Promise<RestResponseResult<T>> promise, FullHttpResponse response, Class<T> type) {
-        long contentLen = Long.parseLong(response.headers().get(HttpHeaderNames.CONTENT_LENGTH));
+        ByteBuf contentBuf = response.content();
         String responseContent;
-        if (contentLen > 0) {
-            responseContent = response.content().toString(Charset.defaultCharset());
-        } else {
+        if (contentBuf == null) {
             responseContent = "{}";
+        } else {
+            // 判断是否有数据
+            if (contentBuf.readableBytes() == 0) {
+                responseContent = "{}";
+            } else {
+                responseContent = contentBuf.toString(StandardCharsets.UTF_8);
+            }
         }
         try {
             T value = BeanUtils.getObjectMapper().readValue(responseContent, type);
