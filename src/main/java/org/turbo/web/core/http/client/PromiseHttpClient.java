@@ -1,34 +1,26 @@
 package org.turbo.web.core.http.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.*;
 import io.netty.util.concurrent.Promise;
-import org.apache.hc.core5.net.URIBuilder;
 import org.turbo.web.core.http.client.result.RestResponseResult;
-import org.turbo.web.exception.TurboHttpClientException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
-import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 
-import java.net.URISyntaxException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Function;
 
 /**
  * 返回可阻塞的promise的客户端
  */
-public class PromiseHttpClient {
+public class PromiseHttpClient extends AbstractHttpClient {
 
-    private final HttpClient httpClient;
     private final EventLoopGroup executors;
 
     public PromiseHttpClient(HttpClient httpClient, EventLoopGroup executors) {
-        this.httpClient = httpClient;
+        super(httpClient);
         this.executors = executors;
     }
 
@@ -243,7 +235,12 @@ public class PromiseHttpClient {
         // 发起请求
         doJsonRequest(url, method, headers, null)
             .subscribe(response -> {
-                packageResponsePromise(promise, response, type);
+                try {
+                    RestResponseResult<T> responseResult = packageResponse(response, type);
+                    promise.setSuccess(responseResult);
+                } catch (JsonProcessingException e) {
+                    promise.setFailure(e);
+                }
             });
         return promise;
     }
@@ -265,41 +262,17 @@ public class PromiseHttpClient {
             }
             doJsonRequest(url, method, headers, content)
                 .subscribe(response -> {
-                    packageResponsePromise(promise, response, type);
+                    try {
+                        RestResponseResult<T> responseResult = packageResponse(response, type);
+                        promise.setSuccess(responseResult);
+                    } catch (JsonProcessingException e) {
+                        promise.setFailure(e);
+                    }
                 });
             return promise;
         } catch (JsonProcessingException e) {
             throw new TurboSerializableException("序列化失败:" + e.getMessage());
         }
-    }
-
-    /**
-     * 发起请求
-     * @param url 请求地址
-     * @param method 请求方法
-     * @param headers 请求头
-     * @param bodyContent 请求体
-     * @return 返回一个promise
-     */
-    private Mono<FullHttpResponse> doJsonRequest(String url, HttpMethod method, HttpHeaders headers, String bodyContent) {
-        return httpClient
-            .request(method)
-            .uri(url)
-            .send((request, outbound) -> {
-                if (headers != null) {
-                    request.headers(headers);
-                }
-                request.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
-                if (bodyContent == null) {
-                    return outbound;
-                }
-                return outbound.sendString(Mono.just(bodyContent));
-            })
-            .responseSingle((response, content) -> content.map(buf -> {
-                FullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, buf);
-                httpResponse.headers().add(response.responseHeaders());
-                return httpResponse;
-            }));
     }
 
     /**
@@ -315,56 +288,14 @@ public class PromiseHttpClient {
         url = buildParamUrl(url, forms);
         doFormRequest(url, method, headers, forms)
             .subscribe(response -> {
-                packageResponsePromise(promise, response, type);
+                try {
+                    RestResponseResult<T> responseResult = packageResponse(response, type);
+                    promise.setSuccess(responseResult);
+                } catch (JsonProcessingException e) {
+                    promise.setFailure(e);
+                }
             });
         return promise;
-    }
-
-    /**
-     * 发起请求
-     * @param url 请求地址
-     * @param method 请求方法
-     * @param headers 请求头
-     * @param forms 请求体
-     * @return 返回一个promise
-     */
-    private Mono<FullHttpResponse> doFormRequest(String url, HttpMethod method, HttpHeaders headers, Map<String, String> forms) {
-        return httpClient
-            .request(method)
-            .uri(url)
-            .sendForm((request, form) -> {
-                if (headers != null) {
-                    request.headers(headers);
-                }
-                request.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED);
-                if (forms != null && !forms.isEmpty()) {
-                    forms.forEach(form::attr);
-                }
-            })
-            .responseSingle((response, content) -> content.map(buf -> {
-                FullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, buf);
-                httpResponse.headers().add(response.responseHeaders());
-                return httpResponse;
-            }));
-    }
-
-    /**
-     * 构建参数url
-     * @param url 请求地址
-     * @param params 参数
-     * @return 返回一个promise
-     */
-    private String buildParamUrl(String url, Map<String, String> params) {
-        if (params == null || params.isEmpty()) {
-            return url;
-        }
-        try {
-            URIBuilder uriBuilder = new URIBuilder(url);
-            params.forEach(uriBuilder::setParameter);
-            return uriBuilder.build().toString();
-        } catch (URISyntaxException e) {
-            throw new TurboHttpClientException("无效的url:" + url);
-        }
     }
 
     /**
@@ -382,31 +313,5 @@ public class PromiseHttpClient {
             }))
             .subscribe(promise::setSuccess);
         return promise;
-    }
-
-    /**
-     * 封装响应的promise
-     * @param response 响应
-     * @param type 返回类型
-     */
-    private <T> void packageResponsePromise(Promise<RestResponseResult<T>> promise, FullHttpResponse response, Class<T> type) {
-        ByteBuf contentBuf = response.content();
-        String responseContent;
-        if (contentBuf == null) {
-            responseContent = "{}";
-        } else {
-            // 判断是否有数据
-            if (contentBuf.readableBytes() == 0) {
-                responseContent = "{}";
-            } else {
-                responseContent = contentBuf.toString(StandardCharsets.UTF_8);
-            }
-        }
-        try {
-            T value = BeanUtils.getObjectMapper().readValue(responseContent, type);
-            promise.setSuccess(new RestResponseResult<>(response.headers(), value));
-        } catch (JsonProcessingException e) {
-            promise.setFailure(e);
-        }
     }
 }
