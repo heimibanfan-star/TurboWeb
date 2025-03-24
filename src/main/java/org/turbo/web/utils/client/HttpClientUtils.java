@@ -21,6 +21,7 @@ public class HttpClientUtils {
     private static HttpClient httpClient;
     private static boolean init = false;
     private static EventLoopGroup executors;
+    private static HttpClientConfig httpClientConfig;
 
     // 返回promise的客户端
     private static volatile PromiseHttpClient promiseHttpClient;
@@ -82,7 +83,7 @@ public class HttpClientUtils {
             if (promiseHttpClient != null) {
                 return promiseHttpClient;
             }
-            promiseHttpClient = new PromiseHttpClient(httpClient, executors);
+            promiseHttpClient = new PromiseHttpClient(httpClient, executors, httpClientConfig.getCharset());
             return promiseHttpClient;
         }
     }
@@ -103,7 +104,7 @@ public class HttpClientUtils {
             if (reactiveHttpClient != null) {
                 return reactiveHttpClient;
             }
-            reactiveHttpClient = new ReactiveHttpClient(httpClient);
+            reactiveHttpClient = new ReactiveHttpClient(httpClient, httpClientConfig.getCharset());
             return reactiveHttpClient;
        }
     }

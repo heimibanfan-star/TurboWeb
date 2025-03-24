@@ -10,6 +10,7 @@ import org.turbo.web.utils.common.BeanUtils;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -18,8 +19,8 @@ import java.util.function.Function;
  */
 public class ReactiveHttpClient extends AbstractHttpClient {
 
-    public ReactiveHttpClient(HttpClient httpClient) {
-        super(httpClient);
+    public ReactiveHttpClient(HttpClient httpClient, Charset charset) {
+        super(httpClient, charset);
     }
 
     /**

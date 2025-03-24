@@ -9,6 +9,7 @@ import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
 import reactor.netty.http.client.HttpClient;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -19,8 +20,8 @@ public class PromiseHttpClient extends AbstractHttpClient {
 
     private final EventLoopGroup executors;
 
-    public PromiseHttpClient(HttpClient httpClient, EventLoopGroup executors) {
-        super(httpClient);
+    public PromiseHttpClient(HttpClient httpClient, EventLoopGroup executors, Charset charset) {
+        super(httpClient, charset);
         this.executors = executors;
     }
 

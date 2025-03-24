@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -20,9 +21,11 @@ import java.util.Map;
 public abstract class AbstractHttpClient {
 
     protected final HttpClient httpClient;
+    private final Charset charset;
 
-    public AbstractHttpClient(HttpClient httpClient) {
+    public AbstractHttpClient(HttpClient httpClient, Charset charset) {
         this.httpClient = httpClient;
+        this.charset = charset;
     }
 
     /**
@@ -111,7 +114,7 @@ public abstract class AbstractHttpClient {
         ByteBuf contentBuf = response.content();
         // 判断是否是字符串
         if (type == String.class) {
-            return new RestResponseResult<>(response.headers(), contentBuf != null ? (T) contentBuf.toString(StandardCharsets.UTF_8) : (T) "");
+            return new RestResponseResult<>(response.headers(), contentBuf != null ? (T) contentBuf.toString(charset) : (T) "");
         }
         String responseContent;
         if (contentBuf == null) {
@@ -121,7 +124,7 @@ public abstract class AbstractHttpClient {
             if (contentBuf.readableBytes() == 0) {
                 responseContent = "{}";
             } else {
-                responseContent = contentBuf.toString(StandardCharsets.UTF_8);
+                responseContent = contentBuf.toString(charset);
             }
         }
         T value = BeanUtils.getObjectMapper().readValue(responseContent, type);

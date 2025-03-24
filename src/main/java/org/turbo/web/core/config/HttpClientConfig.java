@@ -1,5 +1,7 @@
 package org.turbo.web.core.config;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 /**
@@ -19,6 +21,8 @@ public class HttpClientConfig {
     private int pendingAcquireMaxCount = Integer.MAX_VALUE;
     // 设置空闲连接自动清理
     private long evictInBackground = 5 * 60 * 1000;
+    // 设置字符编码
+    private Charset charset = StandardCharsets.UTF_8;
 
     public int getMaxConnections() {
         return maxConnections;
@@ -66,5 +70,13 @@ public class HttpClientConfig {
 
     public void setEvictInBackground(long evictInBackground) {
         this.evictInBackground = evictInBackground;
+    }
+
+    public Charset getCharset() {
+        return charset;
+    }
+
+    public void setCharset(Charset charset) {
+        this.charset = charset;
     }
 }
