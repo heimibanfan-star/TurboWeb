@@ -235,6 +235,7 @@ public class PromiseHttpClient extends AbstractHttpClient {
         Promise<RestResponseResult<T>> promise = executors.next().newPromise();
         // 发起请求
         doJsonRequest(url, method, headers, null)
+            .doOnError(promise::setFailure)
             .subscribe(response -> {
                 try {
                     RestResponseResult<T> responseResult = packageResponse(response, type);
@@ -262,6 +263,7 @@ public class PromiseHttpClient extends AbstractHttpClient {
                 BeanUtils.getObjectMapper().writeValueAsString(bodyContent);
             }
             doJsonRequest(url, method, headers, content)
+                .doOnError(promise::setFailure)
                 .subscribe(response -> {
                     try {
                         RestResponseResult<T> responseResult = packageResponse(response, type);
@@ -288,6 +290,7 @@ public class PromiseHttpClient extends AbstractHttpClient {
         Promise<RestResponseResult<T>> promise = executors.next().newPromise();
         url = buildParamUrl(url, forms);
         doFormRequest(url, method, headers, forms)
+            .doOnError(promise::setFailure)
             .subscribe(response -> {
                 try {
                     RestResponseResult<T> responseResult = packageResponse(response, type);
@@ -312,6 +315,7 @@ public class PromiseHttpClient extends AbstractHttpClient {
                 httpResponse.headers().add(response.responseHeaders());
                 return httpResponse;
             }))
+            .doOnError(promise::setFailure)
             .subscribe(promise::setSuccess);
         return promise;
     }
