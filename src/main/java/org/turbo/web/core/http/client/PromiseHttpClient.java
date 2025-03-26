@@ -218,7 +218,7 @@ public class PromiseHttpClient extends AbstractHttpClient {
      * @param params 参数
      * @return 返回一个promise
      */
-    private Promise<RestResponseResult<Map>> delete(String url, Map<String, String> params) {
+    public Promise<RestResponseResult<Map>> delete(String url, Map<String, String> params) {
         return delete(url, params, Map.class);
     }
 

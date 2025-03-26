@@ -9,6 +9,6 @@ import java.lang.annotation.Target;
  * 标记请求的终止方法
  */
 @Target(ElementType.METHOD)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface End {
 }

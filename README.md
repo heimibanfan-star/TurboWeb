@@ -1,26 +1,18 @@
 # Turbo-web使用手册
-> 版本 = 2025.03
+> 版本 = Ox.0.1
 
 ## 升级内容
 ### 新增功能
-> 1.增加StaticResourceMiddleware中间件，提供了对静态资源的支持。
+> 1.提供同时支持同步和异步请求的PromiseHttpClient客户端。
 > 
-> 2.增加FreemarkerTemplateMiddleware中间件，提供了对freemarker模板的支持。
+> 2.提供支持反应式编程的ReactiveHttpClient客户端。
 > 
-> 3.提供一系列Aware接口，可以对Middleware进行底层对象依赖注入。
-> 
-> 4.增加了对SSE技术的支持。
-> 
-> 5.支持反应式编程，用户可以在服务启动时选择使用同步编程或反应式编程。
-> 
-> 6.提供了一系列系统生命周期的钩子操作。
+> 3.增加节点共享功能（可以在没有统一网关的情况下实现路由的跨节点访问）。
 
 ### 原有功能的优化
-> 1.简化用户对Cookie和Session操作的API。
+> 1.HttpContext中提供一系列简化的参数封装方法。
 > 
-> 2.支持用户在返回值直接返回HttpResponse对象，框架会自动根据类型进行解析。
-> 
-> 3.对session进行了优化，优化了垃圾回收策略，抽象依赖，方便扩展。
+> 2.引入终止操作符的概念，当HttpContext中使用终止操作符，会自动中断本次请求后续的中间件链。
 
 ## 简介
 ### 项目概述
@@ -132,16 +124,17 @@ public void doDelete(HttpContext ctx) {
 > 注意：Get和Delete不携带请求体。
 
 ## 获取请求数据
+> 注意：旧的API依然可以使用，但是新的API更加精简，建议使用新的API。
 ### 路径参数
 在 Turbo-web 中，路径参数是通过在路径中添加占位符的方式来实现的。占位符的格式为 `{name}`，其中 `name` 是一个标识符，用于表示参数的名称。
 ```java
 @Get("/{name}")
 public void hello(HttpContext ctx) {
-    String name = ctx.getPathVariable("name");
+    String name = ctx.param("name");
     ctx.text("Hello " + name);
 }
 ```
-获取路径参数通过ctx.getPathVariable("name")获取，其中name是占位符的名称。
+获取路径参数通过ctx.param("name")获取，其中name是占位符的名称。
 > 注意：路径参数默认的类型是String类型，如果是其它类型需要开发者手动转换。
 
 ### 查询参数
@@ -194,33 +187,33 @@ public class User {
     }
 }
 ```
-2.使用ctx.loadQueryParamToBean方法封装
+2.使用ctx.loadQuery方法封装
 ```java
 @Get
 public void getUser(HttpContext ctx) {
-    User user = ctx.loadQueryParamToBean(User.class);
+    User user = ctx.loadQuery(User.class);
     ctx.json(user);
 }
 ```
 这个方法会自动将查询参数封装为对象，如果不携带查询参数，那么就封装null。
 
 ### 请求体的form表单
-在 Turbo-web 中，请求体的form表单是通过ctx.loadFormParamToBean方法来实现的。该方法会自动将请求体的form表单封装为对象，如果不携带form表单，那么就封装null。
+在 Turbo-web 中，请求体的form表单是通过ctx.loadForm方法来实现的。该方法会自动将请求体的form表单封装为对象，如果不携带form表单，那么就封装null。
 ```java
 @Post
 public void saveUser(HttpContext ctx) {
-    User user = ctx.loadFormParamToBean(User.class);
+    User user = ctx.loadForm(User.class);
     ctx.json(user);
 }
 ```
 当然也可以通过request获取最原始的参数，类似查询参数一样。
 
 ### 封装json参数
-在 Turbo-web 中，封装json参数是通过ctx.loadJsonParamToBean方法来实现的。该方法会自动将请求体的json参数封装为对象，缺少的json参数，会封装为null。
+在 Turbo-web 中，封装json参数是通过ctx.loadJson方法来实现的。该方法会自动将请求体的json参数封装为对象，缺少的json参数，会封装为null。
 ```java
 @Post
 public void saveUser(HttpContext ctx) {
-    User user = ctx.loadJsonParamToBean(User.class);
+    User user = ctx.loadJson(User.class);
     ctx.json(user);
 }
 ```
@@ -267,7 +260,7 @@ public class User {
 ```java
 @Post
 public void saveUser(HttpContext ctx) {
-    User user = ctx.loadJsonParamToBean(User.class);
+    User user = ctx.loadJson(User.class);
     ctx.validate(user);
     ctx.json(user);
 }
@@ -280,7 +273,7 @@ Turbo-web开提供了一种封装参数之后自动校验的机制，就是携�
 ```java
 @Post
 public void saveUser(HttpContext ctx) {
-    User user = ctx.loadValidJsonParamToBean(User.class);
+    User user = ctx.loadValidJson(User.class);
     ctx.json(user);
 }
 ```
@@ -417,6 +410,7 @@ public class Application {
 }
 ```
 中间件也可以被看作一个处理器，中间件自身也可以像controller一样处理请求，如果不调用doNext就不会执行后续的操作。
+>注意：HttpContext中带有@End注解的方法都属于终止操作符，在本次请求中都会直接中断后续的中间件的执行。
 
 ## 异常处理器
 异常处理器可以用于优雅的处理业务代码中出现的异常。
@@ -658,6 +652,202 @@ public class Application {
 }
 ```
 
+## Http客户端
+> TurboWeb提供了两种客户端，一种是可同步阻塞的客户端，另一种是反应式客户端，无论哪种客户端，底层都是基于反应式客户端实现的。
+### PromiseHttpClient
+> 看名字这个客户端是返回一个Promise对象，这一个是支持同步阻塞的客户端，推荐在Loom调度器中使用。
+
+#### 发送Http请求
+> 这里以Get请求为例，更加详细的操作可以查看reactor netty的httpClient,因为这里就是对HttpClient的封装。
+
+```java
+public static void main(String[] args) throws InterruptedException {
+    HttpClientUtils.initClient(new HttpClientConfig(), new NioEventLoopGroup());
+    test();
+}
+
+public static void test() throws ExecutionException, InterruptedException {
+    // 通过http客户端工具获取客户端
+    PromiseHttpClient promiseHttpClient = HttpClientUtils.promiseHttpClient();
+    FullHttpResponse fullHttpResponse = promiseHttpClient.request((httpClient) -> httpClient.request(HttpMethod.GET)
+            .uri("http://localhost:8080/user"))
+        .get();
+    System.out.println(fullHttpResponse.status());
+}
+```
+> 注意，
+>
+>http客户端在使用的时候需要初始化，如果是在TurboWeb运行过程中使用那么不需要初始化，因为TurboWeb在启动的过程中会自动完成初始化。
+
+#### 使用简化的API
+> 上面的操作返回值是FullHttpResponse对象，这样的操作比较麻烦，TurboWeb提供了简化的API，可以简化为下面的操作。
+
+1.发送Get请求
+```java
+public static void main(String[] args) throws InterruptedException {
+    HttpClientUtils.initClient(new HttpClientConfig(), new NioEventLoopGroup());
+    PromiseHttpClient promiseHttpClient = HttpClientUtils.promiseHttpClient();
+    // 发送Get请求并且等待结果的获取
+    RestResponseResult<Map> responseResult = promiseHttpClient.get("http://localhost:8080/hello", Map.of("name", "turbo")).get();
+    // 获取相应头
+    System.out.println(responseResult.getHeaders());
+    // 获取响应体
+    System.out.println(responseResult.getBody());
+}
+```
+Get请求提供了三种重载的API
+```java
+// url 请求地址
+// headers 请求头
+// params 查询参数，如果没有传入空集合或null即可
+// type 返回值类型
+public <T> Promise<RestResponseResult<T>> get(String url, HttpHeaders headers, Map<String, String> params, Class<T> type)
+```
+```java
+// url 请求地址
+// params 查询参数，如果没有传入空集合或null即可
+// type 返回值类型
+public <T> Promise<RestResponseResult<T>> get(String url, Map<String, String> params, Class<T> type)
+```
+```java
+// url 请求地址
+// params 查询参数，如果没有传入空集合或null即可
+public <T> Promise<RestResponseResult<Map>> get(String url, Map<String, String> params)
+```
+2.Post请求
+
+Post请求可以发送表单数据也可以发送json数据
+
+发送表单数据：
+```java
+public static void main(String[] args) throws InterruptedException, ExecutionException {
+    HttpClientUtils.initClient(new HttpClientConfig(), new NioEventLoopGroup());
+    PromiseHttpClient promiseHttpClient = HttpClientUtils.promiseHttpClient();
+    // 发送post请求
+    RestResponseResult<Map> responseResult = promiseHttpClient.postForm("http://localhost:8080/hello", Map.of(), Map.of()).get();
+    System.out.println(responseResult.getHeaders());
+    System.out.println(responseResult.getBody());
+}
+```
+方法介绍
+```java
+// url 请求地址
+// headers 请求头
+// params 查询参数，如果没有传入空集合或null即可
+// forms 表单数据
+// type 返回值类型
+public <T> Promise<RestResponseResult<T>> postForm(String url, HttpHeaders headers, Map<String, String> params, Map<String, String> forms, Class<T> type)
+```
+```java
+// url 请求地址
+// params 查询参数，如果没有传入空集合或null即可
+// forms 表单数据
+// type 返回值类型
+public <T> Promise<RestResponseResult<T>> postForm(String url, Map<String, String> params, Map<String, String> forms, Class<T> type)
+```
+```java
+// url 请求地址
+// params 查询参数，如果没有传入空集合或null即可
+// forms 表单数据
+public Promise<RestResponseResult<Map>> postForm(String url, Map<String, String> params, Map<String, String> forms)
+```
+发送json数据：
+```java
+public static void main(String[] args) throws InterruptedException, ExecutionException {
+    HttpClientUtils.initClient(new HttpClientConfig(), new NioEventLoopGroup());
+    PromiseHttpClient promiseHttpClient = HttpClientUtils.promiseHttpClient();
+    // 发送post请求
+    RestResponseResult<Map> responseResult = promiseHttpClient.postJson("http://localhost:8080/hello", Map.of(), new UserDTO()).get();
+    System.out.println(responseResult.getHeaders());
+    System.out.println(responseResult.getBody());
+}
+```
+方法介绍
+```java
+// url 请求地址
+// headers 请求头
+// params 查询参数，如果没有传入空集合或null即可
+// bodyContent 请求体数据，传入对象会自动序列化为json
+// type 返回值类型
+public <T> Promise<RestResponseResult<T>> postJson(String url, HttpHeaders headers, Map<String, String> params, Object bodyContent, Class<T> type)
+```
+```java
+// url 请求地址
+// params 查询参数，如果没有传入空集合或null即可
+// bodyContent 请求体数据，传入对象会自动序列化为json
+// type 返回值类型
+public <T> Promise<RestResponseResult<T>> postJson(String url, Map<String, String> params, Object bodyContent, Class<T> type)
+```
+```java
+// url 请求地址
+// params 查询参数，如果没有传入空集合或null即可
+// bodyContent 请求体数据，传入对象会自动序列化为json
+public Promise<RestResponseResult<Map>> postJson(String url, Map<String, String> params, Object bodyContent)
+```
+3.Put请求
+
+发送表单数据：
+```java
+public static void main(String[] args) throws InterruptedException, ExecutionException {
+    HttpClientUtils.initClient(new HttpClientConfig(), new NioEventLoopGroup());
+    PromiseHttpClient promiseHttpClient = HttpClientUtils.promiseHttpClient();
+    // 发送put请求
+    RestResponseResult<Map> responseResult = promiseHttpClient.putForm("http://localhost:8080/hello", Map.of(), Map.of()).get();
+    System.out.println(responseResult.getHeaders());
+    System.out.println(responseResult.getBody());
+}
+```
+发送Json数据：
+```java
+public static void main(String[] args) throws InterruptedException, ExecutionException {
+    HttpClientUtils.initClient(new HttpClientConfig(), new NioEventLoopGroup());
+    PromiseHttpClient promiseHttpClient = HttpClientUtils.promiseHttpClient();
+    // 发送put请求
+    RestResponseResult<Map> responseResult = promiseHttpClient.putJson("http://localhost:8080/hello", Map.of(), new UserDTO()).get();
+    System.out.println(responseResult.getHeaders());
+    System.out.println(responseResult.getBody());
+}
+```
+由于Put和Post的重载方法一致，这里就不过多介绍了。
+
+4.Delete请求
+```java
+public static void main(String[] args) throws InterruptedException, ExecutionException {
+    HttpClientUtils.initClient(new HttpClientConfig(), new NioEventLoopGroup());
+    PromiseHttpClient promiseHttpClient = HttpClientUtils.promiseHttpClient();
+    // 发送delete请求
+    RestResponseResult<Map> responseResult = promiseHttpClient.delete("http://localhost:8080/hello", Map.of()).get();
+    System.out.println(responseResult.getHeaders());
+    System.out.println(responseResult.getBody());
+}
+```
+Delete的重载方法和Get的类似。
+#### 异步处理结果，上面的实例中都是通过同步的方式处理的结果，下面展示异步获取结果
+```java
+public static void main(String[] args) throws InterruptedException, ExecutionException {
+    HttpClientUtils.initClient(new HttpClientConfig(), new NioEventLoopGroup());
+    PromiseHttpClient promiseHttpClient = HttpClientUtils.promiseHttpClient();
+    promiseHttpClient.get("http://localhost:8080/hello", new HashMap<>())
+        .addListener(future -> {
+            if (future.isSuccess()) {
+                RestResponseResult<String> responseResult = (RestResponseResult<String>) future.get();
+                System.out.println(responseResult.getHeaders());
+                System.out.println(responseResult.getBody());
+            } else {
+                future.cause().printStackTrace();
+            }
+        });
+}
+```
+> 注意：
+> 
+> 禁止在addListener中调用阻塞的方法，否则会阻塞事件循环线程。
+> 
+> 一般情况下使用同步获取结果即可，因为这个客户端是专为Loom调度器设计的，让Loom线程处于短暂的等待是可以接收的。
+
+### ReactiveHttpClient
+> ReactiveHttpClient是专为Reactive调度器设计的，使用方式类似PromiseHttpClient，但是返回值是一个Mono对象，可以用于构建Reactive Stream，这里就不过多介绍了。
+
 ## 生命周期相关
 > TurboWeb提供了两种生命周期相关的方法，分别是：服务器启动过程的生命周期，和http调度器的生命周期。
 
@@ -745,6 +935,60 @@ public class MyMiddleware extends Middleware implements CharsetAware, ExceptionH
     }
 }
 ```
+## 节点共享
+> TurboWeb 的节点共享主要是指在多个 TurboWeb 实例之间共享服务能力，让微服务之间的调用更加高效，无需额外的代理或网关。
+
+首先需要创建两个服务器实例
+
+订单服务实例：
+```java
+@RequestPath("/order")
+public class OrderController {
+    @Get
+    public void helloOrder(HttpContext ctx) throws InterruptedException {
+        ctx.text("hello order");
+    }
+}
+```
+```java
+public class OrderApplication {
+    public static void main(String[] args) {
+        TurboServer server = new DefaultTurboServer(OrderApplication.class, 8);
+        server.addController(new OrderController());
+        Gateway gateway = new DefaultGateway();
+        // 配置节点
+        gateway.addServerNode("/user", "http://localhost:8080");
+        server.setGateway(gateway);
+        server.start(8081);
+    }
+}
+```
+用户服务实例：
+```java
+@RequestPath("/user")
+public class UserController {
+    @Get
+    public void helloUser(HttpContext ctx) {
+        ctx.text("hello user");
+    }
+}
+```
+```java
+public class UserApplication {
+    public static void main(String[] args) {
+        TurboServer server = new DefaultTurboServer(UserApplication.class, 8);
+        server.addController(new UserController());
+        Gateway gateway = new DefaultGateway(0, 0);
+        gateway.addServerNode("/order", "http://localhost:8081");
+        server.setGateway(gateway);
+        server.start(8080);
+    }
+}
+```
+之后对外部来说，这两个实例中任意一个实例都包含了两个实例中所有的功能，就好比两个实例都运行一样的代码。
+
+例如：访问http://localhost:8080/user，那么会调用自身的处理器处理，如果访问http://localhost:8080/order，由于8080服务器上配置了/order节点，
+那么8080这个实例会在内置的网关中直接将请求代理到8081节点，因此对外界调用者来说，任意一个节点都拥有完整集群中所有的功能。
 ## 反应式编程的支持
 
 > TurboWeb中使用反应式编程比较简单，用户在server中切换使用反应式调度器即可，由于大多数的web操作都是请求响应模型，因此当异步对象到达http调度器时必须是Mono这种单流对象，否则会报错。
