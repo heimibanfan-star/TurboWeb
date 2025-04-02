@@ -86,6 +86,7 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
             HttpResponseStatus.OK,
             Unpooled.wrappedBuffer(bytes)
         );
+        response.headers().set(ctx.getResponse().headers());
         // 设置文件类型
         String mimeType = tika.detect(path);
         response.setContentType(mimeType);

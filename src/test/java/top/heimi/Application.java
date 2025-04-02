@@ -2,6 +2,7 @@ package top.heimi;
 
 import io.netty.handler.codec.http.HttpMethod;
 import org.turbo.web.core.http.middleware.CorsMiddleware;
+import org.turbo.web.core.http.middleware.StaticResourceMiddleware;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
 import top.heimi.controller.UserController;
@@ -17,7 +18,7 @@ public class Application {
         server.addController(new UserController());
         LimitMiddleware middleware = new LimitMiddleware();
         middleware.addStrategy(HttpMethod.GET, "/user/limit", 5);
-        server.addMiddleware(new GlobalLimitMiddleware(10), middleware);
+        server.addMiddleware(new StaticResourceMiddleware(), new GlobalLimitMiddleware(10), middleware);
         server.addMiddleware(new CorsMiddleware());
         server.start();
     }
