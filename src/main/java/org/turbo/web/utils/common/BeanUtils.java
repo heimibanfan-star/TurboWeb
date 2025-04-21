@@ -125,8 +125,4 @@ public class BeanUtils {
     public static ObjectMapper getObjectMapper() {
         return OBJECT_MAPPER;
     }
-
-    public static void setObjectMapper(ObjectMapper objectMapper) {
-        OBJECT_MAPPER = objectMapper;
-    }
 }
