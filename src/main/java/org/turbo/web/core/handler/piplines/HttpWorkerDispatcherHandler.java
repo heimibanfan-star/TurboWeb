@@ -25,6 +25,7 @@ import org.turbo.web.exception.TurboRouterException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 转交http请求
@@ -38,17 +39,21 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
     private final WebSocketDispatcherHandler webSocketDispatcherHandler;
     private final WebSocketPreInit webSocketPreInit;
     private final Gateway gateway;
+    private final int maxConnectionCount;
+    private final AtomicInteger connectionCount = new AtomicInteger(0);
 
     public HttpWorkerDispatcherHandler(
         HttpScheduler httpScheduler,
         WebSocketDispatcherHandler webSocketDispatcherHandler,
         String websocketPath,
-        Gateway gateway
+        Gateway gateway,
+        int maxConnectionCount
     ) {
         this.httpScheduler = httpScheduler;
         this.webSocketDispatcherHandler = webSocketDispatcherHandler;
         this.webSocketPreInit = new PathWebSocketPreInit(websocketPath, webSocketDispatcherHandler);
         this.gateway = gateway;
+        this.maxConnectionCount = maxConnectionCount;
     }
 
     @Override
@@ -146,6 +151,12 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        int connectNum = connectionCount.incrementAndGet();
+        if (connectNum > maxConnectionCount) {
+            log.error("连接数量超出限制，拒绝连接:{}", connectNum);
+            ctx.channel().close();
+            return;
+        }
         // 获取通道的唯一标识
         ChannelId channelId = ctx.channel().id();
         // 创建promise对象
@@ -158,6 +169,7 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        connectionCount.decrementAndGet();
         // 获取通道的唯一标识
         ChannelId channelId = ctx.channel().id();
         // 从容器中获取promise对象

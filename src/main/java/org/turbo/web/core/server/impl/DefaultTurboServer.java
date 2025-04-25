@@ -60,6 +60,7 @@ public class DefaultTurboServer implements TurboServer {
     private Gateway gateway;
     // 用户自定义的监听器的列表
     private final List<TurboServerListener> customizeTurboServerListenerList = new ArrayList<>();
+    private int maxConnectionCount = 1000;
 
     {
         middlewareInitializer = new DefaultMiddlewareInitializer();
@@ -125,19 +126,21 @@ public class DefaultTurboServer implements TurboServer {
         // 设置处理器
         if (webSocketHandlerInitializer.isUse()) {
             serverBootstrap.childHandler(new TurboChannelHandler(
-                httpScheduler,
-                config.getMaxContentLength(),
-                webSocketHandlerInitializer.init() ,
-                webSocketHandlerInitializer.getPath(),
-                gateway
+                    httpScheduler,
+                    config.getMaxContentLength(),
+                    webSocketHandlerInitializer.init(),
+                    webSocketHandlerInitializer.getPath(),
+                    gateway,
+                    maxConnectionCount
             ));
         } else {
             serverBootstrap.childHandler(new TurboChannelHandler(
-                httpScheduler,
-                config.getMaxContentLength(),
-                null,
-                null,
-                gateway
+                    httpScheduler,
+                    config.getMaxContentLength(),
+                    null,
+                    null,
+                    gateway,
+                    maxConnectionCount
             ));
         }
     }
@@ -253,5 +256,10 @@ public class DefaultTurboServer implements TurboServer {
     @Override
     public void setGateway(Gateway gateway) {
         this.gateway = gateway;
+    }
+
+    @Override
+    public void setMaxConnectionCount(int num) {
+        this.maxConnectionCount = num;
     }
 }

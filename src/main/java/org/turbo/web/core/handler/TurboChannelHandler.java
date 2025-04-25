@@ -27,11 +27,18 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
         int maxContentLength,
         WebSocketDispatcherHandler webSocketDispatcherHandler,
         String websocketPath,
-        Gateway gateway
+        Gateway gateway,
+        int maxConnectionCount
     ) {
         super();
         this.maxContentLength = maxContentLength;
-        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpScheduler, webSocketDispatcherHandler, websocketPath, gateway);
+        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(
+                httpScheduler,
+                webSocketDispatcherHandler,
+                websocketPath,
+                gateway,
+                maxConnectionCount
+        );
         this.gateway = gateway;
     }
 
