@@ -16,7 +16,6 @@ import top.heimi.middleware.LimitMiddleware;
 public class Application {
     public static void main(String[] args) throws InterruptedException {
         TurboServer server = new DefaultTurboServer(Application.class, 8);
-        server.setMaxConnectionCount(100);
         server.addController(new UserController());
         server.addMiddleware(
                 new ServerInfoMiddleware()

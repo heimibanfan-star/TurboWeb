@@ -146,10 +146,11 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         String color = colors.get(method);
         String uri = request.uri();
         if (ms > 0) {
-            System.out.println(color + "%s  %s  耗时:%sms".formatted(method, uri, ms) + FontColors.RESET);
+            System.out.println(color + "%s  %s  耗时:%sms".formatted(method, uri, ms));
         } else {
-            System.out.println(color + "%s  %s  耗时: <1ms".formatted(method, uri) + FontColors.RESET);
+            System.out.println(color + "%s  %s  耗时: <1ms".formatted(method, uri));
         }
+        System.out.print(FontColors.BLACK);
     }
 
     /**

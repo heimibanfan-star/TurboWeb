@@ -100,10 +100,4 @@ public interface TurboServer {
      * @param gateway 网关
      */
     void setGateway(Gateway gateway);
-
-    /**
-     * 设置最大连接数
-     * @param num 最大连接数
-     */
-    void setMaxConnectionCount(int num);
 }

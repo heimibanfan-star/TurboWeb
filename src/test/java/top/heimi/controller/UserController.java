@@ -12,7 +12,7 @@ public class UserController {
 
     @Get
     public void hello(HttpContext ctx) throws InterruptedException {
-        Thread.sleep(50);
+        Thread.sleep(1000);
         ctx.text("hello");
     }
 
