@@ -2,6 +2,7 @@ package org.turbo.web.core.server.impl;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
@@ -103,6 +104,8 @@ public class DefaultTurboServer implements TurboServer {
     }
 
     private void init() {
+        // 启用keep alive
+        serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
         // 设置线程组
         serverBootstrap.group(bossGroup, workerGroup);
         // 设置管道
