@@ -11,7 +11,7 @@ public class CorsMiddleware extends Middleware {
 
     private List<String> allowedOrigins = List.of("*");
     private List<String> allowedMethods = Arrays.asList("GET", "POST", "PUT", "DELETE");
-    private List<String> allowedHeaders = Arrays.asList("Content-Type", "Authorization");
+    private List<String> allowedHeaders = List.of("*");
     private List<String> exposedHeaders = List.of("Content-Disposition");
     private boolean allowCredentials = false;
     private int maxAge = 3600;
@@ -28,14 +28,16 @@ public class CorsMiddleware extends Middleware {
             setCorsHeaders(ctx.getResponse(), origin);
             return ctx.getResponse().setStatus(HttpResponseStatus.OK);
         }
-        Object result = ctx.doNext();
-        if (!ctx.isWrite() && result instanceof HttpResponse httpResponse) {
-            setCorsHeaders(httpResponse, origin);
-            return httpResponse;
+        try {
+            Object result = ctx.doNext();
+            if (!ctx.isWrite() && result instanceof HttpResponse httpResponse) {
+                setCorsHeaders(httpResponse, origin);
+                return httpResponse;
+            }
+            return result;
+        } finally {
+            setCorsHeaders(ctx.getResponse(), origin);
         }
-        // 调用后续中间件
-        setCorsHeaders(ctx.getResponse(), origin);
-        return ctx.doNext();
     }
 
     private void setCorsHeaders(HttpResponse response, String origin) {
@@ -43,7 +45,7 @@ public class CorsMiddleware extends Middleware {
         if (allowedOrigins.contains("*") || allowedOrigins.contains(origin)) {
             // 设置 CORS 响应头
             response.headers().set("Access-Control-Allow-Origin", origin);
-            response.headers().set("Access-Control-Allow-Methods", allowedHeaders.contains("*")? "*": String.join(",", allowedMethods));
+            response.headers().set("Access-Control-Allow-Methods", allowedMethods.contains("*")? "*": String.join(",", allowedMethods));
             response.headers().set("Access-Control-Allow-Headers", allowedHeaders.contains("*")? "*": String.join(",", allowedHeaders));
             response.headers().set("Access-Control-Expose-Headers", exposedHeaders.contains("*")? "*": String.join(",", exposedHeaders));
             response.headers().set("Access-Control-Max-Age", String.valueOf(maxAge));

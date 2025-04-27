@@ -2,6 +2,7 @@ package org.turbo.web.core.http.scheduler.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
@@ -91,11 +92,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
             // 处理响应数据
             return handleResponse(result, context);
         } catch (Throwable e) {
-            // 释放内存
-            if (response != null) {
-                response.release();
-            }
-            return handleException(request, e);
+            return handleException(request, response, e);
         } finally {
             // 释放读锁
             Locks.SESSION_LOCK.readLock().unlock();
@@ -112,10 +109,15 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
      * @param e 异常
      * @return 响应对象
      */
-    private HttpInfoResponse handleException(FullHttpRequest request, Throwable e) {
+    private HttpInfoResponse handleException(FullHttpRequest request, HttpInfoResponse httpResponse, Throwable e) {
         // 获取异常定义信息
         ExceptionHandlerDefinition definition = matchExceptionHandlerDefinition(e);
         HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
+        // 保留请求头并且释放之前的结果
+        if (httpResponse != null) {
+            response.headers().set(httpResponse.headers());
+            httpResponse.release();
+        }
         try {
             // 调用异常处理器
             Object result = doHandleException(definition, e);

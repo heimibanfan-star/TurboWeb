@@ -7,6 +7,7 @@ import org.turbo.web.core.http.middleware.StaticResourceMiddleware;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
 import top.heimi.controller.UserController;
+import top.heimi.handler.GlobalExceptionHandler;
 import top.heimi.middleware.GlobalLimitMiddleware;
 import top.heimi.middleware.LimitMiddleware;
 
@@ -18,8 +19,11 @@ public class Application {
         TurboServer server = new DefaultTurboServer(Application.class, 8);
         server.addController(new UserController());
         server.addMiddleware(
+                new CorsMiddleware(),
                 new ServerInfoMiddleware()
         );
+        server.setIsReactiveServer(true);
+        server.addExceptionHandler(new GlobalExceptionHandler());
         server.start();
     }
 }

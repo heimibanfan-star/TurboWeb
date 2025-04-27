@@ -62,7 +62,7 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             promise::setSuccess,
             (err) -> {
                 try {
-                    handleException(request, err)
+                    handleException(request, response, err)
                         .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
                         .subscribe(promise::setSuccess, promise::setFailure);
                 } catch (Throwable cause) {
@@ -126,12 +126,16 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
      * @param e 异常对象
      * @return 响应结果
      */
-    private Mono<HttpResponse> handleException(FullHttpRequest request, Throwable e) {
+    private Mono<HttpResponse> handleException(FullHttpRequest request, HttpInfoResponse httpInfoResponse, Throwable e) {
         // 获取异常处理器的定义信息
         ExceptionHandlerDefinition definition = matchExceptionHandlerDefinition(e);
         // 调用异常处理器
         try {
             HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
+            if (httpInfoResponse != null) {
+                response.headers().set(httpInfoResponse.headers());
+                httpInfoResponse.release();
+            }
             Object result = doHandleException(definition, e);
             // 判断结果的类型
             if (result instanceof Mono<?> mono) {
