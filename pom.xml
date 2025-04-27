@@ -6,7 +6,7 @@
 
     <groupId>org.turbo</groupId>
     <artifactId>turbo-web</artifactId>
-    <version>Ox.0.1</version>
+    <version>Ox.0.2-dev</version>
 
     <packaging>jar</packaging>
 
