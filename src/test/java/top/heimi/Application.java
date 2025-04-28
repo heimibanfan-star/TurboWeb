@@ -1,6 +1,7 @@
 package top.heimi;
 
 import io.netty.handler.codec.http.HttpMethod;
+import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.middleware.CorsMiddleware;
 import org.turbo.web.core.http.middleware.ServerInfoMiddleware;
@@ -29,6 +30,9 @@ public class Application {
     public static void main(String[] args) throws Throwable {
         TurboServer server = new DefaultTurboServer(Application.class, 8);
         server.addController(new UserController());
+        ServerParamConfig config = new ServerParamConfig();
+        config.setShowRequestLog(false);
+        server.setConfig(config);
         server.start();
 
     }

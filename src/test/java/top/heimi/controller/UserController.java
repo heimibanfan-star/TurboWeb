@@ -9,13 +9,14 @@ import org.turbo.web.core.http.sse.SseResultObject;
 import reactor.core.publisher.Mono;
 
 /**
- * TODO
+ * TODOd
  */
 @RequestPath("/hello")
 public class UserController {
 
     @Get
     public void hello(HttpContext ctx) throws InterruptedException {
+        Thread.sleep(50);
         ctx.text("hello");
     }
 

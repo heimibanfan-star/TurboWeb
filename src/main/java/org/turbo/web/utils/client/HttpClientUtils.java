@@ -52,6 +52,7 @@ public class HttpClientUtils {
                     .build();
             httpClient = HttpClient.create(provider).runOn(group);
             init = true;
+            httpClientConfig = config;
         }
     }
 
