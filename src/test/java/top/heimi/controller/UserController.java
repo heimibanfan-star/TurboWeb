@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
 /**
  * TODO
  */
-@RequestPath("/user")
+@RequestPath("/hello")
 public class UserController {
 
     @Get

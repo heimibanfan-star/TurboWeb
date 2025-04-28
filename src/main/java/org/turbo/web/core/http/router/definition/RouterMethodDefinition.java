@@ -1,5 +1,6 @@
 package org.turbo.web.core.http.router.definition;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +29,7 @@ public class RouterMethodDefinition {
     /**
      * 方法
      */
-    private final Method method;
+    private final MethodHandle methodHandle;
 
     /**
      * 路径参数
@@ -36,9 +37,9 @@ public class RouterMethodDefinition {
     private final List<String> pathParameters = new ArrayList<>(1);
 
 
-    public RouterMethodDefinition(Class<?> controllerClass, Method method) {
+    public RouterMethodDefinition(Class<?> controllerClass, MethodHandle methodHandle) {
         this.controllerClass = controllerClass;
-        this.method = method;
+        this.methodHandle = methodHandle;
     }
 
     /**
@@ -75,7 +76,7 @@ public class RouterMethodDefinition {
         this.pattern = pattern;
     }
 
-    public Method getMethod() {
-        return method;
+    public MethodHandle getMethod() {
+        return methodHandle;
     }
 }

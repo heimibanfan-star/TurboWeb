@@ -1,6 +1,7 @@
 package top.heimi;
 
 import io.netty.handler.codec.http.HttpMethod;
+import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.middleware.CorsMiddleware;
 import org.turbo.web.core.http.middleware.ServerInfoMiddleware;
 import org.turbo.web.core.http.middleware.StaticResourceMiddleware;
@@ -11,19 +12,59 @@ import top.heimi.handler.GlobalExceptionHandler;
 import top.heimi.middleware.GlobalLimitMiddleware;
 import top.heimi.middleware.LimitMiddleware;
 
+import java.lang.invoke.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
 /**
  * TODO
  */
 public class Application {
-    public static void main(String[] args) throws InterruptedException {
+
+    private int num = 10;
+
+    public static void main(String[] args) throws Throwable {
         TurboServer server = new DefaultTurboServer(Application.class, 8);
         server.addController(new UserController());
-        server.addMiddleware(
-                new CorsMiddleware(),
-                new ServerInfoMiddleware()
-        );
-//        server.setIsReactiveServer(true);
-        server.addExceptionHandler(new GlobalExceptionHandler());
         server.start();
+
     }
+//
+//    private static void testCache(MethodHandle handle) throws Throwable {
+//        long start = System.nanoTime();
+//        for (int i = 0; i < 10000000; i++) {
+//            handle.invoke();
+//        }
+//        System.out.println(System.nanoTime() - start);
+//    }
+//
+//    private static void testInvoke(Method method, Object obj) throws InvocationTargetException, IllegalAccessException {
+//        long start = System.nanoTime();
+//        for (int i = 0; i < 10000000; i++) {
+//            method.invoke(obj);
+//        }
+//        System.out.println(System.nanoTime() - start);
+//    }
+//
+//    private static void testUse(User user) {
+//        long start = System.nanoTime();
+//        for (int i = 0; i < 10000000; i++) {
+//            user.getName();
+//        }
+//        System.out.println(System.nanoTime() - start);
+//    }
 }
+
+//23353800
+//18881400
+//15413400
+//15533600
+//15101900
+//22710100
+//18616500
+//17653100
+//20985200
+//19091000

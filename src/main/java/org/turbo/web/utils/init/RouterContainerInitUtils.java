@@ -11,6 +11,8 @@ import org.turbo.web.exception.TurboControllerCreateException;
 import org.turbo.web.exception.TurboRouterDefinitionCreateException;
 import org.turbo.web.utils.common.TypeUtils;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -108,8 +110,15 @@ public class RouterContainerInitUtils {
         if (!parameters[0].getType().equals(HttpContext.class)) {
             throw new TurboRouterDefinitionCreateException("方法参数只能有一个HttpContext");
         }
-        RouterMethodDefinition definition = new RouterMethodDefinition(method.getDeclaringClass(), method);
-        parsePathAndSaveDefinition(container, method, path, definition);
+        Object instanceObj = container.getControllerInstances().get(method.getDeclaringClass());
+        MethodHandles.Lookup lookup = MethodHandles.lookup();
+        try {
+            MethodHandle methodHandle = lookup.unreflect(method).bindTo(instanceObj);
+            RouterMethodDefinition definition = new RouterMethodDefinition(method.getDeclaringClass(), methodHandle);
+            parsePathAndSaveDefinition(container, method, path, definition);
+        } catch (IllegalAccessException e) {
+            throw new TurboRouterDefinitionCreateException(e);
+        }
     }
 
     /**

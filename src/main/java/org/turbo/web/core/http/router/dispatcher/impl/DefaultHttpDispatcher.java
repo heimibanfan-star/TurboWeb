@@ -12,6 +12,7 @@ import org.turbo.web.core.http.router.matcher.RouterMatcher;
 import org.turbo.web.exception.TurboRequestException;
 import org.turbo.web.exception.TurboRouterException;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -51,16 +52,16 @@ public class DefaultHttpDispatcher implements HttpDispatcher {
         if (MatchType.PATH.equals(matchResult.getMatchType())) {
             parsePathVariable(ctx, methodDefinition);
         }
-        // 获取调度器
-        Object instance = routerMatcher.getInstance(methodDefinition.getControllerClass());
-        if (Objects.isNull(instance)) {
-            throw new TurboRouterException("未找到对应的控制器实例", TurboRouterException.ROUTER_INVOKE_ERROR);
-        }
+//        // 获取调度器
+//        Object instance = routerMatcher.getInstance(methodDefinition.getControllerClass());
+//        if (Objects.isNull(instance)) {
+//            throw new TurboRouterException("未找到对应的控制器实例", TurboRouterException.ROUTER_INVOKE_ERROR);
+//        }
         // 获取方法
-        Method method  = methodDefinition.getMethod();
+        MethodHandle methodHandle = methodDefinition.getMethod();
         // 调用方法
         try {
-            return method.invoke(instance, ctx);
+            return methodHandle.invoke(ctx);
         } catch (InvocationTargetException e) {
             Throwable throwable = e.getTargetException();
             if (throwable instanceof RuntimeException runtimeException) {
@@ -68,7 +69,7 @@ public class DefaultHttpDispatcher implements HttpDispatcher {
             }
             log.error("方法调用失败", e);
             throw new TurboRouterException(throwable.getMessage(), TurboRouterException.ROUTER_INVOKE_ERROR);
-        } catch (IllegalAccessException e) {
+        } catch (Throwable e) {
             log.error("方法调用失败", e);
             throw new TurboRouterException(e.getMessage(), TurboRouterException.ROUTER_INVOKE_ERROR);
         }
