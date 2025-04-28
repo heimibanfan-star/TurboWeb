@@ -136,19 +136,19 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
      * 打印日志
      *
      * @param request 请求对象
-     * @param ms 执行耗时
+     * @param time 执行耗时
      */
-    protected void log(FullHttpRequest request, long ms) {
+    protected void log(FullHttpRequest request, long time) {
         String method = request.method().name();
         if (!colors.containsKey(method)) {
             return;
         }
         String color = colors.get(method);
         String uri = request.uri();
-        if (ms > 0) {
-            System.out.println(color + "%s  %s  耗时:%sms".formatted(method, uri, ms) + FontColors.RESET);
+        if (time > 1000000) {
+            System.out.println(color + "%s  %s  耗时:%sms".formatted(method, uri, time / 1000000) + FontColors.RESET);
         } else {
-            System.out.println(color + "%s  %s  耗时: <1ms".formatted(method, uri) + FontColors.RESET);
+            System.out.println(color + "%s  %s  耗时:%sµs".formatted(method, uri, time / 1000) + FontColors.RESET);
         }
     }
 

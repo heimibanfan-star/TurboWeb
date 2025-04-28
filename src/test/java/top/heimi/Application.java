@@ -22,7 +22,7 @@ public class Application {
                 new CorsMiddleware(),
                 new ServerInfoMiddleware()
         );
-        server.setIsReactiveServer(true);
+//        server.setIsReactiveServer(true);
         server.addExceptionHandler(new GlobalExceptionHandler());
         server.start();
     }

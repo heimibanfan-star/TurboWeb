@@ -50,7 +50,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
     public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SSESession session) {
         LoomThreadUtils.execute(() -> {
             if (showRequestLog) {
-                long startTime = System.currentTimeMillis();
+                long startTime = System.nanoTime();
                 try {
                     try {
                         HttpResponse response = doExecute(request, session);
@@ -59,7 +59,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
                         promise.setFailure(throwable);
                     }
                 } finally {
-                    log(request, System.currentTimeMillis() - startTime);
+                    log(request, System.nanoTime() - startTime);
                 }
             } else {
                 try {

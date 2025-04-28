@@ -16,7 +16,6 @@ public class UserController {
 
     @Get
     public void hello(HttpContext ctx) throws InterruptedException {
-        int i = 1/0;
         ctx.text("hello");
     }
 
