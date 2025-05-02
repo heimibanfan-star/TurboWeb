@@ -12,12 +12,10 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
  */
 public class StandardWebSocketSession implements WebSocketSession{
 
-    private final EventLoop eventLoop;
     private final Channel channel;
     private final WebSocketConnectInfo webSocketConnectInfo;
 
-    public StandardWebSocketSession(EventLoop eventLoop, Channel channel, WebSocketConnectInfo connectInfo) {
-        this.eventLoop = eventLoop;
+    public StandardWebSocketSession(Channel channel, WebSocketConnectInfo connectInfo) {
         this.channel = channel;
         this.webSocketConnectInfo = connectInfo;
     }
@@ -30,23 +28,23 @@ public class StandardWebSocketSession implements WebSocketSession{
     @Override
     public void sendPing() {
         PingWebSocketFrame pingWebSocketFrame = new PingWebSocketFrame(Unpooled.EMPTY_BUFFER);
-        eventLoop.execute(() -> channel.writeAndFlush(pingWebSocketFrame));
+        channel.writeAndFlush(pingWebSocketFrame);
     }
 
     @Override
     public void sendPong() {
         PongWebSocketFrame pongWebSocketFrame = new PongWebSocketFrame(Unpooled.EMPTY_BUFFER);
-        eventLoop.execute(() -> channel.writeAndFlush(pongWebSocketFrame));
+        channel.writeAndFlush(pongWebSocketFrame);
     }
 
     @Override
     public void close() {
-        eventLoop.execute(channel::close);
+        channel.close();
     }
 
     @Override
     public void sendMessage(String message) {
         TextWebSocketFrame textWebSocketFrame = new TextWebSocketFrame(message);
-        eventLoop.execute(() -> channel.writeAndFlush(textWebSocketFrame));
+        channel.writeAndFlush(textWebSocketFrame);
     }
 }

@@ -12,6 +12,7 @@ import top.heimi.controller.UserController;
 import top.heimi.handler.GlobalExceptionHandler;
 import top.heimi.middleware.GlobalLimitMiddleware;
 import top.heimi.middleware.LimitMiddleware;
+import top.heimi.middleware.TestMiddleware;
 
 import java.lang.invoke.*;
 import java.lang.reflect.InvocationTargetException;

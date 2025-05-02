@@ -15,7 +15,7 @@ import org.turbo.web.core.gateway.Gateway;
 import org.turbo.web.core.http.scheduler.HttpScheduler;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.sse.HttpConnectPromiseContainer;
-import org.turbo.web.core.http.sse.SSESession;
+import org.turbo.web.core.http.sse.SseSession;
 import org.turbo.web.core.http.ws.PathWebSocketPreInit;
 import org.turbo.web.core.http.ws.WebSocketConnectInfo;
 import org.turbo.web.core.http.ws.WebSocketConnectInfoContainer;
@@ -80,9 +80,9 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         fullHttpRequest.retain();
         // 构建SSE对象
         Promise<Boolean> connectPromise = HttpConnectPromiseContainer.get(channelHandlerContext.channel().id().asLongText());
-        SSESession sseSession = null;
+        SseSession sseSession = null;
         if (connectPromise != null) {
-            sseSession = new SSESession(eventLoop, channelHandlerContext.channel(), connectPromise);
+            sseSession = new SseSession(eventLoop, channelHandlerContext.channel(), connectPromise);
         } else {
             log.warn("连接事件异常，容器中找不到该连接的事件对象:{}", channelHandlerContext.channel().id().asLongText());
         }

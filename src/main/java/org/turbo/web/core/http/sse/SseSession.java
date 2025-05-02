@@ -4,7 +4,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
-import io.netty.channel.nio.NioEventLoop;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.Promise;
@@ -13,13 +12,13 @@ import org.turbo.web.exception.TurboSseException;
 /**
  * sse的回话对象
  */
-public class SSESession {
+public class SseSession {
 
     private final EventLoop channelExecutor;
     private final Channel channel;
     private final Promise<Boolean> promise;
 
-    public SSESession(EventLoop channelExecutor, Channel channel, Promise<Boolean> promise) {
+    public SseSession(EventLoop channelExecutor, Channel channel, Promise<Boolean> promise) {
         this.channelExecutor = channelExecutor;
         this.channel = channel;
         this.promise = promise;
@@ -34,12 +33,10 @@ public class SSESession {
         if (!channel.isActive()) {
             throw new TurboSseException("链接已关闭，不能推送数据");
         }
-        channelExecutor.execute(() -> {
-            String msg = "data: " + message + "\n\n";
-            ByteBuf buf = Unpooled.copiedBuffer(msg, CharsetUtil.UTF_8);
-            DefaultHttpContent content = new DefaultHttpContent(buf); // 发送 chunked 数据
-            channel.writeAndFlush(content);
-        });
+        String msg = "data: " + message + "\n\n";
+        ByteBuf buf = Unpooled.copiedBuffer(msg, CharsetUtil.UTF_8);
+        DefaultHttpContent content = new DefaultHttpContent(buf); // 发送 chunked 数据
+        channel.writeAndFlush(content);
     }
 
     /**

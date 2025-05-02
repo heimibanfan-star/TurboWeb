@@ -1,10 +1,11 @@
 package top.heimi.controller;
 
-import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.*;
 import org.turbo.web.anno.Get;
 import org.turbo.web.anno.RequestPath;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.sse.SSESession;
+import org.turbo.web.core.http.sse.SseResponse;
+import org.turbo.web.core.http.sse.SseSession;
 import org.turbo.web.core.http.sse.SseResultObject;
 import reactor.core.publisher.Mono;
 
@@ -33,20 +34,32 @@ public class UserController {
     }
 
     @Get("/sse")
-    public Mono<HttpResponse> sse(HttpContext ctx) throws InterruptedException {
-        SseResultObject sseResultObject = ctx.openSseSession();
-        SSESession sseSession = sseResultObject.getSseSession();
-        Thread.ofVirtual().start(() -> {
-            for (int i = 0; i < 10; i++) {
-                sseSession.send("hello world");
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+    public HttpResponse sse(HttpContext ctx) throws InterruptedException {
+        SseResponse sseResponse = ctx.newSseResponse();
+        sseResponse.setSseCallback(sseSession -> {
+            Thread.ofVirtual().start(() -> {
+                for (int i = 0; i < 10; i++) {
+                    sseSession.send("hello world" + i);
+                    System.out.println("send");
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
-            }
+            });
         });
-//        int i = 1/0;
-        return Mono.just(sseResultObject.getHttpResponse());
+        return sseResponse;
+    }
+
+    @Get("/one")
+    public void one(HttpContext ctx) throws InterruptedException {
+        Thread.sleep(5000);
+        ctx.text("one");
+    }
+
+    @Get("/two")
+    public void two(HttpContext ctx) {
+        ctx.text("two");
     }
 }

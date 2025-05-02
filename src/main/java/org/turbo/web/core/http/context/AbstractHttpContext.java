@@ -10,7 +10,8 @@ import org.turbo.web.core.http.cookie.HttpCookie;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
-import org.turbo.web.core.http.sse.SSESession;
+import org.turbo.web.core.http.sse.SseResponse;
+import org.turbo.web.core.http.sse.SseSession;
 import org.turbo.web.core.http.sse.SseResultObject;
 import org.turbo.web.exception.TurboArgsValidationException;
 import org.turbo.web.exception.TurboParamParseException;
@@ -34,12 +35,22 @@ public abstract class AbstractHttpContext {
     protected final HttpInfoResponse response;
     private final Map<String, String> pathVariables = new HashMap<>();
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
-    protected final SSESession sseSession;
+    protected final SseSession sseSession;
+    protected final boolean sseOpen = false;
 
-    public AbstractHttpContext(HttpInfoRequest request, HttpInfoResponse response, SSESession session) {
+    public AbstractHttpContext(HttpInfoRequest request, HttpInfoResponse response, SseSession session) {
         this.request = request;
         this.response = response;
         this.sseSession = session;
+    }
+
+    /**
+     * 是否开启sse会话
+     *
+     * @return 是否开启sse会话
+     */
+    public boolean isSseOpen() {
+        return sseOpen;
     }
 
     public HttpInfoRequest getRequest() {
@@ -68,6 +79,7 @@ public abstract class AbstractHttpContext {
             throw new TurboSseException("sseSession为空");
         } else {
             HttpResponse sseResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            sseResponse.headers().set(response.headers());
             sseResponse.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream");
             sseResponse.headers().set(HttpHeaderNames.CACHE_CONTROL, "no-cache");
             sseResponse.headers().set(HttpHeaderNames.CONNECTION, "keep-alive");
@@ -76,6 +88,10 @@ public abstract class AbstractHttpContext {
             // 封装对象
             return new SseResultObject(sseResponse, sseSession);
         }
+    }
+
+    public SseResponse newSseResponse() {
+        return new SseResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, response.headers(), sseSession);
     }
 
     /**

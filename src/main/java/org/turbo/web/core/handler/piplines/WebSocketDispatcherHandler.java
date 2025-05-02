@@ -97,7 +97,7 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
             throw new TurboWebSocketException("websocket连接信息为空");
         }
         // 创建websocket的回话
-        WebSocketSession webSocketSession = new StandardWebSocketSession(ctx.channel().eventLoop(), ctx.channel(), connectInfo);
+        WebSocketSession webSocketSession = new StandardWebSocketSession(ctx.channel(), connectInfo);
         sessionMap.put(ctx.channel().id().asLongText(), webSocketSession);
         // 调用open方法
         webSocketHandler.onOpen(webSocketSession);

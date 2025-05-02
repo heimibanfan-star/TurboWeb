@@ -6,25 +6,32 @@ import org.turbo.web.core.http.client.ReactiveHttpClient;
 import org.turbo.web.utils.client.HttpClientUtils;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * TODO
  */
 public class HttpTest {
+    static AtomicInteger count = new AtomicInteger(0);
     public static void main(String[] args) throws InterruptedException {
-        int num = 1000000;
+        int num = 100000;
+
         HttpClientConfig httpClientConfig = new HttpClientConfig();
-        HttpClientUtils.initClient(httpClientConfig, new NioEventLoopGroup(8));
+        httpClientConfig.setMaxConnections(1);
+        HttpClientUtils.initClient(httpClientConfig, new NioEventLoopGroup(1));
         ReactiveHttpClient httpClient = HttpClientUtils.reactiveHttpClient();
         long start = System.currentTimeMillis();
 
         CountDownLatch latch = new CountDownLatch(num);
-        for (int i = 0; i < num; i++) {
-            httpClient.get("http://localhost:8080/hello", null, String.class)
-                    .doFinally(signalType -> latch.countDown())
-                    .subscribe();
-        }
+        httpClient.get("http://localhost:8080/hello/one", null, String.class)
+                .subscribe((res) -> {
+                    System.out.println("one" + res.getBody());
+                });
+        Thread.sleep(200);
+        httpClient.get("http://localhost:8080/hello/two", null, String.class)
+                .subscribe((res) -> {
+                    System.out.println("two" + res.getBody());
+                });
         latch.await();
-        System.out.println("耗时：" + (System.currentTimeMillis() - start) + "ms");
     }
 }

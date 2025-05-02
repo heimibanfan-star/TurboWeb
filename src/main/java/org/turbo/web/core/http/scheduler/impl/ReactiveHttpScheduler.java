@@ -8,14 +8,14 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.router.dispatcher.HttpDispatcher;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
-import org.turbo.web.core.http.sse.SSESession;
+import org.turbo.web.core.http.sse.SseResponse;
+import org.turbo.web.core.http.sse.SseSession;
 import org.turbo.web.exception.TurboExceptionHandlerException;
 import org.turbo.web.exception.TurboReactiveException;
 import org.turbo.web.exception.TurboSerializableException;
@@ -25,7 +25,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
 /**
@@ -53,25 +52,30 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
     }
 
     @Override
-    public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SSESession session) {
+    public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SseSession session) {
         HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
         Mono<HttpResponse> responseMono = doExecute(request, response, session);
         responseMono
             .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
             .subscribe(
-            promise::setSuccess,
-            (err) -> {
-                try {
-                    handleException(request, response, err)
-                        .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
-                        .subscribe(promise::setSuccess, promise::setFailure);
-                } catch (Throwable cause) {
-                    promise.setFailure(cause);
-                }
-            });
+                (res) -> {
+                    promise.setSuccess(res);
+                    if (res instanceof SseResponse sseResponse) {
+                        sseResponse.startSse();
+                    }
+                },
+                (err) -> {
+                    try {
+                        handleException(request, response, err)
+                            .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
+                            .subscribe(promise::setSuccess, promise::setFailure);
+                    } catch (Throwable cause) {
+                        promise.setFailure(cause);
+                    }
+                });
     }
 
-    private Mono<HttpResponse> doExecute(FullHttpRequest request, HttpInfoResponse response, SSESession session) {
+    private Mono<HttpResponse> doExecute(FullHttpRequest request, HttpInfoResponse response, SseSession session) {
         try {
             // 封装请求对象
             HttpInfoRequest infoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
@@ -123,7 +127,7 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
      * 调度异常处理器
      *
      * @param request 请求对象
-     * @param e 异常对象
+     * @param e       异常对象
      * @return 响应结果
      */
     private Mono<HttpResponse> handleException(FullHttpRequest request, HttpInfoResponse httpInfoResponse, Throwable e) {

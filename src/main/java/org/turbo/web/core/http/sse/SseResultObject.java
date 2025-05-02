@@ -9,9 +9,9 @@ public class SseResultObject {
     // 构建的新的响应对象
     private final HttpResponse httpResponse;
     // sse的回话对象
-    private final SSESession sseSession;
+    private final SseSession sseSession;
 
-    public SseResultObject(HttpResponse httpResponse, SSESession sseSession) {
+    public SseResultObject(HttpResponse httpResponse, SseSession sseSession) {
         this.httpResponse = httpResponse;
         this.sseSession = sseSession;
     }
@@ -20,7 +20,7 @@ public class SseResultObject {
         return httpResponse;
     }
 
-    public SSESession getSseSession() {
+    public SseSession getSseSession() {
         return sseSession;
     }
 

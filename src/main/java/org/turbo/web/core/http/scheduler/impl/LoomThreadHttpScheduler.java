@@ -2,13 +2,11 @@ package org.turbo.web.core.http.scheduler.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.concurrent.Promise;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.router.dispatcher.HttpDispatcher;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
@@ -16,7 +14,8 @@ import org.turbo.web.core.http.cookie.Cookies;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
-import org.turbo.web.core.http.sse.SSESession;
+import org.turbo.web.core.http.sse.SseResponse;
+import org.turbo.web.core.http.sse.SseSession;
 import org.turbo.web.exception.TurboExceptionHandlerException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.lock.Locks;
@@ -24,7 +23,6 @@ import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 import org.turbo.web.utils.thread.LoomThreadUtils;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 
 /**
  * 使用虚拟县城的阻塞线程调度器
@@ -47,7 +45,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
     }
 
     @Override
-    public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SSESession session) {
+    public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SseSession session) {
         LoomThreadUtils.execute(() -> {
             if (showRequestLog) {
                 long startTime = System.nanoTime();
@@ -55,6 +53,9 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
                     try {
                         HttpResponse response = doExecute(request, session);
                         promise.setSuccess(response);
+                        if (response instanceof SseResponse sseResponse) {
+                            sseResponse.startSse();
+                        }
                     } catch (Throwable throwable) {
                         promise.setFailure(throwable);
                     }
@@ -65,6 +66,9 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
                 try {
                     HttpResponse response = doExecute(request, session);
                     promise.setSuccess(response);
+                    if (response instanceof SseResponse sseResponse) {
+                        sseResponse.startSse();
+                    }
                 } catch (Throwable throwable) {
                     promise.setFailure(throwable);
                 }
@@ -72,7 +76,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
         });
     }
 
-    private HttpResponse doExecute(FullHttpRequest request, SSESession session) {
+    private HttpResponse doExecute(FullHttpRequest request, SseSession session) {
         // 添加读锁
         Locks.SESSION_LOCK.readLock().lock();
         HttpInfoRequest httpInfoRequest = null;
