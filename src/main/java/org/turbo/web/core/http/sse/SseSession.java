@@ -3,6 +3,7 @@ package org.turbo.web.core.http.sse;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
@@ -27,19 +28,11 @@ public class SseSession {
      *
      * @param message 消息
      */
-    public Promise<Void> send(String message) {
-        Promise<Void> result = new DefaultPromise<>(channel.eventLoop());
-        channel.eventLoop().execute(() -> {
-            if (!channel.isActive()) {
-                result.setFailure(new TurboSseException("channel已关闭，不能写入数据"));
-            }
-            String msg = "data: " + message + "\n\n";
-            ByteBuf buf = Unpooled.copiedBuffer(msg, CharsetUtil.UTF_8);
-            DefaultHttpContent content = new DefaultHttpContent(buf); // 发送 chunked 数据
-            channel.writeAndFlush(content);
-            result.setSuccess(null);
-        });
-        return result;
+    public ChannelFuture send(String message) {
+        String msg = "data: " + message + "\n\n";
+        ByteBuf buf = Unpooled.copiedBuffer(msg, CharsetUtil.UTF_8);
+        DefaultHttpContent content = new DefaultHttpContent(buf); // 发送 chunked 数据
+        return channel.writeAndFlush(content);
     }
 
     /**

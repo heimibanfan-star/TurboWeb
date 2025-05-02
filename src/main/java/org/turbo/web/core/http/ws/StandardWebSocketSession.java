@@ -2,6 +2,7 @@ package org.turbo.web.core.http.ws;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
@@ -43,8 +44,8 @@ public class StandardWebSocketSession implements WebSocketSession{
     }
 
     @Override
-    public void sendMessage(String message) {
+    public ChannelFuture sendMessage(String message) {
         TextWebSocketFrame textWebSocketFrame = new TextWebSocketFrame(message);
-        channel.writeAndFlush(textWebSocketFrame);
+        return channel.writeAndFlush(textWebSocketFrame);
     }
 }

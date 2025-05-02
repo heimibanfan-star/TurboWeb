@@ -1,5 +1,7 @@
 package org.turbo.web.core.http.ws;
 
+import io.netty.channel.ChannelFuture;
+
 /**
  * websocket回话对象
  */
@@ -10,7 +12,7 @@ public interface WebSocketSession {
      *
      * @param message 信息
      */
-    void sendMessage(String message);
+    ChannelFuture sendMessage(String message);
 
     /**
      * 获取连接信息
