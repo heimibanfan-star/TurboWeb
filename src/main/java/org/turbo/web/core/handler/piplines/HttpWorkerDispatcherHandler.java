@@ -82,7 +82,7 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         Promise<Boolean> connectPromise = HttpConnectPromiseContainer.get(channelHandlerContext.channel().id().asLongText());
         SseSession sseSession = null;
         if (connectPromise != null) {
-            sseSession = new SseSession(eventLoop, channelHandlerContext.channel(), connectPromise);
+            sseSession = new SseSession(channelHandlerContext.channel(), connectPromise);
         } else {
             log.warn("连接事件异常，容器中找不到该连接的事件对象:{}", channelHandlerContext.channel().id().asLongText());
         }

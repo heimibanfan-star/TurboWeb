@@ -6,6 +6,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
+import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import org.turbo.web.exception.TurboSseException;
 
@@ -13,13 +14,10 @@ import org.turbo.web.exception.TurboSseException;
  * sse的回话对象
  */
 public class SseSession {
-
-    private final EventLoop channelExecutor;
     private final Channel channel;
     private final Promise<Boolean> promise;
 
-    public SseSession(EventLoop channelExecutor, Channel channel, Promise<Boolean> promise) {
-        this.channelExecutor = channelExecutor;
+    public SseSession( Channel channel, Promise<Boolean> promise) {
         this.channel = channel;
         this.promise = promise;
     }
@@ -29,14 +27,19 @@ public class SseSession {
      *
      * @param message 消息
      */
-    public void send(String message) {
-        if (!channel.isActive()) {
-            throw new TurboSseException("链接已关闭，不能推送数据");
-        }
-        String msg = "data: " + message + "\n\n";
-        ByteBuf buf = Unpooled.copiedBuffer(msg, CharsetUtil.UTF_8);
-        DefaultHttpContent content = new DefaultHttpContent(buf); // 发送 chunked 数据
-        channel.writeAndFlush(content);
+    public Promise<Void> send(String message) {
+        Promise<Void> result = new DefaultPromise<>(channel.eventLoop());
+        channel.eventLoop().execute(() -> {
+            if (!channel.isActive()) {
+                result.setFailure(new TurboSseException("channel已关闭，不能写入数据"));
+            }
+            String msg = "data: " + message + "\n\n";
+            ByteBuf buf = Unpooled.copiedBuffer(msg, CharsetUtil.UTF_8);
+            DefaultHttpContent content = new DefaultHttpContent(buf); // 发送 chunked 数据
+            channel.writeAndFlush(content);
+            result.setSuccess(null);
+        });
+        return result;
     }
 
     /**
@@ -54,7 +57,7 @@ public class SseSession {
      * 关闭连接
      */
     public void close() {
-        channelExecutor.execute(() -> {
+        channel.eventLoop().execute(() -> {
             if (!channel.isActive()) {
                 return;
             }
