@@ -3,9 +3,7 @@ package top.heimi;
 import io.netty.handler.codec.http.HttpMethod;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.middleware.CorsMiddleware;
-import org.turbo.web.core.http.middleware.ServerInfoMiddleware;
-import org.turbo.web.core.http.middleware.StaticResourceMiddleware;
+import org.turbo.web.core.http.middleware.*;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
 import top.heimi.controller.UserController;
@@ -19,6 +17,7 @@ import java.lang.invoke.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -29,15 +28,23 @@ public class Application {
 
     private int num = 10;
 
-    public static void main(String[] args) throws Throwable {
-        TurboServer server = new DefaultTurboServer(Application.class, 8);
-        server.addController(new UserController());
-        ServerParamConfig config = new ServerParamConfig();
-        config.setShowRequestLog(false);
-        server.setConfig(config);
-        server.setWebSocketHandler("/ws/(.*)", new MyWebSocketHandler());
+    public static void main(String[] args) {
+        TurboServer server = new DefaultTurboServer(Application.class);
+        CorsMiddleware cors = new CorsMiddleware();
+        // 指定允许的跨域来源
+        cors.setAllowedOrigins(List.of("https://example.com"));
+        // 指定允许的 HTTP 方法
+        cors.setAllowedMethods(List.of("GET", "POST"));
+        // 指定允许的请求头
+        cors.setAllowedHeaders(List.of("Content-Type", "Authorization"));
+        // 指定哪些响应头可以暴露给客户端
+        cors.setExposedHeaders(List.of("Content-Disposition"));
+        // 是否允许携带 Cookie
+        cors.setAllowCredentials(true);
+        // 设置预检请求的缓存时间（单位：秒）
+        cors.setMaxAge(1800);
+        server.addMiddleware(cors);
         server.start();
-
     }
 //
 //    private static void testCache(MethodHandle handle) throws Throwable {

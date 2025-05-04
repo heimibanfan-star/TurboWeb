@@ -3,16 +3,16 @@
 
 ## 升级内容
 ### 新增功能
-> 1.提供同时支持同步和异步请求的PromiseHttpClient客户端。
-> 
-> 2.提供支持反应式编程的ReactiveHttpClient客户端。
-> 
-> 3.增加节点共享功能（可以在没有统一网关的情况下实现路由的跨节点访问）。
+> 1.二级限流策略中间件对服务器的流量控制。
+>
+> 2.CORS中间件。
+>
+> 3.对服务器实例信息收集的中间件。
 
 ### 原有功能的优化
-> 1.HttpContext中提供一系列简化的参数封装方法。
-> 
-> 2.引入终止操作符的概念，当HttpContext中使用终止操作符，会自动中断本次请求后续的中间件链。
+> 1.完善对websocket的支持。
+>
+> 2.对路由调用的优化（将反射调用替换为方法句柄调用）。
 
 ## 简介
 ### 项目概述
@@ -382,6 +382,9 @@ public HttpResponse index(HttpContext ctx) {
 > 这里的response对象也可以直接使用HttpContext中的response对象，调度器会自动检测是否使用的是Context来保证资源的释放。
 
 ## 中间件
+
+### 中间件的基本使用
+
 Middleware 类是所有中间件的基类。它定义了中间件的基本结构和行为，允许开发者通过继承该类并实现 invoke 方法来创建自定义中间件。每个中间件都持有一个指向下一个中间件的引用（通过 next 字段），这使得多个中间件可以按顺序执行。
 
 中间件的执行顺序是根据添加顺序来确定的。
@@ -411,6 +414,211 @@ public class Application {
 ```
 中间件也可以被看作一个处理器，中间件自身也可以像controller一样处理请求，如果不调用doNext就不会执行后续的操作。
 >注意：HttpContext中带有@End注解的方法都属于终止操作符，在本次请求中都会直接中断后续的中间件的执行。
+
+TurboWeb的大多数功能都是基于中间件的扩展，下面介绍一下TurboWeb默认提供的一系列中间件。
+
+### 静态资源的支持
+
+#### 使用步骤
+
+1.注册静态资源中间件
+
+```java
+TurboServer server = new DefaultTurboServer(Application.class, 8);
+server.addMiddleware(new StaticResourceMiddleware());
+```
+
+2.将静态资源放入static目录之下即可访问
+
+#### 配置静态资源
+
+```java
+StaticResourceMiddleware staticResourceMiddleware = new StaticResourceMiddleware();
+// 请求以/static开头会被拦截作为静态资源处理
+staticResourceMiddleware.setStaticResourceUri("/static");
+// 静态资源在resource中的位置
+staticResourceMiddleware.setStaticResourcePath("static");
+// 是否对静态资源进行缓存
+staticResourceMiddleware.setCacheStaticResource(true);
+// 缓存多大内存以内的静态资源
+staticResourceMiddleware.setCacheFileSize(1024 * 1024 * 10);
+```
+
+### 模板的使用
+
+> TurboWeb默认提供了Freemarker模板
+
+1.注册中间件
+
+```java
+server.addMiddleware(new FreemarkerTemplateMiddleware());
+```
+
+2.在templates文件夹下创建模板
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<#list names as name>
+    ${name}
+    <br/>
+</#list>
+</body>
+</html>
+```
+
+3.在控制器中渲染模板
+
+```java
+@Get
+public ViewModel index(HttpContext ctx) {
+    ViewModel viewModel = new ViewModel();
+    List<String> names = List.of("张三", "李四", "王五");
+    viewModel.addAttribute("names", names);
+    viewModel.setViewName("index");
+    return viewModel;
+}
+```
+
+> 注意：注册模板中间件之后只要返回值类型是ViewModel会自动被拦截进行渲染，其他类型的不受影响。
+
+#### 模板渲染中间件的配置
+
+```java
+FreemarkerTemplateMiddleware templateMiddleware = new FreemarkerTemplateMiddleware();
+// 设置模板的路径
+templateMiddleware.setTemplatePath("templates");
+// 设置模板的后缀
+templateMiddleware.setTemplateSuffix(".ftl");
+// 是否开启模板缓存
+templateMiddleware.setOpenCache(true);
+```
+
+### 两级限流策略
+
+对于大规模的请求，虽然TurboWeb可以高效的处理，但是有一个非常验证的问题就是每个请求的处理逻辑可能都需要占用一部分的内存，随着并发请求的增加，很容易会造成OOM，因此在一些场景需要限制同时处理的请求数。
+
+由于TurboWeb和传统的web框架不同，没有采用固定的线程池，而是基于虚拟线程/Reactor反应式调度，因此无法通过限制线程池的方式来控制同时处理的请求数。
+
+TurboWeb提供了两级限流策略来限制同时处理的请求数。
+
+#### 一级限流策略
+
+一级限流策略也被称为全局限流策略，是针对于整个服务器实例来说的可以同时处理的请求数。
+
+```java
+public static void main(String[] args) {
+    TurboServer server = new DefaultTurboServer(Application.class);
+    AbstractGlobalConcurrentLimitMiddleware globalLimit = new AbstractGlobalConcurrentLimitMiddleware(10) {
+        @Override
+        public Object doAfterReject(HttpContext ctx) {
+            return ctx.text("too many requests");
+        }
+    };
+    server.addMiddleware(globalLimit);
+    server.start();
+}
+```
+
+- 这段代码标识在这个服务器实例中，最多同时处理10个请求。
+- doAfterReject这个回调是到达流量限制之后触发，推荐在这个回调中直接返回响应不要进行业务处理。
+
+#### 二级限流策略
+
+二级限流策略是更加细粒度的限流，可以根据不同的请求方式和url前缀配置不同的限流规则。
+
+```java
+public static void main(String[] args) {
+    TurboServer server = new DefaultTurboServer(Application.class);
+    AbstractConcurrentLimitMiddleware concurrentLimitMiddleware = new AbstractConcurrentLimitMiddleware() {
+        @Override
+        public Object doAfterReject(HttpContext ctx) {
+            return ctx.text("too many requests");
+        }
+    };
+    concurrentLimitMiddleware.addStrategy(HttpMethod.GET, "/hello", 32);
+    concurrentLimitMiddleware.addStrategy(HttpMethod.GET, "/hello2", 64);
+    concurrentLimitMiddleware.addStrategy(HttpMethod.GET, "/hello3", 128);
+    server.addMiddleware(concurrentLimitMiddleware);
+    server.start();
+}
+```
+
+- 这里的回调也是当请求被拒绝之后会触发。
+- 二级限流可以针对不同的请求方式和url前缀配置不同的策略。
+
+> 注意：
+>
+> 一级限流策略和二级限流策略可以同时使用。
+>
+> 推荐：一级限流策略的中间件位于二级限流策略之前。
+
+### 信息采集中间件
+
+```java
+public static void main(String[] args) {
+    TurboServer server = new DefaultTurboServer(Application.class);
+    server.addMiddleware(new ServerInfoMiddleware());
+    server.start();
+}
+```
+
+- GET方式请求，默认路径为/turboWeb/serverInfo，可以修改。
+- /turboWeb/serverInfo?type=memory：查看内存的使用情况。
+- /turboWeb/serverInfo?type=thread：查看线程的信息。
+- /turboWeb/serverInfo?type=gc：查看垃圾回收器的信息。
+
+### CORS中间件
+
+`CorsMiddleware` 是 TurboWeb 提供的用于处理跨域请求（CORS: Cross-Origin Resource Sharing）的中间件，实现了浏览器中前端与后端跨域通信的必要支持。
+
+该中间件默认允许所有源的跨域访问，并支持自定义配置，用于在生产环境中精细控制跨域策略。
+
+```java
+public static void main(String[] args) {
+    TurboServer server = new DefaultTurboServer(Application.class);
+    CorsMiddleware corsMiddleware = new CorsMiddleware();
+    server.addMiddleware(corsMiddleware);
+    server.start();
+}
+```
+
+默认的配置：
+
+- 允许所有域名访问（`*`）
+- 支持方法：`GET`、`POST`、`PUT`、`DELETE`
+- 允许所有请求头（`*`）
+- 暴露响应头：`Content-Disposition`
+- 不允许携带 Cookie（`Allow-Credentials = false`）
+- 预检请求结果缓存时间：3600 秒
+
+自定义配置：
+
+```java
+public static void main(String[] args) {
+    TurboServer server = new DefaultTurboServer(Application.class);
+    CorsMiddleware cors = new CorsMiddleware();
+    // 指定允许的跨域来源
+    cors.setAllowedOrigins(List.of("https://example.com"));
+    // 指定允许的 HTTP 方法
+    cors.setAllowedMethods(List.of("GET", "POST"));
+    // 指定允许的请求头
+    cors.setAllowedHeaders(List.of("Content-Type", "Authorization"));
+    // 指定哪些响应头可以暴露给客户端
+    cors.setExposedHeaders(List.of("Content-Disposition"));
+    // 是否允许携带 Cookie
+    cors.setAllowCredentials(true);
+    // 设置预检请求的缓存时间（单位：秒）
+    cors.setMaxAge(1800);
+    server.addMiddleware(cors);
+    server.start();
+}
+```
 
 ## 异常处理器
 异常处理器可以用于优雅的处理业务代码中出现的异常。
@@ -537,73 +745,6 @@ public void index(HttpContext ctx) {
     ctx.json(name);
 }
 ```
-## 静态资源的支持
-### 使用步骤
-1.注册静态资源中间件
-```java
-TurboServer server = new DefaultTurboServer(Application.class, 8);
-server.addMiddleware(new StaticResourceMiddleware());
-```
-2.将静态资源放入static目录之下即可访问
-### 配置静态资源
-```java
-StaticResourceMiddleware staticResourceMiddleware = new StaticResourceMiddleware();
-// 请求以/static开头会被拦截作为静态资源处理
-staticResourceMiddleware.setStaticResourceUri("/static");
-// 静态资源在resource中的位置
-staticResourceMiddleware.setStaticResourcePath("static");
-// 是否对静态资源进行缓存
-staticResourceMiddleware.setCacheStaticResource(true);
-// 缓存多大内存以内的静态资源
-staticResourceMiddleware.setCacheFileSize(1024 * 1024 * 10);
-```
-
-## 模板的使用
-> TurboWeb默认提供了Freemarker模板
-
-1.注册中间件
-```java
-server.addMiddleware(new FreemarkerTemplateMiddleware());
-```
-2.在templates文件夹下创建模板
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
-<#list names as name>
-    ${name}
-    <br/>
-</#list>
-</body>
-</html>
-```
-3.在控制器中渲染模板
-```java
-@Get
-public ViewModel index(HttpContext ctx) {
-    ViewModel viewModel = new ViewModel();
-    List<String> names = List.of("张三", "李四", "王五");
-    viewModel.addAttribute("names", names);
-    viewModel.setViewName("index");
-    return viewModel;
-}
-```
-> 注意：注册模板中间件之后只要返回值类型是ViewModel会自动被拦截进行渲染，其他类型的不受影响。
-### 模板渲染中间件的配置
-```java
-FreemarkerTemplateMiddleware templateMiddleware = new FreemarkerTemplateMiddleware();
-// 设置模板的路径
-templateMiddleware.setTemplatePath("templates");
-// 设置模板的后缀
-templateMiddleware.setTemplateSuffix(".ftl");
-// 是否开启模板缓存
-templateMiddleware.setOpenCache(true);
-```
-
 ## SSE的使用
 > SSE（Server-Sent Events，服务器推送事件）是一种基于 HTTP 的单向数据推送技术，允许 服务器主动向客户端发送数据，而客户端使用 EventSource API 监听和处理这些数据。
 
@@ -637,6 +778,80 @@ public HttpResponse index(HttpContext ctx) {
 }
 ```
 > 注意：若想使用SSE，返回值必须使用SseResultObject中的HttpResponse进行返回，因为该对象设置了相关的响应内容。
+
+## WebSocket的使用
+
+1.创建websocket处理器实现WebSocketHandler
+
+```java
+public class MyWebSocketHandler implements WebSocketHandler {
+
+    @Override
+    public void onOpen(WebSocketSession session) {
+        System.out.println("onOpen");
+    }
+
+    @Override
+    public void onMessage(WebSocketSession session, WebSocketFrame webSocketFrame) {
+        if (webSocketFrame instanceof TextWebSocketFrame textWebSocketFrame) {
+            System.out.println(textWebSocketFrame.text());
+            textWebSocketFrame.release();
+        } else if (webSocketFrame instanceof BinaryWebSocketFrame binaryWebSocketFrame) {
+            System.out.println("二进制帧");
+            binaryWebSocketFrame.release();
+        } else if (webSocketFrame instanceof PingWebSocketFrame) {
+            System.out.println("ping");
+        } else if (webSocketFrame instanceof PongWebSocketFrame) {
+            System.out.println("pong");
+        }
+    }
+
+    @Override
+    public void onClose(WebSocketSession session) {
+        System.out.println("onClose");
+    }
+}
+```
+
+- 当客户端向服务端推送不同的消息时都会触发onMessage方法的回调。
+- TextWebSocketFrame：客户端发送的文本帧。
+- BinaryWebSocketFrame：客户端发送的二进制帧。
+- PingWebSocketFrame：客户端发送的Ping帧。
+- PongWebSocketFrame：客户端发送的Pong帧。
+
+2.在服务器实例中添加自定义的websocket处理器
+
+```java
+public static void main(String[] args) {
+    TurboServer server = new DefaultTurboServer(Application.class);
+    server.setWebSocketHandler("/ws/(.*)", new MyWebSocketHandler());
+    server.start();
+}
+```
+
+- 第一个参数是websocket处理器需要处理的路径，可以使用正则表达式。
+- 第二个参数是自定义的websocket处理器。
+
+上面的处理器实现起来显得有些复杂，开发者不仅仅需要实现onOpen方法和onClose方法，还需要手动区分不同的帧进行不同的业务逻辑处理，而且还需要开发者手动释放资源，由于这里使用的直接内存，若开发者忘记释放会导致内存泄漏。
+
+TurboWeb提供了一个更加简单的抽象类，AbstractWebSocketHandler，这个抽象类会进行不同帧的分发和资源的释放。
+
+```java
+public class MyWebSocketHandler extends AbstractWebSocketHandler {
+
+    @Override
+    public void onText(WebSocketSession session, String content) {
+        System.out.println(content);
+    }
+
+    @Override
+    public void onBinary(WebSocketSession session, ByteBuf content) {
+        System.out.println("二进制帧");
+    }
+}
+```
+
+这个抽象类会自动根据不同的帧触发不同的回调，onText、onBinary、onPing、onPong等回调，需要开发者手动实现的只有onText和onBinary，分别对应文本帧和二进制帧，同时这个抽象会对onOpen和onClose有默认的实现。
 
 ## 服务器参数配置
 Turbo-web提供了配置类，可以通过重新设置配置类的方式进行配置设置，如果不设置采用默认的参数。
