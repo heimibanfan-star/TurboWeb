@@ -1037,7 +1037,9 @@ public static void main(String[] args) throws InterruptedException, ExecutionExc
 }
 ```
 Delete的重载方法和Get的类似。
-#### 异步处理结果，上面的实例中都是通过同步的方式处理的结果，下面展示异步获取结果
+
+异步处理结果，上面的实例中都是通过同步的方式处理的结果，下面展示异步获取结果
+
 ```java
 public static void main(String[] args) throws InterruptedException, ExecutionException {
     HttpClientUtils.initClient(new HttpClientConfig(), new NioEventLoopGroup());
