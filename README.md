@@ -1195,7 +1195,7 @@ public class UserApplication {
     public static void main(String[] args) {
         TurboServer server = new DefaultTurboServer(UserApplication.class, 8);
         server.addController(new UserController());
-        Gateway gateway = new DefaultGateway(0, 0);
+        Gateway gateway = new DefaultGateway();
         gateway.addServerNode("/order", "http://localhost:8081");
         server.setGateway(gateway);
         server.start(8080);
