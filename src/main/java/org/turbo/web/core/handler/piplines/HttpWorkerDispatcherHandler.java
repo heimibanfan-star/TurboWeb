@@ -115,8 +115,7 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         webSocketPreInit.handle(ctx, request);
         String channelId = ctx.channel().id().asLongText();
         String uri = request.uri();
-        WebSocketConnectInfo connectInfo = new WebSocketConnectInfo();
-        connectInfo.setWebsocketPath(uri);
+        WebSocketConnectInfo connectInfo = new WebSocketConnectInfo(uri);
         WebSocketConnectInfoContainer.putWebSocketConnectInfo(channelId, connectInfo);
     }
 

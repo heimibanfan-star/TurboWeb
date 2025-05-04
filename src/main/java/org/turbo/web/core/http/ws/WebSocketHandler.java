@@ -1,5 +1,7 @@
 package org.turbo.web.core.http.ws;
 
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+
 import java.util.Map;
 
 /**
@@ -19,7 +21,7 @@ public interface WebSocketHandler {
      *
      * @param session websocket session回话
      */
-    void onMessage(WebSocketSession session, String message);
+    void onMessage(WebSocketSession session, WebSocketFrame webSocketFrame);
 
     /**
      * 处理收到关闭消息
@@ -27,32 +29,4 @@ public interface WebSocketHandler {
      * @param session websocket session回话
      */
     void onClose(WebSocketSession session);
-
-    /**
-     * 处理收到ping消息
-     *
-     * @param session websocket session回话
-     */
-    default void onPing(WebSocketSession session) {
-        session.sendPong();
-    }
-
-    /**
-     * 处理收到pong消息
-     *
-     * @param session websocket session回话
-     */
-    default void onPong(WebSocketSession session) {
-    }
-
-    /**
-     * 处理回话丢失的问题
-     *
-     * @param newSession 新创建的回话
-     * @param sessionMap session回话的map
-     * @param channelId 管道id
-     */
-    default void onSessionMiss(WebSocketSession newSession, Map<String, WebSocketSession> sessionMap, String channelId) {
-
-    }
 }

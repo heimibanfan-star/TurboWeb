@@ -1,10 +1,7 @@
 package org.turbo.web.core.handler.piplines;
 
 import io.netty.channel.*;
-import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.*;
 import org.turbo.web.core.http.ws.*;
 import org.turbo.web.exception.TurboWebSocketException;
 import org.turbo.web.utils.thread.LoomThreadUtils;
@@ -27,26 +24,12 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, WebSocketFrame webSocketFrame) throws Exception {
-        // 判断websocket的帧的类型
-        if (webSocketFrame instanceof TextWebSocketFrame textWebSocketFrame) {
-            WebSocketSession webSocketSession = getWebSocketSession(channelHandlerContext);
-            // 获取收到的消息
-            String message = textWebSocketFrame.text();
-            LoomThreadUtils.execute(() -> {
-                // 调度处理器
-                webSocketHandler.onMessage(webSocketSession, message);
-            });
-        } else if (webSocketFrame instanceof PingWebSocketFrame) {
-            WebSocketSession webSocketSession = getWebSocketSession(channelHandlerContext);
-            LoomThreadUtils.execute(() -> {
-                webSocketHandler.onPing(webSocketSession);
-            });
-        } else if (webSocketFrame instanceof PongWebSocketFrame) {
-            WebSocketSession webSocketSession = getWebSocketSession(channelHandlerContext);
-            LoomThreadUtils.execute(() -> {
-                webSocketHandler.onPong(webSocketSession);
-            });
-        }
+        WebSocketSession webSocketSession = getWebSocketSession(channelHandlerContext);
+        webSocketFrame.retain();
+        LoomThreadUtils.execute(() -> {
+            // 调度处理器
+            webSocketHandler.onMessage(webSocketSession, webSocketFrame);
+        });
     }
 
     /**

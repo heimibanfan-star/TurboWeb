@@ -1,6 +1,8 @@
 package org.turbo.web.core.http.ws;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 
 /**
  * websocket回话对象
@@ -12,7 +14,28 @@ public interface WebSocketSession {
      *
      * @param message 信息
      */
-    ChannelFuture sendMessage(String message);
+    ChannelFuture sendText(String message);
+
+    /**
+     * 发送二进制信息
+     *
+     * @param message 二进制信息
+     */
+    ChannelFuture sendBinary(byte[] message);
+
+    /**
+     * 发送二进制信息
+     *
+     * @param byteBuf 二进制信息
+     */
+    ChannelFuture sendBinary(ByteBuf byteBuf);
+
+    /**
+     * 发送信息
+     *
+     * @param webSocketFrame 信息
+     */
+    ChannelFuture send(WebSocketFrame webSocketFrame);
 
     /**
      * 获取连接信息

@@ -9,8 +9,10 @@
 <h1>hello world</h1>
 <script>
     const ws = new WebSocket("ws://localhost:8080/ws/aaa")
+    const data = new Blob(["hello"])
     ws.onopen = function () {
         console.log("open")
+        ws.send(data)
     }
     ws.onmessage = function (event) {
         ws.send("ping")

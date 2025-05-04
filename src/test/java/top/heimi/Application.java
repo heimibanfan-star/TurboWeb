@@ -13,6 +13,7 @@ import top.heimi.handler.GlobalExceptionHandler;
 import top.heimi.middleware.GlobalLimitMiddleware;
 import top.heimi.middleware.LimitMiddleware;
 import top.heimi.middleware.TestMiddleware;
+import top.heimi.ws.MyWebSocketHandler;
 
 import java.lang.invoke.*;
 import java.lang.reflect.InvocationTargetException;
@@ -34,6 +35,7 @@ public class Application {
         ServerParamConfig config = new ServerParamConfig();
         config.setShowRequestLog(false);
         server.setConfig(config);
+        server.setWebSocketHandler("/ws/(.*)", new MyWebSocketHandler());
         server.start();
 
     }

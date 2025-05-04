@@ -1,12 +1,11 @@
 package org.turbo.web.core.http.ws;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.EventLoop;
-import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.*;
 
 /**
  * 封装websocket的回话对象
@@ -44,8 +43,25 @@ public class StandardWebSocketSession implements WebSocketSession{
     }
 
     @Override
-    public ChannelFuture sendMessage(String message) {
+    public ChannelFuture sendText(String message) {
         TextWebSocketFrame textWebSocketFrame = new TextWebSocketFrame(message);
         return channel.writeAndFlush(textWebSocketFrame);
+    }
+
+    @Override
+    public ChannelFuture sendBinary(byte[] message) {
+        ByteBuf byteBuf = Unpooled.wrappedBuffer(message);
+        return sendBinary(byteBuf);
+    }
+
+    @Override
+    public ChannelFuture sendBinary(ByteBuf byteBuf) {
+        BinaryWebSocketFrame binaryWebSocketFrame = new BinaryWebSocketFrame(byteBuf);
+        return channel.writeAndFlush(binaryWebSocketFrame);
+    }
+
+    @Override
+    public ChannelFuture send(WebSocketFrame webSocketFrame) {
+        return channel.writeAndFlush(webSocketFrame);
     }
 }

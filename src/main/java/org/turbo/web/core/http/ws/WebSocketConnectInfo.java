@@ -5,11 +5,12 @@ package org.turbo.web.core.http.ws;
  */
 public class WebSocketConnectInfo {
 
-    private String websocketPath;
+    private final String websocketPath;
 
-    public void setWebsocketPath(String websocketPath) {
+    public WebSocketConnectInfo(String websocketPath) {
         this.websocketPath = websocketPath;
     }
+
 
     public String getWebsocketPath() {
         return websocketPath;
