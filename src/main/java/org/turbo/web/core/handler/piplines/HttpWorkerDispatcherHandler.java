@@ -90,15 +90,18 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         httpScheduler.execute(fullHttpRequest, promise, sseSession);
         // 监听业务逻辑处理完成
         promise.addListener(future -> {
-            // 判断成功
-            if (future.isSuccess()) {
-                channelHandlerContext.writeAndFlush(future.getNow());
-            } else {
-                HttpInfoResponse response = doNotHandleException(fullHttpRequest, future.cause());
-                channelHandlerContext.writeAndFlush(response);
+            try {
+                // 判断成功
+                if (future.isSuccess()) {
+                    channelHandlerContext.writeAndFlush(future.getNow());
+                } else {
+                    HttpInfoResponse response = doNotHandleException(fullHttpRequest, future.cause());
+                    channelHandlerContext.writeAndFlush(response);
+                }
+            } finally {
+                // 释放资源
+                fullHttpRequest.release();
             }
-            // 释放资源
-            fullHttpRequest.release();
         });
     }
 
