@@ -13,11 +13,4 @@ public interface ExceptionHandlerMatcher {
      */
     ExceptionHandlerDefinition match(Class<? extends Throwable> exceptionClass);
 
-    /**
-     * 获取异常处理器实例
-     *
-     * @param clazz 异常处理器类
-     * @return 异常处理器实例
-     */
-    Object getInstance(Class<?> clazz);
 }

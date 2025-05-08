@@ -6,10 +6,10 @@ import reactor.core.publisher.Mono;
 /**
  * TODO
  */
-public class GlobalExceptionHandler{
+public class ReaGlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
-    public String handle(Exception e) {
-        return "error";
+    public Mono<String> handle(Exception e) {
+        return Mono.just("error");
     }
 }

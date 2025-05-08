@@ -9,6 +9,8 @@ import org.turbo.web.core.http.handler.ExceptionHandlerContainer;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.exception.TurboExceptionHandlerException;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -35,15 +37,13 @@ public class ExceptionHandlerContainerInitUtils {
         ExceptionHandlerContainer container = new ExceptionHandlerContainer();
         for (Object handler : exceptionHandlerClassList) {
             Class<?> aClass = handler.getClass();
-            // 放入容器中
-            container.getHandlerClassInstances().put(aClass, handler);
             // 获取所有的方法
             Method[] methods = aClass.getMethods();
             for (Method method : methods) {
                 if (!method.isAnnotationPresent(ExceptionHandler.class) || !Modifier.isPublic(method.getModifiers())) {
                     continue;
                 }
-                ExceptionHandlerDefinition definition = initExceptionHandlerDefinition(method);
+                ExceptionHandlerDefinition definition = initExceptionHandlerDefinition(method, handler);
                 container.addExceptionHandler(definition);
             }
         }
@@ -75,16 +75,23 @@ public class ExceptionHandlerContainerInitUtils {
      * @param method 方法
      * @return 异常处理器定义
      */
-    private static ExceptionHandlerDefinition initExceptionHandlerDefinition(Method method) {
+    private static ExceptionHandlerDefinition initExceptionHandlerDefinition(Method method, Object instance) {
         // 获取注解
         ExceptionHandler annotation = method.getAnnotation(ExceptionHandler.class);
         // 获取异常的类型
         Class<? extends Throwable> exceptionClass = annotation.value();
-        ExceptionHandlerDefinition definition = new ExceptionHandlerDefinition(method.getDeclaringClass(), method, exceptionClass);
-        // 判断是否存在状态码注解
-        if (method.isAnnotationPresent(ExceptionResponseStatus.class)) {
-            HttpResponseStatus status = HttpResponseStatus.valueOf(method.getAnnotation(ExceptionResponseStatus.class).value());
-            definition.setHttpResponseStatus(status);
+        MethodHandles.Lookup lookup = MethodHandles.lookup();
+        ExceptionHandlerDefinition definition = null;
+        try {
+            MethodHandle methodHandle = lookup.unreflect(method).bindTo(instance);
+            definition = new ExceptionHandlerDefinition(method.getDeclaringClass(), methodHandle, exceptionClass);
+            // 判断是否存在状态码注解
+            if (method.isAnnotationPresent(ExceptionResponseStatus.class)) {
+                HttpResponseStatus status = HttpResponseStatus.valueOf(method.getAnnotation(ExceptionResponseStatus.class).value());
+                definition.setHttpResponseStatus(status);
+            }
+        } catch (IllegalAccessException e) {
+            throw new TurboExceptionHandlerException(e);
         }
         return definition;
     }

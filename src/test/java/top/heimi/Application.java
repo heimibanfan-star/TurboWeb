@@ -8,6 +8,7 @@ import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
 import top.heimi.controller.UserController;
 import top.heimi.handler.GlobalExceptionHandler;
+import top.heimi.handler.ReaGlobalExceptionHandler;
 import top.heimi.middleware.GlobalLimitMiddleware;
 import top.heimi.middleware.LimitMiddleware;
 import top.heimi.middleware.TestMiddleware;
@@ -30,20 +31,9 @@ public class Application {
 
     public static void main(String[] args) {
         TurboServer server = new DefaultTurboServer(Application.class);
-        CorsMiddleware cors = new CorsMiddleware();
-        // 指定允许的跨域来源
-        cors.setAllowedOrigins(List.of("https://example.com"));
-        // 指定允许的 HTTP 方法
-        cors.setAllowedMethods(List.of("GET", "POST"));
-        // 指定允许的请求头
-        cors.setAllowedHeaders(List.of("Content-Type", "Authorization"));
-        // 指定哪些响应头可以暴露给客户端
-        cors.setExposedHeaders(List.of("Content-Disposition"));
-        // 是否允许携带 Cookie
-        cors.setAllowCredentials(true);
-        // 设置预检请求的缓存时间（单位：秒）
-        cors.setMaxAge(1800);
-        server.addMiddleware(cors);
+        server.addController(new UserController());
+        server.setIsReactiveServer(true);
+        server.addExceptionHandler(new ReaGlobalExceptionHandler());
         server.start();
     }
 //

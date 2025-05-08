@@ -17,6 +17,7 @@ import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.http.sse.SseResponse;
 import org.turbo.web.core.http.sse.SseSession;
 import org.turbo.web.exception.TurboExceptionHandlerException;
+import org.turbo.web.exception.TurboMethodInvokeThrowable;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.lock.Locks;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
@@ -129,7 +130,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
             response.setContent(objectMapper.writeValueAsString(result));
             response.setContentType("application/json;charset=utf-8");
             return response;
-        } catch (IllegalAccessException | InvocationTargetException ex) {
+        } catch (TurboMethodInvokeThrowable ex) {
             response.release();
             throw new TurboExceptionHandlerException("异常处理器中出现错误：" + ex.getMessage());
         } catch (JsonProcessingException ex) {

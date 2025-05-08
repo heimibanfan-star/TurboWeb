@@ -12,22 +12,17 @@ import org.turbo.web.core.http.scheduler.HttpScheduler;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
-import org.turbo.web.core.http.middleware.SentinelMiddleware;
-import org.turbo.web.core.http.middleware.aware.CharsetAware;
-import org.turbo.web.core.http.middleware.aware.ExceptionHandlerMatcherAware;
-import org.turbo.web.core.http.middleware.aware.MainClassAware;
-import org.turbo.web.core.http.middleware.aware.SessionManagerProxyAware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.exception.TurboExceptionHandlerException;
+import org.turbo.web.exception.TurboMethodInvokeThrowable;
 import org.turbo.web.exception.TurboNotCatchException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.common.RandomUtils;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -159,14 +154,13 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
      * @param e 异常对象
      * @return 异常处理器的执行结果
      */
-    protected Object doHandleException(ExceptionHandlerDefinition definition, Throwable e) throws InvocationTargetException, IllegalAccessException {
-        // 获取异常处理器实例
-        Object handler = exceptionHandlerMatcher.getInstance(definition.getHandlerClass());
-        if (handler == null) {
-            throw new TurboExceptionHandlerException("未获取到异常处理器实例");
+    protected Object doHandleException(ExceptionHandlerDefinition definition, Throwable e) throws TurboMethodInvokeThrowable {
+        MethodHandle methodHandler = definition.getMethodHandler();
+        try {
+            return methodHandler.invoke(e);
+        } catch (Throwable ex) {
+            throw new TurboMethodInvokeThrowable(ex);
         }
-        Method method = definition.getMethod();
-        return method.invoke(handler, e);
     }
 
     /**

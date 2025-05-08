@@ -2,6 +2,7 @@ package org.turbo.web.core.http.handler;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 
 /**
@@ -10,13 +11,13 @@ import java.lang.reflect.Method;
 public class ExceptionHandlerDefinition {
 
     private final Class<?> handlerClass;
-    private final Method method;
+    private final MethodHandle methodHandle;
     private final Class<? extends Throwable> exceptionClass;
     private HttpResponseStatus httpResponseStatus = HttpResponseStatus.OK;
 
-    public ExceptionHandlerDefinition(Class<?> handlerClass, Method method, Class<? extends Throwable> exceptionClass) {
+    public ExceptionHandlerDefinition(Class<?> handlerClass, MethodHandle methodHandle, Class<? extends Throwable> exceptionClass) {
         this.handlerClass = handlerClass;
-        this.method = method;
+        this.methodHandle = methodHandle;
         this.exceptionClass = exceptionClass;
     }
 
@@ -24,8 +25,8 @@ public class ExceptionHandlerDefinition {
         this.httpResponseStatus = httpResponseStatus;
     }
 
-    public Method getMethod() {
-        return method;
+    public MethodHandle getMethodHandler() {
+        return methodHandle;
     }
 
     public Class<? extends Throwable> getExceptionClass() {

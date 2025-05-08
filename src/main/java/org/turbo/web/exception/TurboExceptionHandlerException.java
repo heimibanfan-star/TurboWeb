@@ -8,4 +8,8 @@ public class TurboExceptionHandlerException extends RuntimeException {
     public TurboExceptionHandlerException(String message) {
         super(message);
     }
+
+    public TurboExceptionHandlerException(Throwable cause) {
+        super(cause);
+    }
 }

@@ -17,13 +17,18 @@ public class UserController {
 
     @Get
     public void hello(HttpContext ctx) throws InterruptedException {
-        Thread.sleep(50);
         ctx.text("hello");
     }
 
     @Get("/limit")
     public void limit(HttpContext ctx) throws InterruptedException {
-        Thread.sleep(1000);
+        ctx.text("hello world");
+    }
+
+    @Get("/err")
+    public void err(HttpContext ctx) throws InterruptedException {
+//        System.gc();
+        int i = 1/0;
         ctx.text("hello world");
     }
 

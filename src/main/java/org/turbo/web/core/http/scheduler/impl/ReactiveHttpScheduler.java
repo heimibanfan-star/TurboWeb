@@ -17,6 +17,7 @@ import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.http.sse.SseResponse;
 import org.turbo.web.core.http.sse.SseSession;
 import org.turbo.web.exception.TurboExceptionHandlerException;
+import org.turbo.web.exception.TurboMethodInvokeThrowable;
 import org.turbo.web.exception.TurboReactiveException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
@@ -147,8 +148,7 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             } else {
                 return Mono.error(new TurboReactiveException("反应式中异常处理器仅支持Mono"));
             }
-        } catch (IllegalAccessException | InvocationTargetException ex) {
-            log.error("异常处理器中调用方法时出现错误" + e);
+        } catch (TurboMethodInvokeThrowable ex) {
             throw new TurboExceptionHandlerException("异常处理器中出现错误：" + ex.getMessage());
         }
     }

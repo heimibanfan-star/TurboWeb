@@ -16,11 +16,6 @@ public class ExceptionHandlerContainer {
     private final Map<Class<? extends Throwable>, ExceptionHandlerDefinition> exceptionHandlerDefinitions = new HashMap<>(1);
 
     /**
-     * 异常处理器类实例
-     */
-    private final Map<Class<?>, Object> handlerClassInstances = new HashMap<>(1);
-
-    /**
      * 添加异常处理器
      *
      * @param exceptionHandlerDefinition 异常处理器定义
@@ -32,15 +27,6 @@ public class ExceptionHandlerContainer {
         }
         // 将异常处理器添加到容器中
         exceptionHandlerDefinitions.put(exceptionHandlerDefinition.getExceptionClass(), exceptionHandlerDefinition);
-    }
-
-    /**
-     * 获取异常处理器
-     *
-     * @return 异常处理器
-     */
-    public Map<Class<?>, Object> getHandlerClassInstances() {
-        return handlerClassInstances;
     }
 
     /**

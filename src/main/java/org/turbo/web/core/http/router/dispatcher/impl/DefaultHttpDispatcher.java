@@ -27,7 +27,6 @@ import java.util.regex.Pattern;
  */
 public class DefaultHttpDispatcher implements HttpDispatcher {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultHttpDispatcher.class);
     private final RouterMatcher routerMatcher;
     public DefaultHttpDispatcher(RouterMatcher routerMatcher) {
         this.routerMatcher = routerMatcher;
@@ -67,10 +66,8 @@ public class DefaultHttpDispatcher implements HttpDispatcher {
             if (throwable instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
-            log.error("方法调用失败", e);
             throw new TurboRouterException(throwable.getMessage(), TurboRouterException.ROUTER_INVOKE_ERROR);
         } catch (Throwable e) {
-            log.error("方法调用失败", e);
             throw new TurboRouterException(e.getMessage(), TurboRouterException.ROUTER_INVOKE_ERROR);
         }
     }

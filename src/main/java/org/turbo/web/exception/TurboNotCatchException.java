@@ -11,4 +11,8 @@ public class TurboNotCatchException extends RuntimeException {
     public TurboNotCatchException(String message, Throwable cause) {
         super(message, cause);
     }
+
+    public TurboNotCatchException(Throwable cause) {
+        super(cause);
+    }
 }

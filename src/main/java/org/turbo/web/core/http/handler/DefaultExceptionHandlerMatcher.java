@@ -30,9 +30,4 @@ public class DefaultExceptionHandlerMatcher implements ExceptionHandlerMatcher {
         }
         return null;
     }
-
-    @Override
-    public Object getInstance(Class<?> clazz) {
-        return exceptionHandlerContainer.getHandlerClassInstances().get(clazz);
-    }
 }
