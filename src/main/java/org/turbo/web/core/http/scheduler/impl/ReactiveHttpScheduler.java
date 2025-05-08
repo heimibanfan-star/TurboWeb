@@ -54,10 +54,16 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
 
     @Override
     public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SseSession session) {
+        long startTime = System.nanoTime();
         HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
         Mono<HttpResponse> responseMono = doExecute(request, response, session);
         responseMono
             .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
+            .doFinally((signalType) -> {
+                if (showRequestLog) {
+                    log(request, System.nanoTime() - startTime);
+                }
+            })
             .subscribe(
                 (res) -> {
                     promise.setSuccess(res);

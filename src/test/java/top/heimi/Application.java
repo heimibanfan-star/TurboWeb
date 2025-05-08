@@ -33,6 +33,9 @@ public class Application {
         TurboServer server = new DefaultTurboServer(Application.class);
         server.addController(new UserController());
         server.setIsReactiveServer(true);
+        ServerParamConfig config = new ServerParamConfig();
+        config.setShowRequestLog(false);
+//        server.setConfig(config);
         server.addExceptionHandler(new ReaGlobalExceptionHandler());
         server.start();
     }
