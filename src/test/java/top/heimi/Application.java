@@ -1,26 +1,9 @@
 package top.heimi;
 
-import io.netty.handler.codec.http.HttpMethod;
 import org.turbo.web.core.config.ServerParamConfig;
-import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.middleware.*;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
-import top.heimi.controller.UserController;
-import top.heimi.handler.GlobalExceptionHandler;
-import top.heimi.handler.ReaGlobalExceptionHandler;
-import top.heimi.middleware.GlobalLimitMiddleware;
-import top.heimi.middleware.LimitMiddleware;
-import top.heimi.middleware.TestMiddleware;
-import top.heimi.ws.MyWebSocketHandler;
-
-import java.lang.invoke.*;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import top.heimi.controller.HelloController;
 
 /**
  * TODO
@@ -31,12 +14,12 @@ public class Application {
 
     public static void main(String[] args) {
         TurboServer server = new DefaultTurboServer(Application.class);
-        server.addController(new UserController());
-        server.setIsReactiveServer(true);
+        server.addController(new HelloController());
+//        server.setIsReactiveServer(true);
         ServerParamConfig config = new ServerParamConfig();
         config.setShowRequestLog(false);
 //        server.setConfig(config);
-        server.addExceptionHandler(new ReaGlobalExceptionHandler());
+//        server.addExceptionHandler(new ReaGlobalExceptionHandler());
         server.start();
     }
 //

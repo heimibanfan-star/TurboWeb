@@ -1,0 +1,21 @@
+### get
+GET http://localhost:8080/hello
+
+### get
+GET http://localhost:8080/hello/1
+
+### post
+POST http://localhost:8080/hello
+Content-Type: application/json
+
+### pacth
+PATCH http://localhost:8080/hello
+
+### patch
+PATCH http://localhost:8080/hello/1
+
+### put
+PUT http://localhost:8080/hello
+
+### delete
+DELETE http://localhost:8080/hello

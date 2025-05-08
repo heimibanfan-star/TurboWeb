@@ -15,6 +15,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -77,19 +78,16 @@ public class RouterContainerInitUtils {
         if (method.isAnnotationPresent(Get.class)) {
             String path = prePath + method.getAnnotation(Get.class).value();
             doInitRouterDefinition(container, method, path);
-            return;
-        }
-        if (method.isAnnotationPresent(Post.class)) {
+        } else if (method.isAnnotationPresent(Post.class)) {
             String path = prePath + method.getAnnotation(Post.class).value();
             doInitRouterDefinition(container, method, path);
-            return;
-        }
-        if (method.isAnnotationPresent(Put.class)) {
+        } else if (method.isAnnotationPresent(Put.class)) {
             String path = prePath + method.getAnnotation(Put.class).value();
             doInitRouterDefinition(container, method, path);
-            return;
-        }
-        if (method.isAnnotationPresent(Delete.class)) {
+        } else if (method.isAnnotationPresent(Patch.class)) {
+            String path = prePath + method.getAnnotation(Patch.class).value();
+            doInitRouterDefinition(container, method, path);
+        } else if (method.isAnnotationPresent(Delete.class)) {
             String path = prePath + method.getAnnotation(Delete.class).value();
             doInitRouterDefinition(container, method, path);
         }
@@ -157,6 +155,8 @@ public class RouterContainerInitUtils {
             type = "PUT";
         } else if (method.isAnnotationPresent(Delete.class)) {
             type = "DELETE";
+        } else if (method.isAnnotationPresent(Patch.class)) {
+            type = "PATCH";
         } else {
             throw new TurboRouterDefinitionCreateException("未知的路由类型");
         }

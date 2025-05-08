@@ -6,13 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 请求路径注解
+ * put请求方式
  */
-@Target(ElementType.TYPE)
+@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RequestPath {
-    /**
-     * 请求路径
-     */
+public @interface Patch {
     String value() default "";
 }

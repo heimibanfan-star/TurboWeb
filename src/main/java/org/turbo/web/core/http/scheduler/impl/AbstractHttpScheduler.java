@@ -46,6 +46,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         colors.put("POST", FontColors.YELLOW);
         colors.put("PUT", FontColors.BLUE);
         colors.put("DELETE", FontColors.RED);
+        colors.put("PATCH", FontColors.MAGENTA);
     }
 
     public AbstractHttpScheduler(

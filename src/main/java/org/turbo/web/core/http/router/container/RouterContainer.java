@@ -16,6 +16,7 @@ public abstract class RouterContainer {
         private final Map<String, RouterMethodDefinition> postDefinitions = new HashMap<>();
         private final Map<String, RouterMethodDefinition> putDefinitions = new HashMap<>();
         private final Map<String, RouterMethodDefinition> deleteDefinitions = new HashMap<>();
+        private final Map<String, RouterMethodDefinition> patchDefinitions = new HashMap<>();
 
         private final Map<String, Map<String, RouterMethodDefinition>> definitionStrategy = new HashMap<>();
 
@@ -24,6 +25,7 @@ public abstract class RouterContainer {
             definitionStrategy.put("POST", postDefinitions);
             definitionStrategy.put("PUT", putDefinitions);
             definitionStrategy.put("DELETE", deleteDefinitions);
+            definitionStrategy.put("PATCH", patchDefinitions);
         }
 
         /**
