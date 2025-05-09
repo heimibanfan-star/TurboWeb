@@ -9,6 +9,10 @@ public class TurboExceptionHandlerException extends RuntimeException {
         super(message);
     }
 
+    public TurboExceptionHandlerException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
     public TurboExceptionHandlerException(Throwable cause) {
         super(cause);
     }

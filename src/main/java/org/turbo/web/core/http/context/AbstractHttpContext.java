@@ -10,9 +10,9 @@ import org.turbo.web.core.http.cookie.HttpCookie;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
-import org.turbo.web.core.http.sse.SseResponse;
-import org.turbo.web.core.http.sse.SseSession;
-import org.turbo.web.core.http.sse.SseResultObject;
+import org.turbo.web.core.http.response.SseResponse;
+import org.turbo.web.core.connect.ConnectSession;
+import org.turbo.web.core.http.response.SseResultObject;
 import org.turbo.web.exception.TurboArgsValidationException;
 import org.turbo.web.exception.TurboParamParseException;
 import org.turbo.web.exception.TurboSerializableException;
@@ -36,13 +36,13 @@ public abstract class AbstractHttpContext {
     protected final HttpInfoResponse response;
     private final Map<String, String> pathVariables = new HashMap<>();
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
-    protected final SseSession sseSession;
+    protected final ConnectSession connectSession;
     protected final boolean sseOpen = false;
 
-    public AbstractHttpContext(HttpInfoRequest request, HttpInfoResponse response, SseSession session) {
+    public AbstractHttpContext(HttpInfoRequest request, HttpInfoResponse response, ConnectSession session) {
         this.request = request;
         this.response = response;
-        this.sseSession = session;
+        this.connectSession = session;
     }
 
     /**
@@ -76,7 +76,7 @@ public abstract class AbstractHttpContext {
      * @return sse会话
      */
     public SseResultObject openSseSession() {
-        if (sseSession == null) {
+        if (connectSession == null) {
             throw new TurboSseException("sseSession为空");
         } else {
             HttpResponse sseResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
@@ -87,12 +87,12 @@ public abstract class AbstractHttpContext {
             sseResponse.headers().set(HttpHeaderNames.TRANSFER_ENCODING, "chunked");
             HttpUtil.setTransferEncodingChunked(sseResponse, true); // 开启 Chunked 传输
             // 封装对象
-            return new SseResultObject(sseResponse, sseSession);
+            return new SseResultObject(sseResponse, connectSession);
         }
     }
 
     public SseResponse newSseResponse() {
-        return new SseResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, response.headers(), sseSession);
+        return new SseResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, response.headers(), connectSession);
     }
 
     /**

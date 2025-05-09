@@ -76,7 +76,9 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         if (fileUploads != null) {
             for (List<FileUpload> fileUploadList : fileUploads.values()) {
                 for (FileUpload fileUpload : fileUploadList) {
-                    fileUpload.release();
+                    if (fileUpload != null && fileUpload.refCnt() > 0) {
+                        fileUpload.release();
+                    }
                 }
             }
         }

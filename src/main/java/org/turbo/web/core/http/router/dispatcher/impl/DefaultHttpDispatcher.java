@@ -45,17 +45,12 @@ public class DefaultHttpDispatcher implements HttpDispatcher {
         MatchResult matchResult = routerMatcher.match(requestMethod, path);
         RouterMethodDefinition methodDefinition = matchResult.getDefinition();
         if (methodDefinition == null) {
-            throw new TurboRouterException("未匹配到对应的路由: %s".formatted(path), TurboRouterException.ROUTER_NOT_MATCH);
+            throw new TurboRouterException("未匹配到对应的路由: %s %s".formatted(requestMethod, path), TurboRouterException.ROUTER_NOT_MATCH);
         }
         // 判断是否需要解析路径参数
         if (MatchType.PATH.equals(matchResult.getMatchType())) {
             parsePathVariable(ctx, methodDefinition);
         }
-//        // 获取调度器
-//        Object instance = routerMatcher.getInstance(methodDefinition.getControllerClass());
-//        if (Objects.isNull(instance)) {
-//            throw new TurboRouterException("未找到对应的控制器实例", TurboRouterException.ROUTER_INVOKE_ERROR);
-//        }
         // 获取方法
         MethodHandle methodHandle = methodDefinition.getMethod();
         // 调用方法

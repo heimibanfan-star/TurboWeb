@@ -1,6 +1,7 @@
-package org.turbo.web.core.http.sse;
+package org.turbo.web.core.http.response;
 
 import io.netty.handler.codec.http.*;
+import org.turbo.web.core.connect.ConnectSession;
 
 import java.util.function.Consumer;
 
@@ -9,13 +10,13 @@ import java.util.function.Consumer;
  */
 public class SseResponse extends DefaultHttpResponse {
 
-    private final SseSession sseSession;
-    private Consumer<SseSession> sseCallback;
+    private final ConnectSession connectSession;
+    private Consumer<ConnectSession> sseCallback;
 
-    public SseResponse(HttpVersion version, HttpResponseStatus status, HttpHeaders headers, SseSession sseSession) {
+    public SseResponse(HttpVersion version, HttpResponseStatus status, HttpHeaders headers, ConnectSession connectSession) {
         super(version, status, headers);
-        assert sseSession != null;
-        this.sseSession = sseSession;
+        assert connectSession != null;
+        this.connectSession = connectSession;
         this.setSseHeaders();
     }
 
@@ -27,7 +28,7 @@ public class SseResponse extends DefaultHttpResponse {
         HttpUtil.setTransferEncodingChunked(this, true); // 开启 Chunked 传输
     }
 
-    public void setSseCallback(Consumer<SseSession> sseCallback) {
+    public void setSseCallback(Consumer<ConnectSession> sseCallback) {
         this.sseCallback = sseCallback;
     }
 
@@ -36,7 +37,7 @@ public class SseResponse extends DefaultHttpResponse {
      */
     public void startSse() {
         if (sseCallback != null) {
-            sseCallback.accept(sseSession);
+            sseCallback.accept(connectSession);
         }
     }
 }

@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.concurrent.Promise;
 import org.turbo.web.core.config.ServerParamConfig;
+import org.turbo.web.core.connect.InternalConnectSession;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
@@ -14,19 +14,19 @@ import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
-import org.turbo.web.core.http.sse.SseResponse;
-import org.turbo.web.core.http.sse.SseSession;
+import org.turbo.web.core.http.response.SseResponse;
+import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.exception.TurboExceptionHandlerException;
 import org.turbo.web.exception.TurboMethodInvokeThrowable;
 import org.turbo.web.exception.TurboReactiveException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
+import org.turbo.web.utils.handler.ExceptionHandlerSchedulerUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 import org.turbo.web.utils.http.HttpResponseUtils;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.ForkJoinPool;
 
 /**
@@ -54,52 +54,72 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
     }
 
     @Override
-    public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SseSession session) {
+    public void execute(FullHttpRequest request, ConnectSession session) {
         long startTime = System.nanoTime();
         HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
         Mono<HttpResponse> responseMono = doExecute(request, response, session);
         responseMono
             .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
             .doFinally((signalType) -> {
+                request.release();
                 if (showRequestLog) {
                     log(request, System.nanoTime() - startTime);
                 }
             })
             .subscribe(
                 (res) -> {
-                    promise.setSuccess(res);
+                    InternalConnectSession internalConnectSession = (InternalConnectSession) session;
+                    internalConnectSession.getChannel().writeAndFlush(res);
                     if (res instanceof SseResponse sseResponse) {
                         sseResponse.startSse();
                     }
                 },
                 (err) -> {
-                    try {
-                        handleException(request, response, err)
-                            .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
-                            .subscribe(promise::setSuccess, promise::setFailure);
-                    } catch (Throwable cause) {
-                        promise.setFailure(cause);
-                    }
+                    ExceptionHandlerSchedulerUtils.doHandleForReactiveScheduler(exceptionHandlerMatcher, response, err)
+                        .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
+                        .subscribe(res -> {
+                            InternalConnectSession internalConnectSession = (InternalConnectSession) session;
+                            internalConnectSession.getChannel().writeAndFlush(res);
+                        });
                 });
     }
 
-    private Mono<HttpResponse> doExecute(FullHttpRequest request, HttpInfoResponse response, SseSession session) {
-        try {
-            // 封装请求对象
-            HttpInfoRequest infoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
-            // 创建上下文对象
-            HttpContext context = new HttpContext(infoRequest, response, sentinelMiddleware, session);
-            // 执行链式结构
-            Object result = context.doNext();
-            // 判断返回结果
-            if (result instanceof Mono<?> mono) {
-                return mono.map(o -> handleResponse(response, o));
-            } else {
-                return Mono.error(new TurboReactiveException("Turbo仅支持Mono类型的反应式对象"));
-            }
-        } catch (Throwable cause) {
-            return Mono.error(cause);
-        }
+    private Mono<HttpResponse> doExecute(FullHttpRequest fullHttpRequest, HttpInfoResponse response, ConnectSession session) {
+        return Mono.just(fullHttpRequest)
+            .flatMap(request -> {
+                HttpInfoRequest httpInfoRequestForErrorRelease = null;
+                try {
+                    // 封装请求对象
+                    HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
+                    httpInfoRequestForErrorRelease = httpInfoRequest;
+                    // 创建上下文对象
+                    HttpContext context = new HttpContext(httpInfoRequest, response, sentinelMiddleware, session);
+                    // 执行链式结构
+                    Object result = context.doNext();
+                    // 判断返回结果
+                    if (result instanceof Mono<?> mono) {
+                        return mono.map(o -> handleResponse(response, o))
+                            .doFinally(signalType -> {
+                                // 释放文件上传数据
+                                releaseFileUploads(httpInfoRequest);
+                            });
+                    } else {
+                        return Mono.just(new TurboReactiveException("Turbo仅支持Mono类型的反应式对象"))
+                            .doFinally(signalType -> {
+                                // 释放文件数据
+                                releaseFileUploads(httpInfoRequest);
+                            })
+                            .flatMap(Mono::error);
+                    }
+                } catch (Exception e) {
+                    try {
+                        releaseFileUploads(httpInfoRequestForErrorRelease);
+                    } catch (Exception ex) {
+                        // 忽略异常
+                    }
+                    return Mono.error(e);
+                }
+            });
     }
 
     /**
@@ -128,35 +148,6 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             } catch (JsonProcessingException e) {
                 throw new TurboSerializableException("序列化失败");
             }
-        }
-    }
-
-    /**
-     * 调度异常处理器
-     *
-     * @param request 请求对象
-     * @param e       异常对象
-     * @return 响应结果
-     */
-    private Mono<HttpResponse> handleException(FullHttpRequest request, HttpInfoResponse httpInfoResponse, Throwable e) {
-        // 获取异常处理器的定义信息
-        ExceptionHandlerDefinition definition = matchExceptionHandlerDefinition(e);
-        // 调用异常处理器
-        try {
-            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
-            if (httpInfoResponse != null) {
-                HttpResponseUtils.mergeHeaders(httpInfoResponse, response);
-                httpInfoResponse.release();
-            }
-            Object result = doHandleException(definition, e);
-            // 判断结果的类型
-            if (result instanceof Mono<?> mono) {
-                return mono.map(o -> handleResponse(response, o));
-            } else {
-                return Mono.error(new TurboReactiveException("反应式中异常处理器仅支持Mono"));
-            }
-        } catch (TurboMethodInvokeThrowable ex) {
-            throw new TurboExceptionHandlerException("异常处理器中出现错误：" + ex.getMessage());
         }
     }
 }

@@ -18,12 +18,12 @@ public class Application {
     public static void main(String[] args) {
         TurboServer server = new DefaultTurboServer(Application.class);
         server.addController(new HelloController());
-//        server.setIsReactiveServer(true);
+        server.setIsReactiveServer(true);
         ServerParamConfig config = new ServerParamConfig();
         config.setShowRequestLog(false);
         server.addMiddleware(new CorsMiddleware());
 //        server.setConfig(config);
-        server.addExceptionHandler(new GlobalExceptionHandler());
+        server.addExceptionHandler(new ReaGlobalExceptionHandler());
         server.start();
     }
 //

@@ -1,30 +1,23 @@
 package org.turbo.web.core.http.scheduler.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.concurrent.Promise;
 import org.turbo.web.core.config.ServerParamConfig;
+import org.turbo.web.core.connect.InternalConnectSession;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.cookie.Cookies;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
+import org.turbo.web.core.http.response.SseResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
-import org.turbo.web.core.http.sse.SseResponse;
-import org.turbo.web.core.http.sse.SseSession;
-import org.turbo.web.exception.TurboExceptionHandlerException;
-import org.turbo.web.exception.TurboMethodInvokeThrowable;
-import org.turbo.web.exception.TurboSerializableException;
+import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.lock.Locks;
+import org.turbo.web.utils.handler.ExceptionHandlerSchedulerUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
-import org.turbo.web.utils.http.HttpResponseUtils;
 import org.turbo.web.utils.thread.LoomThreadUtils;
-
-import java.lang.reflect.InvocationTargetException;
 
 /**
  * 使用虚拟县城的阻塞线程调度器
@@ -47,38 +40,27 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
     }
 
     @Override
-    public void execute(FullHttpRequest request, Promise<HttpResponse> promise, SseSession session) {
+    public void execute(FullHttpRequest request, ConnectSession session) {
         LoomThreadUtils.execute(() -> {
-            if (showRequestLog) {
-                long startTime = System.nanoTime();
-                try {
-                    try {
-                        HttpResponse response = doExecute(request, session);
-                        promise.setSuccess(response);
-                        if (response instanceof SseResponse sseResponse) {
-                            sseResponse.startSse();
-                        }
-                    } catch (Throwable throwable) {
-                        promise.setFailure(throwable);
-                    }
-                } finally {
-                    log(request, System.nanoTime() - startTime);
+            long startTime = System.nanoTime();
+            try {
+                HttpResponse response = doExecute(request, session);
+                InternalConnectSession internalConnectSession = (InternalConnectSession) session;
+                internalConnectSession.getChannel().writeAndFlush(response);
+                // 如果是sseResponse开启sse的任务
+                if (response instanceof SseResponse sseResponse) {
+                    sseResponse.startSse();
                 }
-            } else {
-                try {
-                    HttpResponse response = doExecute(request, session);
-                    promise.setSuccess(response);
-                    if (response instanceof SseResponse sseResponse) {
-                        sseResponse.startSse();
-                    }
-                } catch (Throwable throwable) {
-                    promise.setFailure(throwable);
+            } finally {
+                request.release();
+                if (showRequestLog) {
+                    log(request, System.nanoTime() - startTime);
                 }
             }
         });
     }
 
-    private HttpResponse doExecute(FullHttpRequest request, SseSession session) {
+    private HttpResponse doExecute(FullHttpRequest request, ConnectSession session) {
         // 添加读锁
         Locks.SESSION_LOCK.readLock().lock();
         HttpInfoRequest httpInfoRequest = null;
@@ -98,46 +80,13 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
             // 处理响应数据
             return handleResponse(result, context);
         } catch (Throwable e) {
-            return handleException(request, response, e);
+            return ExceptionHandlerSchedulerUtils.doHandleForLoomScheduler(exceptionHandlerMatcher, response, e);
         } finally {
             // 释放读锁
             Locks.SESSION_LOCK.readLock().unlock();
             if (httpInfoRequest != null) {
                 releaseFileUploads(httpInfoRequest);
             }
-        }
-    }
-
-    /**
-     * 处理非捕获的异常
-     *
-     * @param request 请求对象
-     * @param e 异常
-     * @return 响应对象
-     */
-    private HttpInfoResponse handleException(FullHttpRequest request, HttpInfoResponse httpResponse, Throwable e) {
-        // 获取异常定义信息
-        ExceptionHandlerDefinition definition = matchExceptionHandlerDefinition(e);
-        HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
-        // 保留请求头并且释放之前的结果
-        if (httpResponse != null) {
-            HttpResponseUtils.mergeHeaders(httpResponse, response);
-            httpResponse.release();
-        }
-        try {
-            // 调用异常处理器
-            Object result = doHandleException(definition, e);
-            // 序列化内容
-            response.setContent(objectMapper.writeValueAsString(result));
-            response.setContentType("application/json;charset=utf-8");
-            return response;
-        } catch (TurboMethodInvokeThrowable ex) {
-            response.release();
-            throw new TurboExceptionHandlerException("异常处理器中出现错误：" + ex.getMessage());
-        } catch (JsonProcessingException ex) {
-            response.release();
-            log.error("序列化失败", ex);
-            throw new TurboSerializableException(ex.getMessage());
         }
     }
 

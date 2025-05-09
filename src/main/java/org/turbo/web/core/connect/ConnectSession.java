@@ -1,26 +1,21 @@
-package org.turbo.web.core.http.sse;
+package org.turbo.web.core.connect;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
-import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
-import org.turbo.web.exception.TurboSseException;
 
 /**
  * sse的回话对象
  */
-public class SseSession {
-    private final Channel channel;
-    private final Promise<Boolean> promise;
+public class ConnectSession {
+    protected final Channel channel;
 
-    public SseSession( Channel channel, Promise<Boolean> promise) {
+    public ConnectSession(Channel channel) {
         this.channel = channel;
-        this.promise = promise;
     }
 
     /**
@@ -41,7 +36,10 @@ public class SseSession {
      * @param runnable 回调
      */
     public void closeListener(Runnable runnable) {
-        promise.addListener(future -> {
+//        promise.addListener(future -> {
+//            runnable.run();
+//        });
+        channel.closeFuture().addListener(future -> {
             runnable.run();
         });
     }

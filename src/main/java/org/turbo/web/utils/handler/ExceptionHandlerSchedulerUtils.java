@@ -11,10 +11,11 @@ import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.exception.TurboExceptionHandlerException;
-import org.turbo.web.exception.TurboMethodInvokeThrowable;
 import org.turbo.web.exception.TurboRouterException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.http.HttpResponseUtils;
+import reactor.core.publisher.Mono;
+import reactor.util.annotation.Nullable;
 
 import java.lang.invoke.MethodHandle;
 import java.util.HashMap;
@@ -29,15 +30,14 @@ public class ExceptionHandlerSchedulerUtils {
     private static final Logger log = LoggerFactory.getLogger(ExceptionHandlerSchedulerUtils.class);
 
     /**
-     * 执行异常处理
+     * 同步模型执行异常处理
      *
      * @param matcher 匹配器
-     * @param request 请求
      * @param response 响应
      * @param e 异常
      * @return 响应
      */
-    public static HttpResponse doHandle(ExceptionHandlerMatcher matcher, HttpInfoRequest request, HttpInfoResponse response, Exception e) throws TurboMethodInvokeThrowable {
+    public static HttpInfoResponse doHandleForLoomScheduler(ExceptionHandlerMatcher matcher, HttpInfoResponse response, Throwable e) {
         // 匹配异常处理器的定义
         ExceptionHandlerDefinition definition = matcher.match(e.getClass());
         if (definition != null) {
@@ -51,26 +51,79 @@ public class ExceptionHandlerSchedulerUtils {
                     HttpInfoResponse newResponse = new HttpInfoResponse(response.protocolVersion(), definition.getHttpResponseStatus());
                     HttpResponseUtils.mergeHeaders(response, newResponse);
                     newResponse.setContent(json);
+                    newResponse.setContentType("application/json");
                     response.release();
                     return newResponse;
                 }
             } catch (Throwable ex) {
-                throw new TurboMethodInvokeThrowable(e);
+                return doDefaultExceptionHandler(response, e);
             }
         }
         // 调用系统默认的异常处理器
-        return doDefaultExceptionHandler(request, response, e);
+        return doDefaultExceptionHandler(response, e);
     }
 
     /**
-     * 默认的异常处理器
+     * 反应式模型异常处理器
      *
+     * @param matcher 匹配器
      * @param request 请求
      * @param response 响应
      * @param e 异常
      * @return 响应
      */
-    private static HttpInfoResponse doDefaultExceptionHandler(HttpInfoRequest request, HttpInfoResponse response, Exception e) {
+    public static Mono<HttpInfoResponse> doHandleForReactiveScheduler(ExceptionHandlerMatcher matcher, HttpInfoResponse response, Throwable e) {
+         return Mono.just(e)
+            .flatMap(ex -> {
+                ExceptionHandlerDefinition definition = matcher.match(ex.getClass());
+                if (definition != null) {
+                    MethodHandle methodHandler = definition.getMethodHandler();
+                    try {
+                        // 调用异常处理器
+                        Object result = methodHandler.invoke(ex);
+                        // 处理返回值
+                        if (result instanceof HttpResponse) {
+                            return Mono.error(new TurboExceptionHandlerException("异常处理器不允许返回io.netty.handler.codec.http.HttpResponse"));
+                        } else if (result instanceof Mono<?> mono) {
+                            return mono;
+                        } else {
+                            return Mono.just(result);
+                        }
+                    } catch (Throwable exc) {
+                        return Mono.error(new TurboExceptionHandlerException("异常处理器调用失败", exc));
+                    }
+                } else {
+                   return Mono.error(ex);
+                }
+            })
+             .flatMap(result -> {
+                 if (result instanceof HttpResponse) {
+                     return Mono.error(new TurboExceptionHandlerException("异常处理器不允许返回io.netty.handler.codec.http.HttpResponse"));
+                 } else {
+                     try {
+                         String json = BeanUtils.getObjectMapper().writeValueAsString(result);
+                         HttpInfoResponse newResponse = new HttpInfoResponse(response.protocolVersion(), HttpResponseStatus.OK);
+                         HttpResponseUtils.mergeHeaders(response, newResponse);
+                         newResponse.setContent(json);
+                         newResponse.setContentType("application/json");
+                         response.release();
+                         return Mono.just(newResponse);
+                     } catch (JsonProcessingException ex) {
+                         return Mono.error(ex);
+                     }
+                 }
+             })
+             .onErrorResume(ex -> Mono.just(doDefaultExceptionHandler(response, ex)));
+    }
+
+    /**
+     * 默认的异常处理器
+     *
+     * @param response 响应
+     * @param e 异常
+     * @return 响应
+     */
+    private static HttpInfoResponse doDefaultExceptionHandler(HttpInfoResponse response, Throwable e) {
         try {
             log.error("业务逻辑处理失败", e);
             Map<String, String> errorMsg = new HashMap<>();
@@ -78,7 +131,7 @@ public class ExceptionHandlerSchedulerUtils {
                 HttpInfoResponse newResponse = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
                 HttpResponseUtils.mergeHeaders(response, newResponse);
                 errorMsg.put("code", "404");
-                errorMsg.put("msg", "Router Handler Not Found For: %s %s".formatted(request.getMethod(), request.getUri()));
+                errorMsg.put("msg", e.getMessage());
                 response.setContent(BeanUtils.getObjectMapper().writeValueAsString(errorMsg));
                 response.setContentType("application/json");
                 return response;
