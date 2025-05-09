@@ -79,6 +79,7 @@ public abstract class AbstractHttpContext {
      *
      * @return sse会话
      */
+    @Deprecated
     public SseResultObject openSseSession() {
         if (connectSession == null) {
             throw new TurboSseException("sseSession为空");
