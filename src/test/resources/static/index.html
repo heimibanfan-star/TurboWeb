@@ -6,18 +6,11 @@
     <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
-<h1>hello world</h1>
+<form action="http://localhost:8080/hello" method="post" enctype="multipart/form-data">
+    <input type="file" name="file" id="file"></input>
+    <input type="submit" value="上传"></input>
+</form>
 <script>
-    const ws = new WebSocket("ws://localhost:8080/ws/aaa")
-    const data = new Blob(["hello"])
-    ws.onopen = function () {
-        console.log("open")
-        ws.send(data)
-    }
-    ws.onmessage = function (event) {
-        ws.send("ping")
-        console.log(event.data)
-    }
 </script>
 </body>
 </html>

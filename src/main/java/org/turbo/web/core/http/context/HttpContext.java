@@ -3,6 +3,7 @@ package org.turbo.web.core.http.context;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.multipart.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.anno.End;
@@ -17,6 +18,7 @@ import reactor.core.publisher.Mono;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -309,4 +311,30 @@ public class HttpContext extends AbstractHttpContext{
     public <T> T loadValidJson(Class<T> beanType) {
         return loadValidJsonParamToBean(beanType);
     }
+
+    /**
+     * 获取文件上传对象
+     *
+     * @param fileName 文件名
+     * @return 文件上传对象
+     */
+    public List<FileUpload> loadFiles(String fileName) {
+        return request.getContent().getFormFiles().get(fileName);
+    }
+
+    /**
+     * 获取文件上传对象
+     *
+     * @param fileName 文件名
+     * @return 文件上传对象
+     */
+    public FileUpload loadFile(String fileName) {
+        List<FileUpload> fileUploads = request.getContent().getFormFiles().get(fileName);
+        if (fileUploads == null || fileUploads.isEmpty()) {
+            return null;
+        } else {
+			return fileUploads.getFirst();
+        }
+    }
+
 }
