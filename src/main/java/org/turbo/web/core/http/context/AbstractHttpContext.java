@@ -70,6 +70,10 @@ public abstract class AbstractHttpContext {
         return pathVariables.get(name);
     }
 
+    public ConnectSession getConnectSession() {
+        return connectSession;
+    }
+
     /**
      * 打开sse会话
      *
