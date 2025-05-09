@@ -21,6 +21,7 @@ import org.turbo.web.exception.TurboMethodInvokeThrowable;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.lock.Locks;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
+import org.turbo.web.utils.http.HttpResponseUtils;
 import org.turbo.web.utils.thread.LoomThreadUtils;
 
 import java.lang.reflect.InvocationTargetException;
@@ -120,7 +121,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
         HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
         // 保留请求头并且释放之前的结果
         if (httpResponse != null) {
-            response.headers().set(httpResponse.headers());
+            HttpResponseUtils.mergeHeaders(httpResponse, response);
             httpResponse.release();
         }
         try {

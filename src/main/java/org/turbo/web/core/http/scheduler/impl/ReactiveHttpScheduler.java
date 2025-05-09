@@ -22,6 +22,7 @@ import org.turbo.web.exception.TurboReactiveException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
+import org.turbo.web.utils.http.HttpResponseUtils;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -144,7 +145,7 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
         try {
             HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), definition.getHttpResponseStatus());
             if (httpInfoResponse != null) {
-                response.headers().set(httpInfoResponse.headers());
+                HttpResponseUtils.mergeHeaders(httpInfoResponse, response);
                 httpInfoResponse.release();
             }
             Object result = doHandleException(definition, e);

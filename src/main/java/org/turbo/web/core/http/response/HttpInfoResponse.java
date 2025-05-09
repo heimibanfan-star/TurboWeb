@@ -30,6 +30,7 @@ public class HttpInfoResponse extends DefaultFullHttpResponse {
     public void setContent(String content, Charset charset) {
         // 将内容转按照utf-8转化为字节数组
         byte[] bytes = content.getBytes(charset);
+        this.content().clear();
         this.content().writeBytes(bytes);
         this.headers().setInt("Content-Length", bytes.length);
     }

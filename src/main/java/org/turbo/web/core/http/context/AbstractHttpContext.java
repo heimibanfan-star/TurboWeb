@@ -19,6 +19,7 @@ import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.exception.TurboSseException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.common.ValidationUtils;
+import org.turbo.web.utils.http.HttpResponseUtils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -79,7 +80,7 @@ public abstract class AbstractHttpContext {
             throw new TurboSseException("sseSession为空");
         } else {
             HttpResponse sseResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-            sseResponse.headers().set(response.headers());
+            HttpResponseUtils.mergeHeaders(response, sseResponse);
             sseResponse.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream");
             sseResponse.headers().set(HttpHeaderNames.CACHE_CONTROL, "no-cache");
             sseResponse.headers().set(HttpHeaderNames.CONNECTION, "keep-alive");
