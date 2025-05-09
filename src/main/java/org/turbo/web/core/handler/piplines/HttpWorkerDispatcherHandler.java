@@ -71,31 +71,12 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
                 return;
             }
         }
-        // 获取当前管道绑定的eventLoop
-        EventLoop eventLoop = channelHandlerContext.channel().eventLoop();
-        // 创建异步对象
-        Promise<HttpResponse> promise = eventLoop.newPromise();
         // 增加引用，防止被房前处理器给释放内存
         fullHttpRequest.retain();
         // 封装连接的会话对象
         InternalConnectSession connectSession = new InternalConnectSession(channelHandlerContext.channel());
         // 执行异步任务
         httpScheduler.execute(fullHttpRequest, connectSession);
-        // 监听业务逻辑处理完成
-        promise.addListener(future -> {
-            try {
-                // 判断成功
-                if (future.isSuccess()) {
-                    channelHandlerContext.writeAndFlush(future.getNow());
-                } else {
-                    HttpInfoResponse response = doNotHandleException(fullHttpRequest, future.cause());
-                    channelHandlerContext.writeAndFlush(response);
-                }
-            } finally {
-                // 释放资源
-                fullHttpRequest.release();
-            }
-        });
     }
 
     /**
@@ -111,56 +92,4 @@ public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<Ful
         WebSocketConnectInfo connectInfo = new WebSocketConnectInfo(uri);
         WebSocketConnectInfoContainer.putWebSocketConnectInfo(channelId, connectInfo);
     }
-
-    /**
-     * 处理异常
-     *
-     * @param request 请求对象
-     * @param cause   异常
-     * @return 响应对象
-     */
-    private HttpInfoResponse doNotHandleException(FullHttpRequest request, Throwable cause) throws JsonProcessingException {
-        log.error("业务逻辑处理失败", cause);
-        Map<String, String> errorMsg = new HashMap<>();
-        if (cause instanceof TurboRouterException exception && Objects.equals(exception.getCode(), TurboRouterException.ROUTER_NOT_MATCH)) {
-            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.NOT_FOUND);
-            errorMsg.put("code", "404");
-            errorMsg.put("msg", "Router Handler Not Found For: %s %s".formatted(request.method(), request.uri()));
-            response.setContent(objectMapper.writeValueAsString(errorMsg));
-            response.setContentType("application/json");
-            return response;
-        } else {
-            HttpInfoResponse response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
-            errorMsg.put("code", "500");
-            errorMsg.put("msg", cause.getMessage());
-            response.setContent(objectMapper.writeValueAsString(errorMsg));
-            response.setContentType("application/json");
-            return response;
-        }
-    }
-
-//    @Override
-//    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-//        // 获取通道的唯一标识
-//        ChannelId channelId = ctx.channel().id();
-//        // 创建promise对象
-//        Promise<Boolean> promise = new DefaultPromise<>(ctx.executor());
-//        // 存入容器
-//        HttpConnectPromiseContainer.put(channelId.asLongText(), promise);
-//        // 调用后续的处理器
-//        ctx.fireChannelActive();
-//    }
-
-//    @Override
-//    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-//        // 获取通道的唯一标识
-//        ChannelId channelId = ctx.channel().id();
-//        // 从容器中获取promise对象
-//        Promise<Boolean> promise = HttpConnectPromiseContainer.get(channelId.asLongText());
-//        if (promise != null) {
-//            promise.setSuccess(true);
-//            HttpConnectPromiseContainer.remove(channelId.asLongText());
-//        }
-//        ctx.fireChannelInactive();
-//    }
 }
