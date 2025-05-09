@@ -6,7 +6,7 @@ import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.scheduler.HttpScheduler;
-import org.turbo.web.core.http.scheduler.impl.LoomThreadHttpScheduler;
+import org.turbo.web.core.http.scheduler.impl.VirtualThreadHttpScheduler;
 import org.turbo.web.core.http.scheduler.impl.ReactiveHttpScheduler;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.initializer.HttpSchedulerInitializer;
@@ -37,7 +37,7 @@ public class DefaultHttpSchedulerInitializer implements HttpSchedulerInitializer
                 config
             );
         } else {
-            scheduler = new LoomThreadHttpScheduler(
+            scheduler = new VirtualThreadHttpScheduler(
                 sessionManagerProxy,
                 chain,
                 matcher,

@@ -22,9 +22,9 @@ import org.turbo.web.utils.thread.LoomThreadUtils;
 /**
  * 使用虚拟县城的阻塞线程调度器
  */
-public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
+public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
 
-    public LoomThreadHttpScheduler(
+    public VirtualThreadHttpScheduler(
         SessionManagerProxy sessionManagerProxy,
         Middleware chain,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
@@ -35,7 +35,7 @@ public class LoomThreadHttpScheduler extends AbstractHttpScheduler {
             chain,
             exceptionHandlerMatcher,
             config,
-            LoomThreadHttpScheduler.class
+            VirtualThreadHttpScheduler.class
         );
     }
 
