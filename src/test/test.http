@@ -1,7 +1,0 @@
-#test
-POST http://localhost:8080/user?name=test
-Content-Type: application/json
-
-{
-  "name": "test"
-}

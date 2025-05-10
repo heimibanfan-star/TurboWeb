@@ -47,7 +47,7 @@ public abstract class Middleware extends BaseMiddleware {
         if (result instanceof Mono<?> mono) {
             return mono;
         } else {
-            throw new TurboReactiveException("Turbo仅支持Mono类型的反应式对象");
+            throw new TurboReactiveException("TurboWeb仅支持Mono类型的反应式对象");
         }
     }
 }

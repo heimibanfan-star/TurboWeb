@@ -60,13 +60,13 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             })
             .subscribe(
                 (res) -> {
-                    writeResponse(session, request, response, startTime);
+                    writeResponse(session, request, res, startTime);
                 },
                 (err) -> {
                     ExceptionHandlerSchedulerUtils.doHandleForReactiveScheduler(exceptionHandlerMatcher, response, err)
                         .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
                         .subscribe(res -> {
-                            writeResponse(session, request, response, startTime);
+                            writeResponse(session, request, res, startTime);
                         });
                 });
     }
@@ -91,7 +91,7 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
                                 releaseFileUploads(httpInfoRequest);
                             });
                     } else {
-                        return Mono.just(new TurboReactiveException("Turbo仅支持Mono类型的反应式对象"))
+                        return Mono.just(new TurboReactiveException("TurboWeb仅支持Mono类型的反应式对象"))
                             .doFinally(signalType -> {
                                 // 释放文件数据
                                 releaseFileUploads(httpInfoRequest);

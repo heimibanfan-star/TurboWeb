@@ -1,0 +1,38 @@
+### 测试查询参数封装
+GET {{host}}/user/1?name=张三&age=18
+
+### 测试带数据校验的查询参数的封装
+GET {{host}}/user/2?name=李四&age=100
+
+### 测试路径参数
+GET {{host}}/user/3/10/20?name=王五&age=18
+
+### 表单参数
+POST {{host}}/user/1
+Content-Type: application/x-www-form-urlencoded
+
+name=赵六
+
+### 表单参数带数据校验
+POST {{host}}/user/2
+Content-Type: application/x-www-form-urlencoded
+
+name=钱七&age=100
+
+### json参数
+POST {{host}}/user/3
+Content-Type: application/json
+
+{
+    "name": "孙八",
+    "age": 18
+}
+
+### json参数带数据校验
+POST {{host}}/user/4
+Content-Type: application/json
+
+{
+    "name": "九十",
+    "age": null
+}
