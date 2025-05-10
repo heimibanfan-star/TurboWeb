@@ -118,7 +118,7 @@ public abstract class FileHttpContext extends CoreHttpContext {
 	@Override
 	public HttpContextFileHelper fileHelper() {
 		if (httpContextFileHelper == null) {
-			httpContextFileHelper = new HttpContextFileHelper(null);
+			httpContextFileHelper = new HttpContextFileHelper(this);
 		}
 		return httpContextFileHelper;
 	}

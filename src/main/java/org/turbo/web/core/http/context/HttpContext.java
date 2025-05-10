@@ -183,7 +183,7 @@ public interface HttpContext {
 	Object download(File file);
 
 	@End
-	public Object download(HttpResponseStatus status, InputStream inputStream, String filename);
+	Object download(HttpResponseStatus status, InputStream inputStream, String filename);
 
 	@End
 	Object download(InputStream inputStream, String filename);
