@@ -1,7 +1,6 @@
 package org.turbo.web.core.http.middleware;
 
 import org.turbo.web.core.http.context.HttpContext;
-
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**

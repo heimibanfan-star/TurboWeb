@@ -5,17 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.LastHttpContent;
 import org.turbo.web.core.config.ServerParamConfig;
-import org.turbo.web.core.connect.InternalConnectSession;
+import org.turbo.web.core.http.context.FullHttpContext;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
-import org.turbo.web.core.http.response.FileRegionResponse;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
-import org.turbo.web.core.http.response.SseResponse;
 import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.exception.TurboReactiveException;
 import org.turbo.web.exception.TurboSerializableException;
@@ -83,7 +80,7 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
                     HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
                     httpInfoRequestForErrorRelease = httpInfoRequest;
                     // 创建上下文对象
-                    HttpContext context = new HttpContext(httpInfoRequest, response, session);
+                    HttpContext context = new FullHttpContext(httpInfoRequest, response, session);
                     // 执行链式结构
                     Object result = sentinelMiddleware.invoke(context);
                     // 判断返回结果

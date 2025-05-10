@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.hc.core5.http.ContentType;
 import org.turbo.web.anno.End;
 import org.turbo.web.exception.TurboFileException;
+import org.turbo.web.exception.TurboResponseRepeatWriteException;
 import reactor.util.annotation.Nullable;
 
 import java.io.IOException;
@@ -33,18 +34,21 @@ public class HttpContextFileHelper {
 	 */
 	@End
 	public Object file(HttpResponseStatus status, byte[] bytes, ContentType contentType, @Nullable String fileName, boolean isInline) {
+		if (ctx.isWrite()) {
+			throw new TurboResponseRepeatWriteException("response repeat write");
+		}
 		if (!isInline) {
 			return ctx.download(status, bytes, fileName);
 		} else {
-			ctx.response.setContent(bytes);
-			ctx.response.setContentType(contentType.getMimeType());
+			ctx.getResponse().setContent(bytes);
+			ctx.getResponse().setContentType(contentType.getMimeType());
 			String filenameHeader = "";
 			if (fileName != null && !fileName.isEmpty()) {
 				filenameHeader = "filename=\"" + fileName + "\"";
 			}
-			ctx.response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "inline; " + filenameHeader);
-			ctx.response.setStatus(status);
-			ctx.isWrite = true;
+			ctx.getResponse().headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "inline; " + filenameHeader);
+			ctx.getResponse().setStatus(status);
+			ctx.setWrite();
 			return ctx.end();
 		}
 	}

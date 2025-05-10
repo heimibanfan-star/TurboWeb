@@ -1,7 +1,5 @@
 package org.turbo.web.core.http.router.dispatcher.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.turbo.web.constants.MatchType;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.router.dispatcher.HttpDispatcher;
@@ -13,9 +11,8 @@ import org.turbo.web.exception.TurboRequestException;
 import org.turbo.web.exception.TurboRouterException;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -89,7 +86,7 @@ public class DefaultHttpDispatcher implements HttpDispatcher {
         if (!matcher.find()) {
             return;
         }
-        Map<String, String> pathVariables = ctx.getPathVariables();
+        Map<String, String> pathVariables = new HashMap<>(1);
         // 获取参数列表
         List<String> pathParameters = methodDefinition.getPathParameters();
         int count = matcher.groupCount();
@@ -100,5 +97,6 @@ public class DefaultHttpDispatcher implements HttpDispatcher {
             pathVariables.put(paramName, paramValue);
             index++;
         }
+        ctx.injectPathParam(pathVariables);
     }
 }

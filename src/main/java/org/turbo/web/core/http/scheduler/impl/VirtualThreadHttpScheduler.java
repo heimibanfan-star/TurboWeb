@@ -3,17 +3,14 @@ package org.turbo.web.core.http.scheduler.impl;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.LastHttpContent;
 import org.turbo.web.core.config.ServerParamConfig;
-import org.turbo.web.core.connect.InternalConnectSession;
+import org.turbo.web.core.http.context.FullHttpContext;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.cookie.Cookies;
 import org.turbo.web.core.http.request.HttpInfoRequest;
-import org.turbo.web.core.http.response.FileRegionResponse;
 import org.turbo.web.core.http.response.HttpInfoResponse;
-import org.turbo.web.core.http.response.SseResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.lock.Locks;
@@ -67,7 +64,7 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
             initSession(httpInfoRequest, jsessionid);
             // 创建响应对象
             response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
-            HttpContext context = new HttpContext(httpInfoRequest, response, session);
+            HttpContext context = new FullHttpContext(httpInfoRequest, response, session);
             Object result = sentinelMiddleware.invoke(context);
             // 处理session的结果
             handleSessionAfterRequest(context, jsessionid);
