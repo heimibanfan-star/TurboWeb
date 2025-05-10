@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.handler.codec.http.multipart.MixedFileUpload;
 import org.turbo.web.anno.*;
 import org.turbo.web.core.http.context.HttpContext;
+import org.turbo.web.core.http.response.FileRegionResponse;
 import org.turbo.web.core.http.response.SseResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -19,8 +20,16 @@ import java.time.Duration;
 public class HelloController {
 
     @Get
-    public Mono<String> hello(HttpContext ctx) {
-        return Mono.just("hello world");
+    public String hello(HttpContext ctx) {
+        return "hello world";
+    }
+
+    @Get("/download")
+    public FileRegionResponse download(HttpContext ctx) {
+        ctx.text("hello");
+        String path = "D:\\java学习资料\\1.数据结构与算法\\视频(上篇)\\1、基础数据结构\\Java数据结构与算法课程导学.mp4";
+        File file = new File(path);
+        return new FileRegionResponse(file);
     }
 
 //    @Get("/sse")

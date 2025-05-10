@@ -3,6 +3,7 @@ package org.turbo.web.core.http.scheduler.impl;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.LastHttpContent;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.connect.InternalConnectSession;
 import org.turbo.web.core.http.context.HttpContext;
@@ -10,6 +11,7 @@ import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.cookie.Cookies;
 import org.turbo.web.core.http.request.HttpInfoRequest;
+import org.turbo.web.core.http.response.FileRegionResponse;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.response.SseResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
@@ -45,17 +47,9 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
             long startTime = System.nanoTime();
             try {
                 HttpResponse response = doExecute(request, session);
-                InternalConnectSession internalConnectSession = (InternalConnectSession) session;
-                internalConnectSession.getChannel().writeAndFlush(response);
-                // 如果是sseResponse开启sse的任务
-                if (response instanceof SseResponse sseResponse) {
-                    sseResponse.startSse();
-                }
+                writeResponse(session, request, response, startTime);
             } finally {
                 request.release();
-                if (showRequestLog) {
-                    log(request, System.nanoTime() - startTime);
-                }
             }
         });
     }

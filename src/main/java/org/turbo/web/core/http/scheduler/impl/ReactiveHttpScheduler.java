@@ -5,25 +5,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.LastHttpContent;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.connect.InternalConnectSession;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
+import org.turbo.web.core.http.response.FileRegionResponse;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.http.response.SseResponse;
 import org.turbo.web.core.connect.ConnectSession;
-import org.turbo.web.exception.TurboExceptionHandlerException;
-import org.turbo.web.exception.TurboMethodInvokeThrowable;
 import org.turbo.web.exception.TurboReactiveException;
 import org.turbo.web.exception.TurboSerializableException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.handler.ExceptionHandlerSchedulerUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
-import org.turbo.web.utils.http.HttpResponseUtils;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -62,24 +60,16 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
             .doFinally((signalType) -> {
                 request.release();
-                if (showRequestLog) {
-                    log(request, System.nanoTime() - startTime);
-                }
             })
             .subscribe(
                 (res) -> {
-                    InternalConnectSession internalConnectSession = (InternalConnectSession) session;
-                    internalConnectSession.getChannel().writeAndFlush(res);
-                    if (res instanceof SseResponse sseResponse) {
-                        sseResponse.startSse();
-                    }
+                    writeResponse(session, request, response, startTime);
                 },
                 (err) -> {
                     ExceptionHandlerSchedulerUtils.doHandleForReactiveScheduler(exceptionHandlerMatcher, response, err)
                         .subscribeOn(Schedulers.fromExecutor(SERVICE_POOL))
                         .subscribe(res -> {
-                            InternalConnectSession internalConnectSession = (InternalConnectSession) session;
-                            internalConnectSession.getChannel().writeAndFlush(res);
+                            writeResponse(session, request, response, startTime);
                         });
                 });
     }

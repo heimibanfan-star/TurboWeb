@@ -1,28 +1,29 @@
 package org.turbo.web.core.http.scheduler.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.constants.FontColors;
 import org.turbo.web.core.config.ServerParamConfig;
+import org.turbo.web.core.connect.ConnectSession;
+import org.turbo.web.core.connect.InternalConnectSession;
 import org.turbo.web.core.http.context.HttpContext;
+import org.turbo.web.core.http.response.FileRegionResponse;
+import org.turbo.web.core.http.response.SseResponse;
 import org.turbo.web.core.http.scheduler.HttpScheduler;
-import org.turbo.web.core.http.handler.ExceptionHandlerDefinition;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
 import org.turbo.web.core.http.session.SessionManagerProxy;
-import org.turbo.web.exception.TurboExceptionHandlerException;
-import org.turbo.web.exception.TurboMethodInvokeThrowable;
-import org.turbo.web.exception.TurboNotCatchException;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.common.RandomUtils;
-
-import java.lang.invoke.MethodHandle;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -136,7 +137,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
      * @param request 请求对象
      * @param time 执行耗时
      */
-    protected void log(FullHttpRequest request, long time) {
+    private void log(FullHttpRequest request, long time) {
         String method = request.method().name();
         if (!colors.containsKey(method)) {
             return;
@@ -151,37 +152,32 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     }
 
     /**
-     * 执行异常处理器
+     * 写响应
      *
-     * @param definition 异常定义信息
-     * @param e 异常对象
-     * @return 异常处理器的执行结果
+     * @param session session对象
+     * @param request 请求对象
+     * @param response 响应对象
+     * @param startTime 开始时间
      */
-    protected Object doHandleException(ExceptionHandlerDefinition definition, Throwable e) throws TurboMethodInvokeThrowable {
-        MethodHandle methodHandler = definition.getMethodHandler();
-        try {
-            return methodHandler.invoke(e);
-        } catch (Throwable ex) {
-            throw new TurboMethodInvokeThrowable(ex);
+    protected void writeResponse(ConnectSession session, FullHttpRequest request, HttpResponse response, long startTime) {
+        InternalConnectSession internalConnectSession = (InternalConnectSession) session;
+        ChannelFuture channelFuture = internalConnectSession.getChannel().write(response);
+        if (response instanceof FileRegionResponse fileRegionResponse) {
+            // 处理文件零拷贝的情况
+            internalConnectSession.getChannel().write(fileRegionResponse.getFileRegion());
+            internalConnectSession.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+        } else if (response instanceof SseResponse sseResponse) {
+            internalConnectSession.getChannel().flush();
+            // 处理sse推送的情况
+            sseResponse.startSse();
+        } else {
+            internalConnectSession.getChannel().flush();
         }
-    }
-
-    /**
-     * 匹配异常处理器的定义信息
-     *
-     * @param e 异常对象
-     * @return 异常处理器的定义信息
-     */
-    protected ExceptionHandlerDefinition matchExceptionHandlerDefinition(Throwable e) {
-        // 获取异常处理器的定义信息
-        ExceptionHandlerDefinition definition = exceptionHandlerMatcher.match(e.getClass());
-        // 判断是否获取到
-        if (definition == null) {
-            if (e instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            throw new TurboNotCatchException(e.getMessage(), e);
+        // 打印性能日志
+        if (showRequestLog) {
+            channelFuture.addListener(future -> {
+                log(request, System.nanoTime() - startTime);
+            });
         }
-        return definition;
     }
 }
