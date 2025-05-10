@@ -2,6 +2,7 @@ package top.heimi;
 
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.http.middleware.CorsMiddleware;
+import org.turbo.web.core.http.middleware.FreemarkerTemplateMiddleware;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.core.server.impl.DefaultTurboServer;
 import top.heimi.controller.HelloController;
@@ -21,7 +22,7 @@ public class Application {
 //        server.setIsReactiveServer(true);
         ServerParamConfig config = new ServerParamConfig();
         config.setShowRequestLog(false);
-        server.addMiddleware(new CorsMiddleware());
+        server.addMiddleware(new CorsMiddleware(), new FreemarkerTemplateMiddleware());
 //        server.setConfig(config);
 //        server.addExceptionHandler(new ReaGlobalExceptionHandler());
         server.start();

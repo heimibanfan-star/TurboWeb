@@ -41,7 +41,7 @@ public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements 
     private final Map<String, Template> templateCache = new ConcurrentHashMap<>();
 
     @Override
-    public HttpInfoResponse render(HttpContext ctx, ViewModel viewModel) {
+    public String render(HttpContext ctx, ViewModel viewModel) {
         String templateName = viewModel.getViewName();
         Template template = loadTemplate(templateName);
         // 获取数据
@@ -50,12 +50,7 @@ public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements 
         try {
             StringWriter writer = new StringWriter();
             template.process(attributes, writer);
-            HttpInfoResponse response = ctx.getResponse();
-            String res = writer.toString();
-            response.setContentType("text/html;charset=" + charset.name());
-            response.setContent(res);
-            response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, res.length());
-            return response;
+            return writer.toString();
         } catch (Exception e) {
             throw new TurboTemplateRenderException("模板渲染失败", e);
         }

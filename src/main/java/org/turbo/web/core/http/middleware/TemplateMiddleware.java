@@ -14,7 +14,7 @@ public abstract class TemplateMiddleware extends Middleware {
         Object result = ctx.doNext();
         // 判断是否是模板渲染
         if (result instanceof ViewModel viewModel) {
-            return render(ctx, viewModel);
+            return ctx.html(render(ctx, viewModel));
         }
         return result;
     }
@@ -23,8 +23,8 @@ public abstract class TemplateMiddleware extends Middleware {
      * 渲染模板
      * @param ctx 上下文
      * @param viewModel 模型
-     * @return 渲染后的响应
+     * @return 渲染后的html数据
      */
-    public abstract HttpInfoResponse render(HttpContext ctx, ViewModel viewModel);
+    public abstract String render(HttpContext ctx, ViewModel viewModel);
 
 }

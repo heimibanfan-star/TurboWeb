@@ -6,6 +6,7 @@ import org.turbo.web.anno.*;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.response.FileRegionResponse;
 import org.turbo.web.core.http.response.SseResponse;
+import org.turbo.web.core.http.response.ViewModel;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -30,6 +31,14 @@ public class HelloController {
         String path = "D:\\java学习资料\\1.数据结构与算法\\视频(上篇)\\1、基础数据结构\\Java数据结构与算法课程导学.mp4";
         File file = new File(path);
         return new FileRegionResponse(file);
+    }
+
+    @Get("/view")
+    public ViewModel view(HttpContext ctx) {
+        ViewModel viewModel = new ViewModel();
+        viewModel.setViewName("index");
+        viewModel.addAttribute("name", "turbo");
+        return viewModel;
     }
 
 //    @Get("/sse")
