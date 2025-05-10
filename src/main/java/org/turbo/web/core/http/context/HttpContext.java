@@ -24,7 +24,7 @@ import java.util.Map;
 /**
  * http请求的上下文
  */
-public class HttpContext extends AbstractHttpContext{
+public class HttpContext extends BaseHttpContext {
 
     private static final Logger log = LoggerFactory.getLogger(HttpContext.class);
     private Middleware chain;
@@ -150,114 +150,6 @@ public class HttpContext extends AbstractHttpContext{
 
     public boolean isWrite() {
         return isWrite;
-    }
-
-    public Map<String, String> getPathVariables() {
-        return pathVariables;
-    }
-
-    public String getPathVariable(String name) {
-        return pathVariables.get(name);
-    }
-
-    /**
-     * 将查询参数封装为对象
-     *
-     * @param beanType 对象类型
-     * @return 对象
-     */
-    public <T> T loadQueryParamToBean(Class<T> beanType) {
-        try {
-            // 获取无参构造方法
-            Constructor<T> constructor = beanType.getConstructor();
-            // 创建实例对象
-            T instance = constructor.newInstance();
-            // 处理map集合
-            Map<String, Object> newMap = handleOldMap(request.getQueryParams());
-            // 将集合转化为对象
-            BeanUtils.mapToBean(newMap, instance);
-            return instance;
-        } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
-            log.error("封装查询参数失败", e);
-            throw new TurboParamParseException(e.getMessage());
-        }
-    }
-
-    /**
-     * 将查询参数封装为对象并进行数据校验
-     *
-     * @param beanType 对象类型
-     * @return 对象
-     */
-    public <T> T loadValidQueryParamToBean(Class<T> beanType) {
-        T bean = this.loadQueryParamToBean(beanType);
-        validate(bean);
-        return bean;
-    }
-
-    /**
-     * 将表单参数封装成对象
-     *
-     * @param beanType 对象类型
-     * @return T 对象
-     */
-    public <T> T loadFormParamToBean(Class<T> beanType) {
-        // 获取无参构造方法
-        try {
-            Constructor<T> constructor = beanType.getConstructor();
-            T instance = constructor.newInstance();
-            Map<String, Object> newMap = handleOldMap(request.getContent().getFormParams());
-            BeanUtils.mapToBean(newMap, instance);
-            return instance;
-        } catch (InvocationTargetException | NoSuchMethodException | InstantiationException | IllegalAccessException e) {
-            log.error("封装表单参数失败", e);
-            throw new TurboParamParseException(e.getMessage());
-        }
-    }
-
-    /**
-     * 将表单参数封装成对象并进行数据校验
-     *
-     * @param beanType 对象类型
-     * @return 对象
-     */
-    public <T> T loadValidJsonParamToBean(Class<T> beanType) {
-        T bean = this.loadJsonParamToBean(beanType);
-        validate(bean);
-        return bean;
-    }
-
-    /**
-     * 将json参数封装成对象
-     *
-     * @param beanType 对象类型
-     * @return 对象
-     */
-    public <T> T loadJsonParamToBean(Class<T> beanType) {
-        // 获取json请求体
-        String jsonContent = request.getContent().getJsonContent();
-        if (jsonContent == null) {
-            throw new TurboParamParseException("json请求体为空");
-        }
-        // 序列化对象
-        try {
-            return objectMapper.readValue(jsonContent, beanType);
-        } catch (JsonProcessingException e) {
-            log.error("序列化失败", e);
-            throw new TurboSerializableException(e.getMessage());
-        }
-    }
-
-    /**
-     * 将表单参数封装成对象并进行数据校验
-     *
-     * @param beanType 对象类型
-     * @return 对象
-     */
-    public <T> T loadValidFormParamToBean(Class<T> beanType) {
-        T bean = this.loadFormParamToBean(beanType);
-        validate(bean);
-        return bean;
     }
 
     /**

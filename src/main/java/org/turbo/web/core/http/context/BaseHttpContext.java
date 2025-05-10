@@ -30,7 +30,7 @@ import java.util.Map;
 /**
  * 抽象的Http上下文
  */
-public abstract class AbstractHttpContext {
+public class BaseHttpContext {
     protected static final Logger log = LoggerFactory.getLogger(HttpContext.class);
     protected final HttpInfoRequest request;
     protected final HttpInfoResponse response;
@@ -39,7 +39,7 @@ public abstract class AbstractHttpContext {
     protected final ConnectSession connectSession;
     protected final boolean sseOpen = false;
 
-    public AbstractHttpContext(HttpInfoRequest request, HttpInfoResponse response, ConnectSession session) {
+    public BaseHttpContext(HttpInfoRequest request, HttpInfoResponse response, ConnectSession session) {
         this.request = request;
         this.response = response;
         this.connectSession = session;

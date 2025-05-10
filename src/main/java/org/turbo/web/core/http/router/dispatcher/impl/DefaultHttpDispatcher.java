@@ -54,17 +54,15 @@ public class DefaultHttpDispatcher implements HttpDispatcher {
         // 获取方法
         MethodHandle methodHandle = methodDefinition.getMethod();
         // 调用方法
-        try {
-            return methodHandle.invoke(ctx);
-        } catch (InvocationTargetException e) {
-            Throwable throwable = e.getTargetException();
-            if (throwable instanceof RuntimeException runtimeException) {
+		try {
+			return methodHandle.invoke(ctx);
+		} catch (Throwable e) {
+			if (e instanceof RuntimeException runtimeException) {
                 throw runtimeException;
+            } else {
+                throw new TurboRouterException(e, TurboRouterException.ROUTER_INVOKE_ERROR);
             }
-            throw new TurboRouterException(throwable.getMessage(), TurboRouterException.ROUTER_INVOKE_ERROR);
-        } catch (Throwable e) {
-            throw new TurboRouterException(e.getMessage(), TurboRouterException.ROUTER_INVOKE_ERROR);
-        }
+		}
     }
 
     /**

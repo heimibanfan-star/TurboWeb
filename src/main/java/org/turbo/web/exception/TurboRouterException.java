@@ -16,6 +16,11 @@ public class TurboRouterException extends RuntimeException {
         this.code = code;
     }
 
+    public TurboRouterException(Throwable e, Integer code) {
+        super(e);
+        this.code = code;
+    }
+
     public Integer getCode() {
         return code;
     }

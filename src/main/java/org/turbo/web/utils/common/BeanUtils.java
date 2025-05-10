@@ -48,7 +48,7 @@ public class BeanUtils {
                 }
             } catch (Exception e) {
                 log.error("Ignoring property: {} due to error: {}", propertyName, e.getMessage());
-                throw new TurboParamParseException(e.getMessage());
+                throw new TurboParamParseException(e);
             }
         }
     }
