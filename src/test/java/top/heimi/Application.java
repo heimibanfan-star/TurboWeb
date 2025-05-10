@@ -9,6 +9,8 @@ import top.heimi.controller.HelloController;
 import top.heimi.controller.UserController;
 import top.heimi.handler.GlobalExceptionHandler;
 import top.heimi.handler.ReaGlobalExceptionHandler;
+import top.heimi.middleware.Test2Middleware;
+import top.heimi.middleware.TestMiddleware;
 
 /**
  * TODO
@@ -22,7 +24,7 @@ public class Application {
         server.addController(new HelloController(), new UserController());
         ServerParamConfig config = new ServerParamConfig();
         config.setShowRequestLog(false);
-        server.addMiddleware(new CorsMiddleware(), new FreemarkerTemplateMiddleware());
+        server.addMiddleware(new CorsMiddleware(), new FreemarkerTemplateMiddleware(), new TestMiddleware(), new Test2Middleware());
         server.start();
     }
 }

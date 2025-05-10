@@ -40,6 +40,6 @@ public class ReactiveStaticResourceMiddleware extends AbstractStaticResourceMidd
                 });
             });
         }
-        return ctx.doNextMono();
+        return next(ctx);
     }
 }

@@ -1,7 +1,6 @@
 package org.turbo.web.core.http.middleware;
 
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.response.ViewModel;
 
 /**
@@ -11,7 +10,7 @@ public abstract class TemplateMiddleware extends Middleware {
 
     @Override
     public Object invoke(HttpContext ctx) {
-        Object result = ctx.doNext();
+        Object result = next(ctx);
         // 判断是否是模板渲染
         if (result instanceof ViewModel viewModel) {
             return ctx.html(render(ctx, viewModel));

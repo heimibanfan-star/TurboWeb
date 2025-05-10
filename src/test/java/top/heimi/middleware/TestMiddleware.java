@@ -9,11 +9,9 @@ import org.turbo.web.core.http.middleware.Middleware;
 public class TestMiddleware extends Middleware {
     @Override
     public Object invoke(HttpContext ctx) {
-        return ctx.doNext();
-    }
-
-    @Override
-    public void init(Middleware chain) {
-        chain.setNext(null);
+        System.out.println("Test 执行之前。。。");
+        Object result = next(ctx);
+        System.out.println("Test 执行之后。。。");
+        return result;
     }
 }

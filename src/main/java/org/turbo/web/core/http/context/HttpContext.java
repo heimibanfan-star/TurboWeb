@@ -32,7 +32,6 @@ import java.util.UUID;
  */
 public class HttpContext extends CoreHttpContext {
 
-	private Middleware chain;
 	private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
 	private HttpContextFileHelper httpContextFileHelper;
 
@@ -41,37 +40,8 @@ public class HttpContext extends CoreHttpContext {
 	 */
 	protected boolean isWrite = false;
 
-	public HttpContext(HttpInfoRequest request, HttpInfoResponse response, Middleware chain, ConnectSession session) {
+	public HttpContext(HttpInfoRequest request, HttpInfoResponse response, ConnectSession session) {
 		super(request, response, session);
-		this.chain = chain;
-	}
-
-	/**
-	 * 执行下一个中间件
-	 *
-	 * @return 执行结果
-	 */
-	public Object doNext() {
-		Middleware current = chain;
-		if (current == null) {
-			return null;
-		}
-		chain = chain.getNext();
-		return current.invoke(this);
-	}
-
-	/**
-	 * 执行流式响应
-	 *
-	 * @return 响应对象
-	 */
-	public Mono<?> doNextMono() {
-		Object object = doNext();
-		if (object instanceof Mono<?> mono) {
-			return mono;
-		} else {
-			throw new TurboReactiveException("反应式结果类型应该是Mono");
-		}
 	}
 
 	/**
@@ -103,7 +73,6 @@ public class HttpContext extends CoreHttpContext {
 		}
 		response.setContentType("application/json;charset=utf-8");
 		isWrite = true;
-		chain = null;
 		return end();
 	}
 
@@ -126,7 +95,6 @@ public class HttpContext extends CoreHttpContext {
 		response.setContent(data);
 		response.setContentType("text/plain;charset=utf-8");
 		isWrite = true;
-		chain = null;
 		return end();
 	}
 
@@ -144,7 +112,6 @@ public class HttpContext extends CoreHttpContext {
 		response.setContent(data);
 		response.setContentType("text/html;charset=utf-8");
 		isWrite = true;
-		chain = null;
 		return end();
 	}
 

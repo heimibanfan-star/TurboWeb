@@ -18,7 +18,7 @@ public class ServerInfoMiddleware extends Middleware {
     public Object invoke(HttpContext ctx) {
         HttpInfoRequest request = ctx.getRequest();
         if (!request.getUri().startsWith(requestPath)) {
-            return ctx.doNext();
+            return next(ctx);
         }
         return handleServerInfo(ctx);
     }

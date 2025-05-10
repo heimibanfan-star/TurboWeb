@@ -1,21 +1,9 @@
 package org.turbo.web.core.http.middleware;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.middleware.aware.MainClassAware;
-import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.exception.TurboRouterException;
-import org.turbo.web.exception.TurboStaticResourceException;
-
-import java.io.InputStream;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 处理静态资源的中间件
@@ -49,7 +37,7 @@ public class StaticResourceMiddleware extends AbstractStaticResourceMiddleware{
                 throw new TurboRouterException("找不到静态资源", TurboRouterException.ROUTER_NOT_MATCH);
             }
         }
-        return ctx.doNext();
+        return next(ctx);
     }
 
 }

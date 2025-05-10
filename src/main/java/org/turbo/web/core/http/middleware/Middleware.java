@@ -1,13 +1,18 @@
 package org.turbo.web.core.http.middleware;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.turbo.web.core.http.context.HttpContext;
+import org.turbo.web.exception.TurboReactiveException;
+import reactor.core.publisher.Mono;
 
 /**
  * 中间件接口
  */
-public abstract class Middleware {
+public abstract class Middleware extends BaseMiddleware {
 
-    private Middleware next;
+    private static final Logger log = LoggerFactory.getLogger(Middleware.class);
+
 
     /**
      * 中间件执行方法
@@ -17,19 +22,32 @@ public abstract class Middleware {
      */
     public abstract Object invoke(HttpContext ctx);
 
-    public Middleware getNext() {
-        return next;
-    }
-
-    public void setNext(Middleware next) {
-        this.next = next;
+    /**
+     * 执行下一个中间件
+     *
+     * @param ctx 上下文
+     * @return 执行结果
+     */
+    protected Object next(HttpContext ctx) {
+        if (getNext() == null) {
+            return null;
+        } else {
+            return getNext().invoke(ctx);
+        }
     }
 
     /**
-     * 初始化
+     * 执行下一个中间件
      *
-     * @param chain 中间件链
+     * @param ctx 上下文
+     * @return 执行结果
      */
-    public void init(Middleware chain) {
+    protected Mono<?> nextMono(HttpContext ctx) {
+        Object result = next(ctx);
+        if (result instanceof Mono<?> mono) {
+            return mono;
+        } else {
+            throw new TurboReactiveException("Turbo仅支持Mono类型的反应式对象");
+        }
     }
 }

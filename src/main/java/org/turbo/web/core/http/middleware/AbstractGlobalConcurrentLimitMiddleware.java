@@ -24,7 +24,7 @@ public abstract class AbstractGlobalConcurrentLimitMiddleware extends Middleware
         }
         // 调用后续中间件
         try {
-            return ctx.doNext();
+            return next(ctx);
         } finally {
             leave();
         }

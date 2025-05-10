@@ -24,6 +24,7 @@ public class HelloController {
 
     @Get
     public String hello(HttpContext ctx) {
+        System.out.println("hello");
         return "hello world";
     }
 

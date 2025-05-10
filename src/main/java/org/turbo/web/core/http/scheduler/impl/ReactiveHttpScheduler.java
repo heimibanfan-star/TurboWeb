@@ -83,9 +83,9 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
                     HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
                     httpInfoRequestForErrorRelease = httpInfoRequest;
                     // 创建上下文对象
-                    HttpContext context = new HttpContext(httpInfoRequest, response, sentinelMiddleware, session);
+                    HttpContext context = new HttpContext(httpInfoRequest, response, session);
                     // 执行链式结构
-                    Object result = context.doNext();
+                    Object result = sentinelMiddleware.invoke(context);
                     // 判断返回结果
                     if (result instanceof Mono<?> mono) {
                         return mono.map(o -> handleResponse(response, o))

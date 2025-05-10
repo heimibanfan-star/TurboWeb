@@ -30,7 +30,7 @@ public abstract class AbstractConcurrentLimitMiddleware extends Middleware{
         }
         // 进入后续处理器
         try {
-            return ctx.doNext();
+            return next(ctx);
         } finally {
             leave(ctx.getRequest().getMethod(), limitMatchResult);
         }

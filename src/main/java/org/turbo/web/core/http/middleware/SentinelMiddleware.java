@@ -13,6 +13,6 @@ public class SentinelMiddleware extends Middleware{
         if (uri.contains("..")) {
             throw new TurboRequestRejectException("请求路径中存在非法字符");
         }
-        return ctx.doNext();
+        return next(ctx);
     }
 }

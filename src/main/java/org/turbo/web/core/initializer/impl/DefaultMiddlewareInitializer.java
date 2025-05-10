@@ -57,6 +57,8 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
         initMiddlewareForAware(chain, sessionManagerProxy, matcher, mainClass, config);
         // 执行中间件的初始化方法
         doMiddlewareChainInit(chain);
+        // 锁定中间件
+        doLockMiddleware(chain);
         return chain;
     }
 
@@ -121,6 +123,18 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
             ptr = ptr.getNext();
         }
         log.info("中间件初始化方法执行完成");
+    }
+
+    /**
+     * 锁定中间件
+     */
+    private void doLockMiddleware(Middleware chain) {
+        Middleware ptr = chain;
+        while (ptr != null) {
+            ptr.lockMiddleware();
+            ptr = ptr.getNext();
+        }
+        log.info("中间件锁定完成");
     }
 
     /**

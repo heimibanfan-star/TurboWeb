@@ -67,8 +67,8 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
             initSession(httpInfoRequest, jsessionid);
             // 创建响应对象
             response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
-            HttpContext context = new HttpContext(httpInfoRequest, response, sentinelMiddleware, session);
-            Object result = context.doNext();
+            HttpContext context = new HttpContext(httpInfoRequest, response, session);
+            Object result = sentinelMiddleware.invoke(context);
             // 处理session的结果
             handleSessionAfterRequest(context, jsessionid);
             // 处理响应数据

@@ -29,7 +29,7 @@ public class CorsMiddleware extends Middleware {
             return ctx.getResponse().setStatus(HttpResponseStatus.OK);
         }
         try {
-            Object result = ctx.doNext();
+            Object result = next(ctx);
             if (!ctx.isWrite() && result instanceof HttpResponse httpResponse) {
                 setCorsHeaders(httpResponse, origin);
                 return httpResponse;
