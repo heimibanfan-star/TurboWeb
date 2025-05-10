@@ -30,8 +30,8 @@ import java.util.Map;
 /**
  * 抽象的Http上下文
  */
-public class BaseHttpContext {
-    protected static final Logger log = LoggerFactory.getLogger(HttpContext.class);
+public class CoreHttpContext {
+    protected static final Logger log = LoggerFactory.getLogger(CoreHttpContext.class);
     protected final HttpInfoRequest request;
     protected final HttpInfoResponse response;
     private final Map<String, String> pathVariables = new HashMap<>();
@@ -39,7 +39,7 @@ public class BaseHttpContext {
     protected final ConnectSession connectSession;
     protected final boolean sseOpen = false;
 
-    public BaseHttpContext(HttpInfoRequest request, HttpInfoResponse response, ConnectSession session) {
+    public CoreHttpContext(HttpInfoRequest request, HttpInfoResponse response, ConnectSession session) {
         this.request = request;
         this.response = response;
         this.connectSession = session;

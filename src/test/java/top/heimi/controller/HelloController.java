@@ -11,6 +11,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
 
@@ -26,11 +28,9 @@ public class HelloController {
     }
 
     @Get("/download")
-    public FileRegionResponse download(HttpContext ctx) {
-        ctx.text("hello");
-        String path = "D:\\java学习资料\\1.数据结构与算法\\视频(上篇)\\1、基础数据结构\\Java数据结构与算法课程导学.mp4";
-        File file = new File(path);
-        return new FileRegionResponse(file);
+    public void download(HttpContext ctx) throws FileNotFoundException {
+        String path = "E:\\javaCodeDev\\turbo-web\\src\\test\\resources\\static\\img.png";
+        ctx.fileHelper().png(new FileInputStream(path));
     }
 
     @Get("/view")

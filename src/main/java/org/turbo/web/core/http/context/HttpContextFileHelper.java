@@ -1,0 +1,180 @@
+package org.turbo.web.core.http.context;
+
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.hc.core5.http.ContentType;
+import org.turbo.web.anno.End;
+import org.turbo.web.exception.TurboFileException;
+import reactor.util.annotation.Nullable;
+
+import java.io.IOException;
+import java.io.InputStream;
+
+/**
+ * httpContext的文件扩展功能
+ */
+public class HttpContextFileHelper {
+
+	private final HttpContext ctx;
+
+	public HttpContextFileHelper(HttpContext ctx) {
+		this.ctx = ctx;
+	}
+
+	/**
+	 * 响应文件
+	 *
+	 * @param status      响应状态
+	 * @param bytes         文件内容
+	 * @param contentType 文件类型
+	 * @param fileName    文件名
+	 * @param isInline    是否内联
+	 * @return 结果
+	 */
+	@End
+	public Object file(HttpResponseStatus status, byte[] bytes, ContentType contentType, @Nullable String fileName, boolean isInline) {
+		if (!isInline) {
+			return ctx.download(status, bytes, fileName);
+		} else {
+			ctx.response.setContent(bytes);
+			ctx.response.setContentType(contentType.getMimeType());
+			String filenameHeader = "";
+			if (fileName != null && !fileName.isEmpty()) {
+				filenameHeader = "filename=\"" + fileName + "\"";
+			}
+			ctx.response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "inline; " + filenameHeader);
+			ctx.response.setStatus(status);
+			ctx.isWrite = true;
+			return ctx.end();
+		}
+	}
+
+	/**
+	 * 响应文件
+	 *
+	 * @param bytes         文件内容
+	 * @param contentType 文件类型
+	 * @param fileName    文件名
+	 * @param isInline    是否内联
+	 * @return 结果
+	 */
+	@End
+	public Object file(byte[] bytes, ContentType contentType, @Nullable String fileName, boolean isInline) {
+		return file(HttpResponseStatus.OK, bytes, contentType, fileName, isInline);
+	}
+
+	@End
+	public Object file(byte[] bytes, ContentType contentType, @Nullable String fileName) {
+		return file(bytes, contentType, fileName, true);
+	}
+
+	@End
+	public Object file(byte[] bytes, ContentType contentType) {
+		return file(bytes, contentType, null);
+	}
+
+
+	@End
+	public Object file(HttpResponseStatus status, InputStream inputStream, ContentType contentType, @Nullable String fileName, boolean isInline) {
+		try {
+			return file(status, inputStream.readAllBytes(), contentType, fileName, isInline);
+		} catch (IOException e) {
+			throw new TurboFileException(e);
+		}
+	}
+
+	@End
+	public Object file(InputStream inputStream, ContentType contentType, @Nullable String fileName, boolean isInline) {
+		return file(HttpResponseStatus.OK, inputStream, contentType, fileName, isInline);
+	}
+
+	@End
+	public Object file(InputStream inputStream, ContentType contentType, @Nullable String fileName) {
+		return file(inputStream, contentType, fileName, true);
+	}
+
+	@End
+	public Object file(InputStream inputStream, ContentType contentType) {
+		return file(inputStream, contentType, null);
+	}
+
+	@End
+	public Object png(HttpResponseStatus status, byte[] bytes) {
+		return file(status, bytes, ContentType.IMAGE_PNG, null, true);
+	}
+
+	@End
+	public Object png(byte[] bytes) {
+		return png(HttpResponseStatus.OK, bytes);
+	}
+
+	@End
+	public Object png(HttpResponseStatus status, InputStream inputStream) {
+		return file(status, inputStream, ContentType.IMAGE_PNG, null, true);
+	}
+
+	@End
+	public Object png(InputStream inputStream) {
+		return png(HttpResponseStatus.OK, inputStream);
+	}
+
+	@End
+	public Object jpeg(HttpResponseStatus status, byte[] bytes) {
+		return file(status, bytes, ContentType.IMAGE_JPEG, null, true);
+	}
+
+	@End
+	public Object jpeg(byte[] bytes) {
+		return jpeg(HttpResponseStatus.OK, bytes);
+	}
+
+	@End
+	public Object jpeg(HttpResponseStatus status, InputStream inputStream) {
+		return file(status, inputStream, ContentType.IMAGE_JPEG, null, true);
+	}
+
+	@End
+	public Object jpeg(InputStream inputStream) {
+		return jpeg(HttpResponseStatus.OK, inputStream);
+	}
+
+	@End
+	public Object gif(HttpResponseStatus status, byte[] bytes) {
+		return file(status, bytes, ContentType.IMAGE_GIF, null, true);
+	}
+
+	@End
+	public Object gif(byte[] bytes) {
+		return gif(HttpResponseStatus.OK, bytes);
+	}
+
+	@End
+	public Object gif(HttpResponseStatus status, InputStream inputStream) {
+		return file(status, inputStream, ContentType.IMAGE_GIF, null, true);
+	}
+
+	@End
+	public Object gif(InputStream inputStream) {
+		return gif(HttpResponseStatus.OK, inputStream);
+	}
+
+	@End
+	public Object pdf(HttpResponseStatus status, byte[] bytes) {
+		return file(status, bytes, ContentType.APPLICATION_PDF, null, true);
+	}
+
+	@End
+	public Object pdf(byte[] bytes) {
+		return pdf(HttpResponseStatus.OK, bytes);
+	}
+
+	@End
+	public Object pdf(HttpResponseStatus status, InputStream inputStream) {
+		return file(status, inputStream, ContentType.APPLICATION_PDF, null, true);
+	}
+
+	@End
+	public Object pdf(InputStream inputStream) {
+		return pdf(HttpResponseStatus.OK, inputStream);
+	}
+}

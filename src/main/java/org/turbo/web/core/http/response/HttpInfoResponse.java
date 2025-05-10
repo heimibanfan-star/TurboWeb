@@ -35,6 +35,12 @@ public class HttpInfoResponse extends DefaultFullHttpResponse {
         this.headers().setInt("Content-Length", bytes.length);
     }
 
+    public void setContent(byte[] content) {
+        this.content().clear();
+        this.headers().setInt("Content-Length", content.length);
+        this.content().writeBytes(content);
+    }
+
     public void setContent(String content) {
         this.setContent(content, StandardCharsets.UTF_8);
     }

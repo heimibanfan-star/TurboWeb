@@ -3,6 +3,7 @@ package org.turbo.web.core.http.response;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.*;
+import org.apache.hc.core5.http.ContentType;
 import org.turbo.web.exception.TurboFileException;
 
 import java.io.File;
@@ -75,6 +76,15 @@ public class FileRegionResponse extends DefaultHttpResponse {
 	private String encodeFileName(String fileName) {
 		// 使用 UTF-8 编码，并对中文进行转码处理
 		return URLEncoder.encode(fileName, filenameCharset).replace("+", "%20");
+	}
+
+	/**
+	 * 设置文件类型
+	 *
+	 * @param contentType 文件类型
+	 */
+	public void setContentType(ContentType contentType) {
+		this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType());
 	}
 
 	/**
