@@ -2,7 +2,7 @@ package org.turbo.web.core.http.context;
 
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.FileUpload;
-import org.turbo.web.anno.End;
+import org.turbo.web.anno.SyncOnce;
 import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.core.http.cookie.HttpCookie;
 import org.turbo.web.core.http.request.HttpInfoRequest;
@@ -60,9 +60,9 @@ public interface HttpContext {
 	/**
 	 * 结束响应
 	 *
-	 * @return 结果
+	 * @return null
 	 */
-	@End
+	@SyncOnce
 	default Object end() {
 		return null;
 	}
@@ -72,26 +72,53 @@ public interface HttpContext {
 	 *
 	 * @param status 响应状态
 	 * @param data   响应数据
+	 * return null
 	 */
-	@End
+	@SyncOnce
 	Object json(HttpResponseStatus status, Object data);
 
-	@End
+	@SyncOnce
 	Object json(Object data);
 
-	@End
+	@SyncOnce
 	Object json(HttpResponseStatus status);
 
-	@End
+	/**
+	 * 响应文本数据
+	 *
+	 * @param status 响应状态
+	 * @param data   响应数据
+	 * @return null
+	 */
+	@SyncOnce
 	Object text(HttpResponseStatus status, String data);
 
-	@End
+	/**
+	 * 响应文本数据
+	 *
+	 * @param data 响应数据
+	 * @return null
+	 */
+	@SyncOnce
 	Object text(String data);
 
-	@End
+	/**
+	 * 响应html数据
+	 *
+	 * @param status 响应状态
+	 * @param data   响应数据
+	 * @return null
+	 */
+	@SyncOnce
 	Object html(HttpResponseStatus status, String data);
 
-	@End
+	/**
+	 * 响应html数据
+	 *
+	 * @param data 响应数据
+	 * @return null
+	 */
+	@SyncOnce
 	Object html(String data);
 
 	boolean isWrite();
@@ -168,24 +195,24 @@ public interface HttpContext {
 	 * @param status   响应状态
 	 * @param bytes      文件的内容
 	 * @param filename 文件名
-	 * @return 结果
+	 * @return null
 	 */
-	@End
+	@SyncOnce
 	Object download(HttpResponseStatus status, byte[] bytes, String filename);
 
-	@End
+	@SyncOnce
 	Object download(byte[] bytes, String filename);
 
-	@End
+	@SyncOnce
 	Object download(HttpResponseStatus status, File file);
 
-	@End
+	@SyncOnce
 	Object download(File file);
 
-	@End
+	@SyncOnce
 	Object download(HttpResponseStatus status, InputStream inputStream, String filename);
 
-	@End
+	@SyncOnce
 	Object download(InputStream inputStream, String filename);
 
 	/**
