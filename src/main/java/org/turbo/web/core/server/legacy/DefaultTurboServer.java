@@ -1,4 +1,4 @@
-package org.turbo.web.core.server.impl;
+package org.turbo.web.core.server.legacy;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -20,7 +20,6 @@ import org.turbo.web.core.initializer.*;
 import org.turbo.web.core.initializer.impl.*;
 import org.turbo.web.core.listener.DefaultJacksonTurboWebListener;
 import org.turbo.web.core.listener.TurboWebListener;
-import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 
 import java.util.ArrayList;
@@ -29,6 +28,7 @@ import java.util.List;
 /**
  * 默认服务器实现类
  */
+@Deprecated
 public class DefaultTurboServer implements TurboServer {
 
     private final Logger log = LoggerFactory.getLogger(DefaultTurboServer.class);

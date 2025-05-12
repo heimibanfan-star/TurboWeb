@@ -1,4 +1,4 @@
-package org.turbo.web.core.server;
+package org.turbo.web.core.server.legacy;
 
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.gateway.Gateway;
@@ -11,6 +11,7 @@ import org.turbo.web.core.listener.TurboWebListener;
 /**
  * 服务器接口
  */
+@Deprecated
 public interface TurboServer {
 
     /**

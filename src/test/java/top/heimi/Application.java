@@ -1,7 +1,7 @@
 package top.heimi;
 
-import org.turbo.web.core.server.alpha.StandardTurboWebServer;
-import org.turbo.web.core.server.alpha.TurboWebServer;
+import org.turbo.web.core.server.StandardTurboWebServer;
+import org.turbo.web.core.server.TurboWebServer;
 import org.turbo.web.utils.log.TurboWebLogUtils;
 import top.heimi.controllers.HelloController;
 import top.heimi.handlers.GlobalExceptionHandler;
