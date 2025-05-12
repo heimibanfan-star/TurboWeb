@@ -10,15 +10,15 @@ import org.turbo.web.core.http.context.HttpContext;
 @RequestPath("/hello")
 public class HelloController {
 
-	@Get
+	@Get("/{id}/{age}/{sex}")
 	public Object hello(HttpContext ctx) {
-		System.out.println("hello");
+		Long id = ctx.paramLong("id");
+		Integer age = ctx.paramInt("age");
+		Boolean sex = ctx.paramBoolean("sex");
+		System.out.println(id);
+		System.out.println(age);
+		System.out.println(sex);
 		return "hello world";
 	}
 
-	@Get("/set")
-	public String set(HttpContext ctx) {
-		ctx.getSession().setAttribute("name", "张三", 5000);
-		return "success";
-	}
 }

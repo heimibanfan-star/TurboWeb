@@ -2,6 +2,7 @@ package top.heimi.middlewares;
 
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.middleware.Middleware;
+import top.heimi.pojos.User;
 
 /**
  * 第一个中间件
@@ -9,8 +10,9 @@ import org.turbo.web.core.http.middleware.Middleware;
 public class FirstMiddleware extends Middleware {
 	@Override
 	public Object invoke(HttpContext ctx) {
-		if (ctx != null) {
-			return ctx.json("hello world");
+		User user = ctx.loadQuery(User.class);
+		if (user.getAge() >= 18) {
+			return ctx.json(user);
 		} else {
 			return ctx.end();
 		}

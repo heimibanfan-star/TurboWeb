@@ -143,6 +143,12 @@ public interface HttpContext {
 	 */
 	String param(String name);
 
+	Integer paramInt(String name);
+
+	Long paramLong(String name);
+
+	Boolean paramBoolean(String name);
+
 	/**
 	 * 将查询参数封装为对象
 	 *

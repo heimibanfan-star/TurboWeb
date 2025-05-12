@@ -114,6 +114,41 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
+	public Integer paramInt(String name) {
+		String param = param(name);
+		if (param == null) {
+			return null;
+		}
+		try {
+			return Integer.parseInt(param);
+		} catch (NumberFormatException e) {
+			throw new TurboParamParseException(e);
+		}
+	}
+
+	@Override
+	public Long paramLong(String name) {
+		String param = param(name);
+		if (param == null) {
+			return null;
+		}
+		try {
+			return Long.parseLong(param);
+		} catch (NumberFormatException e) {
+			throw new TurboParamParseException(e);
+		}
+	}
+
+	@Override
+	public Boolean paramBoolean(String name) {
+		String param = param(name);
+		if (param == null) {
+			return null;
+		}
+		return Boolean.parseBoolean(param);
+	}
+
+	@Override
 	public <T> T loadQuery(Class<T> beanType) {
 		try {
 			// 获取无参构造方法

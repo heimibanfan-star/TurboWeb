@@ -67,7 +67,6 @@ public class ExceptionHandlerSchedulerUtils {
      * 反应式模型异常处理器
      *
      * @param matcher 匹配器
-     * @param request 请求
      * @param response 响应
      * @param e 异常
      * @return 响应

@@ -13,6 +13,8 @@ import top.heimi.interceptor.FirstInterceptor;
 import top.heimi.interceptor.SecondInterceptor;
 import top.heimi.listeners.FirstListener;
 import top.heimi.listeners.SecondListener;
+import top.heimi.middlewares.FirstMiddleware;
+import top.heimi.middlewares.SecondMiddleware;
 
 /**
  * TODO
@@ -27,8 +29,8 @@ public class Application {
 		interceptorMiddleware.addLast(new SecondInterceptor());
 		ChannelFuture channelFuture = new StandardTurboWebServer(Application.class)
 			.controllers(new HelloController())
-			.exceptionHandlers(new GlobalExceptionHandler())
-			.middlewares(interceptorMiddleware)
+//			.exceptionHandlers(new GlobalExceptionHandler())
+			.middlewares(new SecondMiddleware())
 			.middlewares(new CorsMiddleware())
 			.listeners(new FirstListener(), new SecondListener())
 			.start();
