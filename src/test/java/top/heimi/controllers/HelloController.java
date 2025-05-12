@@ -1,6 +1,7 @@
 package top.heimi.controllers;
 
 import org.turbo.web.anno.Get;
+import org.turbo.web.anno.Patch;
 import org.turbo.web.anno.RequestPath;
 import org.turbo.web.core.http.context.HttpContext;
 
@@ -21,4 +22,10 @@ public class HelloController {
 		return "hello world";
 	}
 
+	@Patch("/{id}")
+	public Object hello2(HttpContext ctx) {
+		Long id = ctx.paramLong("id");
+		System.out.println(id);
+		return "hello world";
+	}
 }

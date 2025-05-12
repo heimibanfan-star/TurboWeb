@@ -36,3 +36,6 @@ Content-Type: application/json
     "name": "九十",
     "age": null
 }
+
+### patch
+PATCH {{host}}/hello/10

@@ -29,7 +29,7 @@ public class Application {
 		interceptorMiddleware.addLast(new SecondInterceptor());
 		ChannelFuture channelFuture = new StandardTurboWebServer(Application.class)
 			.controllers(new HelloController())
-//			.exceptionHandlers(new GlobalExceptionHandler())
+			.exceptionHandlers(new GlobalExceptionHandler())
 			.middlewares(new SecondMiddleware())
 			.middlewares(new CorsMiddleware())
 			.listeners(new FirstListener(), new SecondListener())

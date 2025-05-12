@@ -57,8 +57,12 @@ public class SseResponse extends DefaultHttpResponse {
 		Consumer<ConnectSession> consumer = (session) -> {
 			flux.flatMap(res -> {
 					try {
-						String json = BeanUtils.getObjectMapper().writeValueAsString(res);
-						return Mono.just(json);
+						if (res instanceof String s) {
+							return Mono.just(s);
+						} else {
+							String json = BeanUtils.getObjectMapper().writeValueAsString(res);
+							return Mono.just(json);
+						}
 					} catch (JsonProcessingException e) {
 						return Mono.error(e);
 					}
