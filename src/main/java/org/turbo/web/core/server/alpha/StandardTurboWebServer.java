@@ -106,27 +106,14 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	@Override
 	public void start(String host, int port) {
 		long start = System.currentTimeMillis();
-		// 判断是否需要执行默认的监听器
-		if (executeDefaultListener) {
-			for (TurboWebListener turboWebListener : defaultListeners) {
-				turboWebListener.beforeServerInit();
-			}
-		}
-		// 执行用户定义的监听器
-		for (TurboWebListener turboWebListener : customListeners) {
-			turboWebListener.beforeServerInit();
-		}
-		log.info("TurboWeb初始化前置监听器方法执行完成");
+		executeListenerBeforeInit();
 		init();
 		ChannelFuture channelFuture = startServer(host, port);
 		channelFuture.addListener(future -> {
 			if (future.isSuccess()) {
-				for (TurboWebListener turboWebListener : defaultListeners) {
-					turboWebListener.afterServerStart();
-				}
-				log.info("TurboWeb启动后监听器方法执行完成");
+				executeListenerAfterServerStart();
 				long time = System.currentTimeMillis() - start;
-				log.info("TurboWebServer start on: http://{}:{}, time: {} ms", host, port, time);
+				log.info("TurboWebServer start on: http://{}:{}, time: {}ms", host, port, time);
 			} else {
 				log.error("TurboWebServer start failed: {}\n", future.cause().getMessage(), future.cause());
 			}
@@ -134,9 +121,42 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 		});
 	}
 
+	/**
+	 * 初始化
+	 */
 	private void init() {
 		new DefaultHttpClientInitializer().init(workers());
 		HttpWorkerDispatcherHandler httpWorkerDispatcherHandler = httpWorkDispatcherFactory.create(mainClass, config);
 		initPipeline(httpWorkerDispatcherHandler, config.getMaxContentLength());
+	}
+
+	/**
+	 * 执行监听器
+	 */
+	private void executeListenerBeforeInit() {
+		if (executeDefaultListener) {
+			for (TurboWebListener turboWebListener : defaultListeners) {
+				turboWebListener.beforeServerInit();
+			}
+		}
+		for (TurboWebListener turboWebListener : customListeners) {
+			turboWebListener.beforeServerInit();
+		}
+		log.info("TurboWeb初始化前置监听器方法执行完成");
+	}
+
+	/**
+	 * 执行监听器
+	 */
+	private void executeListenerAfterServerStart() {
+		if (executeDefaultListener) {
+			for (TurboWebListener turboWebListener : defaultListeners) {
+				turboWebListener.afterServerStart();
+			}
+		}
+		for (TurboWebListener turboWebListener : customListeners) {
+			turboWebListener.afterServerStart();
+		}
+		log.info("TurboWeb启动后监听器方法执行完成");
 	}
 }
