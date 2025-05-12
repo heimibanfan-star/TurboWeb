@@ -1,10 +1,11 @@
-package org.turbo.web.core.http.middleware;
+package org.turbo.web.core.http.middleware.sync;
 
 import freemarker.cache.ClassTemplateLoader;
 import freemarker.cache.TemplateLoader;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import org.turbo.web.core.http.context.HttpContext;
+import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.middleware.aware.CharsetAware;
 import org.turbo.web.core.http.middleware.aware.MainClassAware;
 import org.turbo.web.core.http.response.ViewModel;

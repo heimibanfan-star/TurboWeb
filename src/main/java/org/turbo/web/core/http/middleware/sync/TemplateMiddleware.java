@@ -1,6 +1,7 @@
-package org.turbo.web.core.http.middleware;
+package org.turbo.web.core.http.middleware.sync;
 
 import org.turbo.web.core.http.context.HttpContext;
+import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.response.ViewModel;
 
 /**

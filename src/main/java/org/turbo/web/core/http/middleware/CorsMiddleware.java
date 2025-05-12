@@ -3,6 +3,7 @@ package org.turbo.web.core.http.middleware;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.turbo.web.core.http.context.HttpContext;
+import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
 import java.util.List;
@@ -33,6 +34,16 @@ public class CorsMiddleware extends Middleware {
             if (!ctx.isWrite() && result instanceof HttpResponse httpResponse) {
                 setCorsHeaders(httpResponse, origin);
                 return httpResponse;
+            }
+            // 处理反应式的结果
+            if (result instanceof Mono<?> mono) {
+                String tempOrigin = origin;
+                return mono.map(res -> {
+                   if (res instanceof HttpResponse response) {
+                       setCorsHeaders(response, tempOrigin);
+                   }
+                   return res;
+                });
             }
             return result;
         } finally {

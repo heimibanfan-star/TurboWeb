@@ -1,6 +1,7 @@
-package org.turbo.web.core.http.middleware;
+package org.turbo.web.core.http.middleware.reactive;
 
 import org.turbo.web.core.http.context.HttpContext;
+import org.turbo.web.core.http.middleware.AbstractStaticResourceMiddleware;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import reactor.core.publisher.Mono;
 

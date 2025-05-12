@@ -12,7 +12,8 @@ public class HelloController {
 
 	@Get
 	public Object hello(HttpContext ctx) {
-		return ctx.getSession().getAttribute("name");
+		System.out.println("hello");
+		return "hello world";
 	}
 
 	@Get("/set")

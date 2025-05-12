@@ -1,14 +1,15 @@
-package org.turbo.web.core.http.middleware;
+package org.turbo.web.core.http.middleware.sync;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.http.context.HttpContext;
+import org.turbo.web.core.http.middleware.AbstractStaticResourceMiddleware;
 import org.turbo.web.exception.TurboRouterException;
 
 /**
  * 处理静态资源的中间件
  */
-public class StaticResourceMiddleware extends AbstractStaticResourceMiddleware{
+public class StaticResourceMiddleware extends AbstractStaticResourceMiddleware {
 
     private static final Logger log = LoggerFactory.getLogger(StaticResourceMiddleware.class);
 
