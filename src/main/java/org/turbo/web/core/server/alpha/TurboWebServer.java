@@ -5,7 +5,7 @@ import org.turbo.web.core.gateway.Gateway;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.session.SessionManager;
 import org.turbo.web.core.http.ws.WebSocketHandler;
-import org.turbo.web.core.listener.TurboServerListener;
+import org.turbo.web.core.listener.TurboWebListener;
 
 import java.util.function.Consumer;
 
@@ -66,7 +66,7 @@ public interface TurboWebServer {
 	 * 添加监听器
 	 * @param listeners 监听器
 	 */
-	void listeners(TurboServerListener... listeners);
+	void listeners(TurboWebListener... listeners);
 
 	/**
 	 * 替换sessionManager

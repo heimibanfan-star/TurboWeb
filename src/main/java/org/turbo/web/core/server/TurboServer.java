@@ -6,7 +6,7 @@ import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.session.SessionManager;
 import org.turbo.web.core.http.ws.WebSocketHandler;
 import org.turbo.web.core.initializer.HttpClientInitializer;
-import org.turbo.web.core.listener.TurboServerListener;
+import org.turbo.web.core.listener.TurboWebListener;
 
 /**
  * 服务器接口
@@ -56,9 +56,9 @@ public interface TurboServer {
     /**
      * 添加初始化器
      *
-     * @param turboServerListeners 初始化器
+     * @param turboWebListeners 初始化器
      */
-    void addTurboServerInit(TurboServerListener... turboServerListeners);
+    void addTurboServerInit(TurboWebListener... turboWebListeners);
 
     /**
      * 默认初始化

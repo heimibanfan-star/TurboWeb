@@ -18,8 +18,8 @@ import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.http.ws.WebSocketHandler;
 import org.turbo.web.core.initializer.*;
 import org.turbo.web.core.initializer.impl.*;
-import org.turbo.web.core.listener.DefaultJacksonTurboServerListener;
-import org.turbo.web.core.listener.TurboServerListener;
+import org.turbo.web.core.listener.DefaultJacksonTurboWebListener;
+import org.turbo.web.core.listener.TurboWebListener;
 import org.turbo.web.core.server.TurboServer;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
 
@@ -56,11 +56,11 @@ public class DefaultTurboServer implements TurboServer {
     // 是否执行默认的监听器
     private boolean doDefaultInit = true;
     // 存储默认监听器的列表
-    private final List<TurboServerListener> defaultTurboServerListenerList = new ArrayList<>();
+    private final List<TurboWebListener> defaultTurboWebListenerList = new ArrayList<>();
     // 网关
     private Gateway gateway;
     // 用户自定义的监听器的列表
-    private final List<TurboServerListener> customizeTurboServerListenerList = new ArrayList<>();
+    private final List<TurboWebListener> customizeTurboWebListenerList = new ArrayList<>();
 
     {
         middlewareInitializer = new DefaultMiddlewareInitializer();
@@ -69,7 +69,7 @@ public class DefaultTurboServer implements TurboServer {
         httpSchedulerInitializer = new DefaultHttpSchedulerInitializer();
         webSocketHandlerInitializer = new DefaultWebSocketHandlerInitializer();
         httpClientInitializer = new DefaultHttpClientInitializer();
-        defaultTurboServerListenerList.add(new DefaultJacksonTurboServerListener());
+        defaultTurboWebListenerList.add(new DefaultJacksonTurboWebListener());
     }
 
     /**
@@ -161,25 +161,20 @@ public class DefaultTurboServer implements TurboServer {
     @Override
     public void start(int port) {
         long start = System.currentTimeMillis();
-        List<TurboServerListener> turboServerListenerList = new ArrayList<>();
+        List<TurboWebListener> turboWebListenerList = new ArrayList<>();
         // 判断是否需要加载默认初始化
         if (doDefaultInit) {
             // 将默认初始化加入初始化列表
-            turboServerListenerList.addAll(defaultTurboServerListenerList);
+            turboWebListenerList.addAll(defaultTurboWebListenerList);
         }
         // 添加自定义初始化
-        turboServerListenerList.addAll(customizeTurboServerListenerList);
+        turboWebListenerList.addAll(customizeTurboWebListenerList);
         // 执行前置初始化方法
-        for (TurboServerListener turboServerListener : turboServerListenerList) {
-            turboServerListener.beforeTurboServerInit(serverBootstrap);
+        for (TurboWebListener turboWebListener : turboWebListenerList) {
+            turboWebListener.beforeServerInit();
         }
         log.info("服务器init前置初始化执行结束");
         init();
-        // 执行后置初始化方法
-        for (TurboServerListener turboServerListener : turboServerListenerList) {
-            turboServerListener.afterTurboServerInit(serverBootstrap);
-        }
-        log.info("服务器init后置初始化执行结束");
         // 启动服务器
         ChannelFuture channelFuture = serverBootstrap.bind(port);
         // 处理监听事件
@@ -187,8 +182,8 @@ public class DefaultTurboServer implements TurboServer {
             if (future.isSuccess()) {
                 long end = System.currentTimeMillis();
                 log.info("服务器启动成功，port:{}, 耗时:{}s", port, (end - start) / 1000.00);
-                for (TurboServerListener turboServerListener : turboServerListenerList) {
-                    turboServerListener.afterTurboServerStart();
+                for (TurboWebListener turboWebListener : turboWebListenerList) {
+                    turboWebListener.afterServerStart();
                 }
                 log.info("服务器启动后初始化方法完成");
             } else {
@@ -224,8 +219,8 @@ public class DefaultTurboServer implements TurboServer {
     }
 
     @Override
-    public void addTurboServerInit(TurboServerListener... turboServerListeners) {
-        this.customizeTurboServerListenerList.addAll(List.of(turboServerListeners));
+    public void addTurboServerInit(TurboWebListener... turboWebListeners) {
+        this.customizeTurboWebListenerList.addAll(List.of(turboWebListeners));
     }
 
     @Override

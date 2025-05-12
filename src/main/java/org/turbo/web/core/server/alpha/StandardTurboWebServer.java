@@ -10,8 +10,11 @@ import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.session.SessionManager;
 import org.turbo.web.core.http.ws.WebSocketHandler;
 import org.turbo.web.core.initializer.impl.DefaultHttpClientInitializer;
-import org.turbo.web.core.listener.TurboServerListener;
+import org.turbo.web.core.listener.DefaultJacksonTurboWebListener;
+import org.turbo.web.core.listener.TurboWebListener;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -23,6 +26,13 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	private final ServerParamConfig config = new ServerParamConfig();
 	private final HttpWorkDispatcherFactory httpWorkDispatcherFactory = new CoreHttpWorkDispatcherFactory();
 	private final Class<?> mainClass;
+	private final List<TurboWebListener> defaultListeners = new ArrayList<>(1);
+	private final List<TurboWebListener> customListeners = new ArrayList<>(1);
+	private boolean executeDefaultListener = true;
+
+	{
+		defaultListeners.add(new DefaultJacksonTurboWebListener());
+	}
 
 	public StandardTurboWebServer(Class<?> mainClass) {
 		this(mainClass, 0);
@@ -70,12 +80,12 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 
 	@Override
 	public void executeDefaultListener(boolean flag) {
-		// TODO 待开发
+		this.executeDefaultListener = flag;
 	}
 
 	@Override
-	public void listeners(TurboServerListener... listeners) {
-		// TODO 待开发
+	public void listeners(TurboWebListener... listeners) {
+		customListeners.addAll(List.of(listeners));
 	}
 
 	@Override
@@ -96,11 +106,31 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	@Override
 	public void start(String host, int port) {
 		long start = System.currentTimeMillis();
+		// 判断是否需要执行默认的监听器
+		if (executeDefaultListener) {
+			for (TurboWebListener turboWebListener : defaultListeners) {
+				turboWebListener.beforeServerInit();
+			}
+		}
+		// 执行用户定义的监听器
+		for (TurboWebListener turboWebListener : customListeners) {
+			turboWebListener.beforeServerInit();
+		}
+		log.info("TurboWeb初始化前置监听器方法执行完成");
 		init();
 		ChannelFuture channelFuture = startServer(host, port);
 		channelFuture.addListener(future -> {
-			long time = System.currentTimeMillis() - start;
-			log.info("TurboWebServer start on: http://{}:{}, time: {} ms", host, port, time);
+			if (future.isSuccess()) {
+				for (TurboWebListener turboWebListener : defaultListeners) {
+					turboWebListener.afterServerStart();
+				}
+				log.info("TurboWeb启动后监听器方法执行完成");
+				long time = System.currentTimeMillis() - start;
+				log.info("TurboWebServer start on: http://{}:{}, time: {} ms", host, port, time);
+			} else {
+				log.error("TurboWebServer start failed: {}\n", future.cause().getMessage(), future.cause());
+			}
+
 		});
 	}
 

@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * 默认的jackson初始化器
  */
-public class DefaultJacksonTurboServerListener extends JacksonTurboServerListener {
+public class DefaultJacksonTurboWebListener extends JacksonTurboWebListener {
 
     @Override
     public void init(ObjectMapper objectMapper) {
