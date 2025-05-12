@@ -52,7 +52,7 @@ public abstract class FileHttpContext extends CoreHttpContext {
 	}
 
 	@Override
-	public Object download(HttpResponseStatus status, byte[] bytes, String filename) {
+	public Void download(HttpResponseStatus status, byte[] bytes, String filename) {
 		if (isWrite()) {
 			throw new TurboResponseRepeatWriteException("response repeat write");
 		}
@@ -73,12 +73,12 @@ public abstract class FileHttpContext extends CoreHttpContext {
 	}
 
 	@Override
-	public Object download(byte[] bytes, String filename) {
+	public Void download(byte[] bytes, String filename) {
 		return download(HttpResponseStatus.OK, bytes, filename);
 	}
 
 	@Override
-	public Object download(HttpResponseStatus status, File file) {
+	public Void download(HttpResponseStatus status, File file) {
 		if (!file.exists()) {
 			throw new TurboFileException("file not exists," + file.getAbsolutePath());
 		}
@@ -97,12 +97,12 @@ public abstract class FileHttpContext extends CoreHttpContext {
 	}
 
 	@Override
-	public Object download(File file) {
+	public Void download(File file) {
 		return download(HttpResponseStatus.OK, file);
 	}
 
 	@Override
-	public Object download(HttpResponseStatus status, InputStream inputStream, String filename) {
+	public Void download(HttpResponseStatus status, InputStream inputStream, String filename) {
 		try {
 			return download(status, inputStream.readAllBytes(), filename);
 		} catch (IOException e) {
@@ -111,7 +111,7 @@ public abstract class FileHttpContext extends CoreHttpContext {
 	}
 
 	@Override
-	public Object download(InputStream inputStream, String filename) {
+	public Void download(InputStream inputStream, String filename) {
 		return download(HttpResponseStatus.OK, inputStream, filename);
 	}
 

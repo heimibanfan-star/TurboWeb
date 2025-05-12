@@ -41,7 +41,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
-	public Object json(HttpResponseStatus status, Object data) {
+	public Void json(HttpResponseStatus status, Object data) {
 		if (isWrite()) {
 			throw new TurboResponseRepeatWriteException("response repeat write");
 		}
@@ -57,17 +57,17 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
-	public Object json(Object data) {
+	public Void json(Object data) {
 		return json(HttpResponseStatus.OK, data);
 	}
 
 	@Override
-	public Object json(HttpResponseStatus status) {
+	public Void json(HttpResponseStatus status) {
 		return json(status, "");
 	}
 
 	@Override
-	public Object text(HttpResponseStatus status, String data) {
+	public Void text(HttpResponseStatus status, String data) {
 		if (isWrite()) {
 			throw new TurboResponseRepeatWriteException("response repeat write");
 		}
@@ -79,12 +79,12 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
-	public Object text(String data) {
+	public Void text(String data) {
 		return text(HttpResponseStatus.OK, data);
 	}
 
 	@Override
-	public Object html(HttpResponseStatus status, String data) {
+	public Void html(HttpResponseStatus status, String data) {
 		if (isWrite()) {
 			throw new TurboResponseRepeatWriteException("response repeat write");
 		}
@@ -96,7 +96,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
-	public Object html(String data) {
+	public Void html(String data) {
 		return html(HttpResponseStatus.OK, data);
 	}
 

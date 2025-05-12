@@ -9,9 +9,10 @@ import org.turbo.web.core.http.middleware.Middleware;
 public class FirstMiddleware extends Middleware {
 	@Override
 	public Object invoke(HttpContext ctx) {
-		System.out.println("FirstMiddleware 执行之前。。。");
-		Object result = next(ctx);
-		System.out.println("FirstMiddleware 执行之后。。。");
-		return result;
+		if (ctx != null) {
+			return ctx.json("hello world");
+		} else {
+			return ctx.end();
+		}
 	}
 }

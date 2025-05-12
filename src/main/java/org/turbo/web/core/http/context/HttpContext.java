@@ -63,7 +63,7 @@ public interface HttpContext {
 	 * @return null
 	 */
 	@SyncOnce
-	default Object end() {
+	default Void end() {
 		return null;
 	}
 
@@ -75,13 +75,13 @@ public interface HttpContext {
 	 * return null
 	 */
 	@SyncOnce
-	Object json(HttpResponseStatus status, Object data);
+	Void json(HttpResponseStatus status, Object data);
 
 	@SyncOnce
-	Object json(Object data);
+	Void json(Object data);
 
 	@SyncOnce
-	Object json(HttpResponseStatus status);
+	Void json(HttpResponseStatus status);
 
 	/**
 	 * 响应文本数据
@@ -91,7 +91,7 @@ public interface HttpContext {
 	 * @return null
 	 */
 	@SyncOnce
-	Object text(HttpResponseStatus status, String data);
+	Void text(HttpResponseStatus status, String data);
 
 	/**
 	 * 响应文本数据
@@ -100,7 +100,7 @@ public interface HttpContext {
 	 * @return null
 	 */
 	@SyncOnce
-	Object text(String data);
+	Void text(String data);
 
 	/**
 	 * 响应html数据
@@ -110,7 +110,7 @@ public interface HttpContext {
 	 * @return null
 	 */
 	@SyncOnce
-	Object html(HttpResponseStatus status, String data);
+	Void html(HttpResponseStatus status, String data);
 
 	/**
 	 * 响应html数据
@@ -119,7 +119,7 @@ public interface HttpContext {
 	 * @return null
 	 */
 	@SyncOnce
-	Object html(String data);
+	Void html(String data);
 
 	boolean isWrite();
 
@@ -193,27 +193,27 @@ public interface HttpContext {
 	 * 下载文件
 	 *
 	 * @param status   响应状态
-	 * @param bytes      文件的内容
+	 * @param bytes    文件的内容
 	 * @param filename 文件名
 	 * @return null
 	 */
 	@SyncOnce
-	Object download(HttpResponseStatus status, byte[] bytes, String filename);
+	Void download(HttpResponseStatus status, byte[] bytes, String filename);
 
 	@SyncOnce
-	Object download(byte[] bytes, String filename);
+	Void download(byte[] bytes, String filename);
 
 	@SyncOnce
-	Object download(HttpResponseStatus status, File file);
+	Void download(HttpResponseStatus status, File file);
 
 	@SyncOnce
-	Object download(File file);
+	Void download(File file);
 
 	@SyncOnce
-	Object download(HttpResponseStatus status, InputStream inputStream, String filename);
+	Void download(HttpResponseStatus status, InputStream inputStream, String filename);
 
 	@SyncOnce
-	Object download(InputStream inputStream, String filename);
+	Void download(InputStream inputStream, String filename);
 
 	/**
 	 * 文件下载扩展
