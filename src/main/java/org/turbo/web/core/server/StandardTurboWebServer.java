@@ -44,67 +44,77 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	}
 
 	@Override
-	public void controllers(Object... controllers) {
+	public TurboWebServer controllers(Object... controllers) {
 		httpWorkDispatcherFactory.controllers(controllers);
+		return this;
 	}
 
 	@Override
-	public void middlewares(Middleware... middlewares) {
+	public TurboWebServer middlewares(Middleware... middlewares) {
 		httpWorkDispatcherFactory.middlewares(middlewares);
+		return this;
 	}
 
 	@Override
-	public void exceptionHandlers(Object... exceptionHandlers) {
+	public TurboWebServer exceptionHandlers(Object... exceptionHandlers) {
 		httpWorkDispatcherFactory.exceptionHandlers(exceptionHandlers);
+		return this;
 	}
 
 	@Override
-	public void config(Consumer<ServerParamConfig> consumer) {
+	public TurboWebServer config(Consumer<ServerParamConfig> consumer) {
 		consumer.accept(this.config);
+		return this;
 	}
 
 	@Override
-	public void useReactiveServer() {
+	public TurboWebServer useReactiveServer() {
 		httpWorkDispatcherFactory.useReactive();
+		return this;
 	}
 
 	@Override
-	public void gateway(Gateway gateway) {
+	public TurboWebServer gateway(Gateway gateway) {
 		httpWorkDispatcherFactory.gateway(gateway);
+		return this;
 	}
 
 	@Override
-	public void websocket(String pathRegex, WebSocketHandler webSocketHandler) {
+	public TurboWebServer websocket(String pathRegex, WebSocketHandler webSocketHandler) {
 		httpWorkDispatcherFactory.websocketHandler(pathRegex, webSocketHandler);
+		return this;
 	}
 
 	@Override
-	public void executeDefaultListener(boolean flag) {
+	public TurboWebServer executeDefaultListener(boolean flag) {
 		this.executeDefaultListener = flag;
+		return this;
 	}
 
 	@Override
-	public void listeners(TurboWebListener... listeners) {
+	public TurboWebServer listeners(TurboWebListener... listeners) {
 		customListeners.addAll(List.of(listeners));
+		return this;
 	}
 
 	@Override
-	public void replaceSessionManager(SessionManager sessionManager) {
+	public TurboWebServer replaceSessionManager(SessionManager sessionManager) {
 		httpWorkDispatcherFactory.replaceSessionManager(sessionManager);
+		return this;
 	}
 
 	@Override
-	public void start() {
-		start(8080);
+	public ChannelFuture start() {
+		return start(8080);
 	}
 
 	@Override
-	public void start(int port) {
-		start("0.0.0.0", port);
+	public ChannelFuture start(int port) {
+		return start("0.0.0.0", port);
 	}
 
 	@Override
-	public void start(String host, int port) {
+	public ChannelFuture start(String host, int port) {
 		long start = System.currentTimeMillis();
 		executeListenerBeforeInit();
 		init();
@@ -119,6 +129,7 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 			}
 
 		});
+		return channelFuture;
 	}
 
 	/**
