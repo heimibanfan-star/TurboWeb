@@ -2,12 +2,16 @@ package org.turbo.web.core.handler.piplines;
 
 import io.netty.channel.*;
 import io.netty.handler.codec.http.websocketx.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.turbo.web.core.http.ws.*;
 import org.turbo.web.exception.TurboWebSocketException;
-import org.turbo.web.utils.thread.LoomThreadUtils;
+import org.turbo.web.utils.thread.VirtualThreadUtils;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * 处理websocket的handler
@@ -15,18 +19,34 @@ import java.util.concurrent.ConcurrentHashMap;
 @ChannelHandler.Sharable
 public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
+    private static final Logger log = LoggerFactory.getLogger(WebSocketDispatcherHandler.class);
     private final Map<String, WebSocketSession> sessionMap = new ConcurrentHashMap<>(1024);
     private final WebSocketHandler webSocketHandler;
+    private final ExecutorService POOL;
 
     public WebSocketDispatcherHandler(WebSocketHandler webSocketHandler) {
+        this(webSocketHandler, false, 0);
+    }
+
+    public WebSocketDispatcherHandler(WebSocketHandler webSocketHandler, boolean useForkJoin, int threadNum) {
+        if (threadNum <= 0) {
+            threadNum = Runtime.getRuntime().availableProcessors();
+        }
         this.webSocketHandler = webSocketHandler;
+        if (useForkJoin) {
+            POOL = new ForkJoinPool(threadNum);
+            log.info("websocket work on ForkJoin pool, threadNum: {}", threadNum);
+        } else {
+            POOL = VirtualThreadUtils.getPool();
+            log.info("websocket work on VirtualThread");
+        }
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, WebSocketFrame webSocketFrame) throws Exception {
         WebSocketSession webSocketSession = getWebSocketSession(channelHandlerContext);
         webSocketFrame.retain();
-        LoomThreadUtils.execute(() -> {
+        POOL.execute(() -> {
             // 调度处理器
             webSocketHandler.onMessage(webSocketSession, webSocketFrame);
         });

@@ -72,6 +72,16 @@ public interface TurboWebServer {
 	TurboWebServer websocket(String pathRegex, WebSocketHandler webSocketHandler);
 
 	/**
+	 * 添加websocket处理器
+	 *
+	 * @param pathRegex        路径正则
+	 * @param webSocketHandler websocket处理器
+	 * @param forkJoinThreadNum forkJoin线程数
+	 * @return 当前实例
+	 */
+	TurboWebServer websocket(String pathRegex, WebSocketHandler webSocketHandler, int forkJoinThreadNum);
+
+	/**
 	 * 执行默认的监听器
 	 *
 	 * @param flag 是否执行

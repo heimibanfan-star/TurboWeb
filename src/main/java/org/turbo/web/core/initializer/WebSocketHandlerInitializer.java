@@ -37,4 +37,11 @@ public interface WebSocketHandlerInitializer {
      * @return 路径
      */
     String getPath();
+
+    /**
+     * 设置forkJoin线程数
+     *
+     * @param threadNum 线程数
+     */
+    void setForkJoinThreadNum(int threadNum);
 }

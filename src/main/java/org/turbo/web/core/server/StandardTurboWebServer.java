@@ -86,6 +86,12 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	}
 
 	@Override
+	public TurboWebServer websocket(String pathRegex, WebSocketHandler webSocketHandler, int forkJoinThreadNum) {
+		httpWorkDispatcherFactory.websocketHandler(pathRegex, webSocketHandler, forkJoinThreadNum);
+		return this;
+	}
+
+	@Override
 	public TurboWebServer executeDefaultListener(boolean flag) {
 		this.executeDefaultListener = flag;
 		return this;

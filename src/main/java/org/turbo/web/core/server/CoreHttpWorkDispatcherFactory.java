@@ -53,6 +53,12 @@ public class CoreHttpWorkDispatcherFactory implements HttpWorkDispatcherFactory 
 	}
 
 	@Override
+	public void websocketHandler(String path, WebSocketHandler webSocketHandler, int forkJoinThreadNum) {
+		webSocketHandlerInitializer.setWebSocketHandler(path, webSocketHandler);
+		webSocketHandlerInitializer.setForkJoinThreadNum(forkJoinThreadNum);
+	}
+
+	@Override
 	public void gateway(Gateway gateway) {
 		this.gateway = gateway;
 	}

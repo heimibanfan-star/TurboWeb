@@ -11,6 +11,11 @@
     <input type="submit" value="上传"></input>
 </form>
 <script>
+    const ws = new WebSocket("ws://localhost:8080/ws/")
+    ws.onopen  = function (event) {
+        console.log("连接成功")
+        ws.send("hello")
+    }
 </script>
 </body>
 </html>

@@ -38,6 +38,14 @@ public interface HttpWorkDispatcherFactory {
 	void websocketHandler(String path, WebSocketHandler webSocketHandler);
 
 	/**
+	 * 添加websocket处理器
+	 * @param path websocket处理器的路径
+	 * @param webSocketHandler websocket处理器
+	 * @param forkJoinThreadNum 线程数量
+	 */
+	void websocketHandler(String path, WebSocketHandler webSocketHandler, int forkJoinThreadNum);
+
+	/**
 	 * 设置网关
 	 * @param gateway 网关
 	 */

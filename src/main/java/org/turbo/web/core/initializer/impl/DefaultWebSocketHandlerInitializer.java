@@ -21,6 +21,10 @@ public class DefaultWebSocketHandlerInitializer implements WebSocketHandlerIniti
     private WebSocketHandler webSocketHandler;
     // websocket处理的路径
     private String websocketPath;
+    // 是否启用工作窃取线程池
+    private boolean useForkJoin = false;
+    // 工作窃取线程池的线程数
+    private int forkJoinThreadNum = 0;
 
     @Override
     public void setWebSocketHandler(String path, WebSocketHandler webSocketHandler) {
@@ -44,6 +48,12 @@ public class DefaultWebSocketHandlerInitializer implements WebSocketHandlerIniti
         return websocketPath;
     }
 
+    @Override
+    public void setForkJoinThreadNum(int threadNum) {
+        forkJoinThreadNum = threadNum;
+        useForkJoin = true;
+    }
+
     /**
      * 初始化websocket处理器
      *
@@ -56,7 +66,12 @@ public class DefaultWebSocketHandlerInitializer implements WebSocketHandlerIniti
         if (StringUtils.isBlank(websocketPath)) {
             throw new TurboWebSocketException("websocket路径不能为空");
         }
-        WebSocketDispatcherHandler webSocketDispatcherHandler = new WebSocketDispatcherHandler(webSocketHandler);
+        WebSocketDispatcherHandler webSocketDispatcherHandler;
+        if (useForkJoin) {
+            webSocketDispatcherHandler = new WebSocketDispatcherHandler(webSocketHandler, true, forkJoinThreadNum);
+        } else {
+            webSocketDispatcherHandler = new WebSocketDispatcherHandler(webSocketHandler);
+        }
         log.info("websocket处理器初始化成功");
         return webSocketDispatcherHandler;
     }

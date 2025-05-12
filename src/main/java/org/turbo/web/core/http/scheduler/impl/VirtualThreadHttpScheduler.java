@@ -16,7 +16,7 @@ import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.lock.Locks;
 import org.turbo.web.utils.handler.ExceptionHandlerSchedulerUtils;
 import org.turbo.web.utils.http.HttpInfoRequestPackageUtils;
-import org.turbo.web.utils.thread.LoomThreadUtils;
+import org.turbo.web.utils.thread.VirtualThreadUtils;
 
 /**
  * 使用虚拟县城的阻塞线程调度器
@@ -40,7 +40,7 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
 
     @Override
     public void execute(FullHttpRequest request, ConnectSession session) {
-        LoomThreadUtils.execute(() -> {
+        VirtualThreadUtils.execute(() -> {
             long startTime = System.nanoTime();
             try {
                 HttpResponse response = doExecute(request, session);

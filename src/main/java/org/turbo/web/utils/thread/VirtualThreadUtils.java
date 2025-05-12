@@ -6,7 +6,7 @@ import java.util.concurrent.Executors;
 /**
  * 虚拟线程工具类
  */
-public class LoomThreadUtils {
+public class VirtualThreadUtils {
 
     private static final ExecutorService POOL;
 
@@ -14,7 +14,7 @@ public class LoomThreadUtils {
         POOL = Executors.newVirtualThreadPerTaskExecutor();
     }
 
-    private LoomThreadUtils() {
+    private VirtualThreadUtils() {
     }
 
     /**
@@ -24,6 +24,15 @@ public class LoomThreadUtils {
      */
     public static void execute(Runnable task) {
         POOL.execute(task);
+    }
+
+    /**
+     * 获取线程池
+     *
+     * @return 线程池
+     */
+    public static ExecutorService getPool() {
+        return POOL;
     }
 
 }
