@@ -5,7 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.gateway.Gateway;
-import org.turbo.web.core.handler.piplines.HttpWorkerDispatcherHandler;
+import org.turbo.web.core.piplines.HttpWorkerDispatcherHandler;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.session.SessionManager;
 import org.turbo.web.core.http.ws.WebSocketHandler;

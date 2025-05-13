@@ -1,7 +1,6 @@
 package org.turbo.web.core.initializer;
 
-import io.netty.bootstrap.ServerBootstrap;
-import org.turbo.web.core.handler.piplines.WebSocketDispatcherHandler;
+import org.turbo.web.core.piplines.WebSocketDispatcherHandler;
 import org.turbo.web.core.http.ws.WebSocketHandler;
 
 /**

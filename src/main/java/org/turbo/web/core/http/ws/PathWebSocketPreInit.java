@@ -4,7 +4,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import org.turbo.web.core.handler.piplines.WebSocketDispatcherHandler;
+import org.turbo.web.core.piplines.WebSocketDispatcherHandler;
 
 /**
  * 路径处理的初始化器

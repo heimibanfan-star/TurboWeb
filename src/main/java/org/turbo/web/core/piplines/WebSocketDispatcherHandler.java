@@ -1,4 +1,4 @@
-package org.turbo.web.core.handler.piplines;
+package org.turbo.web.core.piplines;
 
 import io.netty.channel.*;
 import io.netty.handler.codec.http.websocketx.*;

@@ -7,7 +7,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import org.turbo.web.core.handler.piplines.HttpWorkerDispatcherHandler;
+import org.turbo.web.core.piplines.HttpWorkerDispatcherHandler;
 
 import java.util.ArrayList;
 import java.util.List;
