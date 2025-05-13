@@ -2,6 +2,7 @@ package org.turbo.web.core.http.response;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.exception.TurboFileException;
@@ -9,7 +10,7 @@ import org.turbo.web.exception.TurboFileException;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 /**
  * 默认的文件流
@@ -33,8 +34,9 @@ public class DefaultFileStream implements FileStream {
 	}
 
 	@Override
-	public void readFileWithChunk(BiConsumer<ByteBuf, Exception> consumer) {
+	public ChannelFuture readFileWithChunk(BiFunction<ByteBuf, Exception, ChannelFuture> function) {
 		Exception exception = null;
+		ChannelFuture channelFuture = null;
 		int bufSize = chunkSize > fileSize ? (int) fileSize : chunkSize;
 		try {
 			while (hasNextChunk()) {
@@ -47,10 +49,10 @@ public class DefaultFileStream implements FileStream {
 				}
 				// 判断是否有异常产生
 				if (exception == null) {
-					consumer.accept(buf, null);
+					channelFuture = function.apply(buf, null);
 				} else {
-					consumer.accept(null, exception);
-					return;
+					function.apply(null, exception);
+					return channelFuture;
 				}
 			}
 		} finally {
@@ -60,6 +62,7 @@ public class DefaultFileStream implements FileStream {
 				log.error("文件关闭失败", e);
 			}
 		}
+		return channelFuture;
 	}
 
 	/**

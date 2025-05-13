@@ -13,6 +13,8 @@ import org.turbo.web.constants.FontColors;
 import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.core.connect.InternalConnectSession;
+import org.turbo.web.core.http.adapter.DefaultHttpResponseAdapter;
+import org.turbo.web.core.http.adapter.HttpResponseAdapter;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.response.*;
 import org.turbo.web.core.http.scheduler.HttpScheduler;
@@ -38,6 +40,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     protected final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     private final SessionManagerProxy sessionManagerProxy;
+    private final HttpResponseAdapter httpResponseAdapter = new DefaultHttpResponseAdapter();
     protected boolean showRequestLog = true;
     protected final ServerParamConfig config;
     protected final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
@@ -160,32 +163,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
      * @param startTime 开始时间
      */
     protected void writeResponse(ConnectSession session, FullHttpRequest request, HttpResponse response, long startTime) {
-        InternalConnectSession internalConnectSession = (InternalConnectSession) session;
-        ChannelFuture channelFuture = internalConnectSession.getChannel().write(response);
-        // 判断是否是文件下载响应
-        if (response instanceof AbstractFileResponse) {
-            if (response instanceof FileRegionResponse fileRegionResponse) {
-                // 处理文件零拷贝的情况
-                internalConnectSession.getChannel().writeAndFlush(fileRegionResponse.getFileRegion());
-            } else if (response instanceof FileStreamResponse fileStreamResponse) {
-                // 处理分块文件传输的情况
-                FileStream chunkedFile = fileStreamResponse.getChunkedFile();
-                chunkedFile.readFileWithChunk((buf, e) -> {
-                    if (e == null) {
-                        internalConnectSession.getChannel().writeAndFlush(new DefaultHttpContent(buf));
-                    } else {
-                        log.error("文件读取失败", e);
-                        internalConnectSession.getChannel().close();
-                    }
-                });
-            }
-        } else if (response instanceof SseResponse sseResponse) {
-            internalConnectSession.getChannel().flush();
-            // 处理sse推送的情况
-            sseResponse.startSse();
-        } else {
-            internalConnectSession.getChannel().flush();
-        }
+        ChannelFuture channelFuture = httpResponseAdapter.writeHttpResponse(response, session);
         // 打印性能日志
         if (showRequestLog) {
             channelFuture.addListener(future -> {
