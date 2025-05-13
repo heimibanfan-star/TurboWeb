@@ -2,10 +2,13 @@ package org.turbo.web.core.http.scheduler.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelProgressivePromise;
+import io.netty.channel.DefaultChannelProgressivePromise;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.multipart.FileUpload;
+import io.netty.handler.stream.ChunkedFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.constants.FontColors;
@@ -13,13 +16,11 @@ import org.turbo.web.core.config.ServerParamConfig;
 import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.core.connect.InternalConnectSession;
 import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.response.FileRegionResponse;
-import org.turbo.web.core.http.response.SseResponse;
+import org.turbo.web.core.http.response.*;
 import org.turbo.web.core.http.scheduler.HttpScheduler;
 import org.turbo.web.core.http.handler.ExceptionHandlerMatcher;
 import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.request.HttpInfoRequest;
-import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.session.Session;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.utils.common.BeanUtils;
@@ -162,10 +163,25 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     protected void writeResponse(ConnectSession session, FullHttpRequest request, HttpResponse response, long startTime) {
         InternalConnectSession internalConnectSession = (InternalConnectSession) session;
         ChannelFuture channelFuture = internalConnectSession.getChannel().write(response);
-        if (response instanceof FileRegionResponse fileRegionResponse) {
-            // 处理文件零拷贝的情况
-            internalConnectSession.getChannel().write(fileRegionResponse.getFileRegion());
-            internalConnectSession.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+        // 判断是否是文件下载响应
+        if (response instanceof AbstractFileResponse) {
+            if (response instanceof FileRegionResponse fileRegionResponse) {
+                // 处理文件零拷贝的情况
+                internalConnectSession.getChannel().write(fileRegionResponse.getFileRegion());
+                internalConnectSession.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+            } else if (response instanceof ChunkedFileResponse chunkedFileResponse) {
+                // 处理分块文件传输的情况
+                ChunkedFile chunkedFile = chunkedFileResponse.getChunkedFile();
+                // 判断是否需要添加监听器
+                if (chunkedFileResponse.getListener() != null) {
+                    ChannelProgressivePromise progressivePromise = new DefaultChannelProgressivePromise(internalConnectSession.getChannel(), internalConnectSession.getExecutor());
+                    progressivePromise.addListener(chunkedFileResponse.getListener());
+                    internalConnectSession.getChannel().write(chunkedFile, progressivePromise);
+                } else {
+                    internalConnectSession.getChannel().write(chunkedFile);
+                }
+                internalConnectSession.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+            }
         } else if (response instanceof SseResponse sseResponse) {
             internalConnectSession.getChannel().flush();
             // 处理sse推送的情况

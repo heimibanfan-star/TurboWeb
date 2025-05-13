@@ -24,15 +24,8 @@ public class Application {
 
 	public static void main(String[] args) {
 		TurboWebLogUtils.simpleLog();
-		InterceptorMiddleware interceptorMiddleware = new InterceptorMiddleware();
-		interceptorMiddleware.addLast(new FirstInterceptor());
-		interceptorMiddleware.addLast(new SecondInterceptor());
 		ChannelFuture channelFuture = new StandardTurboWebServer(Application.class)
 			.controllers(new HelloController())
-			.exceptionHandlers(new GlobalExceptionHandler())
-			.middlewares(new SecondMiddleware())
-			.middlewares(new CorsMiddleware())
-			.listeners(new FirstListener(), new SecondListener())
 			.start();
 		channelFuture.addListener(future -> {
 			log.info("启动成功");
