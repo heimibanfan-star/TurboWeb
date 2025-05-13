@@ -29,6 +29,7 @@ public class FileRegionResponse extends AbstractFileResponse {
 	public FileRegionResponse(HttpVersion version, HttpResponseStatus status, File file, Charset filenameCharset) {
 		super(version, status, file, filenameCharset);
 		this.fileRegion = new DefaultFileRegion(file, 0, file.length());
+		this.headers().set(HttpHeaderNames.CONTENT_LENGTH, file.length());
 	}
 
 

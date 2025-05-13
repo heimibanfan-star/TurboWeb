@@ -46,7 +46,6 @@ public abstract class AbstractFileResponse extends DefaultHttpResponse {
 	 * @param file 文件
 	 */
 	private void initHeaders(File file, Charset charset) {
-		this.headers().set(HttpHeaderNames.CONTENT_LENGTH, file.length());
 		this.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/octet-stream");
 		this.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=\"" + encodeFileName(file.getName(), charset) + "\"");
 		this.headers().set(HttpHeaderNames.CONNECTION, "keep-alive");

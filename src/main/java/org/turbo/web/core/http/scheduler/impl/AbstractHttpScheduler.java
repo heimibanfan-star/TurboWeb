@@ -2,13 +2,11 @@ package org.turbo.web.core.http.scheduler.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelProgressivePromise;
-import io.netty.channel.DefaultChannelProgressivePromise;
+import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.multipart.FileUpload;
-import io.netty.handler.stream.ChunkedFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.constants.FontColors;
@@ -25,6 +23,7 @@ import org.turbo.web.core.http.session.Session;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.utils.common.BeanUtils;
 import org.turbo.web.utils.common.RandomUtils;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -167,20 +166,18 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         if (response instanceof AbstractFileResponse) {
             if (response instanceof FileRegionResponse fileRegionResponse) {
                 // 处理文件零拷贝的情况
-                internalConnectSession.getChannel().write(fileRegionResponse.getFileRegion());
-                internalConnectSession.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-            } else if (response instanceof ChunkedFileResponse chunkedFileResponse) {
+                internalConnectSession.getChannel().writeAndFlush(fileRegionResponse.getFileRegion());
+            } else if (response instanceof FileStreamResponse fileStreamResponse) {
                 // 处理分块文件传输的情况
-                ChunkedFile chunkedFile = chunkedFileResponse.getChunkedFile();
-                // 判断是否需要添加监听器
-                if (chunkedFileResponse.getListener() != null) {
-                    ChannelProgressivePromise progressivePromise = new DefaultChannelProgressivePromise(internalConnectSession.getChannel(), internalConnectSession.getExecutor());
-                    progressivePromise.addListener(chunkedFileResponse.getListener());
-                    internalConnectSession.getChannel().write(chunkedFile, progressivePromise);
-                } else {
-                    internalConnectSession.getChannel().write(chunkedFile);
-                }
-                internalConnectSession.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+                FileStream chunkedFile = fileStreamResponse.getChunkedFile();
+                chunkedFile.readFileWithChunk((buf, e) -> {
+                    if (e == null) {
+                        internalConnectSession.getChannel().writeAndFlush(new DefaultHttpContent(buf));
+                    } else {
+                        log.error("文件读取失败", e);
+                        internalConnectSession.getChannel().close();
+                    }
+                });
             }
         } else if (response instanceof SseResponse sseResponse) {
             internalConnectSession.getChannel().flush();
