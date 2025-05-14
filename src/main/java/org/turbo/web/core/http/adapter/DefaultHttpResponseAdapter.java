@@ -3,6 +3,7 @@ package org.turbo.web.core.http.adapter;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.connect.ConnectSession;
@@ -18,7 +19,7 @@ public class DefaultHttpResponseAdapter implements HttpResponseAdapter{
 	@Override
 	public ChannelFuture writeHttpResponse(HttpResponse response, ConnectSession session) {
 		InternalConnectSession internalConnectSession = (InternalConnectSession) session;
-		ChannelFuture channelFuture = internalConnectSession.getChannel().write(response);
+		ChannelFuture channelFuture = internalConnectSession.getChannel().writeAndFlush(response);
 		// 判断是否是文件下载响应
 		if (response instanceof AbstractFileResponse abstractFileResponse) {
 			ChannelFuture future = handleFileResponse(abstractFileResponse, internalConnectSession);
@@ -27,8 +28,6 @@ public class DefaultHttpResponseAdapter implements HttpResponseAdapter{
 			}
 		} else if (response instanceof SseResponse sseResponse) {
 			handleSse(sseResponse, internalConnectSession);
-		} else {
-			internalConnectSession.getChannel().flush();
 		}
 		return channelFuture;
 	}
@@ -40,7 +39,6 @@ public class DefaultHttpResponseAdapter implements HttpResponseAdapter{
 	 * @param session 连接会话
 	 */
 	private void handleSse(SseResponse sseResponse, InternalConnectSession session) {
-		session.getChannel().flush();
 		sseResponse.startSse();
 	}
 
@@ -52,10 +50,7 @@ public class DefaultHttpResponseAdapter implements HttpResponseAdapter{
 	 */
 	private ChannelFuture handleFileResponse(AbstractFileResponse response, InternalConnectSession session) {
 		ChannelFuture channelFuture = null;
-		if (response instanceof FileRegionResponse fileRegionResponse) {
-			// 处理文件零拷贝的情况
-			channelFuture = session.getChannel().writeAndFlush(fileRegionResponse.getFileRegion());
-		} else if (response instanceof FileStreamResponse fileStreamResponse) {
+		if (response instanceof FileStreamResponse fileStreamResponse) {
 			// 处理分块文件传输的情况
 			FileStream chunkedFile = fileStreamResponse.getChunkedFile();
 			channelFuture = chunkedFile.readFileWithChunk((buf, e) -> {

@@ -18,4 +18,5 @@ public interface FileStream {
 	 * @return 最后一个分块完成之后的回调
 	 */
 	ChannelFuture readFileWithChunk(BiFunction<ByteBuf, Exception, ChannelFuture> function);
+
 }

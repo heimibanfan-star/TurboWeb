@@ -62,31 +62,30 @@ mvn install:install-file -Dfile=turbo-web-xxx.jar \
 ```java
 @RequestPath("/hello")
 public class HelloController {
-    
-    @Get
-    public void hello(HttpContext ctx) {
-        ctx.text("Hello Turbo web!");
-    }
+	@Get
+	public String hello(HttpContext c) {
+		return "hello world";
+	}
 }
 ```
 3.编写服务器启动类
 ```java
 public class Application {
-    public static void main(String[] args) {
-        TurboServer turboServer = new DefaultTurboServer(Application.class, 8);
-        turboServer.addController(new HelloController());
-        turboServer.start(8080);
-    }
+	public static void main(String[] args) {
+		TurboWebServer server = new StandardTurboWebServer(Application.class, 1);
+		server.controllers(new HelloController());
+		server.start();
+	}
 }
 ```
-启动服务器之后浏览器访问：http://localhost:8080/hello 看到Hello Turbo web!表示运行成功。
+启动服务器之后浏览器访问：http://localhost:8080/hello 看到Hello World表示运行成功。
 ### 入门代码解析
 - RequestPath：该注解用于标识控制器，参数表示控制器的路径，即请求的URL路径。
 - Get：该注解用于标识控制器的方法，表示该方法支持GET请求，即该方法可以处理HTTP GET请求。
 - HttpContext：该参数表示请求的上下文，包含了请求的参数、响应、请求体等信息，开发者可以利用该参数进行业务逻辑处理。
-- TurboServer：该类是框架的核心类，用于启动服务器，并管理请求处理逻辑，参数表示worker线程数量，即用于监听read事件的线程数量。
-- DefaultTurboServer：该类是TurboServer的默认实现，提供了一些常用的功能，如添加控制器、启动服务器等。
-- addController：该方法用于添加控制器，参数表示控制器对象，框架会自动扫描控制器的方法，并根据方法的注解进行路由映射。
+- TurboWebServer：该类是框架的核心类，用于启动服务器，并管理请求处理逻辑，参数是主启动类的字节码对象和IO线程数量（监听网络IO事件的线程，一半配置少量即可，上述代码配置一个）。
+- StandardTurboWebServer：该类是TurboServer的默认实现，提供了一些常用的功能，如添加控制器、启动服务器等。
+- controllers：该方法用于添加控制器，参数表示控制器对象，框架会自动扫描控制器的方法，并根据方法的注解进行路由映射。
 - start：该方法用于启动服务器，参数表示监听端口号，启动成功后，服务器将开始监听请求，并根据路由映射规则处理请求。
 
 ## 路由的映射
@@ -96,32 +95,141 @@ public class Application {
 @Get 表示当前方法支持GET请求，参数是请求路径，需要/开头。
 ```java
 @Get
-public void doGet(HttpContext ctx) {
-    ctx.text("doGet");
+public String doGet(HttpContext c) {
+    return "doGet";
 }
 ```
 @Post 表示当前方法支持POST请求，参数是请求路径，需要/开头。
 ```java
 @Post
-public void doPost(HttpContext ctx) {
-    ctx.text("doPost");
+public String doPost(HttpContext c) {
+    return "doPost";
 }
 ```
 @Put 表示当前方法支持PUT请求，参数是请求路径，需要/开头。
 ```java
 @Put
-public void doPut(HttpContext ctx) {
-    ctx.text("doPut");
+public String doPut(HttpContext c) {
+    return "doPut";
 }
 ```
+@Patch 表示当前方法支持PATCH请求，参数是请求路径，需要以/开头。
+
+```java
+@Patch
+public String doPatch(HttpContext c) {
+    return "doPatch";
+}
+```
+
 @Delete 表示当前方法支持DELETE请求，参数是请求路径，需要/开头。
+
 ```java
 @Delete
-public void doDelete(HttpContext ctx) {
-    ctx.text("doDelete");
+public String doDelete(HttpContext c) {
+    return "doDelete";
 }
 ```
 > 注意：Get和Delete不携带请求体。
+
+## 数据的响应
+
+TurboWeb提供了两种响应的方式：
+
+- 通过HttpContext的API。
+- 直接将内容return出去（推荐）。
+
+TurboWeb这两种方式都可以响应数据，但是在每一个路由中只能使用其中一种方式。如果没有特殊的需求，建议通过return的方式返回数据，因为HttpContext和return如果同时使用的话**HttpContext的优先级要比return高**，TurboWeb一旦检测到HttpContext中被写入内容，那么return的内容将不会被处理。
+
+### 通过HttpContext响应数据
+
+> HttpContext提供了一系列简化的常用API，在某些特殊场景的时候用起来会比直接return方便，例如要手动控制响应的格式、设置响应的状态码等。
+
+1.响应text格式内容
+
+```java
+@Get
+public void hello(HttpContext ctx) {
+    ctx.text("Hello Turbo Web!");
+}
+```
+
+2.响应html格式内容
+
+```java
+@Get
+public void hello(HttpContext ctx) {
+    ctx.html("<h1>Hello Turbo Web!</h1>");
+}
+```
+
+3.响应json格式内容
+
+```java
+@Get
+public void hello(HttpContext ctx) {
+    User user = new User();
+    user.setName("Turbo web");
+    user.setAge(18);
+    ctx.json(user);
+}
+```
+
+Turbo-web也提供了响应时指定响应状态码的便捷操作
+
+```java
+@Get
+public void hello(HttpContext ctx) {
+    ctx.text(HttpResponseStatus.OK, "Hello World");
+}
+```
+
+html和json格式的也是类似。
+
+### 获取响应对象进行精细化的控制
+
+```java
+@Get
+public void hello(HttpContext ctx) {
+    HttpInfoResponse response = ctx.getResponse();
+    ctx.text("Hello Turbo Web!");
+    response.setStatus(HttpResponseStatus.OK);
+}
+```
+
+> 注意：不推荐在response中写入内容，这会造成内容重复写入，推荐使用HttpContext的方法写入内容，如果要设置状态码需要在调用写入方法知乎，因为写入时不指定状态码会默认设置200。
+
+### 直接通过返回值的方式
+
+通过return返回内容的方式有一个需要注意的地方：
+
+- 如果return的结果类型如果是字符串，那么会被作为text\plain处理。
+- 如果return的结果是HttpResponse类型，并且HttpContext没有写入内容，那么TurboWeb会直接将HttpResponse返回给客户端（主要用于实现精细化控制）。
+- 如果不是以上两种，TurboWeb会自动对返回结果进行序列化，并被作为application/json格式处理。8
+
+```java
+@Get
+public User hello(HttpContext ctx) {
+    User user = new User();
+    user.setName("Turbo web");
+    user.setAge(18);
+    return user;
+}
+```
+
+### 响应自定义的response对象
+
+```java
+@Get
+public HttpResponse index(HttpContext ctx) {
+    HttpInfoResponse response = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+    response.setContent("Hello World!");
+    response.setContentType("text/plain;charset=UTF-8");
+    return response;
+}
+```
+
+> 这里的response对象也可以直接使用HttpContext中的response对象，调度器会自动检测是否使用的是Context来保证资源的释放。
 
 ## 获取请求数据
 > 注意：旧的API依然可以使用，但是新的API更加精简，建议使用新的API。
@@ -129,31 +237,35 @@ public void doDelete(HttpContext ctx) {
 在 Turbo-web 中，路径参数是通过在路径中添加占位符的方式来实现的。占位符的格式为 `{name}`，其中 `name` 是一个标识符，用于表示参数的名称。
 ```java
 @Get("/{name}")
-public void hello(HttpContext ctx) {
-    String name = ctx.param("name");
-    ctx.text("Hello " + name);
+public String hello(HttpContext c) {
+    String name = c.param("name");
+    return "hello " + name;
 }
 ```
-获取路径参数通过ctx.param("name")获取，其中name是占位符的名称。
-> 注意：路径参数默认的类型是String类型，如果是其它类型需要开发者手动转换。
+获取路径参数通过ctx.param("name")获取，其中参数是占位符的名称。
+
+TurboWeb也提供了一系列自动类型转换的方法，如下：
+
+封装为Long类型：
+
+```java
+Long id = c.paramLong("id");
+```
+
+封装为Integer类型：
+
+```java
+Integer age = c.paramInt("age");
+```
+
+封装为Boolean类型：
+
+```java
+Boolean sex = c.paramBoolean("sex");
+```
 
 ### 查询参数
-在 Turbo-web 中，查询参数是通过在路径中添加参数的方式来实现的。参数的格式为 `?name=value`，其中 `name` 是一个标识符，用于表示参数的名称，`value` 是参数的值。
-```java
-@Get
-public void getUser(HttpContext ctx) {
-    Map<String, List<String>> queryParams = ctx.getRequest().getQueryParams();
-    List<String> name = queryParams.get("name");
-    if (name != null && !name.isEmpty()) {
-        ctx.text("Hello " + name.getFirst());
-    } else {
-        ctx.text("Hello World");
-    }
-}
-```
-在Turbo-web中查询参数会被封装成一共Map集合, 键为参数名，由于值可能多个，所以值为List集合。
-
-虽然上面这种方式可以获取到查询参数，但是代码是太繁琐了，turbo-web提供了一种简介的参数封装方式。
+TurboWeb除了路径参数之外的参数如果要进行封装，需要借助实体类封装，无法单独获取某个参数。
 
 1.创建一共实体类，提供无参构造方法和get，setter方法。
 ```java
@@ -190,31 +302,32 @@ public class User {
 2.使用ctx.loadQuery方法封装
 ```java
 @Get
-public void getUser(HttpContext ctx) {
-    User user = ctx.loadQuery(User.class);
-    ctx.json(user);
+public User user(HttpContext c) {
+    User user = c.loadQuery(User.class);
+    System.out.println(user);
+    return user;
 }
 ```
 这个方法会自动将查询参数封装为对象，如果不携带查询参数，那么就封装null。
 
 ### 请求体的form表单
-在 Turbo-web 中，请求体的form表单是通过ctx.loadForm方法来实现的。该方法会自动将请求体的form表单封装为对象，如果不携带form表单，那么就封装null。
+在 Turbo-web 中，请求体的form表单是通过HttpContext的loadForm方法来实现的。该方法会自动将请求体的form表单封装为对象，如果不携带form表单，那么就封装null。
 ```java
 @Post
-public void saveUser(HttpContext ctx) {
-    User user = ctx.loadForm(User.class);
-    ctx.json(user);
+public User saveUser(HttpContext c) {
+    User user = c.loadForm(User.class);
+    System.out.println(user);
+    return user;
 }
 ```
-当然也可以通过request获取最原始的参数，类似查询参数一样。
-
 ### 封装json参数
-在 Turbo-web 中，封装json参数是通过ctx.loadJson方法来实现的。该方法会自动将请求体的json参数封装为对象，缺少的json参数，会封装为null。
+在 Turbo-web 中，封装json参数是通过HttpContext的loadJson方法来实现的。该方法会自动将请求体的json参数封装为对象，缺少的json参数，会封装为null。
 ```java
 @Post
-public void saveUser(HttpContext ctx) {
-    User user = ctx.loadJson(User.class);
-    ctx.json(user);
+public User saveUser(HttpContext c) {
+    User user = c.loadJson(User.class);
+    System.out.println(user);
+    return user;
 }
 ```
 > 注意：如果请求体是空字符串，那么这个方法会抛出一个TurboParamParseException异常。
@@ -226,43 +339,45 @@ public void saveUser(HttpContext ctx) {
 ```java
 public class User {
 
-    @NotBlank(message = "name不能为空")
-    private String name;
-    @NotNull(message = "age不能为空")
-    private Integer age;
+	@NotBlank(message = "name is required")
+	private String name;
+	@Max(value = 100, message = "age must be less than 100")
+	@Min(value = 0, message = "age must be greater than 0")
+	private int age;
 
-    public String getName() {
-        return name;
-    }
+	public void setName(String name) {
+		this.name = name;
+	}
 
-    public void setName(String name) {
-        this.name = name;
-    }
+	public String getName() {
+		return name;
+	}
 
-    public Integer getAge() {
-        return age;
-    }
+	public void setAge(int age) {
+		this.age = age;
+	}
 
-    public void setAge(Integer age) {
-        this.age = age;
-    }
+	public int getAge() {
+		return age;
+	}
 
-    @Override
-    public String toString() {
-        return "User{" +
-            "name='" + name + '\'' +
-            ", age=" + age +
-            '}';
-    }
+	@Override
+	public String toString() {
+		return "User{" +
+			"name='" + name + '\'' +
+			", age=" + age +
+			'}';
+	}
 }
 ```
-然后获取参数之后通过ctx.validate方法校验：
+然后获取参数之后通过HttpContext的validate方法校验：
 ```java
 @Post
-public void saveUser(HttpContext ctx) {
-    User user = ctx.loadJson(User.class);
-    ctx.validate(user);
-    ctx.json(user);
+public User saveUser(HttpContext c) {
+    User user = c.loadJson(User.class);
+    c.validate(user);
+    System.out.println(user);
+    return user;
 }
 ```
 数据校验失败就会抛出TurboArgsValidationException，里面封装了校验异常的message。
@@ -272,114 +387,151 @@ public void saveUser(HttpContext ctx) {
 Turbo-web开提供了一种封装参数之后自动校验的机制，就是携带loadVaild前缀的方法：
 ```java
 @Post
-public void saveUser(HttpContext ctx) {
-    User user = ctx.loadValidJson(User.class);
-    ctx.json(user);
+public User saveUser(HttpContext c) {
+    User user = c.loadValidJson(User.class);
+    System.out.println(user);
+    return user;
 }
 ```
 这个方法就是将封装参数和validate方法合并起来，查询参数和表单参数也有类似的方法。
 
-## 文件上传
+## 文件的操作
+
+### 文件的上传
+
+获取单个文件：
+
 ```java
 @Post
-public void uploadFile(HttpContext ctx) throws IOException {
-    List<FileUpload> file = ctx.getFileUploads("file");
-    if (!file.isEmpty()) {
-        FileUpload fileUpload = file.getFirst();
-        fileUpload.renameTo(new File("D:\\" + fileUpload.getFilename()));
-    }
-    context.text("success");
+public String upload(HttpContext c) {
+    FileUpload fileUpload = c.loadFile("file");
+    System.out.println(fileUpload);
+    return "ok";
 }
 ```
-文件上传在Turbo-web中，是通过ctx.getFileUploads方法来实现的。该方法会返回一个List集合，集合中的元素为FileUpload对象，FileUpload对象封装了文件上传的信息，包括文件名、文件大小、文件内容等。
 
-也可以获取文件的字节信息：
+如果上传的文件是多个：
+
 ```java
 @Post
-public void uploadFile(HttpContext context) throws IOException {
-    List<FileUpload> file = context.getFileUploads("file");
-    if (!file.isEmpty()) {
-        FileUpload fileUpload = file.getFirst();
-        byte[] bytes = fileUpload.get();
-        System.out.printf("文件大小：%d%n", bytes.length);
+public String upload(HttpContext c) {
+    List<FileUpload> fileUploads = c.loadFiles("file");
+    for (FileUpload fileUpload : fileUploads) {
+        System.out.println(fileUpload.getFilename());
     }
-    context.text("success");
-}
-```
-通过fileUpload的get方法即可获取文件的字节数组。
-
-## 数据的响应
-Turbo-web提供了两种数据响应的方式：一种是使用通过HttpContext的方法进行响应，响应内容的格式根据方法不同而不同；另一种直接return，如果return的是字符串，那么会被当作text格式的处理，否则被当成json格式进行处理。
-
-如果两种方式同时使用，那么通过HttpContext调用方法的响应会优先生效。
-
-### 通过HttpContext响应数据
-1.响应text格式内容
-```java
-@Get
-public void hello(HttpContext ctx) {
-    ctx.text("Hello Turbo Web!");
-}
-```
-2.响应html格式内容
-```java
-@Get
-public void hello(HttpContext ctx) {
-    ctx.html("<h1>Hello Turbo Web!</h1>");
-}
-```
-3.响应json格式内容
-```java
-@Get
-public void hello(HttpContext ctx) {
-    User user = new User();
-    user.setName("Turbo web");
-    user.setAge(18);
-    ctx.json(user);
-}
-```
-Turbo-web也提供了响应时指定响应状态码的便捷操作
-```java
-@Get
-public void hello(HttpContext ctx) {
-    ctx.text(HttpResponseStatus.OK, "Hello World");
-}
-```
-html和json格式的也是类似。
-
-### 直接通过返回值的方式
-```java
-@Get
-public User hello(HttpContext ctx) {
-    User user = new User();
-    user.setName("Turbo web");
-    user.setAge(18);
-    return user;
+    return "ok";
 }
 ```
 
-### 获取响应对象进行精细化的控制
-```java
-@Get
-public void hello(HttpContext ctx) {
-    HttpInfoResponse response = ctx.getResponse();
-    ctx.text("Hello Turbo Web!");
-    response.setStatus(HttpResponseStatus.OK);
-}
-```
-> 注意：不推荐在response中写入内容，这会造成内容重复写入，推荐使用HttpContext的方法写入内容，如果要设置状态码需要在调用写入方法知乎，因为写入时不指定状态码会默认设置200。
+TurboWeb上传文件之后会在磁盘上创建文件进行落盘处理，这在上传大文件时可以有效的防止内存膨胀，通过打印FileUpload对象就可以查看文件临时存储的位置，而且在当前请求结束之后，TurboWeb会自动删除这个临时落盘的文件。
 
-### 响应自定义的response对象
+下面来看一下如何对上传文件进行处理。
+
+获取文件的字节数组：
+
 ```java
-@Get
-public HttpResponse index(HttpContext ctx) {
-    HttpInfoResponse response = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-    response.setContent("Hello World!");
-    response.setContentType("text/plain;charset=UTF-8");
-    return response;
+byte[] bytes = fileUpload.get();
+```
+
+这个操作会直接将文件的所有字节读取到Java的堆内存，在文件较大的时候不推荐使用，容易出现OOM。
+
+获取落盘之后的文件对象：
+
+```java
+File file = fileUpload.getFile();
+```
+
+将文件保存到指定的位置：
+
+```java
+fileUpload.renameTo(new File("D:\\test.txt"));
+```
+
+这个操作不会将文件的数据读取到内存，而是直接利用操作系统的文件操作来实现。
+
+### 文件的下载
+
+TurboWe对文件的下载提供了三种方式：
+
+- 通过HttpContext的download方法进行下载。
+- 通过FileStreamResponse进行文件下载。
+- 通过FileRegionResponse进行文件下载（零拷贝）。
+
+> 注意：
+>
+> HttpContext的download会将文件全部读取到内存再下载，性能比较低下，仅仅适用于小文件或者内存中的文件。
+>
+> FileStreamResponse采用的是便读取边下载的方式，文件的数据通过直接缓冲区缓存，不会到达Java的堆内存，非常适合大文件，但是会阻塞当前处理请求的线程，因此通常建议在VirtualHttpScheduler中使用。
+>
+> FileRegionResponse是采用的零拷贝进行文件的下载，非常高效，但是HTTPS中可能不适用。
+>
+> - 反应式调度器中不推荐使用前两种文件下载的方式，推荐直接零拷贝。
+> - 如果针对大文件，优先选择使用FileRegionResponse，仅仅在零拷贝不可以时再考虑FileStreamResponse。
+
+####  使用HttpContext的download进行文件下载
+
+```java
+@Get("/download")
+public void download(HttpContext c) {
+    String path = "C:\\Users\\heimi\\Downloads\\img.png";
+    c.download(new File(path));
 }
 ```
-> 这里的response对象也可以直接使用HttpContext中的response对象，调度器会自动检测是否使用的是Context来保证资源的释放。
+
+这种方式进行文件下载的时候会将文件内容全部读取到jvm内存之中然后进行下载，因此不适合大文件的下载。
+
+HttpContext的download方法还提供了几个重载：
+
+```java
+@SyncOnce
+Void download(HttpResponseStatus var1, byte[] var2, String var3);
+```
+
+- var1 响应状态码。
+- var2 文件的字节数组。
+- var3 文件名。
+
+```java
+@SyncOnce
+Void download(byte[] var1, String var2);
+```
+
+- var1 文件的字节数组。
+- var2 文件名。
+
+```java
+@SyncOnce
+Void download(HttpResponseStatus var1, File var2);
+```
+
+- var1 响应状态码。
+- var2 文件对象。
+
+```java
+@SyncOnce
+Void download(File var1);
+```
+
+- var1 文件对象。
+
+```java
+@SyncOnce
+Void download(HttpResponseStatus var1, InputStream var2, String var3);
+```
+
+- var1 响应状态码。
+- var2 文件的输入流。
+- var3 文件名。
+
+```java
+@SyncOnce
+Void download(InputStream var1, String var2);
+```
+
+- var1 文件的输入流。
+- var2 文件名。
+
+
 
 ## 中间件
 

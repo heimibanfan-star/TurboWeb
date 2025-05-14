@@ -36,8 +36,11 @@ public class Application {
 
 	public static void main(String[] args) throws IOException {
 		TurboWebLogUtils.simpleLog();
-		ChannelFuture channelFuture = new StandardTurboWebServer(Application.class, 1)
+		ChannelFuture channelFuture = new StandardTurboWebServer(Application.class, 16)
 			.controllers(new HelloController())
+			.config(config -> {
+				config.setShowRequestLog(false);
+			})
 			.start();
 		channelFuture.addListener(future -> {
 			log.info("启动成功");
