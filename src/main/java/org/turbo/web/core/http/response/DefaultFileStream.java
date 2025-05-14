@@ -72,7 +72,7 @@ public class DefaultFileStream implements FileStream {
 								lock.wait(20);
 							}
 						}
-					} catch (Exception ignored) {
+					} catch (InterruptedException ignored) {
 					}
 				} else {
 					function.apply(null, exception);
