@@ -21,9 +21,9 @@ public class HelloController {
 
 	@Get("/download")
 	public HttpResponse download(HttpContext c) {
-//		String path = "C:\\Users\\heimi\\Downloads\\temp";
-		String path = "C:\\Users\\heimi\\Downloads\\video.mp4";
-		FileStreamResponse fileResponse = new FileStreamResponse(new File(path), 1024 * 1024);
+		String path = "C:\\Users\\heimi\\Downloads\\temp";
+//		String path = "C:\\Users\\heimi\\Downloads\\video.mp4";
+		FileStreamResponse fileResponse = new FileStreamResponse(new File(path), false);
 		return fileResponse;
 	}
 
