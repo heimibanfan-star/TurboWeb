@@ -11,6 +11,9 @@ import org.turbo.web.core.http.middleware.Middleware;
 import org.turbo.web.core.http.cookie.Cookies;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
+import org.turbo.web.core.http.response.IgnoredHttpResponse;
+import org.turbo.web.core.http.response.sync.InternalSseEmitter;
+import org.turbo.web.core.http.response.sync.SseEmitter;
 import org.turbo.web.core.http.session.SessionManagerProxy;
 import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.lock.Locks;
@@ -101,6 +104,13 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
             }
             // 判断返回值是否是响应对象
             case HttpResponse httpResponse -> {
+                // 如果是sse发射器直接忽略
+                if (httpResponse instanceof SseEmitter sseEmitter) {
+                    // 初始化sse发射器
+                    InternalSseEmitter internalSseEmitter = (InternalSseEmitter) sseEmitter;
+                    internalSseEmitter.initSse();
+                    httpResponse = IgnoredHttpResponse.ignore();
+                }
                 // 判断是否需要释放内存
                 if (ctx.getResponse() != httpResponse) {
                     ctx.getResponse().release();

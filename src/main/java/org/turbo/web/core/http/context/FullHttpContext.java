@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.turbo.web.core.connect.ConnectSession;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
+import org.turbo.web.core.http.response.sync.InternalSseEmitter;
+import org.turbo.web.core.http.response.sync.SseEmitter;
 import org.turbo.web.exception.TurboArgsValidationException;
 import org.turbo.web.exception.TurboParamParseException;
 import org.turbo.web.exception.TurboResponseRepeatWriteException;
@@ -216,6 +218,16 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		T result = this.loadJson(beanType);
 		validate(result);
 		return result;
+	}
+
+	@Override
+	public SseEmitter newSseEmitter() {
+		return new InternalSseEmitter(connectSession, 32);
+	}
+
+	@Override
+	public SseEmitter newSseEmitter(int maxMessageCache) {
+		return new InternalSseEmitter(connectSession, maxMessageCache);
 	}
 
 	/**

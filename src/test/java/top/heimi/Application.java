@@ -4,6 +4,7 @@ import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turbo.web.core.http.middleware.CorsMiddleware;
+import org.turbo.web.core.http.middleware.ServerInfoMiddleware;
 import org.turbo.web.core.http.middleware.sync.InterceptorMiddleware;
 import org.turbo.web.core.server.StandardTurboWebServer;
 import org.turbo.web.utils.log.TurboWebLogUtils;
@@ -39,8 +40,9 @@ public class Application {
 		ChannelFuture channelFuture = new StandardTurboWebServer(Application.class, 1)
 			.controllers(new HelloController())
 			.config(config -> {
-				config.setShowRequestLog(false);
+//				config.setShowRequestLog(false);
 			})
+			.middlewares(new ServerInfoMiddleware())
 			.start();
 		channelFuture.addListener(future -> {
 			log.info("启动成功");

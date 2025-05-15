@@ -165,7 +165,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     protected void writeResponse(ConnectSession session, FullHttpRequest request, HttpResponse response, long startTime) {
         ChannelFuture channelFuture = httpResponseAdapter.writeHttpResponse(response, session);
         // 打印性能日志
-        if (showRequestLog) {
+        if (showRequestLog && channelFuture != null) {
             channelFuture.addListener(future -> {
                 log(request, System.nanoTime() - startTime);
             });

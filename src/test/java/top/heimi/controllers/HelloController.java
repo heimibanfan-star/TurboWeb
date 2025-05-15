@@ -5,6 +5,7 @@ import org.turbo.web.anno.Get;
 import org.turbo.web.anno.RequestPath;
 import org.turbo.web.core.http.context.HttpContext;
 import org.turbo.web.core.http.response.FileStreamResponse;
+import org.turbo.web.core.http.response.sync.SseEmitter;
 
 import java.io.File;
 
@@ -21,10 +22,30 @@ public class HelloController {
 
 	@Get("/download")
 	public HttpResponse download(HttpContext c) {
-		String path = "C:\\Users\\heimi\\Downloads\\temp";
-//		String path = "C:\\Users\\heimi\\Downloads\\video.mp4";
-		FileStreamResponse fileResponse = new FileStreamResponse(new File(path), false);
+		String path = "C:\\Users\\heimi\\Downloads\\temp";  // 28GB
+		FileStreamResponse fileResponse = new FileStreamResponse(new File(path), 1024 * 1024 * 10, true);
 		return fileResponse;
+	}
+
+	@Get("/sse")
+	public SseEmitter sse(HttpContext c) throws InterruptedException {
+		SseEmitter sseEmitter = c.newSseEmitter();
+		Thread.ofVirtual().start(() -> {
+			for (int i = 0; i < 10; i++) {
+				sseEmitter.send("hello world" + i);
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+			}
+			sseEmitter.close();
+		});
+		sseEmitter.onClose(obj -> {
+			System.out.println("close:" + (obj == sseEmitter));
+		});
+		Thread.sleep(5000);
+		return sseEmitter;
 	}
 
 }

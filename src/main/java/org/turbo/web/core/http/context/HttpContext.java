@@ -8,6 +8,7 @@ import org.turbo.web.core.http.cookie.HttpCookie;
 import org.turbo.web.core.http.request.HttpInfoRequest;
 import org.turbo.web.core.http.response.HttpInfoResponse;
 import org.turbo.web.core.http.response.SseResponse;
+import org.turbo.web.core.http.response.sync.SseEmitter;
 import org.turbo.web.core.http.session.Session;
 
 import java.io.File;
@@ -227,4 +228,13 @@ public interface HttpContext {
 	 * @return 文件下载扩展
 	 */
 	HttpContextFileHelper fileHelper();
+
+	/**
+	 * 创建sse发射器
+	 *
+	 * @return sse发射器
+	 */
+	SseEmitter newSseEmitter();
+
+	SseEmitter newSseEmitter(int maxMessageCache);
 }

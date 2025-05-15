@@ -18,6 +18,9 @@ public class DefaultHttpResponseAdapter implements HttpResponseAdapter{
 
 	@Override
 	public ChannelFuture writeHttpResponse(HttpResponse response, ConnectSession session) {
+		if (response instanceof IgnoredHttpResponse) {
+			return null;
+		}
 		InternalConnectSession internalConnectSession = (InternalConnectSession) session;
 		ChannelFuture channelFuture = internalConnectSession.getChannel().writeAndFlush(response);
 		// 判断是否是文件下载响应
