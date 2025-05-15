@@ -13,6 +13,9 @@ public class InternalSseEmitter extends SseEmitter{
 		super(session, maxMessageCache);
 	}
 
+	/**
+	 * 初始化SSE发射器（由框架内部初始化，禁止开发者调用）
+	 */
 	public void initSse() {
 		ReentrantReadWriteLock.WriteLock writeLock = sseLock.writeLock();
 		try {
