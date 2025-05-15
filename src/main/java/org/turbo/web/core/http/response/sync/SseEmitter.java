@@ -40,7 +40,7 @@ public abstract class SseEmitter extends DefaultHttpResponse {
 		ReentrantReadWriteLock.ReadLock readLock = sseLock.readLock();
 		try {
 			readLock.lock();
-			if (!isInit && messageCache != null) {
+			if (!isInit) {
 				saveMessageToCache(message);
 			} else {
 				session.send(message);
