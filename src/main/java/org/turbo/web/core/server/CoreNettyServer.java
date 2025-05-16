@@ -19,12 +19,7 @@ public class CoreNettyServer {
 
 	public CoreNettyServer(int ioThreadNum) {
 		if (ioThreadNum <= 0) {
-			int cpuNum = Runtime.getRuntime().availableProcessors();
-			if (cpuNum > 1) {
-				ioThreadNum = cpuNum / 2;
-			} else {
-				ioThreadNum = 1;
-			}
+			ioThreadNum = 1;
 		}
 		workers = new NioEventLoopGroup(ioThreadNum);
 		serverBootstrap.group(
