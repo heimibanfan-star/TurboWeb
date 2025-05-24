@@ -14,6 +14,7 @@
         <module>turboweb-commons</module>
         <module>turboweb-example</module>
         <module>turboweb-client</module>
+        <module>turboweb-websocket</module>
     </modules>
 
     <properties>

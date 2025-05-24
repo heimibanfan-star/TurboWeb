@@ -5,10 +5,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turboweb.core.config.ServerParamConfig;
 import org.turboweb.core.gateway.Gateway;
-import org.turboweb.core.piplines.HttpWorkerDispatcherHandler;
+import org.turboweb.core.dispatch.HttpProtocolDispatcher;
 import org.turboweb.core.http.middleware.Middleware;
 import org.turboweb.core.http.session.SessionManager;
-import org.turboweb.core.http.ws.WebSocketHandler;
+import org.turboweb.websocket.WebSocketHandler;
 import org.turboweb.core.initializer.impl.DefaultHttpClientInitializer;
 import org.turboweb.core.listener.DefaultJacksonTurboWebListener;
 import org.turboweb.core.listener.TurboWebListener;
@@ -143,8 +143,8 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	 */
 	private void init() {
 		new DefaultHttpClientInitializer().init(workers());
-		HttpWorkerDispatcherHandler httpWorkerDispatcherHandler = httpWorkDispatcherFactory.create(mainClass, config);
-		initPipeline(httpWorkerDispatcherHandler, config.getMaxContentLength());
+		HttpProtocolDispatcher httpProtocolDispatcher = httpWorkDispatcherFactory.create(mainClass, config);
+		initPipeline(httpProtocolDispatcher, config.getMaxContentLength());
 	}
 
 	/**

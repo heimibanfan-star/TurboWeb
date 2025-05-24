@@ -4,13 +4,13 @@ import org.turboweb.core.config.ServerParamConfig;
 import org.turboweb.core.gateway.Gateway;
 import org.turboweb.core.initializer.*;
 import org.turboweb.core.initializer.impl.*;
-import org.turboweb.core.piplines.HttpWorkerDispatcherHandler;
+import org.turboweb.core.dispatch.HttpProtocolDispatcher;
 import org.turboweb.core.http.handler.ExceptionHandlerMatcher;
 import org.turboweb.core.http.middleware.Middleware;
 import org.turboweb.core.http.scheduler.HttpScheduler;
 import org.turboweb.core.http.session.SessionManager;
 import org.turboweb.core.http.session.SessionManagerProxy;
-import org.turboweb.core.http.ws.WebSocketHandler;
+import org.turboweb.websocket.WebSocketHandler;
 
 /**
  * http工作分发器代理的核心实现类
@@ -69,12 +69,12 @@ public class CoreHttpWorkDispatcherFactory implements HttpWorkDispatcherFactory 
 	}
 
 	@Override
-	public HttpWorkerDispatcherHandler create(Class<?> mainClass, ServerParamConfig config) {
+	public HttpProtocolDispatcher create(Class<?> mainClass, ServerParamConfig config) {
 		ExceptionHandlerMatcher handlerMatcher = exceptionHandlerInitializer.init();
 		SessionManagerProxy sessionManagerProxy = sessionManagerProxyInitializer.init(config);
 		Middleware chain = middlewareInitializer.init(sessionManagerProxy, mainClass, handlerMatcher, config);
 		HttpScheduler httpScheduler = httpSchedulerInitializer.init(sessionManagerProxy, handlerMatcher, chain, config);
-		return new HttpWorkerDispatcherHandler(
+		return new HttpProtocolDispatcher(
 			httpScheduler,
 			webSocketHandlerInitializer.isUse()? webSocketHandlerInitializer.init() : null,
 			webSocketHandlerInitializer.isUse()? webSocketHandlerInitializer.getPath() : null,

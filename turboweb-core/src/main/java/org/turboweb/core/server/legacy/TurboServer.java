@@ -4,7 +4,7 @@ import org.turboweb.core.config.ServerParamConfig;
 import org.turboweb.core.gateway.Gateway;
 import org.turboweb.core.http.middleware.Middleware;
 import org.turboweb.core.http.session.SessionManager;
-import org.turboweb.core.http.ws.WebSocketHandler;
+import org.turboweb.websocket.WebSocketHandler;
 import org.turboweb.core.initializer.HttpClientInitializer;
 import org.turboweb.core.listener.TurboWebListener;
 

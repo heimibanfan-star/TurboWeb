@@ -1,4 +1,4 @@
-package org.turboweb.core.piplines;
+package org.turboweb.core.dispatch;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.*;
@@ -9,25 +9,26 @@ import org.slf4j.LoggerFactory;
 import org.turboweb.core.connect.InternalConnectSession;
 import org.turboweb.core.gateway.Gateway;
 import org.turboweb.core.http.scheduler.HttpScheduler;
-import org.turboweb.core.http.ws.PathWebSocketPreInit;
-import org.turboweb.core.http.ws.WebSocketConnectInfo;
-import org.turboweb.core.http.ws.WebSocketConnectInfoContainer;
-import org.turboweb.core.http.ws.WebSocketPreInit;
+import org.turboweb.websocket.PathWebSocketPreInit;
+import org.turboweb.websocket.WebSocketConnectInfo;
+import org.turboweb.websocket.WebSocketConnectInfoContainer;
+import org.turboweb.websocket.WebSocketPreInit;
+import org.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
 
 /**
  * 转交http请求
  */
 @ChannelHandler.Sharable
-public class HttpWorkerDispatcherHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class HttpProtocolDispatcher extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-    private static final Logger log = LoggerFactory.getLogger(HttpWorkerDispatcherHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(HttpProtocolDispatcher.class);
     private final HttpScheduler httpScheduler;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final WebSocketDispatcherHandler webSocketDispatcherHandler;
     private final WebSocketPreInit webSocketPreInit;
     private final Gateway gateway;
 
-    public HttpWorkerDispatcherHandler(
+    public HttpProtocolDispatcher(
         HttpScheduler httpScheduler,
         WebSocketDispatcherHandler webSocketDispatcherHandler,
         String websocketPath,

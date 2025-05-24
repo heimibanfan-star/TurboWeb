@@ -1,4 +1,4 @@
-package org.turboweb.core.func;
+package org.turboweb.commons.func;
 
 /**
  * 三参数的消费者

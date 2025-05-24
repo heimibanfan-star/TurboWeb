@@ -1,10 +1,10 @@
-package org.turboweb.core.http.ws;
+package org.turboweb.websocket;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import org.turboweb.core.piplines.WebSocketDispatcherHandler;
+import org.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
 
 /**
  * 路径处理的初始化器

@@ -1,4 +1,4 @@
-package org.turboweb.core.http.ws;
+package org.turboweb.websocket;
 
 /**
  * websocket的连接信息

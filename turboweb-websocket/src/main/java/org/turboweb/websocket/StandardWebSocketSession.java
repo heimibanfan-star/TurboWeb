@@ -1,4 +1,4 @@
-package org.turboweb.core.http.ws;
+package org.turboweb.websocket;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

@@ -1,7 +1,7 @@
 package org.turboweb.core.initializer;
 
-import org.turboweb.core.piplines.WebSocketDispatcherHandler;
-import org.turboweb.core.http.ws.WebSocketHandler;
+import org.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
+import org.turboweb.websocket.WebSocketHandler;
 
 /**
  * websocket处理器的初始化器

@@ -7,17 +7,19 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.turboweb.core.dispatch.HttpProtocolDispatcher;
 import org.turboweb.core.gateway.Gateway;
 import org.turboweb.core.http.scheduler.HttpScheduler;
+import org.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
 
 /**
- * 通道处理器
+ * http协议分发器
  */
 public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
 
     private static final Logger log = LoggerFactory.getLogger(TurboChannelHandler.class);
     private final int maxContentLength;
-    private final HttpWorkerDispatcherHandler httpWorkerDispatcherHandler;
+    private final HttpProtocolDispatcher httpProtocolDispatcher;
     private final Gateway gateway;
 
     public TurboChannelHandler(
@@ -29,7 +31,7 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
     ) {
         super();
         this.maxContentLength = maxContentLength;
-        this.httpWorkerDispatcherHandler = new HttpWorkerDispatcherHandler(httpScheduler, webSocketDispatcherHandler, websocketPath, gateway);
+        this.httpProtocolDispatcher = new HttpProtocolDispatcher(httpScheduler, webSocketDispatcherHandler, websocketPath, gateway);
         this.gateway = gateway;
     }
 
@@ -39,6 +41,6 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
         pipeline.addLast(new HttpServerCodec());
         pipeline.addLast(new HttpObjectAggregator(maxContentLength));
         pipeline.addLast(new ChunkedWriteHandler());
-        pipeline.addLast(httpWorkerDispatcherHandler);
+        pipeline.addLast(httpProtocolDispatcher);
     }
 }

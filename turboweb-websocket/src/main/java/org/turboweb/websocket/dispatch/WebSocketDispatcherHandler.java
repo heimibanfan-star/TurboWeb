@@ -1,12 +1,12 @@
-package org.turboweb.core.piplines;
+package org.turboweb.websocket.dispatch;
 
 import io.netty.channel.*;
 import io.netty.handler.codec.http.websocketx.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turboweb.core.http.ws.*;
 import org.turboweb.commons.exception.TurboWebSocketException;
 import org.turboweb.commons.utils.thread.VirtualThreadUtils;
+import org.turboweb.websocket.*;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

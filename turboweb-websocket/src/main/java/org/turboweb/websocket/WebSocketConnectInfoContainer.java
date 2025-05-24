@@ -1,4 +1,4 @@
-package org.turboweb.core.http.ws;
+package org.turboweb.websocket;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

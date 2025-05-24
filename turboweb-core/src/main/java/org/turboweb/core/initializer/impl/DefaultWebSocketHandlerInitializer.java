@@ -3,8 +3,8 @@ package org.turboweb.core.initializer.impl;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turboweb.core.piplines.WebSocketDispatcherHandler;
-import org.turboweb.core.http.ws.WebSocketHandler;
+import org.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
+import org.turboweb.websocket.WebSocketHandler;
 import org.turboweb.core.initializer.WebSocketHandlerInitializer;
 import org.turboweb.commons.exception.TurboWebSocketException;
 

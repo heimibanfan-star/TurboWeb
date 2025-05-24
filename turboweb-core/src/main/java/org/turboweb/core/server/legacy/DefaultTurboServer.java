@@ -17,7 +17,7 @@ import org.turboweb.core.http.handler.ExceptionHandlerMatcher;
 import org.turboweb.core.http.middleware.Middleware;
 import org.turboweb.core.http.session.SessionManager;
 import org.turboweb.core.http.session.SessionManagerProxy;
-import org.turboweb.core.http.ws.WebSocketHandler;
+import org.turboweb.websocket.WebSocketHandler;
 import org.turboweb.core.listener.DefaultJacksonTurboWebListener;
 import org.turboweb.core.listener.TurboWebListener;
 import org.turboweb.core.http.request.HttpInfoRequestPackageHelper;

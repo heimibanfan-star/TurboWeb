@@ -2,10 +2,10 @@ package org.turboweb.core.server;
 
 import org.turboweb.core.config.ServerParamConfig;
 import org.turboweb.core.gateway.Gateway;
-import org.turboweb.core.piplines.HttpWorkerDispatcherHandler;
+import org.turboweb.core.dispatch.HttpProtocolDispatcher;
 import org.turboweb.core.http.middleware.Middleware;
 import org.turboweb.core.http.session.SessionManager;
-import org.turboweb.core.http.ws.WebSocketHandler;
+import org.turboweb.websocket.WebSocketHandler;
 
 /**
  * http工作分发器的代理对象
@@ -60,7 +60,7 @@ public interface HttpWorkDispatcherFactory {
 	 * 创建http工作分发器
 	 * @return http工作分发器
 	 */
-	HttpWorkerDispatcherHandler create(Class<?> mainClass, ServerParamConfig config);
+	HttpProtocolDispatcher create(Class<?> mainClass, ServerParamConfig config);
 
 	/**
 	 * 替换session管理器

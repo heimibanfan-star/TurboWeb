@@ -7,7 +7,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import org.turboweb.core.piplines.HttpWorkerDispatcherHandler;
+import org.turboweb.core.dispatch.HttpProtocolDispatcher;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +89,7 @@ public class CoreTurboWebServer {
 	 * @param dispatcherHandler http工作分发器
 	 * @param maxContentLen 最大内容长度
 	 */
-	protected final void initPipeline(HttpWorkerDispatcherHandler dispatcherHandler, int maxContentLen) {
+	protected final void initPipeline(HttpProtocolDispatcher dispatcherHandler, int maxContentLen) {
 		coreNettyServer.childChannelInitPipeline(pipeline -> {
 			for (ChannelHandler channelHandler : frontHandlers) {
 				pipeline.addLast(channelHandler);
