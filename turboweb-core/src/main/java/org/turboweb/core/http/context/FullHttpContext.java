@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turboweb.core.connect.ConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
 import org.turboweb.core.http.request.HttpInfoRequest;
 import org.turboweb.core.http.response.HttpInfoResponse;
 import org.turboweb.core.http.response.sync.InternalSseEmitter;

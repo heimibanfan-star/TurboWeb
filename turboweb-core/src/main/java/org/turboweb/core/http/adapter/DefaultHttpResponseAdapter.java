@@ -5,8 +5,8 @@ import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turboweb.core.connect.ConnectSession;
-import org.turboweb.core.connect.InternalConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
+import org.turboweb.core.http.connect.InternalConnectSession;
 import org.turboweb.core.http.response.*;
 
 /**

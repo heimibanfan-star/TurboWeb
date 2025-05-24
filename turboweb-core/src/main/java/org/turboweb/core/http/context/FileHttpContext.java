@@ -4,7 +4,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.apache.commons.io.FileUtils;
-import org.turboweb.core.connect.ConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
 import org.turboweb.core.http.request.HttpInfoRequest;
 import org.turboweb.core.http.response.HttpInfoResponse;
 import org.turboweb.commons.exception.TurboFileException;

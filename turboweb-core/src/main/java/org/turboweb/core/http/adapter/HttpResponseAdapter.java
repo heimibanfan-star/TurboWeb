@@ -2,7 +2,7 @@ package org.turboweb.core.http.adapter;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
-import org.turboweb.core.connect.ConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
 
 /**
  * http响应的适配器

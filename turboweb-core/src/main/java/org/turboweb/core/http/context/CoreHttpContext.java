@@ -2,7 +2,7 @@ package org.turboweb.core.http.context;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import org.turboweb.core.connect.ConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
 import org.turboweb.core.http.cookie.HttpCookie;
 import org.turboweb.core.http.request.HttpInfoRequest;
 import org.turboweb.core.http.response.HttpInfoResponse;

@@ -2,7 +2,7 @@ package org.turboweb.core.http.response;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.*;
-import org.turboweb.core.connect.ConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
 import org.turboweb.commons.utils.base.BeanUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

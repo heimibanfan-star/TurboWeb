@@ -6,7 +6,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turboweb.core.connect.InternalConnectSession;
+import org.turboweb.core.http.connect.InternalConnectSession;
 import org.turboweb.core.gateway.Gateway;
 import org.turboweb.core.http.scheduler.HttpScheduler;
 import org.turboweb.websocket.PathWebSocketPreInit;

@@ -1,7 +1,7 @@
 package org.turboweb.core.http.scheduler;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import org.turboweb.core.connect.ConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
 
 /**
  * http处理的适配器

@@ -1,7 +1,7 @@
 package org.turboweb.core.http.response;
 
 import io.netty.handler.codec.http.HttpResponse;
-import org.turboweb.core.connect.ConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
 
 /**
  * 封装sse的结果对象

@@ -1,7 +1,7 @@
 package org.turboweb.core.http.response.sync;
 
 import io.netty.handler.codec.http.*;
-import org.turboweb.core.connect.ConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
 import org.turboweb.commons.exception.TurboSseException;
 
 import java.util.LinkedList;

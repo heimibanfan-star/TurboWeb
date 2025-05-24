@@ -1,7 +1,7 @@
 package org.turboweb.core.http.response.sync;
 
-import org.turboweb.core.connect.ConnectSession;
-import org.turboweb.core.connect.InternalConnectSession;
+import org.turboweb.core.http.connect.ConnectSession;
+import org.turboweb.core.http.connect.InternalConnectSession;
 
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
