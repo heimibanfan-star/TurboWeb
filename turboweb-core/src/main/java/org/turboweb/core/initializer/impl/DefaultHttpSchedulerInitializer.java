@@ -34,14 +34,13 @@ public class DefaultHttpSchedulerInitializer implements HttpSchedulerInitializer
                 sessionManagerProxy,
                 chain,
                 matcher,
-                config
+                config.getReactiveServiceThreadNum()
             );
         } else {
             scheduler = new VirtualThreadHttpScheduler(
                 sessionManagerProxy,
                 chain,
-                matcher,
-                config
+                matcher
             );
         }
         scheduler.setShowRequestLog(config.isShowRequestLog());

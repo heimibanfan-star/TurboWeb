@@ -29,14 +29,12 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
     public VirtualThreadHttpScheduler(
         SessionManagerProxy sessionManagerProxy,
         Middleware chain,
-        ExceptionHandlerMatcher exceptionHandlerMatcher,
-        ServerParamConfig config
+        ExceptionHandlerMatcher exceptionHandlerMatcher
     ) {
         super(
             sessionManagerProxy,
             chain,
             exceptionHandlerMatcher,
-            config,
             VirtualThreadHttpScheduler.class
         );
     }

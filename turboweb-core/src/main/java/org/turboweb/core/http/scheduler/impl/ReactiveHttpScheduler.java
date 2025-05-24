@@ -22,6 +22,8 @@ import org.turboweb.core.http.request.HttpInfoRequestPackageHelper;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ForkJoinPool;
 
 /**
@@ -31,21 +33,21 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
 
     private final ForkJoinPool SERVICE_POOL;
     private final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
+    private final Charset charset = StandardCharsets.UTF_8;
 
     public ReactiveHttpScheduler(
         SessionManagerProxy sessionManagerProxy,
         Middleware chain,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
-        ServerParamConfig config
+        int forkJoinNum
     ) {
         super(
             sessionManagerProxy,
             chain,
             exceptionHandlerMatcher,
-            config,
             ReactiveHttpScheduler.class
         );
-        SERVICE_POOL = new ForkJoinPool(config.getReactiveServiceThreadNum());
+        SERVICE_POOL = new ForkJoinPool(forkJoinNum);
     }
 
     @Override
@@ -124,13 +126,13 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
             return httpResponse;
         } else if (result instanceof String string) {
             response.setContent(string);
-            response.setContentType("text/plain;charset=" + config.getCharset().name());
+            response.setContentType("text/plain;charset=" + charset.name());
             return response;
         } else {
             try {
                 String s = objectMapper.writeValueAsString(result);
                 response.setContent(s);
-                response.setContentType("application/json;charset=" + config.getCharset().name());
+                response.setContentType("application/json;charset=" + charset.name());
                 return response;
             } catch (JsonProcessingException e) {
                 throw new TurboSerializableException("序列化失败");

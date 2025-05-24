@@ -39,8 +39,6 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     private final SessionManagerProxy sessionManagerProxy;
     private final HttpResponseAdapter httpResponseAdapter = new DefaultHttpResponseAdapter();
     protected boolean showRequestLog = true;
-    protected final ServerParamConfig config;
-    protected final ObjectMapper objectMapper = BeanUtils.getObjectMapper();
 
     {
         colors.put("GET", FontColors.GREEN);
@@ -54,13 +52,11 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         SessionManagerProxy sessionManagerProxy,
         Middleware chain,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
-        ServerParamConfig config,
         Class<?> subClass
     ) {
         this.log = LoggerFactory.getLogger(subClass);
         this.exceptionHandlerMatcher = exceptionHandlerMatcher;
         this.sessionManagerProxy = sessionManagerProxy;
-        this.config = config;
         this.sentinelMiddleware = chain;
     }
 
