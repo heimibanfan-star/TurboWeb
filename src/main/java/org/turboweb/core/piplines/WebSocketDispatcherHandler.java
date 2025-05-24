@@ -5,8 +5,8 @@ import io.netty.handler.codec.http.websocketx.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turboweb.core.http.ws.*;
-import org.turboweb.exception.TurboWebSocketException;
-import org.turboweb.utils.thread.VirtualThreadUtils;
+import org.turboweb.commons.exception.TurboWebSocketException;
+import org.turboweb.commons.utils.thread.VirtualThreadUtils;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

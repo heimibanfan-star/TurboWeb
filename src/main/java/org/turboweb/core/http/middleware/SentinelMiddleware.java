@@ -1,7 +1,7 @@
 package org.turboweb.core.http.middleware;
 
 import org.turboweb.core.http.context.HttpContext;
-import org.turboweb.exception.TurboRequestRejectException;
+import org.turboweb.commons.exception.TurboRequestRejectException;
 
 /**
  * 哨兵节点的中间件

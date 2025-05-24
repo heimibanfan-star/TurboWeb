@@ -2,7 +2,7 @@ package org.turboweb.core.http.response;
 
 import io.netty.handler.codec.http.*;
 import org.apache.hc.core5.http.ContentType;
-import org.turboweb.exception.TurboFileException;
+import org.turboweb.commons.exception.TurboFileException;
 
 import java.io.File;
 import java.net.URLEncoder;

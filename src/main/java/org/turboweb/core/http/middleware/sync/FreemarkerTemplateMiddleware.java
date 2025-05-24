@@ -9,7 +9,7 @@ import org.turboweb.core.http.middleware.Middleware;
 import org.turboweb.core.http.middleware.aware.CharsetAware;
 import org.turboweb.core.http.middleware.aware.MainClassAware;
 import org.turboweb.core.http.response.ViewModel;
-import org.turboweb.exception.TurboTemplateRenderException;
+import org.turboweb.commons.exception.TurboTemplateRenderException;
 
 
 import java.io.IOException;

@@ -1,7 +1,7 @@
 package org.turboweb.core.http.router.container;
 
 import org.turboweb.core.http.router.definition.RouterMethodDefinition;
-import org.turboweb.exception.TurboMethodNotSupportException;
+import org.turboweb.commons.exception.TurboMethodNotSupportException;
 
 import java.util.HashMap;
 import java.util.Map;

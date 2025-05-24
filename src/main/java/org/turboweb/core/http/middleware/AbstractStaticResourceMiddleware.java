@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.turboweb.core.http.context.HttpContext;
 import org.turboweb.core.http.middleware.aware.MainClassAware;
 import org.turboweb.core.http.response.HttpInfoResponse;
-import org.turboweb.exception.TurboStaticResourceException;
+import org.turboweb.commons.exception.TurboStaticResourceException;
 
 import java.io.InputStream;
 import java.util.Map;

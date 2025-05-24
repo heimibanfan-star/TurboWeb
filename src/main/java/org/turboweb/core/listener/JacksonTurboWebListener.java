@@ -1,7 +1,7 @@
 package org.turboweb.core.listener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.turboweb.utils.common.BeanUtils;
+import org.turboweb.commons.utils.common.BeanUtils;
 
 /**
  * jackson序列化初始化监听器

@@ -2,7 +2,7 @@ package org.turboweb.core.http.router.matcher.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turboweb.constants.MatchType;
+import org.turboweb.commons.constants.MatchType;
 import org.turboweb.core.http.router.container.RouterContainer;
 import org.turboweb.core.http.router.definition.RouterMethodDefinition;
 import org.turboweb.core.http.router.matcher.MatchResult;

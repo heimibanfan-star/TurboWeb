@@ -1,7 +1,7 @@
 package org.turboweb.core.http.router.container;
 
 import org.turboweb.core.http.router.definition.RouterMethodDefinition;
-import org.turboweb.exception.TurboRouterException;
+import org.turboweb.commons.exception.TurboRouterException;
 
 import java.util.Map;
 

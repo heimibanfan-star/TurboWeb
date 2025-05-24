@@ -20,7 +20,7 @@ import org.turboweb.core.http.session.SessionManagerProxy;
 import org.turboweb.core.http.ws.WebSocketHandler;
 import org.turboweb.core.listener.DefaultJacksonTurboWebListener;
 import org.turboweb.core.listener.TurboWebListener;
-import org.turboweb.utils.http.HttpInfoRequestPackageUtils;
+import org.turboweb.core.http.request.HttpInfoRequestPackageHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -121,7 +121,7 @@ public class DefaultTurboServer implements TurboServer {
         // 初始化http客户端
         httpClientInitializer.init(workerGroup);
         // 设置请求封装工具的字符集
-        HttpInfoRequestPackageUtils.setCharset(config.getCharset());
+        HttpInfoRequestPackageHelper.setCharset(config.getCharset());
         if (gateway != null) {
             log.info("gateway已启用");
         }

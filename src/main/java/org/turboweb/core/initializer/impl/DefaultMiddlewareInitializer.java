@@ -18,7 +18,7 @@ import org.turboweb.core.http.router.matcher.RouterMatcher;
 import org.turboweb.core.http.router.matcher.impl.DefaultRouterMatcher;
 import org.turboweb.core.http.session.SessionManagerProxy;
 import org.turboweb.core.initializer.MiddlewareInitializer;
-import org.turboweb.utils.init.RouterContainerInitUtils;
+import org.turboweb.core.http.router.container.RouterContainerInitHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -143,7 +143,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
      * @return 路由分发器的中间件
      */
     private HttpRouterDispatcherMiddleware getHttpDispatcherMiddleware() {
-        RouterContainer routerContainer = RouterContainerInitUtils.initContainer(controllers);
+        RouterContainer routerContainer = RouterContainerInitHelper.initContainer(controllers);
         RouterMatcher routerMatcher = new DefaultRouterMatcher(routerContainer);
         HttpDispatcher dispatcher =  new DefaultHttpDispatcher(routerMatcher);
         log.info("http分发器初始化成功");

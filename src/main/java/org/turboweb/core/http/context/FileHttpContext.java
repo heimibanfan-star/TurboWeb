@@ -7,8 +7,8 @@ import org.apache.commons.io.FileUtils;
 import org.turboweb.core.connect.ConnectSession;
 import org.turboweb.core.http.request.HttpInfoRequest;
 import org.turboweb.core.http.response.HttpInfoResponse;
-import org.turboweb.exception.TurboFileException;
-import org.turboweb.exception.TurboResponseRepeatWriteException;
+import org.turboweb.commons.exception.TurboFileException;
+import org.turboweb.commons.exception.TurboResponseRepeatWriteException;
 
 import java.io.File;
 import java.io.IOException;

@@ -1,6 +1,6 @@
 package org.turboweb.core.gateway.matcher;
 
-import org.turboweb.exception.TurboGatewayException;
+import org.turboweb.commons.exception.TurboGatewayException;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

@@ -6,7 +6,7 @@ import org.turboweb.core.http.handler.DefaultExceptionHandlerMatcher;
 import org.turboweb.core.http.handler.ExceptionHandlerContainer;
 import org.turboweb.core.http.handler.ExceptionHandlerMatcher;
 import org.turboweb.core.initializer.ExceptionHandlerInitializer;
-import org.turboweb.utils.init.ExceptionHandlerContainerInitUtils;
+import org.turboweb.core.http.handler.ExceptionHandlerContainerInitHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +28,7 @@ public class DefaultExceptionHandlerInitializer implements ExceptionHandlerIniti
 
     @Override
     public ExceptionHandlerMatcher init() {
-        ExceptionHandlerContainer container = ExceptionHandlerContainerInitUtils.initContainer(exceptionHandlerList);
+        ExceptionHandlerContainer container = ExceptionHandlerContainerInitHelper.initContainer(exceptionHandlerList);
         ExceptionHandlerMatcher matcher = new DefaultExceptionHandlerMatcher(container);
         log.info("异常处理器初始化成功");
         return matcher;

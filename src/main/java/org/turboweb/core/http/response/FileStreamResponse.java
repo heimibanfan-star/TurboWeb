@@ -2,7 +2,7 @@ package org.turboweb.core.http.response;
 
 import io.netty.channel.ChannelProgressiveFutureListener;
 import io.netty.handler.codec.http.*;
-import org.turboweb.exception.TurboFileException;
+import org.turboweb.commons.exception.TurboFileException;
 
 import java.io.File;
 import java.io.IOException;

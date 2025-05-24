@@ -3,7 +3,7 @@ package org.turboweb.core.http.middleware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turboweb.core.http.context.HttpContext;
-import org.turboweb.exception.TurboReactiveException;
+import org.turboweb.commons.exception.TurboReactiveException;
 import reactor.core.publisher.Mono;
 
 /**

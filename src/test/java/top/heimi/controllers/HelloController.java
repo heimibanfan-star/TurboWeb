@@ -1,8 +1,8 @@
 package top.heimi.controllers;
 
 import io.netty.handler.codec.http.HttpResponse;
-import org.turboweb.anno.Get;
-import org.turboweb.anno.RequestPath;
+import org.turboweb.commons.anno.Get;
+import org.turboweb.commons.anno.RequestPath;
 import org.turboweb.core.http.context.HttpContext;
 import org.turboweb.core.http.response.FileStreamResponse;
 import org.turboweb.core.http.response.sync.SseEmitter;

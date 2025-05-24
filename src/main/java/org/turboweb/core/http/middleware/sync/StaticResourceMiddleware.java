@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turboweb.core.http.context.HttpContext;
 import org.turboweb.core.http.middleware.AbstractStaticResourceMiddleware;
-import org.turboweb.exception.TurboRouterException;
+import org.turboweb.commons.exception.TurboRouterException;
 
 /**
  * 处理静态资源的中间件

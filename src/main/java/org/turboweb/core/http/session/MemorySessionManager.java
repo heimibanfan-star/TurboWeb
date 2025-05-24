@@ -2,7 +2,7 @@ package org.turboweb.core.http.session;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turboweb.lock.Locks;
+import org.turboweb.commons.lock.Locks;
 
 import java.util.Iterator;
 import java.util.Map;

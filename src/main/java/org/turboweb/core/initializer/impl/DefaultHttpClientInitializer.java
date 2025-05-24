@@ -3,9 +3,9 @@ package org.turboweb.core.initializer.impl;
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.turboweb.core.config.HttpClientConfig;
+import org.turboweb.commons.utils.client.config.HttpClientConfig;
 import org.turboweb.core.initializer.HttpClientInitializer;
-import org.turboweb.utils.client.HttpClientUtils;
+import org.turboweb.commons.utils.client.HttpClientUtils;
 
 import java.util.function.Consumer;
 

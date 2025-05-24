@@ -1,6 +1,6 @@
 package org.turboweb.core.http.handler;
 
-import org.turboweb.exception.TurboExceptionHandlerException;
+import org.turboweb.commons.exception.TurboExceptionHandlerException;
 
 import java.util.HashMap;
 import java.util.Map;

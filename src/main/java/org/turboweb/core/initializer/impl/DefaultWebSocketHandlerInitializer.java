@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.turboweb.core.piplines.WebSocketDispatcherHandler;
 import org.turboweb.core.http.ws.WebSocketHandler;
 import org.turboweb.core.initializer.WebSocketHandlerInitializer;
-import org.turboweb.exception.TurboWebSocketException;
+import org.turboweb.commons.exception.TurboWebSocketException;
 
 /**
  * 默认的websocket初始化器

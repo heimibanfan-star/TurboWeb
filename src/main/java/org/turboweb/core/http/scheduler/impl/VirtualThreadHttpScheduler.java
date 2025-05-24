@@ -16,10 +16,10 @@ import org.turboweb.core.http.response.sync.InternalSseEmitter;
 import org.turboweb.core.http.response.sync.SseEmitter;
 import org.turboweb.core.http.session.SessionManagerProxy;
 import org.turboweb.core.connect.ConnectSession;
-import org.turboweb.lock.Locks;
-import org.turboweb.utils.handler.ExceptionHandlerSchedulerUtils;
-import org.turboweb.utils.http.HttpInfoRequestPackageUtils;
-import org.turboweb.utils.thread.VirtualThreadUtils;
+import org.turboweb.commons.lock.Locks;
+import org.turboweb.core.http.handler.ExceptionHandlerSchedulerHelper;
+import org.turboweb.core.http.request.HttpInfoRequestPackageHelper;
+import org.turboweb.commons.utils.thread.VirtualThreadUtils;
 
 /**
  * 使用虚拟县城的阻塞线程调度器
@@ -60,7 +60,7 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
         HttpInfoRequest httpInfoRequest = null;
         HttpInfoResponse response = null;
         try {
-             httpInfoRequest = HttpInfoRequestPackageUtils.packageRequest(request);
+             httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(request);
             // 初始化session
             Cookies cookies = httpInfoRequest.getCookies();
             String jsessionid = cookies.getCookie("JSESSIONID");
@@ -74,7 +74,7 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
             // 处理响应数据
             return handleResponse(result, context);
         } catch (Throwable e) {
-            return ExceptionHandlerSchedulerUtils.doHandleForLoomScheduler(exceptionHandlerMatcher, response, e);
+            return ExceptionHandlerSchedulerHelper.doHandleForLoomScheduler(exceptionHandlerMatcher, response, e);
         } finally {
             // 释放读锁
             Locks.SESSION_LOCK.readLock().unlock();
