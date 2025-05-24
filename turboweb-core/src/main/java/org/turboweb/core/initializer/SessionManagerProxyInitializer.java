@@ -1,8 +1,8 @@
 package org.turboweb.core.initializer;
 
 import org.turboweb.core.config.ServerParamConfig;
-import org.turboweb.core.http.session.SessionManager;
-import org.turboweb.core.http.session.SessionManagerProxy;
+import org.turboweb.http.session.SessionManager;
+import org.turboweb.http.session.SessionManagerProxy;
 
 /**
  * session管理器初始化器

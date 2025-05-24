@@ -3,10 +3,10 @@ package org.turboweb.core.initializer.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turboweb.core.config.ServerParamConfig;
-import org.turboweb.core.http.session.DefaultSessionManagerProxy;
-import org.turboweb.core.http.session.MemorySessionManager;
-import org.turboweb.core.http.session.SessionManager;
-import org.turboweb.core.http.session.SessionManagerProxy;
+import org.turboweb.http.session.DefaultSessionManagerProxy;
+import org.turboweb.http.session.MemorySessionManager;
+import org.turboweb.http.session.SessionManager;
+import org.turboweb.http.session.SessionManagerProxy;
 import org.turboweb.core.initializer.SessionManagerProxyInitializer;
 
 /**
@@ -24,7 +24,12 @@ public class DefaultSessionManagerProxyInitializer implements SessionManagerProx
 
     @Override
     public SessionManagerProxy init(ServerParamConfig config) {
-        SessionManagerProxy proxy =  new DefaultSessionManagerProxy(sessionManager, config);
+        SessionManagerProxy proxy =  new DefaultSessionManagerProxy(
+            sessionManager,
+            config.getSessionCheckTime(),
+            config.getSessionMaxNotUseTime(),
+            config.getCheckForSessionNum()
+        );
         log.info("session管理器初始化完成");
         return proxy;
     }

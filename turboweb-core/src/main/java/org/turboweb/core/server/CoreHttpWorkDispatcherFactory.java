@@ -5,11 +5,11 @@ import org.turboweb.core.gateway.Gateway;
 import org.turboweb.core.initializer.*;
 import org.turboweb.core.initializer.impl.*;
 import org.turboweb.core.dispatch.HttpProtocolDispatcher;
-import org.turboweb.core.http.handler.ExceptionHandlerMatcher;
-import org.turboweb.core.http.middleware.Middleware;
-import org.turboweb.core.http.scheduler.HttpScheduler;
-import org.turboweb.core.http.session.SessionManager;
-import org.turboweb.core.http.session.SessionManagerProxy;
+import org.turboweb.http.handler.ExceptionHandlerMatcher;
+import org.turboweb.http.middleware.Middleware;
+import org.turboweb.http.scheduler.HttpScheduler;
+import org.turboweb.http.session.SessionManager;
+import org.turboweb.http.session.SessionManagerProxy;
 import org.turboweb.websocket.WebSocketHandler;
 
 /**

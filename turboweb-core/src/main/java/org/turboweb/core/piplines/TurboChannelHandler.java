@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turboweb.core.dispatch.HttpProtocolDispatcher;
 import org.turboweb.core.gateway.Gateway;
-import org.turboweb.core.http.scheduler.HttpScheduler;
+import org.turboweb.http.scheduler.HttpScheduler;
 import org.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
 
 /**

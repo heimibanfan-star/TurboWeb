@@ -25,6 +25,12 @@
             <artifactId>turboweb-commons</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
+        <!-- http请求处理模块 -->
+        <dependency>
+            <groupId>org.turboweb</groupId>
+            <artifactId>turboweb-http</artifactId>
+            <version>${turboweb.version}</version>
+        </dependency>
         <!-- 提供的客户端 -->
         <dependency>
             <groupId>org.turboweb</groupId>
@@ -36,12 +42,6 @@
             <groupId>org.turboweb</groupId>
             <artifactId>turboweb-websocket</artifactId>
             <version>${turboweb.version}</version>
-        </dependency>
-        <!-- freemarker -->
-        <dependency>
-            <groupId>org.freemarker</groupId>
-            <artifactId>freemarker</artifactId>
-            <version>${freemarker.version}</version>
         </dependency>
     </dependencies>
 </project>
