@@ -8,7 +8,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turboweb.core.config.ServerParamConfig;
-import org.turboweb.core.gateway.Gateway;
+import org.turboweb.gateway.Gateway;
 import org.turboweb.core.initializer.*;
 import org.turboweb.core.initializer.impl.*;
 import org.turboweb.core.piplines.TurboChannelHandler;

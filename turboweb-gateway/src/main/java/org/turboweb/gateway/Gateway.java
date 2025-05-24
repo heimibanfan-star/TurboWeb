@@ -1,4 +1,4 @@
-package org.turboweb.core.gateway;
+package org.turboweb.gateway;
 
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.FullHttpRequest;

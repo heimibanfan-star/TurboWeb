@@ -1,4 +1,4 @@
-package org.turboweb.core.gateway.matcher;
+package org.turboweb.gateway.matcher;
 
 import org.turboweb.commons.exception.TurboGatewayException;
 
