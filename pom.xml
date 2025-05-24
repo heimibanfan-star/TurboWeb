@@ -6,11 +6,17 @@
 
     <groupId>org.turboweb</groupId>
     <artifactId>turboweb</artifactId>
-    <version>Ox.1.2-dev</version>
+    <version>Ox</version>
 
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
+    <modules>
+        <module>turboweb-core</module>
+        <module>turboweb-commons</module>
+        <module>turboweb-example</module>
+    </modules>
 
     <properties>
+        <turboweb.version>Ox.2.1-dev</turboweb.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -41,27 +47,9 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- netty -->
-        <!--<dependency>-->
-        <!--    <groupId>io.netty</groupId>-->
-        <!--    <artifactId>netty-all</artifactId>-->
-        <!--    <version>${netty.version}</version>-->
-        <!--</dependency>-->
-        <!-- logback -->
         <dependency>
             <groupId>io.projectreactor.netty</groupId>
             <artifactId>reactor-netty</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>${logback.version}</version>
-        </dependency>
-        <!-- commoms-lang -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>${commons-lang3.version}</version>
         </dependency>
         <!-- httpclient -->
         <dependency>
@@ -69,52 +57,6 @@
             <artifactId>httpclient5</artifactId>
             <version>${httpclient.version}</version>
         </dependency>
-        <!-- 序列化相关 -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <!-- 数据校验 -->
-        <dependency>
-            <groupId>jakarta.validation</groupId>
-            <artifactId>jakarta.validation-api</artifactId>
-            <version>${validation.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-validator</artifactId>
-            <version>${hibernate.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.el</groupId>
-            <artifactId>jakarta.el-api</artifactId>
-            <version>${jakarta.el-api.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish</groupId>
-            <artifactId>jakarta.el</artifactId>
-            <version>${jakarta.el.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.tika</groupId>
-            <artifactId>tika-core</artifactId>
-            <version>${tika.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.freemarker</groupId>
-            <artifactId>freemarker</artifactId>
-            <version>${freemarker.version}</version>
-        </dependency>
-        <!--<dependency>-->
-        <!--    <groupId>io.projectreactor</groupId>-->
-        <!--    <artifactId>reactor-core</artifactId>-->
-        <!--</dependency>-->
     </dependencies>
 
 
