@@ -13,6 +13,7 @@
         <module>turboweb-core</module>
         <module>turboweb-commons</module>
         <module>turboweb-example</module>
+        <module>turboweb-client</module>
     </modules>
 
     <properties>

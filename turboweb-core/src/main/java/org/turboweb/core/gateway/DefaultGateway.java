@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.turboweb.core.gateway.matcher.LoadBalanceRouterMatcher;
 import org.turboweb.core.gateway.matcher.RoundRobinRouterMatcher;
 import org.turboweb.core.http.response.HttpInfoResponse;
-import org.turboweb.commons.utils.client.HttpClientUtils;
+import org.turboweb.client.HttpClientUtils;
 import org.turboweb.commons.utils.base.BeanUtils;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;

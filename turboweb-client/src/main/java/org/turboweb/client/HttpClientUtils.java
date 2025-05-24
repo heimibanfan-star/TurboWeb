@@ -1,10 +1,10 @@
-package org.turboweb.commons.utils.client;
+package org.turboweb.client;
 
 import io.netty.channel.EventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.turboweb.commons.exception.TurboHttpClientException;
-import org.turboweb.commons.utils.client.config.HttpClientConfig;
+import org.turboweb.client.config.HttpClientConfig;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.resources.ConnectionProvider;
 

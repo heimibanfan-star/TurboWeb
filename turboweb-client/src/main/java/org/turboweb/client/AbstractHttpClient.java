@@ -1,10 +1,10 @@
-package org.turboweb.commons.utils.client;
+package org.turboweb.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.*;
 import org.apache.hc.core5.net.URIBuilder;
-import org.turboweb.commons.utils.client.result.RestResponseResult;
+import org.turboweb.client.result.RestResponseResult;
 import org.turboweb.commons.exception.TurboHttpClientException;
 import org.turboweb.commons.utils.base.BeanUtils;
 import reactor.core.publisher.Mono;

@@ -1,4 +1,4 @@
-package org.turboweb.commons.utils.client.config;
+package org.turboweb.client.config;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;

@@ -1,7 +1,7 @@
 package org.turboweb.core.initializer;
 
 import io.netty.channel.EventLoopGroup;
-import org.turboweb.commons.utils.client.config.HttpClientConfig;
+import org.turboweb.client.config.HttpClientConfig;
 
 import java.util.function.Consumer;
 

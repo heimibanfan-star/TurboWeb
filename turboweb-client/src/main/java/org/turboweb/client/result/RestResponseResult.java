@@ -1,4 +1,4 @@
-package org.turboweb.commons.utils.client.result;
+package org.turboweb.client.result;
 
 import io.netty.handler.codec.http.HttpHeaders;
 
