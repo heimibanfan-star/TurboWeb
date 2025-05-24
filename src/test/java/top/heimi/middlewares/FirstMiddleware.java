@@ -1,7 +1,7 @@
 package top.heimi.middlewares;
 
-import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.middleware.Middleware;
+import org.turboweb.core.http.context.HttpContext;
+import org.turboweb.core.http.middleware.Middleware;
 import top.heimi.pojos.User;
 
 /**

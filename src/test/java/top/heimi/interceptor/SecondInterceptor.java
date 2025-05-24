@@ -1,7 +1,7 @@
 package top.heimi.interceptor;
 
-import org.turbo.web.core.http.context.HttpContext;
-import org.turbo.web.core.http.middleware.interceptor.HttpInterceptor;
+import org.turboweb.core.http.context.HttpContext;
+import org.turboweb.core.http.middleware.interceptor.HttpInterceptor;
 
 /**
  * TODO

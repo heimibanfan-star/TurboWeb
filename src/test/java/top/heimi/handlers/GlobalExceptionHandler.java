@@ -1,6 +1,6 @@
 package top.heimi.handlers;
 
-import org.turbo.web.anno.ExceptionHandler;
+import org.turboweb.anno.ExceptionHandler;
 
 /**
  * 异常处理器
