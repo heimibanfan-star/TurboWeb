@@ -1,0 +1,35 @@
+### example01
+GET http://localhost:8080/user/1
+
+### example02
+GET http://localhost:8080/user/1/TurboWeb/18/true
+
+### example03
+GET http://localhost:8080/user/example03?name=TurboWeb&age=18
+
+### example04
+POST http://localhost:8080/user/example04
+Content-Type: application/x-www-form-urlencoded
+
+name=TurboWeb&age=18
+
+### example05
+POST http://localhost:8080/user/example05
+Content-Type: application/json
+
+{
+  "name": "TurboWeb",
+  "age": 18
+}
+
+### example06
+GET http://localhost:8080/user/example06
+
+### example07
+GET http://localhost:8080/user/example07
+
+### example08
+GET http://localhost:8080/user/example08
+
+### example09
+GET http://localhost:8080/user/example09
