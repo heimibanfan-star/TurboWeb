@@ -1,4 +1,5 @@
-# <img src="../image/logo.png" style="zoom: 20%"/>TurboWeb的同步风格编程
+# <img src="../image/logo.png"/>
+# TurboWeb的同步风格编程
 
 ## 什么是同步风格编程？
 

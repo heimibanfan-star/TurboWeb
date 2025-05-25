@@ -1,4 +1,5 @@
-# <img src=".\docs\image\logo.png" style="zoom:20%;" />TurboWeb
+# <img src=".\docs\image\logo.png"/>
+# TurboWeb
 
 ## 简介
 
