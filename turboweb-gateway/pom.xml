@@ -2,7 +2,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.turboweb</groupId>
+        <groupId>io.gitee.turboweb</groupId>
         <artifactId>turboweb</artifactId>
         <version>Ox</version>
     </parent>
@@ -21,19 +21,19 @@
     <dependencies>
         <!-- 通用工具包 -->
         <dependency>
-            <groupId>org.turboweb</groupId>
+            <groupId>${turboweb.groupId}</groupId>
             <artifactId>turboweb-commons</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
         <!-- http客户端模块 -->
         <dependency>
-            <groupId>org.turboweb</groupId>
+            <groupId>${turboweb.groupId}</groupId>
             <artifactId>turboweb-client</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
         <!-- http相关模块 -->
         <dependency>
-            <groupId>org.turboweb</groupId>
+            <groupId>${turboweb.groupId}</groupId>
             <artifactId>turboweb-http</artifactId>
             <version>${turboweb.version}</version>
         </dependency>

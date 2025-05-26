@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.turboweb</groupId>
+    <groupId>io.gitee.turboweb</groupId>
     <artifactId>turboweb</artifactId>
     <version>Ox</version>
 
@@ -20,7 +20,8 @@
     </modules>
 
     <properties>
-        <turboweb.version>Ox.2.1-dev</turboweb.version>
+        <turboweb.version>Ox.2.1-SNAPSHOT</turboweb.version>
+        <turboweb.groupId>io.gitee.turboweb</turboweb.groupId>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
