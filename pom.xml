@@ -6,13 +6,12 @@
 
     <groupId>io.gitee.turboweb</groupId>
     <artifactId>turboweb</artifactId>
-    <version>Ox</version>
+    <version>Ox.2.1-SNAPSHOT</version>
 
     <packaging>pom</packaging>
     <modules>
         <module>turboweb-core</module>
         <module>turboweb-commons</module>
-        <module>turboweb-example</module>
         <module>turboweb-client</module>
         <module>turboweb-websocket</module>
         <module>turboweb-http</module>
@@ -63,6 +62,88 @@
             <version>${httpclient.version}</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!--推送到中央仓库用-->
+            <!--  打包源码  -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <configuration>
+                    <!-- 源码包随着项目打成的jar包安装到本地仓库或者私服、公服 -->
+                    <attach>true</attach>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- 禁用严格语法检测 -->
+                    <doclint>none</doclint>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.7</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.7.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>heimibanfan</name>
+            <email>heimibanfan@163.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git@gitee.com:turboweb/turboweb.git</connection>
+        <developerConnection>scm:git@gitee.com:turboweb/turboweb.git</developerConnection>
+        <url>https://gitee.com/turboweb/turboweb</url>
+    </scm>
 
 
 </project>

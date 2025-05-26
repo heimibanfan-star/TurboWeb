@@ -4,11 +4,10 @@
     <parent>
         <groupId>io.gitee.turboweb</groupId>
         <artifactId>turboweb</artifactId>
-        <version>Ox</version>
+        <version>Ox.2.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>turboweb-websocket</artifactId>
-    <version>${turboweb.version}</version>
     <packaging>jar</packaging>
 
     <name>turboweb-websocket</name>
