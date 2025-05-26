@@ -189,7 +189,7 @@ public String example08(HttpContext c) {
 这两个方法都使用 `@Delete`，默认路径为 `"/hello"`（假设类上加了 `@RequestPath("/hello")`），因此 TurboWeb 无法判断哪个方法应当处理 `DELETE /hello` 请求，最终抛出如下异常：
 
 ```text
-Exception in thread "main" org.turboweb.commons.exception.TurboRouterException: 路由重复: method:DELETE, path:/hello
+Exception in thread "main" exception.top.turboweb.commons.TurboRouterException: 路由重复: method:DELETE, path:/hello
 	at ...
 ```
 

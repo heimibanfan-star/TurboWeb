@@ -291,15 +291,15 @@ GET http://localhost:8080/user/example07
 如果数据校验不通过，TurboWeb会抛出一个 ``TurboArgsValidationException`` 异常对象，异常栈信息如下：
 
 ```text
-org.turboweb.commons.exception.TurboArgsValidationException: [age can not be null, name can not be blank]
-	at org.turboweb.http.context.FullHttpContext.validate(FullHttpContext.java:41)
+exception.top.turboweb.commons.TurboArgsValidationException: [age can not be null, name can not be blank]
+	at context.top.turboweb.http.FullHttpContext.validate(FullHttpContext.java:41)
 	at org.example.requestexample.UserController.example07(UserController.java:67)
-	at org.turboweb.http.router.dispatcher.impl.DefaultHttpDispatcher.dispatch(DefaultHttpDispatcher.java:55)
-	at org.turboweb.http.middleware.HttpRouterDispatcherMiddleware.invoke(HttpRouterDispatcherMiddleware.java:19)
-	at org.turboweb.http.middleware.Middleware.next(Middleware.java:35)
-	at org.turboweb.http.middleware.SentinelMiddleware.invoke(SentinelMiddleware.java:16)
-	at org.turboweb.http.scheduler.impl.VirtualThreadHttpScheduler.doExecute(VirtualThreadHttpScheduler.java:68)
-	at org.turboweb.http.scheduler.impl.VirtualThreadHttpScheduler.lambda$execute$0(VirtualThreadHttpScheduler.java:46)
+	at impl.dispatcher.router.top.turboweb.http.DefaultHttpDispatcher.dispatch(DefaultHttpDispatcher.java:55)
+	at middleware.top.turboweb.http.HttpRouterDispatcherMiddleware.invoke(HttpRouterDispatcherMiddleware.java:19)
+	at middleware.top.turboweb.http.Middleware.next(Middleware.java:35)
+	at middleware.top.turboweb.http.SentinelMiddleware.invoke(SentinelMiddleware.java:16)
+	at impl.scheduler.top.turboweb.http.VirtualThreadHttpScheduler.doExecute(VirtualThreadHttpScheduler.java:68)
+	at impl.scheduler.top.turboweb.http.VirtualThreadHttpScheduler.lambda$execute$0(VirtualThreadHttpScheduler.java:46)
 	at java.base/java.util.concurrent.ThreadPerTaskExecutor$TaskRunner.run(ThreadPerTaskExecutor.java:314)
 	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329)
 ```

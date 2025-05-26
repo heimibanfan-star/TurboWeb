@@ -1,7 +1,7 @@
 package org.example.quickstart;
 
-import org.turboweb.core.server.StandardTurboWebServer;
-import org.turboweb.core.server.TurboWebServer;
+import top.turboweb.core.server.StandardTurboWebServer;
+import top.turboweb.core.server.TurboWebServer;
 
 /**
  * 快速开始

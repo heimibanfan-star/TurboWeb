@@ -9,9 +9,9 @@
 ```java
 package org.example.quickstart;
 
-import org.turboweb.commons.anno.Get;
-import org.turboweb.commons.anno.RequestPath;
-import org.turboweb.http.context.HttpContext;
+import top.turboweb.commons.Get;
+import top.turboweb.commons.RequestPath;
+import top.turboweb.http.HttpContext;
 
 @RequestPath("/hello")
 public class HelloController {
@@ -27,8 +27,8 @@ public class HelloController {
 ```java
 package org.example.quickstart;
 
-import org.turboweb.core.server.StandardTurboWebServer;
-import org.turboweb.core.server.TurboWebServer;
+import top.turboweb.core.StandardTurboWebServer;
+import top.turboweb.core.TurboWebServer;
 
 public class QuickStartApplication {
 	public static void main(String[] args) {

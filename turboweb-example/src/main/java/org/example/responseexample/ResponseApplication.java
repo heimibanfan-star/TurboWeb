@@ -1,8 +1,8 @@
 package org.example.responseexample;
 
 
-import org.turboweb.core.server.StandardTurboWebServer;
-import org.turboweb.core.server.TurboWebServer;
+import top.turboweb.core.server.StandardTurboWebServer;
+import top.turboweb.core.server.TurboWebServer;
 
 public class ResponseApplication {
 	public static void main(String[] args) {
