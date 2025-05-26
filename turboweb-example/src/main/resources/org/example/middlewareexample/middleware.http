@@ -1,0 +1,23 @@
+### example01
+GET http://localhost:8080/user
+
+### example01-1
+GET http://localhost:8080/static/index.html
+
+### example02
+GET http://localhost:8080/user/example02
+
+### example03
+GET http://localhost:8080/turboWeb/serverInfo?type=memory
+
+### example04
+GET http://localhost:8080/turboWeb/serverInfo?type=thread
+
+### example05
+GET http://localhost:8080/turboWeb/serverInfo?type=gc
+
+### example06
+GET http://localhost:8080/user/example06
+
+### example07
+GET http://localhost:8080/user/example07
