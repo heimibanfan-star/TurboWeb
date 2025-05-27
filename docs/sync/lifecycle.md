@@ -150,4 +150,4 @@ public void init(Middleware chain) {
 
 
 
-[目录](./guide.md) [服务器参数配置](./serverconfig.md) 上一节 下一节 [路由共享]()
+[目录](./guide.md) [服务器参数配置](./serverconfig.md) 上一节 下一节 [节点共享](./nodeshare.md)
