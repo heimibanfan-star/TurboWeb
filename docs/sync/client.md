@@ -123,3 +123,7 @@ public Promise<RestResponseResult<Map>> postForm(String url, Map<String, String>
 `type` 返回值类型，默认是Map
 
 PUT和DELETE方式与上面两种类似，这里就不过多介绍了。
+
+
+
+[目录](./guide.md) [WebSocket的支持](./websocket.md) 上一节 下一节 [服务器参数配置](./serverconfig.md)

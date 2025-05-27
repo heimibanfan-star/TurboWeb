@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 public class MemorySessionManager implements SessionManager {
 
     private static final Map<String, Session> sessions = new ConcurrentHashMap<>();
-    private static final Logger log = LoggerFactory.getLogger(SessionManagerProxy.class);
+    private static final Logger log = LoggerFactory.getLogger(MemorySessionManager.class);
 
     @Override
     public Session getSession(String sessionId) {
