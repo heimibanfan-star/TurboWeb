@@ -12,6 +12,9 @@
 
     <name>turboweb-websocket</name>
     <url>http://maven.apache.org</url>
+    <description>
+        WebSocket相关功能的实现
+    </description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

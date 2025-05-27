@@ -13,6 +13,9 @@
 
     <name>turboweb-client</name>
     <url>http://maven.apache.org</url>
+    <description>
+        http客户端功能的实现
+    </description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

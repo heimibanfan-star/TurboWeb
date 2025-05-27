@@ -8,11 +8,17 @@
     <artifactId>turboweb</artifactId>
     <version>Ox.2.1-RELEASE</version>
 
+    <description>
+        TurboWeb 是一个基于Netty开发的高并发Web框架。
+    </description>
+
+    <url>https://gitee.com/turboweb/turboweb</url>
+
     <packaging>pom</packaging>
     <modules>
         <module>turboweb-core</module>
         <module>turboweb-commons</module>
-        <module>turboweb-example</module>
+        <!--<module>turboweb-example</module>-->
         <module>turboweb-client</module>
         <module>turboweb-websocket</module>
         <module>turboweb-http</module>

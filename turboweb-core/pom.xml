@@ -12,6 +12,9 @@
 
     <name>turboweb-core</name>
     <url>http://maven.apache.org</url>
+    <description>
+        核心包，核心服务的启动与初始化相关
+    </description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

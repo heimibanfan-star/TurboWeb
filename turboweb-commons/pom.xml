@@ -14,6 +14,9 @@
 
     <name>turboweb-commons</name>
     <url>http://maven.apache.org</url>
+    <description>
+        通用工具相关内容
+    </description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

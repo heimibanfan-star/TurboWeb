@@ -12,6 +12,9 @@
 
     <name>turboweb-http</name>
     <url>http://maven.apache.org</url>
+    <description>
+        对普通HTTP的处理功能的实现
+    </description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

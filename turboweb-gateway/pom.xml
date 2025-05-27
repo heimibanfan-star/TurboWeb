@@ -12,6 +12,9 @@
 
     <name>turboweb-gateway</name>
     <url>http://maven.apache.org</url>
+    <description>
+        共享节点功能相关
+    </description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
