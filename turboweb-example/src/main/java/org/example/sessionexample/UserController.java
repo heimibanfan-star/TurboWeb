@@ -3,6 +3,7 @@ package org.example.sessionexample;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.SseResponse;
 import top.turboweb.http.session.Session;
 
 @RequestPath("/user")
@@ -30,6 +31,7 @@ public class UserController {
 
 	@Get("/remove")
 	public String remove(HttpContext c) {
+		SseResponse sseResponse = c.newSseResponse();
 		Session session = c.getSession();
 		session.removeAttribute("name");
 		return "remove session";
