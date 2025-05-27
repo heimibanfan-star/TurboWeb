@@ -9,8 +9,8 @@
 ```xml
 <dependency>
   <groupId>io.gitee.turboweb</groupId>
-  <artifactId>turboweb-core</artifactId>
-  <version>Ox.2.1-RELEASE</version>
+  <artifactId>turboweb-framework</artifactId>
+  <version>Ox.2.2-RELEASE</version>
 </dependency>
 ```
 

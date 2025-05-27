@@ -6,7 +6,7 @@
 
     <groupId>io.gitee.turboweb</groupId>
     <artifactId>turboweb</artifactId>
-    <version>Ox.2.2-SNAPSHOT </version>
+    <version>Ox.2.2-RELEASE </version>
 
     <description>
         TurboWeb 是一个基于Netty开发的高并发Web框架。
@@ -26,7 +26,7 @@
     </modules>
 
     <properties>
-        <turboweb.version>Ox.2.2-SNAPSHOT</turboweb.version>
+        <turboweb.version>Ox.2.2-RELEASE</turboweb.version>
         <turboweb.groupId>io.gitee.turboweb</turboweb.groupId>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
