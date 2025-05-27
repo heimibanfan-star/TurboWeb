@@ -9,10 +9,10 @@
     <file url="file://$PROJECT_DIR$/turboweb-client/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/turboweb-commons/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/turboweb-commons/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/turboweb-core/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/turboweb-core/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/turboweb-example/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/turboweb-example/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/turboweb-framework/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/turboweb-framework/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/turboweb-gateway/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/turboweb-gateway/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/turboweb-http/src/main/java" charset="UTF-8" />
