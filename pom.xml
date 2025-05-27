@@ -12,6 +12,7 @@
     <modules>
         <module>turboweb-core</module>
         <module>turboweb-commons</module>
+        <module>turboweb-example</module>
         <module>turboweb-client</module>
         <module>turboweb-websocket</module>
         <module>turboweb-http</module>
