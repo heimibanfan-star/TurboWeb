@@ -10,10 +10,9 @@
     <artifactId>turboweb-framework</artifactId>
     <packaging>jar</packaging>
 
-    <name>turboweb-framrwork</name>
     <url>http://maven.apache.org</url>
     <description>
-        TurboWeb Framework 是 TurboWeb 生态的核心集成模块。它聚合了 HTTP、WebSocket、Session 等模块，为服务提供统一的运行时环境。
+        TurboWeb Framework 是 TurboWeb 生态的核心集成模块。它聚合了 HTTP、WebSocket、HTTP Client 等模块，为服务提供统一的运行时环境。
         基于 Netty 和 JDK 21 虚拟线程构建，兼顾同步编程体验与高并发处理能力。
         请通过该模块启动并运行 TurboWeb 服务。
     </description>
