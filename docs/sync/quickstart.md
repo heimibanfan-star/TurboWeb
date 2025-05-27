@@ -4,6 +4,16 @@
 
 ## 第一个web程序
 
+引入maven坐标
+
+```xml
+<dependency>
+  <groupId>io.gitee.turboweb</groupId>
+  <artifactId>turboweb-core</artifactId>
+  <version>Ox.2.1-RELEASE</version>
+</dependency>
+```
+
 1.创建Controller接口
 
 ```java
