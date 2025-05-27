@@ -35,7 +35,7 @@ TurboWeb 的同步风格，是指采用传统阻塞式编程模型开发 HTTP �
 
 [13.服务器参数配置](./serverconfig.md)
 
-[14.生命周期相关]()
+[14.生命周期相关](./lifecycle.md)
 
 [15.节点共享]()
 
@@ -44,6 +44,3 @@ TurboWeb 的同步风格，是指采用传统阻塞式编程模型开发 HTTP �
 
 
 [首页](../../README.md)   [反应式编程](../reactive/guide.md)
-
-
-
