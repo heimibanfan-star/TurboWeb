@@ -11,6 +11,7 @@ import top.turboweb.http.middleware.aware.MainClassAware;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.commons.exception.TurboStaticResourceException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,11 +49,13 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
         InputStream inputStream = mainClass.getClassLoader().getResourceAsStream(path);
         try (inputStream) {
             if (inputStream != null) {
-                byte[] bytes = new byte[inputStream.available()];
-                int read = inputStream.read(bytes);
-                if (read != bytes.length) {
-                    throw new TurboStaticResourceException("文件读取失败,真实长度:%d,读取到的长度:%d".formatted(bytes.length, read));
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = inputStream.read(buffer)) > 0) {
+                    baos.write(buffer, 0, read);
                 }
+                byte[] bytes = baos.toByteArray();
                 if (cacheStaticResource) {
                     if (bytes.length < cacheFileSize) {
                         caches.put(path, bytes);
