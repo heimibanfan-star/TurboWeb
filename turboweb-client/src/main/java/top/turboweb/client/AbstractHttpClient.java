@@ -56,13 +56,14 @@ public abstract class AbstractHttpClient {
      */
     protected Mono<FullHttpResponse> doFormRequest(String url, HttpMethod method, HttpHeaders headers, Map<String, String> forms) {
         return httpClient
+            .headers(h -> {
+                if (headers != null) {
+                    h.add(headers);
+                }
+            })
             .request(method)
             .uri(url)
             .sendForm((request, form) -> {
-                if (headers != null) {
-                    request.headers(headers);
-                }
-                request.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED);
                 if (forms != null && !forms.isEmpty()) {
                     forms.forEach(form::attr);
                 }

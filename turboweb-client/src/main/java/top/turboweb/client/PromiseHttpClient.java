@@ -101,7 +101,7 @@ public class PromiseHttpClient extends AbstractHttpClient {
      * @return 返回一个promise
      */
     public <T> Promise<RestResponseResult<T>> postForm(String url, HttpHeaders headers, Map<String, String> params, Map<String, String> forms, Class<T> type) {
-        return formRequest(url, HttpMethod.POST, headers, forms, type);
+        return formRequest(url, HttpMethod.POST, headers, params, forms, type);
     }
 
     /**
@@ -134,7 +134,7 @@ public class PromiseHttpClient extends AbstractHttpClient {
      * @return 返回一个promise
      */
     public <T> Promise<RestResponseResult<T>> putForm(String url, HttpHeaders headers, Map<String, String> params, Map<String, String> forms, Class<T> type) {
-        return formRequest(url, HttpMethod.PUT, headers, forms, type);
+        return formRequest(url, HttpMethod.PUT, headers, forms, params, type);
     }
 
     /**
@@ -260,7 +260,7 @@ public class PromiseHttpClient extends AbstractHttpClient {
         try {
             String content = null;
             if (bodyContent != null) {
-                BeanUtils.getObjectMapper().writeValueAsString(bodyContent);
+                content = BeanUtils.getObjectMapper().writeValueAsString(bodyContent);
             }
             doJsonRequest(url, method, headers, content)
                 .doOnError(promise::setFailure)
@@ -286,9 +286,9 @@ public class PromiseHttpClient extends AbstractHttpClient {
      * @param forms 请求体
      * @return 返回一个promise
      */
-    private <T> Promise<RestResponseResult<T>> formRequest(String url, HttpMethod method, HttpHeaders headers, Map<String, String> forms, Class<T> type) {
+    private <T> Promise<RestResponseResult<T>> formRequest(String url, HttpMethod method, HttpHeaders headers,Map<String, String> params, Map<String, String> forms, Class<T> type) {
         Promise<RestResponseResult<T>> promise = executors.next().newPromise();
-        url = buildParamUrl(url, forms);
+        url = buildParamUrl(url, params);
         doFormRequest(url, method, headers, forms)
             .doOnError(promise::setFailure)
             .subscribe(response -> {
