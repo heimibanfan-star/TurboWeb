@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.gitee.turboweb</groupId>
         <artifactId>turboweb</artifactId>
-        <version>Ox.2.1-SNAPSHOT</version>
+        <version>Ox.2.1-RELEASE</version>
     </parent>
 
     <artifactId>turboweb-client</artifactId>
