@@ -12,20 +12,20 @@ public interface SessionManager {
      * @param sessionId sessionId
      * @return session对象
      */
-    Session getSession(String sessionId);
+    HttpSession getSession(String sessionId);
 
     /**
      * 添加session到容器
      * @param sessionId sessionId
-     * @param session session对象
+     * @param httpSession session对象
      */
-    void addSession(String sessionId, Session session);
+    void addSession(String sessionId, HttpSession httpSession);
 
     /**
      * 获取容器中所有session
      * @return session对象
      */
-    Map<String, Session> getAllSession();
+    Map<String, HttpSession> getAllSession();
 
     /**
      * 开启清理session的哨兵

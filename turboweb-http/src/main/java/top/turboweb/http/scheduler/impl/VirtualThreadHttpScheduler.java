@@ -66,10 +66,11 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
             response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
             HttpContext context = new FullHttpContext(httpInfoRequest, response, session);
             Object result = sentinelMiddleware.invoke(context);
-            // 处理session的结果
-            handleSessionAfterRequest(context, jsessionid);
             // 处理响应数据
-            return handleResponse(result, context);
+            HttpResponse resultResponse = handleResponse(result, context);
+            // 处理session结果
+            handleSessionAfterRequest(httpInfoRequest, resultResponse, jsessionid);
+            return resultResponse;
         } catch (Throwable e) {
             return ExceptionHandlerSchedulerHelper.doHandleForLoomScheduler(exceptionHandlerMatcher, response, e);
         } finally {

@@ -4,8 +4,8 @@ import io.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.http.cookie.Cookies;
+import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
-import top.turboweb.http.session.Session;
 
 import java.util.List;
 import java.util.Map;
@@ -20,7 +20,7 @@ public class HttpInfoRequest {
 
     private final FullHttpRequest request;
     private final Cookies cookies;
-    private Session session;
+    private HttpSession httpSession;
     private final Map<String, List<String>> queryParams;
     private final HttpContent content;
     private final String contentType;
@@ -79,15 +79,15 @@ public class HttpInfoRequest {
         return log;
     }
 
-    public Session getSession() {
-        if (session == null) {
-            session = new HttpSession();
+    public HttpSession getSession() {
+        if (httpSession == null) {
+            httpSession = new DefaultHttpSession();
         }
-        return session;
+        return httpSession;
     }
 
-    public void setSession(Session session) {
-        this.session = session;
+    public void setSession(HttpSession httpSession) {
+        this.httpSession = httpSession;
     }
 
     /**
@@ -96,7 +96,7 @@ public class HttpInfoRequest {
      * @return true:session为空
      */
     public boolean sessionIsNull() {
-        return session == null;
+        return httpSession == null;
     }
 
     /**

@@ -29,17 +29,17 @@ public class DefaultSessionManagerProxy implements SessionManagerProxy {
 
 
     @Override
-    public Session getSession(String sessionId) {
+    public HttpSession getSession(String sessionId) {
         return sessionManager.getSession(sessionId);
     }
 
     @Override
-    public void addSession(String sessionId, Session session) {
-        sessionManager.addSession(sessionId, session);
+    public void addSession(String sessionId, HttpSession httpSession) {
+        sessionManager.addSession(sessionId, httpSession);
     }
 
     @Override
-    public Map<String, Session> getAllSession() {
+    public Map<String, HttpSession> getAllSession() {
         return sessionManager.getAllSession();
     }
 }

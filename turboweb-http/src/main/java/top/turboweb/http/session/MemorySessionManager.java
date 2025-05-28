@@ -16,21 +16,21 @@ import java.util.concurrent.TimeUnit;
  */
 public class MemorySessionManager implements SessionManager {
 
-    private static final Map<String, Session> sessions = new ConcurrentHashMap<>();
+    private static final Map<String, HttpSession> sessions = new ConcurrentHashMap<>();
     private static final Logger log = LoggerFactory.getLogger(MemorySessionManager.class);
 
     @Override
-    public Session getSession(String sessionId) {
+    public HttpSession getSession(String sessionId) {
         return sessions.get(sessionId);
     }
 
     @Override
-    public void addSession(String sessionId, Session session) {
-        sessions.put(sessionId, session);
+    public void addSession(String sessionId, HttpSession httpSession) {
+        sessions.put(sessionId, httpSession);
     }
 
     @Override
-    public Map<String, Session> getAllSession() {
+    public Map<String, HttpSession> getAllSession() {
         return sessions;
     }
 
@@ -47,16 +47,16 @@ public class MemorySessionManager implements SessionManager {
             Locks.SESSION_LOCK.writeLock().lock();
             try {
                 log.debug("session垃圾回收器触发");
-                Iterator<Map.Entry<String, Session>> iterator = sessions.entrySet().iterator();
+                Iterator<Map.Entry<String, HttpSession>> iterator = sessions.entrySet().iterator();
                 while (iterator.hasNext()) {
-                    Map.Entry<String, Session> entry = iterator.next();
-                    Session session = entry.getValue();
-                    if (session.isTimeout(maxNotUseTime)) {
+                    Map.Entry<String, HttpSession> entry = iterator.next();
+                    HttpSession httpSession = entry.getValue();
+                    if (httpSession.isTimeout(maxNotUseTime)) {
                         iterator.remove();
-                        log.debug("释放长时间不用的session:{}", session);
+                        log.debug("释放长时间不用的session:{}", httpSession);
                     }
                     // 判断里面的key是否过期
-                    Map<String, SessionAttributeDefinition> attributeDefinitions = session.getAllAttributeDefinitions();
+                    Map<String, SessionAttributeDefinition> attributeDefinitions = httpSession.getAllAttributeDefinitions();
                     Iterator<Map.Entry<String, SessionAttributeDefinition>> entryIterator = attributeDefinitions.entrySet().iterator();
                     while (entryIterator.hasNext()) {
                         Map.Entry<String, SessionAttributeDefinition> attributeDefinitionEntry = entryIterator.next();

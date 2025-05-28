@@ -10,13 +10,11 @@ import top.turboweb.commons.constants.FontColors;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.adapter.DefaultHttpResponseAdapter;
 import top.turboweb.http.adapter.HttpResponseAdapter;
-import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.request.HttpInfoRequest;
-import top.turboweb.http.session.Session;
+import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.session.SessionManagerProxy;
 import top.turboweb.commons.utils.base.RandomUtils;
 
@@ -85,23 +83,23 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
      */
     protected void initSession(HttpInfoRequest httpInfoRequest, String jsessionid) {
         if (jsessionid != null) {
-            Session session = sessionManagerProxy.getSession(jsessionid);
+            HttpSession httpSession = sessionManagerProxy.getSession(jsessionid);
             // 设置使用时间，防止被销毁
-            if (session != null) {
-                session.setUseTime();
+            if (httpSession != null) {
+                httpSession.setUseTime();
             }
-            httpInfoRequest.setSession(session);
+            httpInfoRequest.setSession(httpSession);
         }
     }
 
     /**
      * 在请求结束后对session进行处理
      *
-     * @param ctx 上下文对象
+     * @param request 请求对象
+     * @param response 响应对象
      * @param jsessionid sessionId
      */
-    protected void handleSessionAfterRequest(HttpContext ctx, String jsessionid) {
-        HttpInfoRequest request = ctx.getRequest();
+    protected void handleSessionAfterRequest(HttpInfoRequest request, HttpResponse response, String jsessionid) {
         if (request.sessionIsNull()) {
             return;
         }
@@ -109,13 +107,12 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
             jsessionid = RandomUtils.uuidWithoutHyphen();
         }
         // 从容器中获取session
-        Session session = sessionManagerProxy.getSession(jsessionid);
-        if (session == null) {
-            session = request.getSession();
-            sessionManagerProxy.addSession(jsessionid, session);
-            HttpInfoResponse response = ctx.getResponse();
+        HttpSession httpSession = sessionManagerProxy.getSession(jsessionid);
+        if (httpSession == null) {
+            httpSession = request.getSession();
+            sessionManagerProxy.addSession(jsessionid, httpSession);
             // 设置响应头
-            response.headers().add("Set-Cookie", "JSESSIONID=" + jsessionid + "; Path="+ session.getPath() +"; HttpOnly");
+            response.headers().add("Set-Cookie", "JSESSIONID=" + jsessionid + "; Path="+ httpSession.getPath() +"; HttpOnly");
         }
     }
 

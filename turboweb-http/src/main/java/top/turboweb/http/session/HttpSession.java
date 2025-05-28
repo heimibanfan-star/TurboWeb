@@ -1,82 +1,73 @@
 package top.turboweb.http.session;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * http相关的session
+ * session接口
  */
-public class HttpSession implements Session {
+public interface HttpSession {
 
-    private final Map<String, SessionAttributeDefinition> attributes = new ConcurrentHashMap<>();
-    private long lastUseTime;
-    private String path = "/";
+    /**
+     * 设置session属性
+     *
+     * @param key   属性名
+     * @param value 属性值
+     */
+    void setAttribute(String key, Object value);
 
-    public HttpSession() {
-        lastUseTime = System.currentTimeMillis();
-    }
+    /**
+     * 设置session属性
+     *
+     * @param key      属性名
+     * @param value    属性值
+     * @param timeout  超时时间
+     */
+    void setAttribute(String key, Object value, int timeout);
 
-    @Override
-    public void setAttribute(String key, Object value) {
-        SessionAttributeDefinition definition = new SessionAttributeDefinition(value, null);
-        attributes.put(key, definition);
-        lastUseTime = System.currentTimeMillis();
-    }
+    /**
+     * 移除session属性
+     *
+     * @param key 属性名
+     */
+    void removeAttribute(String key);
 
-    @Override
-    public void setAttribute(String key, Object value, int timeout) {
-        SessionAttributeDefinition definition = new SessionAttributeDefinition(value, System.currentTimeMillis() + timeout);
-        attributes.put(key, definition);
-        lastUseTime = System.currentTimeMillis();
-    }
+    /**
+     * 获取session属性
+     *
+     * @param key 属性名
+     * @return 属性值
+     */
+    Object getAttribute(String key);
 
-    @Override
-    public void removeAttribute(String key) {
-        attributes.remove(key);
-        lastUseTime = System.currentTimeMillis();
-    }
+    /**
+     * 判断session是否过期
+     *
+     * @param maxNotUseTime 最大不适用时间
+     * @return boolean true:过期 false:未过期
+     */
+    boolean isTimeout(long maxNotUseTime);
 
-    @Override
-    public Object getAttribute(String key) {
-        lastUseTime = System.currentTimeMillis();
-        SessionAttributeDefinition definition = attributes.get(key);
-        if (definition == null) {
-            return null;
-        }
-        // 判断是否过期
-        if (definition.isTimeout()) {
-            return null;
-        }
-        return definition.getValue();
-    }
+    /**
+     * 获取所有session属性
+     *
+     * @return Map<String, SessionAttributeDefinition>
+     */
+    Map<String, SessionAttributeDefinition> getAllAttributeDefinitions();
 
-    @Override
-    public boolean isTimeout(long maxNotUseTime) {
-        if (maxNotUseTime == -1) {
-            return false;
-        }
-        // 获取当前时间
-        long timeMillis = System.currentTimeMillis();
-        return timeMillis - lastUseTime > maxNotUseTime;
-    }
+    /**
+     * 使用时设置时间
+     */
+    void setUseTime();
 
-    @Override
-    public Map<String, SessionAttributeDefinition> getAllAttributeDefinitions() {
-        return attributes;
-    }
+    /**
+     * 设置session路径
+     * @param path 路径
+     */
+    void setPath(String path);
 
-    @Override
-    public void setUseTime() {
-        lastUseTime = System.currentTimeMillis();
-    }
-
-    @Override
-    public void setPath(String path) {
-        this.path = path;
-    }
-
-    @Override
-    public String getPath() {
-        return this.path;
-    }
+    /**
+     * 获取session路径
+     * @return 路径
+     */
+    String getPath();
 }

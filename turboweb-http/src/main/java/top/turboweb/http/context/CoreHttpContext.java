@@ -7,7 +7,7 @@ import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.response.SseResponse;
-import top.turboweb.http.session.Session;
+import top.turboweb.http.session.HttpSession;
 
 
 /**
@@ -52,7 +52,7 @@ public abstract class CoreHttpContext implements HttpContext{
 	}
 
 	@Override
-	public Session getSession() {
+	public HttpSession getSession() {
 		return request.getSession();
 	}
 

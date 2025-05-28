@@ -9,7 +9,7 @@ import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.response.SseResponse;
 import top.turboweb.http.response.sync.SseEmitter;
-import top.turboweb.http.session.Session;
+import top.turboweb.http.session.HttpSession;
 
 import java.io.File;
 import java.io.InputStream;
@@ -56,7 +56,7 @@ public interface HttpContext {
 	 *
 	 * @return session
 	 */
-	Session getSession();
+	HttpSession getSession();
 
 	/**
 	 * 结束响应

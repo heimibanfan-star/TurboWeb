@@ -13,20 +13,20 @@ public interface SessionManagerProxy {
      * @param sessionId sessionId
      * @return session
      */
-    Session getSession(String sessionId);
+    HttpSession getSession(String sessionId);
 
     /**
      * 添加session
      *
      * @param sessionId sessionId
-     * @param session   session
+     * @param httpSession   session
      */
-    void addSession(String sessionId, Session session);
+    void addSession(String sessionId, HttpSession httpSession);
 
     /**
      * 获取所有session
      *
      * @return session
      */
-    Map<String, Session> getAllSession();
+    Map<String, HttpSession> getAllSession();
 }
