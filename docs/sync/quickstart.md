@@ -10,7 +10,7 @@
 <dependency>
   <groupId>io.gitee.turboweb</groupId>
   <artifactId>turboweb-framework</artifactId>
-  <version>Ox.2.2-RELEASE</version>
+  <version>Ox.2.3-RELEASE</version>
 </dependency>
 ```
 
