@@ -27,7 +27,10 @@ import java.util.concurrent.ForkJoinPool;
 
 /**
  * 反应式的http请求调度器
+ * 该调度器还为完善，有部分bug, 待完善
+ * 目前不推荐使用该调度器
  */
+@Deprecated
 public class ReactiveHttpScheduler extends AbstractHttpScheduler {
 
     private final ForkJoinPool SERVICE_POOL;
