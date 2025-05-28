@@ -64,7 +64,7 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
                 return bytes;
             }
         } catch (Exception e) {
-            log.error("文件读取失败: {}", path, e);
+            log.error("file load error: {}", path, e);
         }
         return null;
     }
@@ -92,6 +92,7 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
         response.headers().set(ctx.getResponse().headers());
         // 设置文件类型
         String mimeType = tika.detect(path);
+        log.debug("file:{}, type:[{}]", path, mimeType);
         response.setContentType(mimeType);
         // 设置响应内容的大小
         response.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes.length);

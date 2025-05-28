@@ -22,23 +22,42 @@ public class StaticResourceMiddleware extends AbstractStaticResourceMiddleware {
             if (uri.contains("?")) {
                 uri = uri.substring(0, uri.indexOf("?"));
             }
-            // 去除前缀
-            uri = uri.replace(staticResourceUri, staticResourcePath);
+            String path = replaceUriToPath(uri);
+            log.debug("Mapped URI [{}] TO PATH [{}]", uri, path);
             // 从缓存中获取
             if (cacheStaticResource) {
-                byte[] bytes = caches.get(uri);
+                byte[] bytes = caches.get(path);
                 if (bytes != null) {
-                    return buildResponse(ctx, bytes, uri);
+                    return buildResponse(ctx, bytes, path);
                 }
             }
-            byte[] bytes = loadAndCacheStaticResource(uri);
+            byte[] bytes = loadAndCacheStaticResource(path);
             if (bytes != null) {
-                return buildResponse(ctx, bytes, uri);
+                return buildResponse(ctx, bytes, path);
             } else {
                 throw new TurboRouterException("找不到静态资源", TurboRouterException.ROUTER_NOT_MATCH);
             }
         }
         return next(ctx);
+    }
+
+    /**
+     * 替换uri为path
+     *
+     * @param uri 请求的uri
+     * @return 文件的路径
+     */
+    private String replaceUriToPath(String uri) {
+        String tempUri = uri.substring(staticResourceUri.length());
+        // 处理/拼接的问题
+        if (!staticResourcePath.endsWith("/") && !tempUri.startsWith("/")) {
+            return staticResourcePath + "/" + tempUri;
+        }
+        // 防止出现多余的/
+        if (staticResourcePath.endsWith("/") && tempUri.startsWith("/")) {
+            return staticResourcePath + tempUri.substring(1);
+        }
+        return staticResourcePath + tempUri;
     }
 
 }

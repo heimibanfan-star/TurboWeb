@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.gitee.turboweb</groupId>
         <artifactId>turboweb</artifactId>
-        <version>Ox.2.1-RELEASE</version>
+        <version>Ox.2.3-SNAPSHOT</version>
     </parent>
 
     <artifactId>turboweb-example</artifactId>
@@ -20,7 +20,7 @@
     <dependencies>
         <dependency>
             <groupId>${turboweb.groupId}</groupId>
-            <artifactId>turboweb-core</artifactId>
+            <artifactId>turboweb-framework</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
         <dependency>
