@@ -171,11 +171,6 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
             Path basePath = Paths.get(staticResourcePath);
             Path normalizedPath = basePath.resolve(decodedPath).normalize();
 
-            if (normalizedPath.isAbsolute()) {
-                log.warn("非法绝对路径请求: {}", path);
-                throw new TurboStaticResourceException("非法绝对路径请求");
-            }
-
             if (!normalizedPath.startsWith(basePath)) {
                 log.warn("非法路径穿透请求: {}", path);
                 throw new TurboStaticResourceException("非法路径穿透请求");
