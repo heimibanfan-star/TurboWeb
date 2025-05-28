@@ -10,7 +10,7 @@ import top.turboweb.http.context.HttpContext;
 @RequestPath("/user")
 public class UserController {
 
-	@Get
+	@Get("/{id}")
 	public String helloUser(HttpContext c) {
 		return "hello user";
 	}

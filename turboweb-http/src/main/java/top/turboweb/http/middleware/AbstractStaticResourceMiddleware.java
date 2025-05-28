@@ -13,6 +13,10 @@ import top.turboweb.commons.exception.TurboStaticResourceException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -45,6 +49,7 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
      * @return 文件字节数组
      */
     protected byte[] loadAndCacheStaticResource(String path) {
+        path = safePath(path);
         // 从文件中读取
         InputStream inputStream = mainClass.getClassLoader().getResourceAsStream(path);
         try (inputStream) {
@@ -97,6 +102,34 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
         // 设置响应内容的大小
         response.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes.length);
         return response;
+    }
+
+    /**
+     * 校验路径是否安全
+     *
+     * @param path 路径
+     */
+    public String safePath(String path) {
+        try {
+            // URL 解码，防止编码绕过
+            String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
+            Path basePath = Paths.get(staticResourcePath);
+            Path normalizedPath = Paths.get(decodedPath).normalize();
+
+            if (normalizedPath.isAbsolute()) {
+                log.warn("非法绝对路径请求: {}", path);
+                throw new TurboStaticResourceException("非法绝对路径请求");
+            }
+
+            if (!normalizedPath.startsWith(basePath)) {
+                log.warn("非法路径穿透请求: {}", path);
+                throw new TurboStaticResourceException("非法路径穿透请求");
+            }
+            return normalizedPath.toString();
+        } catch (IllegalArgumentException e) {
+            log.warn("路径解码异常: {}", path);
+            throw new TurboStaticResourceException("路径解码异常");
+        }
     }
 
 
