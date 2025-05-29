@@ -22,6 +22,9 @@ TurboWeb 是一个**现代、高性能、无废话**的 Java Web 框架。它是
 - 服务间路由共享：不依赖中心化的网关，各个节点之间可以互相暴露API，实现更加灵活的微服务架构。
 - 同时支持同步风格编程：TurboWeb虽然使用同步编程也能带来高性能，但是同时也是支持反应式编程。
 
+**TurboWeb的请求处理流程**
+<img src="docs/image/时序图.png">
+
 接下来一起进入TurboWeb：
 
 TurboWeb支持[同步风格编程](./docs/sync/guide.md)和[反应式风格编程](./docs/reactive/guide.md)。
