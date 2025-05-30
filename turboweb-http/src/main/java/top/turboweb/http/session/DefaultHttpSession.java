@@ -21,7 +21,7 @@ public class DefaultHttpSession implements HttpSession {
 
     public DefaultHttpSession(SessionManager sessionManager, String sessionId) {
         this.sessionManager = sessionManager;
-        if (sessionManager.exist(sessionId)) {
+        if (sessionId != null && sessionManager.exist(sessionId)) {
             this.sessionId = sessionId;
         }
     }

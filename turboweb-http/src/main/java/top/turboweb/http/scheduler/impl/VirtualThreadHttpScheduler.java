@@ -60,12 +60,12 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
         HttpInfoResponse response = null;
         try {
              httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(request);
+            // 创建响应对象
+            response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
             // 初始化session
             Cookies cookies = httpInfoRequest.getCookies();
             String originSessionId = cookies.getCookie("JSESSIONID");
             HttpSession httpSession = new DefaultHttpSession(sessionManagerHolder.getSessionManager(), originSessionId);
-            // 创建响应对象
-            response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
             HttpContext context = new FullHttpContext(httpInfoRequest, httpSession, response, session);
             Object result = sentinelMiddleware.invoke(context);
             // 处理响应数据

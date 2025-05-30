@@ -5,7 +5,7 @@ import top.turboweb.http.session.SessionManagerHolder;
 /**
  * 注入sessionManagerProxy的接口
  */
-public interface SessionManagerProxyAware {
+public interface SessionManagerHolderAware {
 
     /**
      * 设置sessionManagerProxy

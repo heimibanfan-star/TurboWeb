@@ -10,7 +10,7 @@ import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.middleware.aware.CharsetAware;
 import top.turboweb.http.middleware.aware.ExceptionHandlerMatcherAware;
 import top.turboweb.http.middleware.aware.MainClassAware;
-import top.turboweb.http.middleware.aware.SessionManagerProxyAware;
+import top.turboweb.http.middleware.aware.SessionManagerHolderAware;
 import top.turboweb.http.router.container.RouterContainer;
 import top.turboweb.http.router.dispatcher.HttpDispatcher;
 import top.turboweb.http.router.dispatcher.impl.DefaultHttpDispatcher;
@@ -96,7 +96,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
     ) {
         while (ptr != null) {
             // 判断是否实现Aware
-            if (ptr instanceof SessionManagerProxyAware aware) {
+            if (ptr instanceof SessionManagerHolderAware aware) {
                 aware.setSessionManagerProxy(sessionManagerHolder);
             }
             if (ptr instanceof ExceptionHandlerMatcherAware aware) {
