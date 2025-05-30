@@ -403,6 +403,45 @@ public String example09(HttpContext c) {
 
 > 详细的校验规则请参考JSR303数据校验标准。
 
+**分组校验**
+
+TurboWeb对参数的封装也提供了分组校验，如下列的例子：
+
+```java
+@NotBlank(message = "用户名不能为空", groups = Groups.Add.class)
+private String name;
+@NotNull(message = "年龄不能为空", groups = Groups.Update.class)
+private Integer age;
+```
+
+在这个例子中，`name` 字段的校验属于 `Add` 分组，而 `age` 字段的校验则属于 `Update` 分组。
+
+分组校验使用示例：
+
+```java
+User user = c.loadValidQuery(User.class, Groups.Add.class);
+```
+
+由于 `loadValidQuery` 方法传入了 `Groups.Add.class`，所以此时只会校验 `name` 字段（用户名），而 `age` 字段（年龄）将不会进行校验。
+
+```java
+User user = c.loadValidQuery(User.class, Groups.Update.class);
+```
+
+当传入 `Groups.Update.class` 时，只有 `age` 字段（年龄）会被校验，而 `name` 字段（用户名）将不会被校验。
+
+```java
+User user = c.loadValidQuery(User.class, Groups.Update.class, Groups.Add.class);
+```
+
+如果同时传入 `Groups.Update.class` 和 `Groups.Add.class`，则会同时对 `name` 和 `age` 字段进行校验。
+
+> 注意：
+>
+> 如果校验规则的注解没有指定分组，而校验方法传入了分组，那么该校验将被跳过，只有注解上指定分组的字段会进行校验。
+>
+> 这种分组校验机制可以帮助在不同场景下根据需要选择性地校验字段，提供灵活的校验策略。
+
 
 
 [目录](./guide.md) [快速入门](./quickstart.md) 上一节 下一节 [响应数据的处理](./response.md)
