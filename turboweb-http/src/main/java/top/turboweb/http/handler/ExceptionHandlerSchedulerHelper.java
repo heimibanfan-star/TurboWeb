@@ -127,17 +127,17 @@ public class ExceptionHandlerSchedulerHelper {
                 HttpResponseUtils.mergeHeaders(response, newResponse);
                 errorMsg.put("code", "404");
                 errorMsg.put("msg", e.getMessage());
-                response.setContent(BeanUtils.getObjectMapper().writeValueAsString(errorMsg));
-                response.setContentType("application/json");
-                return response;
+                newResponse.setContent(BeanUtils.getObjectMapper().writeValueAsString(errorMsg));
+                newResponse.setContentType("application/json");
+                return newResponse;
             } else {
                 HttpInfoResponse newResponse = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
                 HttpResponseUtils.mergeHeaders(response, newResponse);
                 errorMsg.put("code", "500");
                 errorMsg.put("msg", e.getMessage());
-                response.setContent(BeanUtils.getObjectMapper().writeValueAsString(errorMsg));
-                response.setContentType("application/json");
-                return response;
+                newResponse.setContent(BeanUtils.getObjectMapper().writeValueAsString(errorMsg));
+                newResponse.setContentType("application/json");
+                return newResponse;
             }
         } catch (JsonProcessingException ex) {
             log.error("json序列化异常", ex);
