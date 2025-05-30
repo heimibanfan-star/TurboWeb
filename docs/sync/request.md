@@ -70,9 +70,73 @@ GET http://localhost:8080/user/1/TurboWeb/18/true
 
 ## 查询参数
 
-在TurboWeb对查询参数进行封装需要借助实体对象进行封装。
+TurboWeb 提供了非常简洁的方式来获取查询参数，而无需依赖实体类。可以通过 `HttpContext` 的 `query(..)` 方法获取单个查询参数：
 
-首先定义一个实体对象，提供对应的无参构造器，getter方法和setter方法：
+```java
+@Get
+public String simple01(HttpContext c) {
+    String name = c.query("name");
+    return "name:" + name;
+}
+```
+
+假如请求的查询参数是 `?name=turboweb`，那么 `name` 的值就会被提取。如果该参数不存在，默认返回 `null`。
+
+为了避免 `null` 值的出现，可以为查询参数设置**默认值**：
+
+```java
+@Get("/simple02")
+public String simple02(HttpContext c) {
+    String name = c.query("name", "turboweb");
+    return "name:" + name;
+}
+```
+
+如果客户端传递了相同的查询参数多次（例如：`?name=turbo&name=web`），TurboWeb 会将这些参数封装成一个集合：
+
+```java
+@Get("/simple02")
+public String simple02(HttpContext c) {
+    List<String> names = c.queries("name");
+    return "name:" + names;
+}
+```
+
+这里会将多个 `name` 参数封装到一个 `List` 中，如果没有该参数，则返回一个空的集合。
+
+TurboWeb 还支持自动类型转换，可以直接将查询参数转换成 `Long`、`Integer`、`Boolean` 等类型。以下是一个例子：
+
+```java
+@Get("/simple04")
+public String simple04(HttpContext c) {
+    Integer age = c.queryInt("age");
+    return "age:" + age;
+}
+```
+
+当然，你也可以为这些类型指定默认值：
+
+```java
+@Get("/simple05")
+public String simple05(HttpContext c) {
+    Integer age = c.queryInt("age", 18);
+    return "age:" + age;
+}
+```
+
+对于多个参数的查询，同样可以使用复数方法：
+
+```java
+@Get("/simple06")
+public String simple06(HttpContext c) {
+    List<Integer> grades = c.queriesInt("grade");
+    return "grade:" + grades;
+}
+```
+
+> 注意：使用自动类型转换时，如果参数类型不匹配，会抛出异常。
+
+此外，查询参数也可以通过实体类进行封装。首先，定义一个实体类：
 
 ```java
 public class UserDTO {

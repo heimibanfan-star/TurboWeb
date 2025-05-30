@@ -33,3 +33,21 @@ GET http://localhost:8080/user/example08
 
 ### example09
 GET http://localhost:8080/user/example09
+
+### simple01
+GET http://localhost:8080/simple01?name=turboweb
+
+### simple02
+GET http://localhost:8080/simple02
+
+### simple03
+GET http://localhost:8080/simple03?name=turbo&name=web
+
+### simple04
+GET http://localhost:8080/simple04?age=18
+
+### simple05
+GET http://localhost:8080/simple05?age=19
+
+### simple06
+GET http://localhost:8080/simple06?grade=100&grade=99

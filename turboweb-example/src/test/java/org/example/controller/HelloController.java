@@ -12,12 +12,12 @@ public class HelloController {
 
 	@Get
 	public String hello(HttpContext c) {
-		return (String) c.getSession().getAttribute("name");
+		return (String) c.getHttpSession().getAttr("name");
 	}
 
 	@Get("/set")
 	public String set(HttpContext c) {
-		c.getSession().setAttribute("name", "张三", 10000);
+		c.getHttpSession().setAttr("name", "张三", 10000);
 		return "set session";
 	}
 }

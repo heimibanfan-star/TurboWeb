@@ -27,5 +27,5 @@ TurboWeb 是一个**现代、高性能、无废话**的 Java Web 框架。它是
 
 接下来一起进入TurboWeb：
 
-TurboWeb支持[同步风格编程](./docs/sync/guide.md)和[反应式风格编程](./docs/reactive/guide.md)。
+[目录](./docs/sync/guide.md)
 
