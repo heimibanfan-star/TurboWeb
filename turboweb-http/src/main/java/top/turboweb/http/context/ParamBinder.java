@@ -18,6 +18,14 @@ public interface ParamBinder {
     void validate(Object obj);
 
     /**
+     * 校验对象
+     *
+     * @param obj 待校验对象
+     * @param groups 待校验分组
+     */
+    void validate(Object obj, Class<?>... groups);
+
+    /**
      * 注入路径参数
      *
      * @param params 路径参数
@@ -79,6 +87,15 @@ public interface ParamBinder {
     <T> T loadValidQuery(Class<T> beanType);
 
     /**
+     * 将查询参数封装为对象
+     *
+     * @param beanType 待封装对象类型
+     * @param groups 待校验分组
+     * @return 封装对象
+     */
+    <T> T loadValidQuery(Class<T> beanType, Class<?>... groups);
+
+    /**
      * 将表单参数封装成对象
      *
      * @param beanType 对象类型
@@ -89,6 +106,15 @@ public interface ParamBinder {
     <T> T loadValidForm(Class<T> beanType);
 
     /**
+     * 将表单参数封装成对象
+     *
+     * @param beanType 待封装对象类型
+     * @param groups 待校验分组
+     * @return 封装对象
+     */
+    <T> T loadValidForm(Class<T> beanType, Class<?>... groups);
+
+    /**
      * 将json参数封装成对象
      *
      * @param beanType 对象类型
@@ -97,6 +123,15 @@ public interface ParamBinder {
     <T> T loadJson(Class<T> beanType);
 
     <T> T loadValidJson(Class<T> beanType);
+
+    /**
+     * 将json参数封装成对象
+     *
+     * @param beanType 待封装对象类型
+     * @param groups 待校验分组
+     * @return 封装对象
+     */
+    <T> T loadValidJson(Class<T> beanType, Class<?>... groups);
 
     /**
      * 获取文件上传对象

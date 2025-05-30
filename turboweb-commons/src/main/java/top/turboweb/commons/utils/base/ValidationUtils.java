@@ -36,4 +36,18 @@ public class ValidationUtils {
         validate.forEach(cv -> errorMsg.add(cv.getMessage()));
         return errorMsg;
     }
+
+    /**
+     * 校验对象
+     *
+     * @param obj 校验对象
+     * @param groups 校验组
+     * @return 错误信息
+     */
+    public static List<String> validate(Object obj, Class<?>... groups) {
+        List<String> errorMsg = new ArrayList<>();
+        Set<ConstraintViolation<Object>> validate = VALIDATOR.validate(obj, groups);
+        validate.forEach(cv -> errorMsg.add(cv.getMessage()));
+        return errorMsg;
+    }
 }

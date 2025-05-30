@@ -45,6 +45,14 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
+	public void validate(Object obj, Class<?>... groups) {
+		List<String> errorMsg = ValidationUtils.validate(obj, groups);
+		if (!errorMsg.isEmpty()) {
+			throw new TurboArgsValidationException(errorMsg);
+		}
+	}
+
+	@Override
 	public Void json(HttpResponseStatus status, Object data) {
 		if (isWrite()) {
 			throw new TurboResponseRepeatWriteException("response repeat write");
@@ -250,6 +258,13 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
+	public <T> T loadValidQuery(Class<T> beanType, Class<?>... groups) {
+		T result = this.loadQuery(beanType);
+		validate(result, groups);
+		return result;
+	}
+
+	@Override
 	public <T> T loadForm(Class<T> beanType) {
 		// 获取无参构造方法
 		try {
@@ -268,6 +283,13 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	public <T> T loadValidForm(Class<T> beanType) {
 		T result = this.loadForm(beanType);
 		validate(result);
+		return result;
+	}
+
+	@Override
+	public <T> T loadValidForm(Class<T> beanType, Class<?>... groups) {
+		T result = this.loadForm(beanType);
+		validate(result, groups);
 		return result;
 	}
 
@@ -291,6 +313,13 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	public <T> T loadValidJson(Class<T> beanType) {
 		T result = this.loadJson(beanType);
 		validate(result);
+		return result;
+	}
+
+	@Override
+	public <T> T loadValidJson(Class<T> beanType, Class<?>... groups) {
+		T result = this.loadJson(beanType);
+		validate(result, groups);
 		return result;
 	}
 
