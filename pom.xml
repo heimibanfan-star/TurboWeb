@@ -6,6 +6,7 @@
 
     <groupId>io.gitee.turboweb</groupId>
     <artifactId>turboweb</artifactId>
+    <name>turboweb</name>
     <version>1.0.1</version>
     <description>
         TurboWeb 是一个基于Netty开发的高并发Web框架。

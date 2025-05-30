@@ -8,6 +8,7 @@
     </parent>
 
     <artifactId>turboweb-framework</artifactId>
+    <name>turboweb-framework</name>
     <packaging>jar</packaging>
 
     <url>http://maven.apache.org</url>
