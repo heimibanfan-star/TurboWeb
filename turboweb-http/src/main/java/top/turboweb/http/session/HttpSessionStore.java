@@ -40,4 +40,9 @@ public interface HttpSessionStore {
      * @param key 属性名
      */
     void remAttr(String key);
+
+    /**
+     * 续时
+     */
+    void expireAt();
 }

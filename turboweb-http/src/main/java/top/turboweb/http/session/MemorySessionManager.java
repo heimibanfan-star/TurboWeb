@@ -97,6 +97,14 @@ public class MemorySessionManager implements SessionManager {
         return "memory session manager";
     }
 
+    @Override
+    public void expireAt(String sessionId) {
+        MemorySessionMap sessionMap = sessionContainer.get(sessionId);
+        if (sessionMap != null) {
+            sessionMap.expireAt();
+        }
+    }
+
     /**
      * 获取sessionMap
      *

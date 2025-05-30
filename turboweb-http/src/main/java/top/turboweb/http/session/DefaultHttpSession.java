@@ -62,6 +62,13 @@ public class DefaultHttpSession implements HttpSession {
         }
     }
 
+    @Override
+    public void expireAt() {
+        if (sessionId != null) {
+            sessionManager.expireAt(sessionId);
+        }
+    }
+
     /**
      * 检查sessionId是否为空，为空则生成一个sessionId
      */

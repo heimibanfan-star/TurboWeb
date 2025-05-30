@@ -87,12 +87,16 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
      * @param originSessionId sessionId
      */
     protected void handleSessionAfterRequest(HttpSession session, HttpResponse response, String originSessionId) {
-        if (session.sessionId() == null) {
-            return;
-        }
-        // 判断session是否需要重新响应
-        if (!Objects.equals(session.sessionId(), originSessionId) || session.pathIsUpdate()) {
-            response.headers().add("Set-Cookie", "JSESSIONID=" + session.sessionId() + "; Path="+ session.getPath() +"; HttpOnly");
+        try {
+            if (session.sessionId() == null) {
+                return;
+            }
+            // 判断session是否需要重新响应
+            if (!Objects.equals(session.sessionId(), originSessionId) || session.pathIsUpdate()) {
+                response.headers().add("Set-Cookie", "JSESSIONID=" + session.sessionId() + "; Path="+ session.getPath() +"; HttpOnly");
+            }
+        } finally {
+            session.expireAt();
         }
     }
 

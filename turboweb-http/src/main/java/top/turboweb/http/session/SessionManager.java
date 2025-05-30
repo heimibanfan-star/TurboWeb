@@ -74,4 +74,11 @@ public interface SessionManager {
      * @return session管理器的名称
      */
     String sessionManagerName();
+
+    /**
+     * 设置session的过期时间
+     *
+     * @param sessionId sessionId
+     */
+    void expireAt(String sessionId);
 }
