@@ -12,7 +12,7 @@ public class HelloController {
 
 	@Get("/example01")
 	public HttpResponse example01(HttpContext c) {
-		SseEmitter sseEmitter = c.newSseEmitter(128);
+		SseEmitter sseEmitter = c.createSseEmitter(128);
 		Thread.ofVirtual().start(() -> {
 			for (int i = 0; i < 10; i++) {
 				sseEmitter.send("hello:" + i);

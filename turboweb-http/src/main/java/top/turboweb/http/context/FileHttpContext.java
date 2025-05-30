@@ -30,11 +30,6 @@ public abstract class FileHttpContext extends CoreHttpContext {
 		super(request, httpSession, response, connectSession);
 	}
 
-	@Override
-	public List<FileUpload> getFileUploads(String name) {
-		return request.getContent().getFormFiles().get(name);
-	}
-
 
 
 	@Override

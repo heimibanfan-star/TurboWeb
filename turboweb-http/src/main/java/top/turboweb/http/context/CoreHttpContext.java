@@ -7,6 +7,8 @@ import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.response.SseResponse;
+import top.turboweb.http.response.sync.InternalSseEmitter;
+import top.turboweb.http.response.sync.SseEmitter;
 import top.turboweb.http.session.HttpSession;
 
 
@@ -47,6 +49,17 @@ public abstract class CoreHttpContext implements HttpContext{
 	public SseResponse newSseResponse() {
 		return new SseResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, response.headers(), connectSession);
 	}
+
+	@Override
+	public SseEmitter createSseEmitter() {
+		return new InternalSseEmitter(connectSession, 32);
+	}
+
+	@Override
+	public SseEmitter createSseEmitter(int maxMessageCache) {
+		return new InternalSseEmitter(connectSession, maxMessageCache);
+	}
+
 
 	@Override
 	public HttpCookie getHttpCookie() {

@@ -19,6 +19,7 @@ import top.turboweb.http.session.HttpSession;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,6 +153,78 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
+	public List<String> queries(String name) {
+		List<String> vals = request.getQueryParams().get(name);
+		if (vals == null) {
+			return new ArrayList<>(0);
+		}
+		return vals;
+	}
+
+	@Override
+	public String query(String name) {
+		List<String> vals = queries(name);
+		return vals.isEmpty() ? null : vals.getFirst();
+	}
+
+	@Override
+	public String query(String name, String defaultValue) {
+		String val = query(name);
+		return val == null ? defaultValue : val;
+	}
+
+	@Override
+	public List<Long> queriesLong(String name) {
+		return queries(name).stream().map(Long::parseLong).toList();
+	}
+
+	@Override
+	public Long queryLong(String name) {
+		List<Long> vals = queriesLong(name);
+		return vals.isEmpty() ? null : vals.getFirst();
+	}
+
+	@Override
+	public Long queryLong(String name, long defaultValue) {
+		Long val = queryLong(name);
+		return val == null ? defaultValue : val;
+	}
+
+	@Override
+	public List<Integer> queriesInt(String name) {
+		return queries(name).stream().map(Integer::parseInt).toList();
+	}
+
+	@Override
+	public Integer queryInt(String name) {
+		List<Integer> vals = queriesInt(name);
+		return vals.isEmpty() ? null : vals.getFirst();
+	}
+
+	@Override
+	public Integer queryInt(String name, int defaultValue) {
+		Integer val = queryInt(name);
+		return val == null ? defaultValue : val;
+	}
+
+	@Override
+	public List<Boolean> queriesBool(String name) {
+		return queries(name).stream().map(Boolean::parseBoolean).toList();
+	}
+
+	@Override
+	public Boolean queryBool(String name) {
+		List<Boolean> vals = queriesBool(name);
+		return vals.isEmpty() ? null : vals.getFirst();
+	}
+
+	@Override
+	public Boolean queryBool(String name, Boolean defaultValue) {
+		Boolean val = queryBool(name);
+		return val == null ? defaultValue : val;
+	}
+
+	@Override
 	public <T> T loadQuery(Class<T> beanType) {
 		try {
 			// 获取无参构造方法
@@ -219,16 +292,6 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		T result = this.loadJson(beanType);
 		validate(result);
 		return result;
-	}
-
-	@Override
-	public SseEmitter newSseEmitter() {
-		return new InternalSseEmitter(connectSession, 32);
-	}
-
-	@Override
-	public SseEmitter newSseEmitter(int maxMessageCache) {
-		return new InternalSseEmitter(connectSession, maxMessageCache);
 	}
 
 	/**
