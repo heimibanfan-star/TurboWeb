@@ -22,6 +22,13 @@ public class UserController {
 		return "session name: " + name;
 	}
 
+	@Get("/get2")
+	public String get2(HttpContext c) {
+		HttpSession session = c.getHttpSession();
+		String name = session.getAttr("name", String.class);
+		return "session name: " + name;
+	}
+
 	@Get("/setttl")
 	public String setttl(HttpContext c) {
 		HttpSession session = c.getHttpSession();

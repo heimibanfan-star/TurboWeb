@@ -8,73 +8,103 @@ Session 主要用于存储用户登录状态、操作过程中的中间数据或
 
 接下来看一下在TurboWeb中如何使用Session。
 
-创建一个Controller接口，保存Session:
+**创建一个Controller接口，保存Session:**
 
 ```java
 @Get("/set")
 public String set(HttpContext c) {
-    Session session = c.getSession();
-    session.setAttribute("name", "turboweb");
+    HttpSession httpSession = c.getHttpSession();
+    httpSession.setAttr("name", "turboweb");
     return "set session";
 }
 ```
 
-通过 `HttpContext` 的 `getSession()` 方法来获取 `Session` 对象，对Session的操作依赖该对象完成。
+在 TurboWeb 中，通过 `HttpContext` 的 `getHttpSession()` 方法可以获取到 `HttpSession` 对象。所有 Session 的操作都依赖于这个对象来完成。
 
-通过 `Session` 的 `setAttribute(..)` 方法来设置session的内容，参数1是key，参数2是value。
+- 通过 `HttpSession` 的 `setAttr(..)` 方法可以设置 Session 数据，第一个参数是键（key），第二个参数是值（value）。
 
-接下来通过浏览器访问 `http://localhost:8080/user/set` 就可以设置session了。
+通过访问 `http://localhost:8080/user/set` 可以设置 Session。
 
-接下来看一下如果获取存储的session:
+**获取存储的session**
 
 ```java
 @Get("/get")
 public String get(HttpContext c) {
-    Session session = c.getSession();
-    String name = (String) session.getAttribute("name");
+    HttpSession session = c.getHttpSession();
+    String name = (String) session.getAttr("name");
     return "session name: " + name;
 }
 ```
 
-session的获取是通过 `Session` 的 `getAttribute(..)` 方法来完成，参数是key。
+获取 Session 数据可以通过 `HttpSession` 的 `getAttr(..)` 方法，传入对应的键（key）即可。
 
-session获取之后的类型是 `Object` 类型，因此需要用户根据实际情况进行类型转换。
+由于返回值类型是 `Object`，因此你需要根据实际情况进行类型转换。
 
-通过上述的 `http://localhost:8080/user/set` 地址先设置session，然后通过访问 `http://localhost:8080/user/get` 就可以获取到存储的session内容了。
+如果你希望获取的 Session 数据类型更明确，可以使用另一个重载版本：
 
-在TurboWeb中也支持存储带**过期时间**的session.。
+```java
+@Get("/get2")
+public String get2(HttpContext c) {
+    HttpSession session = c.getHttpSession();
+    String name = session.getAttr("name", String.class);
+    return "session name: " + name;
+}
+```
 
-为什么要有过期时间？
+第二个参数是数据的类型，可以确保返回值的类型安全。
 
-有的场景，例如存储一个验证码，需要用户在5分钟之内输入，超过5分钟，那么这个验证码就失效了，因此过期时间非常的重要。
+**支持设置过期时间的 Session**
 
-`Session` 的 `setAttribute(..)` 方法提供了一个重载版本，多出的一个参数就是配置过期时间。
+在某些应用场景中，如验证码等临时数据，Session 需要设置过期时间。TurboWeb 支持设置带过期时间的 Session。
 
 ```java
 @Get("/setttl")
 public String setttl(HttpContext c) {
-    Session session = c.getSession();
-    session.setAttribute("name", "turboweb", 10000);
+    HttpSession session = c.getHttpSession();
+    session.setAttr("name", "turboweb", 10000);
     return "set session ttl";
 }
 ```
 
-单位是**毫秒**，这里设置的就是10秒之后过期。
+过期时间的单位是毫秒。上面的例子中，Session 会在 10 秒后自动过期。你可以通过访问 `http://localhost:8080/user/get` 来测试，10 秒后获取的 Session 内容将为 `null`。
 
-接下来可以通过 `http://localhost:8080/user/get` 来访问，等待10秒之后可以看到获取到的内容就是 `null` 了。
+**主动删除session数据**
 
-TurboWeb的session也支持开发者**主动删除**某个键值对。
+TurboWeb 还支持开发者主动删除某个 Session 数据：
 
 ```java
 @Get("/remove")
 public String remove(HttpContext c) {
-    Session session = c.getSession();
-    session.removeAttribute("name");
+    SseResponse sseResponse = c.newSseResponse();
+    HttpSession session = c.getHttpSession();
+    session.remAttr("name");
     return "remove session";
 }
 ```
 
-通过 `Session` 的 `removeAttribute(..)` 方法来删除指定的键值对，参数是key。
+通过 `HttpSession` 的 `removeAttr(..)` 方法，可以删除指定键（key）对应的 Session 数据。
+
+## Session的存储原理
+
+TurboWeb 的 `HttpSession` 对象不再直接存储 Session 数据，而是通过 `SessionManager` 来管理数据的存储。`HttpSession` 仅仅作为 `SessionManager` 的代理对象，内部只存储 `JSESSIONID`。所有对 `HttpSession` 的操作都会被委派给 `SessionManager` 执行，因此用户可以根据具体需求灵活替换 Session 的存储方案。
+
+**MemorySessionManager**
+
+`MemorySessionManager` 是 TurboWeb 默认的 Session 管理器，它使用内存来存储 Session 数据。该管理器会自动进行垃圾回收。在垃圾回收期间，为了确保 Session 容器的安全，它会通过抢占写锁的方式避免回收期间发生并发请求。虽然这种方式可以保护数据，但可能会导致短时间的停顿。
+
+**BackHoleSessionManager**
+
+对于一些无状态的系统，可能根本不需要 Session。在这种情况下，`BackHoleSessionManager` 是一个不错的选择。如果将管理器替换为 `BackHoleSessionManager`，那么所有对 Session 的操作都会被忽略，获取 Session 的内容时也会返回 `null`。
+
+替换方式如下：
+
+```java
+server.replaceSessionManager(new BackHoleSessionManager());
+```
+
+**用户自定义**
+
+如果 TurboWeb 提供的 Session 管理器无法满足需求，用户可以通过实现 `SessionManager` 接口来自定义自己的 Session 管理器。然后，通过替换原有的 Session 管理器来使用自定义的方案。
 
 
 
