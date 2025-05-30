@@ -6,7 +6,7 @@
 
     <groupId>io.gitee.turboweb</groupId>
     <artifactId>turboweb</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.1</version>
     <description>
         TurboWeb 是一个基于Netty开发的高并发Web框架。
     </description>
@@ -25,7 +25,7 @@
     </modules>
 
     <properties>
-        <turboweb.version>1.0.1-SNAPSHOT</turboweb.version>
+        <turboweb.version>1.0.1</turboweb.version>
         <turboweb.groupId>io.gitee.turboweb</turboweb.groupId>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
