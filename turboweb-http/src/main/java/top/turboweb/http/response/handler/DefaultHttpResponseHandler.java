@@ -1,4 +1,4 @@
-package top.turboweb.http.adapter;
+package top.turboweb.http.response.handler;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.DefaultHttpContent;
@@ -10,10 +10,10 @@ import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.response.*;
 
 /**
- * 默认的http响应适配器
+ * 默认的http响应处理器
  */
-public class DefaultHttpResponseAdapter implements HttpResponseAdapter{
-	private static final Logger log = LoggerFactory.getLogger(DefaultHttpResponseAdapter.class);
+public class DefaultHttpResponseHandler implements HttpResponseHandler {
+	private static final Logger log = LoggerFactory.getLogger(DefaultHttpResponseHandler.class);
 
 	@Override
 	public ChannelFuture writeHttpResponse(HttpResponse response, ConnectSession session) {

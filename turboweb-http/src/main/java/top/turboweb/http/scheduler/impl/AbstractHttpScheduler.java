@@ -8,17 +8,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.constants.FontColors;
 import top.turboweb.http.connect.ConnectSession;
-import top.turboweb.http.adapter.DefaultHttpResponseAdapter;
-import top.turboweb.http.adapter.HttpResponseAdapter;
-import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.handler.DefaultHttpResponseHandler;
+import top.turboweb.http.response.handler.HttpResponseHandler;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.request.HttpInfoRequest;
-import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.session.SessionManagerHolder;
-import top.turboweb.commons.utils.base.RandomUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -35,7 +32,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     protected final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     protected final SessionManagerHolder sessionManagerHolder;
-    private final HttpResponseAdapter httpResponseAdapter = new DefaultHttpResponseAdapter();
+    private final HttpResponseHandler httpResponseHandler = new DefaultHttpResponseHandler();
     protected boolean showRequestLog = true;
 
     {
@@ -134,7 +131,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
      * @param startTime 开始时间
      */
     protected void writeResponse(ConnectSession session, FullHttpRequest request, HttpResponse response, long startTime) {
-        ChannelFuture channelFuture = httpResponseAdapter.writeHttpResponse(response, session);
+        ChannelFuture channelFuture = httpResponseHandler.writeHttpResponse(response, session);
         // 打印性能日志
         if (showRequestLog && channelFuture != null) {
             channelFuture.addListener(future -> {

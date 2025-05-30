@@ -11,6 +11,8 @@ import top.turboweb.http.cookie.Cookies;
 import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.response.IgnoredHttpResponse;
+import top.turboweb.http.response.negotiator.HttpResponseNegotiator;
+import top.turboweb.http.response.negotiator.VirtualHttpResponseNegotiator;
 import top.turboweb.http.response.sync.InternalSseEmitter;
 import top.turboweb.http.response.sync.SseEmitter;
 import top.turboweb.http.session.DefaultHttpSession;
@@ -27,17 +29,20 @@ import top.turboweb.commons.utils.thread.VirtualThreadUtils;
  */
 public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
 
+    private final HttpResponseNegotiator httpResponseNegotiator;
+
     public VirtualThreadHttpScheduler(
-        SessionManagerHolder sessionManagerHolder,
-        Middleware chain,
-        ExceptionHandlerMatcher exceptionHandlerMatcher
+            SessionManagerHolder sessionManagerHolder,
+            Middleware chain,
+            ExceptionHandlerMatcher exceptionHandlerMatcher
     ) {
         super(
                 sessionManagerHolder,
-            chain,
-            exceptionHandlerMatcher,
-            VirtualThreadHttpScheduler.class
+                chain,
+                exceptionHandlerMatcher,
+                VirtualThreadHttpScheduler.class
         );
+        httpResponseNegotiator = new VirtualHttpResponseNegotiator();
     }
 
     @Override
@@ -59,17 +64,17 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
         HttpInfoRequest httpInfoRequest = null;
         HttpInfoResponse response = null;
         try {
-             httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(request);
             // 创建响应对象
             response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
+            httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(request);
             // 初始化session
             Cookies cookies = httpInfoRequest.getCookies();
             String originSessionId = cookies.getCookie("JSESSIONID");
             HttpSession httpSession = new DefaultHttpSession(sessionManagerHolder.getSessionManager(), originSessionId);
             HttpContext context = new FullHttpContext(httpInfoRequest, httpSession, response, session);
             Object result = sentinelMiddleware.invoke(context);
-            // 处理响应数据
-            HttpResponse resultResponse = handleResponse(result, context);
+            // 协商返回结果
+            HttpResponse resultResponse = httpResponseNegotiator.negotiate(context, result);
             // 处理session
             handleSessionAfterRequest(httpSession, resultResponse, originSessionId);
             return resultResponse;
@@ -80,53 +85,6 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
             Locks.SESSION_LOCK.readLock().unlock();
             if (httpInfoRequest != null) {
                 releaseFileUploads(httpInfoRequest);
-            }
-        }
-    }
-
-    /**
-     * 处理响应对象
-     *
-     * @param result 返回值
-     * @param ctx 上下文对象
-     * @return org.turbo.web.core.http.response.HttpInfoResponse
-     */
-    private HttpResponse handleResponse(Object result, HttpContext ctx) {
-        // 判断是否写入内容
-        if (ctx.isWrite()) {
-            return ctx.getResponse();
-        }
-        // 如果为空返回空内容
-        switch (result) {
-            case null -> {
-                ctx.text("");
-                return ctx.getResponse();
-            }
-            // 判断返回值是否是响应对象
-            case HttpResponse httpResponse -> {
-                // 如果是sse发射器直接忽略
-                if (httpResponse instanceof SseEmitter sseEmitter) {
-                    // 初始化sse发射器
-                    InternalSseEmitter internalSseEmitter = (InternalSseEmitter) sseEmitter;
-                    internalSseEmitter.initSse();
-                    httpResponse = IgnoredHttpResponse.ignore();
-                }
-                // 判断是否需要释放内存
-                if (ctx.getResponse() != httpResponse) {
-                    ctx.getResponse().release();
-                }
-                return httpResponse;
-            }
-            // 处理字符串类型
-            case String s -> {
-                // 写入ctx
-                ctx.text(s);
-                return ctx.getResponse();
-            }
-            default -> {
-                // 其他类型作为json写入
-                ctx.json(result);
-                return ctx.getResponse();
             }
         }
     }

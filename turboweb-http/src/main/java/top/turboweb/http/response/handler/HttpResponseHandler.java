@@ -1,13 +1,13 @@
-package top.turboweb.http.adapter;
+package top.turboweb.http.response.handler;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.http.connect.ConnectSession;
 
 /**
- * http响应的适配器
+ * http响应的处理器
  */
-public interface HttpResponseAdapter {
+public interface HttpResponseHandler {
 
 	/**
 	 * 将响应对象适配为netty的响应对象
