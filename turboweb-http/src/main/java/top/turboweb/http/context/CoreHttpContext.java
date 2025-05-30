@@ -16,12 +16,14 @@ import top.turboweb.http.session.HttpSession;
 public abstract class CoreHttpContext implements HttpContext{
 
 	protected final HttpInfoRequest request;
+	protected final HttpSession session;
 	protected final HttpInfoResponse response;
 	protected final ConnectSession connectSession;
 	private boolean isWrite = false;
 
-	protected CoreHttpContext(HttpInfoRequest request, HttpInfoResponse response, ConnectSession connectSession) {
+	protected CoreHttpContext(HttpInfoRequest request, HttpSession httpSession, HttpInfoResponse response, ConnectSession connectSession) {
 		this.request = request;
+		this.session = httpSession;
 		this.response = response;
 		this.connectSession = connectSession;
 	}
@@ -52,8 +54,8 @@ public abstract class CoreHttpContext implements HttpContext{
 	}
 
 	@Override
-	public HttpSession getSession() {
-		return request.getSession();
+	public HttpSession getHttpSession() {
+		return this.session;
 	}
 
 	@Override

@@ -16,7 +16,7 @@ import top.turboweb.http.router.dispatcher.HttpDispatcher;
 import top.turboweb.http.router.dispatcher.impl.DefaultHttpDispatcher;
 import top.turboweb.http.router.matcher.RouterMatcher;
 import top.turboweb.http.router.matcher.impl.DefaultRouterMatcher;
-import top.turboweb.http.session.SessionManagerProxy;
+import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.core.initializer.MiddlewareInitializer;
 import top.turboweb.http.router.container.RouterContainerInitHelper;
 
@@ -47,14 +47,14 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
 
     @Override
     public Middleware init(
-        SessionManagerProxy sessionManagerProxy,
+        SessionManagerHolder sessionManagerHolder,
         Class<?> mainClass,
         ExceptionHandlerMatcher matcher,
         ServerParamConfig config
     ) {
         Middleware chain = initMiddlewareChain();
         // 执行依赖注入
-        initMiddlewareForAware(chain, sessionManagerProxy, matcher, mainClass, config);
+        initMiddlewareForAware(chain, sessionManagerHolder, matcher, mainClass, config);
         // 执行中间件的初始化方法
         doMiddlewareChainInit(chain);
         // 锁定中间件
@@ -82,14 +82,14 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
      * 进行中间件依赖底层组件的依赖注入
      *
      * @param ptr 头结点的指针
-     * @param sessionManagerProxy session代理
+     * @param sessionManagerHolder session代理
      * @param exceptionHandlerMatcher 异常匹配器
      * @param mainClass 主启动类
      * @param config 配置
      */
     private void initMiddlewareForAware(
         Middleware ptr,
-        SessionManagerProxy sessionManagerProxy,
+        SessionManagerHolder sessionManagerHolder,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
         Class<?> mainClass,
         ServerParamConfig config
@@ -97,7 +97,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
         while (ptr != null) {
             // 判断是否实现Aware
             if (ptr instanceof SessionManagerProxyAware aware) {
-                aware.setSessionManagerProxy(sessionManagerProxy);
+                aware.setSessionManagerProxy(sessionManagerHolder);
             }
             if (ptr instanceof ExceptionHandlerMatcherAware aware) {
                 aware.setExceptionHandlerMatcher(exceptionHandlerMatcher);

@@ -7,7 +7,7 @@ import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.session.SessionManager;
-import top.turboweb.http.session.SessionManagerProxy;
+import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.websocket.WebSocketHandler;
 import top.turboweb.core.initializer.*;
 import top.turboweb.core.initializer.impl.*;
@@ -71,9 +71,9 @@ public class CoreHttpWorkDispatcherFactory implements HttpWorkDispatcherFactory 
 	@Override
 	public HttpProtocolDispatcher create(Class<?> mainClass, ServerParamConfig config) {
 		ExceptionHandlerMatcher handlerMatcher = exceptionHandlerInitializer.init();
-		SessionManagerProxy sessionManagerProxy = sessionManagerProxyInitializer.init(config);
-		Middleware chain = middlewareInitializer.init(sessionManagerProxy, mainClass, handlerMatcher, config);
-		HttpScheduler httpScheduler = httpSchedulerInitializer.init(sessionManagerProxy, handlerMatcher, chain, config);
+		SessionManagerHolder sessionManagerHolder = sessionManagerProxyInitializer.init(config);
+		Middleware chain = middlewareInitializer.init(sessionManagerHolder, mainClass, handlerMatcher, config);
+		HttpScheduler httpScheduler = httpSchedulerInitializer.init(sessionManagerHolder, handlerMatcher, chain, config);
 		return new HttpProtocolDispatcher(
 			httpScheduler,
 			webSocketHandlerInitializer.isUse()? webSocketHandlerInitializer.init() : null,

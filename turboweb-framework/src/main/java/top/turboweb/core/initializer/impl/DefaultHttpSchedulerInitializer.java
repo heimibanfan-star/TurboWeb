@@ -8,7 +8,7 @@ import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.scheduler.impl.VirtualThreadHttpScheduler;
 import top.turboweb.http.scheduler.impl.ReactiveHttpScheduler;
-import top.turboweb.http.session.SessionManagerProxy;
+import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.core.initializer.HttpSchedulerInitializer;
 
 /**
@@ -26,19 +26,19 @@ public class DefaultHttpSchedulerInitializer implements HttpSchedulerInitializer
     }
 
     @Override
-    public HttpScheduler init(SessionManagerProxy sessionManagerProxy, ExceptionHandlerMatcher matcher, Middleware chain, ServerParamConfig config) {
+    public HttpScheduler init(SessionManagerHolder sessionManagerHolder, ExceptionHandlerMatcher matcher, Middleware chain, ServerParamConfig config) {
         HttpScheduler scheduler;
         // 判断是否采用反应式编程
         if (isReactiveServer) {
             scheduler = new ReactiveHttpScheduler(
-                sessionManagerProxy,
+                    sessionManagerHolder,
                 chain,
                 matcher,
                 config.getReactiveServiceThreadNum()
             );
         } else {
             scheduler = new VirtualThreadHttpScheduler(
-                sessionManagerProxy,
+                    sessionManagerHolder,
                 chain,
                 matcher
             );

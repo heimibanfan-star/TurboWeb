@@ -6,6 +6,7 @@ import top.turboweb.commons.lock.Locks;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -16,30 +17,56 @@ import java.util.concurrent.TimeUnit;
  */
 public class MemorySessionManager implements SessionManager {
 
-    private static final Map<String, HttpSession> sessions = new ConcurrentHashMap<>();
     private static final Logger log = LoggerFactory.getLogger(MemorySessionManager.class);
+    private final Map<String, MemorySessionMap> sessionContainer = new ConcurrentHashMap<>();
 
     @Override
-    public HttpSession getSession(String sessionId) {
-        return sessions.get(sessionId);
+    public void setAttr(String sessionId, String key, Object value) {
+        MemorySessionMap sessionMap = getSessionMap(sessionId);
+        sessionMap.setAttr(key, value);
     }
 
     @Override
-    public void addSession(String sessionId, HttpSession httpSession) {
-        sessions.put(sessionId, httpSession);
+    public void setAttr(String sessionId, String key, Object value, long timeout) {
+        MemorySessionMap sessionMap = getSessionMap(sessionId);
+        sessionMap.setAttr(key, value, timeout);
     }
 
     @Override
-    public Map<String, HttpSession> getAllSession() {
-        return sessions;
+    public Object getAttr(String sessionId, String key) {
+        MemorySessionMap sessionMap = sessionContainer.get(sessionId);
+        if (sessionMap == null) {
+            return null;
+        }
+        return sessionMap.getAttr(key);
     }
 
     @Override
-    public void startSessionGC(long checkTime, long maxNotUseTime, long checkForSessionNums) {
+    public <T> T getAttr(String sessionId, String key, Class<T> clazz) {
+        MemorySessionMap sessionMap = sessionContainer.get(sessionId);
+        if (sessionMap == null) {
+            return null;
+        }
+        return sessionMap.getAttr(key, clazz);
+    }
+
+    @Override
+    public void remAttr(String sessionId, String key) {
+        MemorySessionMap sessionMap = getSessionMap(sessionId);
+        sessionMap.remAttr(key);
+    }
+
+    @Override
+    public boolean exist(String sessionId) {
+        return sessionContainer.containsKey(sessionId);
+    }
+
+    @Override
+    public void sessionGC(long checkTime, long maxNotUseTime, long checkForSessionNums) {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
             // 判断是否到达检查条件
-            if (sessions.size() < checkForSessionNums) {
+            if (sessionContainer.size() < checkForSessionNums) {
                 return;
             }
             long start = System.currentTimeMillis();
@@ -47,24 +74,14 @@ public class MemorySessionManager implements SessionManager {
             Locks.SESSION_LOCK.writeLock().lock();
             try {
                 log.debug("session垃圾回收器触发");
-                Iterator<Map.Entry<String, HttpSession>> iterator = sessions.entrySet().iterator();
+                Iterator<Map.Entry<String, MemorySessionMap>> iterator = sessionContainer.entrySet().iterator();
                 while (iterator.hasNext()) {
-                    Map.Entry<String, HttpSession> entry = iterator.next();
-                    HttpSession httpSession = entry.getValue();
-                    if (httpSession.isTimeout(maxNotUseTime)) {
+                    Map.Entry<String, MemorySessionMap> entry = iterator.next();
+                    MemorySessionMap sessionMap = entry.getValue();
+                    if (sessionMap.isTimeout(maxNotUseTime)) {
                         iterator.remove();
-                        log.debug("释放长时间不用的session:{}", httpSession);
-                    }
-                    // 判断里面的key是否过期
-                    Map<String, SessionAttributeDefinition> attributeDefinitions = httpSession.getAllAttributeDefinitions();
-                    Iterator<Map.Entry<String, SessionAttributeDefinition>> entryIterator = attributeDefinitions.entrySet().iterator();
-                    while (entryIterator.hasNext()) {
-                        Map.Entry<String, SessionAttributeDefinition> attributeDefinitionEntry = entryIterator.next();
-                        SessionAttributeDefinition value = attributeDefinitionEntry.getValue();
-                        if (value.isTimeout()) {
-                            entryIterator.remove();
-                            log.debug("释放过期的key：{}", attributeDefinitionEntry.getKey());
-                        }
+                    } else {
+                        sessionMap.timeoutValGC();
                     }
                 }
             } finally {
@@ -76,7 +93,24 @@ public class MemorySessionManager implements SessionManager {
     }
 
     @Override
-    public String getSessionManagerName() {
-        return "MemorySessionManager";
+    public String sessionManagerName() {
+        return "memory session manager";
+    }
+
+    /**
+     * 获取sessionMap
+     *
+     * @param sessionId sessionId
+     * @return sessionMap
+     */
+    private MemorySessionMap getSessionMap(String sessionId) {
+        synchronized (sessionId.intern()) {
+            MemorySessionMap sessionMap = sessionContainer.get(sessionId);
+            if (sessionMap == null) {
+                sessionMap = new MemorySessionMap();
+                sessionContainer.put(sessionId, sessionMap);
+            }
+            return sessionMap;
+        }
     }
 }

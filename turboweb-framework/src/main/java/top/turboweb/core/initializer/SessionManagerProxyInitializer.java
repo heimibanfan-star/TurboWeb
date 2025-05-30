@@ -2,7 +2,7 @@ package top.turboweb.core.initializer;
 
 import top.turboweb.core.config.ServerParamConfig;
 import top.turboweb.http.session.SessionManager;
-import top.turboweb.http.session.SessionManagerProxy;
+import top.turboweb.http.session.SessionManagerHolder;
 
 /**
  * session管理器初始化器
@@ -21,5 +21,5 @@ public interface SessionManagerProxyInitializer {
      *
      * @return session管理器代理对象
      */
-    SessionManagerProxy init(ServerParamConfig config);
+    SessionManagerHolder init(ServerParamConfig config);
 }

@@ -7,11 +7,14 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.cookie.Cookies;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpInfoResponse;
-import top.turboweb.http.session.SessionManagerProxy;
+import top.turboweb.http.session.DefaultHttpSession;
+import top.turboweb.http.session.HttpSession;
+import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.commons.exception.TurboReactiveException;
 import top.turboweb.commons.exception.TurboSerializableException;
@@ -38,13 +41,13 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
     private final Charset charset = StandardCharsets.UTF_8;
 
     public ReactiveHttpScheduler(
-        SessionManagerProxy sessionManagerProxy,
+        SessionManagerHolder sessionManagerHolder,
         Middleware chain,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
         int forkJoinNum
     ) {
         super(
-            sessionManagerProxy,
+                sessionManagerHolder,
             chain,
             exceptionHandlerMatcher,
             ReactiveHttpScheduler.class
@@ -83,13 +86,21 @@ public class ReactiveHttpScheduler extends AbstractHttpScheduler {
                     // 封装请求对象
                     HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(request);
                     httpInfoRequestForErrorRelease = httpInfoRequest;
+                    // 初始化session
+                    Cookies cookies = httpInfoRequest.getCookies();
+                    String originSessionId = cookies.getCookie("JSESSIONID");
+                    HttpSession httpSession = new DefaultHttpSession(sessionManagerHolder.getSessionManager(), originSessionId);
                     // 创建上下文对象
-                    HttpContext context = new FullHttpContext(httpInfoRequest, response, session);
+                    HttpContext context = new FullHttpContext(httpInfoRequest, httpSession, response, session);
                     // 执行链式结构
                     Object result = sentinelMiddleware.invoke(context);
                     // 判断返回结果
                     if (result instanceof Mono<?> mono) {
-                        return mono.map(o -> handleResponse(response, o))
+                        return mono.map(o -> {
+                                    HttpResponse resultResponse = handleResponse(response, o);
+                                    handleSessionAfterRequest(httpSession, resultResponse, originSessionId);
+                                    return resultResponse;
+                                })
                             .doFinally(signalType -> {
                                 // 释放文件上传数据
                                 releaseFileUploads(httpInfoRequest);

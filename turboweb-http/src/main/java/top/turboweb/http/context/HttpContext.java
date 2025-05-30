@@ -56,7 +56,7 @@ public interface HttpContext {
 	 *
 	 * @return session
 	 */
-	HttpSession getSession();
+	HttpSession getHttpSession();
 
 	/**
 	 * 结束响应

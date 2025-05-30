@@ -15,6 +15,7 @@ import top.turboweb.commons.exception.TurboResponseRepeatWriteException;
 import top.turboweb.commons.exception.TurboSerializableException;
 import top.turboweb.commons.utils.base.BeanUtils;
 import top.turboweb.commons.utils.base.ValidationUtils;
+import top.turboweb.http.session.HttpSession;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -30,8 +31,8 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	private static final Logger log = LoggerFactory.getLogger(FullHttpContext.class);
 	private Map<String, String> pathParams;
 
-	public FullHttpContext(HttpInfoRequest request, HttpInfoResponse response, ConnectSession connectSession) {
-		super(request, response, connectSession);
+	public FullHttpContext(HttpInfoRequest request, HttpSession httpSession, HttpInfoResponse response, ConnectSession connectSession) {
+		super(request, httpSession, response, connectSession);
 	}
 
 	@Override

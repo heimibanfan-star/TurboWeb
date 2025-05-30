@@ -13,7 +13,9 @@ import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.response.IgnoredHttpResponse;
 import top.turboweb.http.response.sync.InternalSseEmitter;
 import top.turboweb.http.response.sync.SseEmitter;
-import top.turboweb.http.session.SessionManagerProxy;
+import top.turboweb.http.session.DefaultHttpSession;
+import top.turboweb.http.session.HttpSession;
+import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.commons.lock.Locks;
 import top.turboweb.http.handler.ExceptionHandlerSchedulerHelper;
@@ -26,12 +28,12 @@ import top.turboweb.commons.utils.thread.VirtualThreadUtils;
 public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
 
     public VirtualThreadHttpScheduler(
-        SessionManagerProxy sessionManagerProxy,
+        SessionManagerHolder sessionManagerHolder,
         Middleware chain,
         ExceptionHandlerMatcher exceptionHandlerMatcher
     ) {
         super(
-            sessionManagerProxy,
+                sessionManagerHolder,
             chain,
             exceptionHandlerMatcher,
             VirtualThreadHttpScheduler.class
@@ -60,16 +62,16 @@ public class VirtualThreadHttpScheduler extends AbstractHttpScheduler {
              httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(request);
             // 初始化session
             Cookies cookies = httpInfoRequest.getCookies();
-            String jsessionid = cookies.getCookie("JSESSIONID");
-            initSession(httpInfoRequest, jsessionid);
+            String originSessionId = cookies.getCookie("JSESSIONID");
+            HttpSession httpSession = new DefaultHttpSession(sessionManagerHolder.getSessionManager(), originSessionId);
             // 创建响应对象
             response = new HttpInfoResponse(request.protocolVersion(), HttpResponseStatus.OK);
-            HttpContext context = new FullHttpContext(httpInfoRequest, response, session);
+            HttpContext context = new FullHttpContext(httpInfoRequest, httpSession, response, session);
             Object result = sentinelMiddleware.invoke(context);
             // 处理响应数据
             HttpResponse resultResponse = handleResponse(result, context);
-            // 处理session结果
-            handleSessionAfterRequest(httpInfoRequest, resultResponse, jsessionid);
+            // 处理session
+            handleSessionAfterRequest(httpSession, resultResponse, originSessionId);
             return resultResponse;
         } catch (Throwable e) {
             return ExceptionHandlerSchedulerHelper.doHandleForLoomScheduler(exceptionHandlerMatcher, response, e);

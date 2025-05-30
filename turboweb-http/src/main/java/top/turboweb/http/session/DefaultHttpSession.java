@@ -1,78 +1,99 @@
 package top.turboweb.http.session;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import top.turboweb.commons.exception.TurboSessionException;
+
+import java.util.UUID;
 
 /**
  * http相关的session
  */
 public class DefaultHttpSession implements HttpSession {
 
-    private final Map<String, SessionAttributeDefinition> attributes = new ConcurrentHashMap<>();
-    private long lastUseTime;
+    private final SessionManager sessionManager;
+    private String sessionId;
+    private final int MAX_RETRY_COUNT = 5;
     private String path = "/";
+    private boolean pathIsUpdate = false;
 
-    public DefaultHttpSession() {
-        lastUseTime = System.currentTimeMillis();
+    public DefaultHttpSession(SessionManager sessionManager) {
+        this.sessionManager = sessionManager;
+    }
+
+    public DefaultHttpSession(SessionManager sessionManager, String sessionId) {
+        this.sessionManager = sessionManager;
+        if (sessionManager.exist(sessionId)) {
+            this.sessionId = sessionId;
+        }
     }
 
     @Override
-    public void setAttribute(String key, Object value) {
-        SessionAttributeDefinition definition = new SessionAttributeDefinition(value, null);
-        attributes.put(key, definition);
-        lastUseTime = System.currentTimeMillis();
+    public void setAttr(String key, Object value) {
+        checkAndGenerateSessionId();
+        sessionManager.setAttr(sessionId, key, value);
     }
 
     @Override
-    public void setAttribute(String key, Object value, int timeout) {
-        SessionAttributeDefinition definition = new SessionAttributeDefinition(value, System.currentTimeMillis() + timeout);
-        attributes.put(key, definition);
-        lastUseTime = System.currentTimeMillis();
+    public void setAttr(String key, Object value, long timeout) {
+        checkAndGenerateSessionId();
+        sessionManager.setAttr(sessionId, key, value, timeout);
     }
 
     @Override
-    public void removeAttribute(String key) {
-        attributes.remove(key);
-        lastUseTime = System.currentTimeMillis();
-    }
-
-    @Override
-    public Object getAttribute(String key) {
-        lastUseTime = System.currentTimeMillis();
-        SessionAttributeDefinition definition = attributes.get(key);
-        if (definition == null) {
+    public Object getAttr(String key) {
+        if (sessionId == null) {
             return null;
         }
-        // 判断是否过期
-        if (definition.isTimeout()) {
+        return sessionManager.getAttr(sessionId, key);
+    }
+
+    @Override
+    public <T> T getAttr(String key, Class<T> clazz) {
+        if (sessionId == null) {
             return null;
         }
-        return definition.getValue();
+        return sessionManager.getAttr(sessionId, key, clazz);
     }
 
     @Override
-    public boolean isTimeout(long maxNotUseTime) {
-        if (maxNotUseTime == -1) {
-            return false;
+    public void remAttr(String key) {
+        if (sessionId != null) {
+            checkAndGenerateSessionId();
+            sessionManager.remAttr(sessionId, key);
         }
-        // 获取当前时间
-        long timeMillis = System.currentTimeMillis();
-        return timeMillis - lastUseTime > maxNotUseTime;
+    }
+
+    /**
+     * 检查sessionId是否为空，为空则生成一个sessionId
+     */
+    private void checkAndGenerateSessionId() {
+        if (this.sessionId == null) {
+            String sessionId = UUID.randomUUID().toString().replace("-", "");
+            int count = 0;
+            while (sessionManager.exist(sessionId) && count < MAX_RETRY_COUNT) {
+                sessionId = UUID.randomUUID().toString().replace("-", "");
+                count++;
+            }
+            if (sessionManager.exist(sessionId)) {
+                throw new TurboSessionException("sessionId generate error");
+            }
+            this.sessionId = sessionId;
+        }
     }
 
     @Override
-    public Map<String, SessionAttributeDefinition> getAllAttributeDefinitions() {
-        return attributes;
-    }
-
-    @Override
-    public void setUseTime() {
-        lastUseTime = System.currentTimeMillis();
+    public String sessionId() {
+        return this.sessionId;
     }
 
     @Override
     public void setPath(String path) {
         this.path = path;
+        this.pathIsUpdate = true;
+    }
+
+    @Override
+    public boolean pathIsUpdate() {
+        return this.pathIsUpdate;
     }
 
     @Override

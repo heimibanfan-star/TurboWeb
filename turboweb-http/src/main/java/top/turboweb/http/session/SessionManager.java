@@ -1,43 +1,77 @@
 package top.turboweb.http.session;
 
-import java.util.Map;
-
 /**
  * session管理器接口
  */
 public interface SessionManager {
 
     /**
-     * 从容器中获取session
+     * 设置session的内容
+     *
      * @param sessionId sessionId
-     * @return session对象
+     * @param key session的key
+     * @param value session的值
      */
-    HttpSession getSession(String sessionId);
+    void setAttr(String sessionId, String key, Object value);
 
     /**
-     * 添加session到容器
+     * 设置session的内容
+     *
      * @param sessionId sessionId
-     * @param httpSession session对象
+     * @param key session的key
+     * @param value session的值
+     * @param timeout session的过期时间
      */
-    void addSession(String sessionId, HttpSession httpSession);
+    void setAttr(String sessionId, String key, Object value, long timeout);
 
     /**
-     * 获取容器中所有session
-     * @return session对象
+     * 获取session的内容
+     *
+     * @param sessionId sessionId
+     * @param key session的key
+     * @return session的值
      */
-    Map<String, HttpSession> getAllSession();
+    Object getAttr(String sessionId, String key);
 
     /**
-     * 开启清理session的哨兵
-     * @param checkTime 哨兵检查间隔时间
+     * 获取session的内容
+     *
+     * @param sessionId sessionId
+     * @param key session的key
+     * @param clazz session的值的class
+     * @return session的值
+     */
+    <T> T getAttr(String sessionId, String key, Class<T> clazz);
+
+    /**
+     * 删除session的内容
+     *
+     * @param sessionId sessionId
+     * @param key session的key
+     */
+    void remAttr(String sessionId, String key);
+
+    /**
+     * 判断session是否存在
+     *
+     * @param sessionId sessionId
+     * @return session是否存在
+     */
+    boolean exist(String sessionId);
+
+    /**
+     * session垃圾回收
+     *
+     * @param checkTime 检查时间间隔
      * @param maxNotUseTime session最大不活跃时间
-     * @param checkForSessionNums 每次检查session的数量
+     * @param sessionNumThreshold session数量的检查阈值
      */
-    void startSessionGC(long checkTime, long maxNotUseTime, long checkForSessionNums);
+    void sessionGC(long checkTime, long maxNotUseTime, long sessionNumThreshold);
 
     /**
-     * 获取session管理器名称
-     * @return session管理器名称
+     * 获取session管理器的名称
+     *
+     * @return session管理器的名称
      */
-    String getSessionManagerName();
+    String sessionManagerName();
 }

@@ -3,7 +3,7 @@ package top.turboweb.core.initializer;
 import top.turboweb.core.config.ServerParamConfig;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.session.SessionManagerProxy;
+import top.turboweb.http.session.SessionManagerHolder;
 
 /**
  * 中间件的初始化器
@@ -30,7 +30,7 @@ public interface MiddlewareInitializer {
      * @return 中间件的头结点
      */
     Middleware init(
-        SessionManagerProxy sessionManagerProxy,
+        SessionManagerHolder sessionManagerHolder,
         Class<?> mainClass,
         ExceptionHandlerMatcher matcher,
         ServerParamConfig config

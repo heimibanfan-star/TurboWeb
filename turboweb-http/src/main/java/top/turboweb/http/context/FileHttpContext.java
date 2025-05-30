@@ -9,6 +9,7 @@ import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.commons.exception.TurboFileException;
 import top.turboweb.commons.exception.TurboResponseRepeatWriteException;
+import top.turboweb.http.session.HttpSession;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,8 +26,8 @@ public abstract class FileHttpContext extends CoreHttpContext {
 
 	private HttpContextFileHelper httpContextFileHelper;
 
-	protected FileHttpContext(HttpInfoRequest request, HttpInfoResponse response, ConnectSession connectSession) {
-		super(request, response, connectSession);
+	protected FileHttpContext(HttpInfoRequest request, HttpSession httpSession, HttpInfoResponse response, ConnectSession connectSession) {
+		super(request, httpSession, response, connectSession);
 	}
 
 	@Override

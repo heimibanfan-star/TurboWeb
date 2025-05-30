@@ -10,16 +10,19 @@ import top.turboweb.commons.constants.FontColors;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.adapter.DefaultHttpResponseAdapter;
 import top.turboweb.http.adapter.HttpResponseAdapter;
+import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.request.HttpInfoRequest;
+import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
-import top.turboweb.http.session.SessionManagerProxy;
+import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.commons.utils.base.RandomUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -31,7 +34,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     protected final Middleware sentinelMiddleware;
     protected final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
-    private final SessionManagerProxy sessionManagerProxy;
+    protected final SessionManagerHolder sessionManagerHolder;
     private final HttpResponseAdapter httpResponseAdapter = new DefaultHttpResponseAdapter();
     protected boolean showRequestLog = true;
 
@@ -44,14 +47,14 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     }
 
     public AbstractHttpScheduler(
-        SessionManagerProxy sessionManagerProxy,
+        SessionManagerHolder sessionManagerHolder,
         Middleware chain,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
         Class<?> subClass
     ) {
         this.log = LoggerFactory.getLogger(subClass);
         this.exceptionHandlerMatcher = exceptionHandlerMatcher;
-        this.sessionManagerProxy = sessionManagerProxy;
+        this.sessionManagerHolder = sessionManagerHolder;
         this.sentinelMiddleware = chain;
     }
 
@@ -77,42 +80,19 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
     }
 
     /**
-     * 初始化session
-     *
-     * @param httpInfoRequest 请求信息
-     */
-    protected void initSession(HttpInfoRequest httpInfoRequest, String jsessionid) {
-        if (jsessionid != null) {
-            HttpSession httpSession = sessionManagerProxy.getSession(jsessionid);
-            // 设置使用时间，防止被销毁
-            if (httpSession != null) {
-                httpSession.setUseTime();
-            }
-            httpInfoRequest.setSession(httpSession);
-        }
-    }
-
-    /**
      * 在请求结束后对session进行处理
      *
-     * @param request 请求对象
+     * @param session session会话对象
      * @param response 响应对象
-     * @param jsessionid sessionId
+     * @param originSessionId sessionId
      */
-    protected void handleSessionAfterRequest(HttpInfoRequest request, HttpResponse response, String jsessionid) {
-        if (request.sessionIsNull()) {
+    protected void handleSessionAfterRequest(HttpSession session, HttpResponse response, String originSessionId) {
+        if (session.sessionId() == null) {
             return;
         }
-        if (jsessionid == null) {
-            jsessionid = RandomUtils.uuidWithoutHyphen();
-        }
-        // 从容器中获取session
-        HttpSession httpSession = sessionManagerProxy.getSession(jsessionid);
-        if (httpSession == null) {
-            httpSession = request.getSession();
-            sessionManagerProxy.addSession(jsessionid, httpSession);
-            // 设置响应头
-            response.headers().add("Set-Cookie", "JSESSIONID=" + jsessionid + "; Path="+ httpSession.getPath() +"; HttpOnly");
+        // 判断session是否需要重新响应
+        if (!Objects.equals(session.sessionId(), originSessionId) || session.pathIsUpdate()) {
+            response.headers().add("Set-Cookie", "JSESSIONID=" + session.sessionId() + "; Path="+ session.getPath() +"; HttpOnly");
         }
     }
 

@@ -79,17 +79,6 @@ public class HttpInfoRequest {
         return log;
     }
 
-    public HttpSession getSession() {
-        if (httpSession == null) {
-            httpSession = new DefaultHttpSession();
-        }
-        return httpSession;
-    }
-
-    public void setSession(HttpSession httpSession) {
-        this.httpSession = httpSession;
-    }
-
     /**
      * 判断session是否为空
      *

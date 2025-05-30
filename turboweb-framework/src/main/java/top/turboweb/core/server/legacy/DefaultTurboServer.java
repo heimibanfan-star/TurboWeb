@@ -16,7 +16,7 @@ import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.session.SessionManager;
-import top.turboweb.http.session.SessionManagerProxy;
+import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.websocket.WebSocketHandler;
 import top.turboweb.core.listener.DefaultJacksonTurboWebListener;
 import top.turboweb.core.listener.TurboWebListener;
@@ -113,11 +113,11 @@ public class DefaultTurboServer implements TurboServer {
         // 初始化异常处理器
         ExceptionHandlerMatcher exceptionHandlerMatcher = exceptionHandlerInitializer.init();
         // 初始化session管理器代理
-        SessionManagerProxy sessionManagerProxy = sessionManagerProxyInitializer.init(config);
+        SessionManagerHolder sessionManagerHolder = sessionManagerProxyInitializer.init(config);
         // 初始化中间件
-        Middleware chainSentinel = middlewareInitializer.init(sessionManagerProxy, mainClass, exceptionHandlerMatcher, config);
+        Middleware chainSentinel = middlewareInitializer.init(sessionManagerHolder, mainClass, exceptionHandlerMatcher, config);
         // 初始化http请求适配器
-        HttpScheduler httpScheduler = httpSchedulerInitializer.init(sessionManagerProxy, exceptionHandlerMatcher, chainSentinel, config);
+        HttpScheduler httpScheduler = httpSchedulerInitializer.init(sessionManagerHolder, exceptionHandlerMatcher, chainSentinel, config);
         // 初始化http客户端
         httpClientInitializer.init(workerGroup);
         // 设置请求封装工具的字符集
