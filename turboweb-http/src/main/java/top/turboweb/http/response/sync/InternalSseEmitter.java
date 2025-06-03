@@ -29,7 +29,9 @@ public class InternalSseEmitter extends SseEmitter{
 				session.send(message);
 			}
 			isInit = true;
+			// 卸载缓存
 			messageCache = null;
+			cacheLock = null;
 		} finally {
 			writeLock.unlock();
 		}

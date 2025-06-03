@@ -1,8 +1,14 @@
 package org.example.controller;
 
+import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.FileStreamResponse;
+import top.turboweb.http.response.sync.SseEmitter;
+
+import java.io.File;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * TODO
@@ -10,14 +16,37 @@ import top.turboweb.http.context.HttpContext;
 @RequestPath("/hello")
 public class HelloController {
 
-	@Get
-	public String hello(HttpContext c) {
-		return (String) c.getHttpSession().getAttr("name");
+	private ReentrantLock lock = new ReentrantLock();
+
+	@Get("/download")
+	public HttpResponse download(HttpContext c) {
+		return new FileStreamResponse(new File("C:\\Users\\heimi\\Downloads\\ideaIU-2024.3.6.exe"));
 	}
 
-	@Get("/set")
-	public String set(HttpContext c) {
-		c.getHttpSession().setAttr("name", "张三", 10000);
-		return "set session";
+	@Get("/sse")
+	public HttpResponse sse(HttpContext c) throws InterruptedException {
+		SseEmitter sseEmitter = c.createSseEmitter();
+		Thread.ofVirtual().start(() -> {
+			for (int i = 0; i < 20; i++) {
+                try {
+					test();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+				sseEmitter.send("hello" + i);
+            }
+		});
+		Thread.sleep(5000);
+		return sseEmitter;
+	}
+
+	private void test() throws InterruptedException {
+		lock.lock();
+		try {
+			System.out.println("aaa");
+			Thread.sleep(2000);
+		} finally {
+			lock.unlock();
+		}
 	}
 }

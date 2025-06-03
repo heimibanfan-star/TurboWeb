@@ -5,6 +5,7 @@ import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.commons.exception.TurboSseException;
 
 import java.util.LinkedList;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
@@ -18,6 +19,7 @@ public abstract class SseEmitter extends DefaultHttpResponse {
 	protected LinkedList<String> messageCache = new LinkedList<>();
 	private final int maxMessageCache;
 	protected int messageCacheSize = 0;
+	protected ReentrantLock cacheLock = new ReentrantLock();
 	protected final ReentrantReadWriteLock sseLock = new ReentrantReadWriteLock();
 
 	public SseEmitter(ConnectSession session, int maxMessageCache) {
@@ -55,13 +57,18 @@ public abstract class SseEmitter extends DefaultHttpResponse {
 	 *
 	 * @param message 消息
 	 */
-	private synchronized void saveMessageToCache(String message) {
-		if (messageCacheSize >= maxMessageCache) {
-			throw new TurboSseException("消息缓存已满");
+	private void saveMessageToCache(String message) {
+		cacheLock.lock();
+		try {
+			if (messageCacheSize >= maxMessageCache) {
+				throw new TurboSseException("消息缓存已满");
+			}
+			// 放入消息
+			messageCache.add(message);
+			messageCacheSize++;
+		} finally {
+			cacheLock.unlock();
 		}
-		// 放入消息
-		messageCache.add(message);
-		messageCacheSize++;
 	}
 
 	/**
