@@ -6,9 +6,9 @@ TurboWeb 框架支持文件的**上传**、**下载**与**本地存储**，并�
 
 ## 文件的上传
 
-TurboWeb 框架的文件上传功能直接基于 Netty 的上传处理机制实现。Netty 在处理大文件上传时，采用了自动落盘（写临时文件）的策略，有效避免了将大文件完全加载到堆内存中，从而防止了因文件过大导致的 OOM（内存溢出）问题。
+TurboWeb 框架的文件上传功能直接基于 Netty 的上传处理机制实现。然而，TurboWeb 禁用了 Netty 在处理大文件时自动落盘的功能，因为磁盘 I/O 会导致虚拟线程被固定，从而影响系统的吞吐量和性能。
 
-因此，TurboWeb 并未对文件上传做额外的专门优化，而是充分利用了 Netty 的底层能力，保证上传过程的稳定性和高效性。同时，TurboWeb 提供了简洁的接口方便开发者直接操作上传文件的流和元数据，确保上传功能的易用性和可控性。
+为了避免因文件过大导致的内存溢出（OOM），TurboWeb 会将上传的文件暂存在直接缓冲区中。虽然这种方式避免了磁盘 I/O，但如果上传文件过大，可能会对系统内存造成压力。因此，我们不推荐上传大文件。用户可以通过限制 HTTP 请求的最大内容长度来有效控制上传文件的大小，确保系统稳定性和性能。
 
 接下来看一下TurboWeb如何实现文件的上传：
 
@@ -31,25 +31,11 @@ public String upload01(HttpContext c) throws IOException {
 </form>
 ```
 
-可以看一下打印的信息：
-
-```text
-Mixed: content-disposition: form-data; name="file"; filename="sqlite-tools-win-x64-3490200.zip"
-content-type: application/x-zip-compressed; charset=UTF-8
-content-length: 6422627
-Completed: true
-IsInMemory: false
-RealFile: C:\Users\heimi\AppData\Local\Temp\FUp_2568822843930813806_-838595071 DeleteAfter: false
-```
-
 TurboWeb通过 ``HttpContext`` 的 ``loadFile(...)`` 方法，从请求中提取名为 ``"file"`` 的上传文件。
 
 - 这里的 `FileUpload` 实际上是有Netty底层自动封装实现的。
-- Netty 会自动判断上传文件大小，若文件较大，则自动写入临时文件（落盘），防止文件内容全部加载到内存。
 
-``fileUpload.renameTo(File.createTempFile("HeiMi", ".tmp"));`` 将临时文件重命名移动到一个新的临时文件。
-
-由于文件本身已经是落盘的，`renameTo` 只是修改文件路径，不涉及内存数据的拷贝，避免了大文件读写导致的内存压力。
+``fileUpload.renameTo(File.createTempFile("HeiMi", ".tmp"));`` 将临时文件保存到一个新的临时文件中。
 
 在实际业务中，前端有时会通过多个相同 `name` 属性的 `<input type="file" name="file">` 上传多个文件。TurboWeb 针对此场景也提供了对应的接收方案。
 

@@ -1,13 +1,16 @@
 package org.example.controller;
 
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.commons.anno.Get;
+import top.turboweb.commons.anno.Post;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.response.FileStreamResponse;
 import top.turboweb.http.response.sync.SseEmitter;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -40,13 +43,16 @@ public class HelloController {
 		return sseEmitter;
 	}
 
-	private void test() throws InterruptedException {
-		lock.lock();
-		try {
-			System.out.println("aaa");
-			Thread.sleep(2000);
-		} finally {
-			lock.unlock();
-		}
+	private synchronized void test() throws InterruptedException {
+		System.out.println("aaa");
+		Thread.sleep(2000);
+	}
+
+	@Post("/upload")
+	public String upload(HttpContext c) throws IOException {
+		FileUpload fileUpload = c.loadFile("file");
+		System.out.println(fileUpload);
+		fileUpload.renameTo(new File("E:/tmp/123.png"));
+		return "ok";
 	}
 }

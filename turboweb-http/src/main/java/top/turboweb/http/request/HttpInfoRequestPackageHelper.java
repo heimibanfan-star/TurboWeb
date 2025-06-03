@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.http.cookie.Cookies;
 import top.turboweb.commons.exception.TurboHttpParseException;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -104,8 +105,8 @@ public class HttpInfoRequestPackageHelper {
             List<NameValuePair> params = uriBuilder.getQueryParams();
             for (NameValuePair param : params) {
                 paramsForSearch
-                    .computeIfAbsent(param.getName(), k -> new ArrayList<>(1))
-                    .add(param.getValue());
+                        .computeIfAbsent(param.getName(), k -> new ArrayList<>(1))
+                        .add(param.getValue());
             }
         } catch (Exception e) {
             log.error("解析url参数失败", e);
@@ -170,7 +171,7 @@ public class HttpInfoRequestPackageHelper {
         Map<String, List<String>> formParams = new HashMap<>();
         Map<String, List<FileUpload>> formFiles = new HashMap<>();
         // 创建处理器
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(new DefaultHttpDataFactory(DefaultHttpDataFactory.MAXSIZE), request);
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(new DefaultHttpDataFactory(Integer.MAX_VALUE), request);
         List<InterfaceHttpData> httpDataList = decoder.getBodyHttpDatas();
         // 解析数据
         for (InterfaceHttpData httpData : httpDataList) {
