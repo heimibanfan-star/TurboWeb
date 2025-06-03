@@ -108,7 +108,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
      * @param request 请求对象
      * @param time 执行耗时
      */
-    private void log(FullHttpRequest request, long time) {
+    private void log(FullHttpRequest request, long time, boolean isSuccess) {
         String method = request.method().name();
         if (!colors.containsKey(method)) {
             return;
@@ -116,9 +116,9 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         String color = colors.get(method);
         String uri = request.uri();
         if (time > 1000000) {
-            System.out.println(color + "%s  %s  耗时:%sms".formatted(method, uri, time / 1000000) + FontColors.RESET);
+            System.out.println(color + "%s  %s  耗时:%sms  state:%s".formatted(method, uri, time / 1000000, isSuccess? "success": "fail") + FontColors.RESET);
         } else {
-            System.out.println(color + "%s  %s  耗时:%sµs".formatted(method, uri, time / 1000) + FontColors.RESET);
+            System.out.println(color + "%s  %s  耗时:%sµs  state:%s".formatted(method, uri, time / 1000,  isSuccess? "success": "fail") + FontColors.RESET);
         }
     }
 
@@ -135,7 +135,7 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         // 打印性能日志
         if (showRequestLog && channelFuture != null) {
             channelFuture.addListener(future -> {
-                log(request, System.nanoTime() - startTime);
+                log(request, System.nanoTime() - startTime, future.isSuccess());
             });
         }
     }
