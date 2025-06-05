@@ -19,5 +19,16 @@ public class Application {
         new StandardTurboWebServer(Application.class)
                 .controllers(new HelloController())
                 .start(8080);
+        Thread.ofVirtual().start(() -> {
+           while (true) {
+               try {
+                   Thread.sleep(2000);
+               } catch (InterruptedException e) {
+                   throw new RuntimeException(e);
+               }
+               Map<Thread, StackTraceElement[]> allStackTraces = Thread.getAllStackTraces();
+               System.out.println("thread num:" + allStackTraces.size());
+           }
+        });
     }
 }

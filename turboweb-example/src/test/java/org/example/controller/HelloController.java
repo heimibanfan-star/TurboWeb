@@ -26,6 +26,11 @@ public class HelloController {
 		return new FileStreamResponse(new File("C:\\Users\\heimi\\Downloads\\ideaIU-2024.3.6.exe"));
 	}
 
+	@Get
+	public String hello(HttpContext c) throws InterruptedException {
+		return "hello world";
+	}
+
 	@Get("/sse")
 	public HttpResponse sse(HttpContext c) throws InterruptedException {
 		SseEmitter sseEmitter = c.createSseEmitter();
