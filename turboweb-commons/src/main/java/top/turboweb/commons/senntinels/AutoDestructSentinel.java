@@ -86,40 +86,52 @@ public class AutoDestructSentinel implements SchedulerSentinel {
     private void startVirtualThread() {
         Thread.ofVirtual().start(() -> {
             while (true) {
+                // 判断是否有元素
+                if (count.get() > 0) {
+                    // 消费元素
+                    Runnable task = tasks[head];
+                    tasks[head] = null;
+                    head = (head + 1) % tasks.length;
+                    count.decrementAndGet();
+                    long start = System.nanoTime();
+                    task.run();
+                    long end = System.nanoTime();
+                    timeout = (end - start) * 8;
+                    // 大于2s按照2s算
+                    if (timeout > 2_000_000_000) {
+                        timeout = 2_000_000_000;
+                    }
+                    continue;
+                }
+                // 加锁重新检测元素
                 takeLock.lock();
                 try {
-                    // 判断是否有元素
-                    if (count.get() == 0) {
-                        boolean await = takeCondition.await(timeout, TimeUnit.NANOSECONDS);
-                        if (!await) {
-                            destructLLock.lock();
-                            try {
-                                // 判断是否有元素
-                                if (count.get() == 0) {
-                                    isDestruct = true;
-                                    return;
-                                }
-                            } finally {
-                                destructLLock.unlock();
-                            }
-                        }
-                        // 消费元素
-                        Runnable task = tasks[head];
-                        tasks[head] = null;
-                        head = (head + 1) % tasks.length;
-                        count.decrementAndGet();
-                        long start = System.nanoTime();
-                        task.run();
-                        long end = System.nanoTime();
-                        timeout = (end - start) * 8;
-                        // 大于2s按照2s算
-                        if (timeout > 2_000_000_000) {
-                            timeout = 2_000_000_000;
-                        }
+                    // 如果有元素，进行下一轮消费
+                    if (count.get() > 0) {
+                        continue;
+                    }
+                    // 等待元素的提交
+                    boolean await = takeCondition.await(timeout, TimeUnit.NANOSECONDS);
+                    // 如果线程没有超时进行下一轮消费
+                    if (await) {
+                        continue;
                     }
                 } catch (InterruptedException ignore) {
                 } finally {
                     takeLock.unlock();
+                }
+                // 抢占锁进行线程的销毁
+                destructLLock.lock();
+                try {
+                    // 判断是否有剩余的元素，重新消费
+                    if (count.get() > 0) {
+                        continue;
+                    }
+                    // 销毁当前线程
+                    isDestruct = true;
+                    return;
+                } finally {
+                    destructLLock.unlock();
                 }
             }
         });
