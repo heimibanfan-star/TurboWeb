@@ -4,6 +4,7 @@ import io.netty.channel.EventLoop;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -15,7 +16,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class AutoDestructSentinel implements SchedulerSentinel {
 
     private static final Logger log = LoggerFactory.getLogger(AutoDestructSentinel.class);
-    private final Runnable[] tasks;
+    private Runnable[] tasks;
     private final ReentrantLock takeLock = new ReentrantLock();
     private final Condition takeCondition = takeLock.newCondition();
     private int head = 0;
@@ -25,10 +26,44 @@ public class AutoDestructSentinel implements SchedulerSentinel {
     private volatile boolean isDestruct = true;
     private final ReentrantLock destructLLock = new ReentrantLock();
     private final EventLoop eventLoop;
+    private final int maxCapacity;
+    private volatile boolean isOverflow = false;
 
-    public AutoDestructSentinel(int size, EventLoop eventLoop) {
-        tasks = new Runnable[size];
+    public AutoDestructSentinel(int initCapacity, int maxCapacity, EventLoop eventLoop) {
+        tasks = new Runnable[initCapacity];
+        this.maxCapacity = Math.max(initCapacity, maxCapacity);
         this.eventLoop = eventLoop;
+    }
+
+    @Override
+    public boolean submitTask(Runnable runnable) {
+        if (eventLoop.inEventLoop()) {
+            destructLLock.lock();
+            boolean flag;
+            try {
+                if (isDestruct) {
+                    // 判断是否溢出
+                    if (isOverflow && tasks.length < maxCapacity) {
+                        int capacity = tasks.length * 2;
+                        if (capacity > maxCapacity) {
+                            capacity = maxCapacity;
+                        }
+                        isOverflow = false;
+                        tasks = new Runnable[capacity];
+                    }
+                    flag = offer(runnable);
+                    startVirtualThread();
+                    isDestruct = false;
+                } else {
+                    flag = offer(runnable);
+                }
+            } finally {
+                destructLLock.unlock();
+            }
+            return flag;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -38,6 +73,7 @@ public class AutoDestructSentinel implements SchedulerSentinel {
     public boolean offer(Runnable task) {
         // 判断队列是否已满
         if (count.get() == tasks.length) {
+            isOverflow = true;
             return false;
         } else {
             tasks[tail] = task;
@@ -55,52 +91,22 @@ public class AutoDestructSentinel implements SchedulerSentinel {
         return true;
     }
 
-    @Override
-    public boolean submitTask(Runnable runnable) {
-        if (eventLoop.inEventLoop()) {
-            return newConsumer(runnable);
-        } else {
-            return false;
-        }
+    /**
+     * 开启虚拟线程
+     */
+    private void startVirtualThread() {
+        Thread.ofVirtual().start(this::startAutoDestructSentinel);
     }
 
     /**
-     * 重启消费者
-     * @param runnable 任务对象
-     * @return 是否成功
+     * 开启自毁哨兵
      */
-    private boolean newConsumer(Runnable runnable) {
-        boolean flag;
-        destructLLock.lock();
+    private void startAutoDestructSentinel() {
         try {
-            flag = offer(runnable);
-            if (isDestruct) {
-                startVirtualThread();
-            }
-        } finally {
-            destructLLock.unlock();
-        }
-        return flag;
-    }
-
-    private void startVirtualThread() {
-        Thread.ofVirtual().start(() -> {
             while (true) {
                 // 判断是否有元素
                 if (count.get() > 0) {
-                    // 消费元素
-                    Runnable task = tasks[head];
-                    tasks[head] = null;
-                    head = (head + 1) % tasks.length;
-                    count.decrementAndGet();
-                    long start = System.nanoTime();
-                    task.run();
-                    long end = System.nanoTime();
-                    timeout = (end - start) * 8;
-                    // 大于2s按照2s算
-                    if (timeout > 2_000_000_000) {
-                        timeout = 2_000_000_000;
-                    }
+                    consumerTask();
                     continue;
                 }
                 // 加锁重新检测元素
@@ -134,6 +140,40 @@ public class AutoDestructSentinel implements SchedulerSentinel {
                     destructLLock.unlock();
                 }
             }
-        });
+        } catch (Exception e) {
+            // 抢占销毁锁
+            destructLLock.lock();
+            try {
+                // 如果已经销毁忽略
+                if (isDestruct || count.get() == 0) {
+                    return;
+                }
+                // 重启
+                startVirtualThread();
+                // 设置为启动状态
+                isDestruct = false;
+            } finally {
+                destructLLock.unlock();
+            }
+        }
+    }
+
+    /**
+     * 消费任务
+     */
+    private void consumerTask() {
+        // 消费元素
+        Runnable task = tasks[head];
+        tasks[head] = null;
+        head = (head + 1) % tasks.length;
+        count.decrementAndGet();
+        long start = System.nanoTime();
+        task.run();
+        long end = System.nanoTime();
+        timeout = (end - start) * 8;
+        // 大于2s按照2s算
+        if (timeout > 2_000_000_000) {
+            timeout = 2_000_000_000;
+        }
     }
 }
