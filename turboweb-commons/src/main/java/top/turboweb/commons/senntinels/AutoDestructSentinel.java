@@ -28,10 +28,12 @@ public class AutoDestructSentinel implements SchedulerSentinel {
     private final EventLoop eventLoop;
     private final int maxCapacity;
     private volatile boolean isOverflow = false;
+    private volatile int preCapacity;
 
     public AutoDestructSentinel(int initCapacity, int maxCapacity, EventLoop eventLoop) {
         tasks = new Runnable[initCapacity];
         this.maxCapacity = Math.max(initCapacity, maxCapacity);
+        this.preCapacity = initCapacity;
         this.eventLoop = eventLoop;
     }
 
@@ -43,13 +45,17 @@ public class AutoDestructSentinel implements SchedulerSentinel {
             try {
                 if (isDestruct) {
                     // 判断是否溢出
-                    if (isOverflow && tasks.length < maxCapacity) {
-                        int capacity = tasks.length * 2;
+                    if (isOverflow && this.preCapacity < maxCapacity) {
+                        int capacity = this.preCapacity * 2;
                         if (capacity > maxCapacity) {
                             capacity = maxCapacity;
                         }
+                        this.preCapacity = capacity;
                         isOverflow = false;
                         tasks = new Runnable[capacity];
+                    } else {
+                        isOverflow = false;
+                        tasks = new Runnable[preCapacity];
                     }
                     flag = offer(runnable);
                     startVirtualThread();
@@ -133,6 +139,8 @@ public class AutoDestructSentinel implements SchedulerSentinel {
                     if (count.get() > 0) {
                         continue;
                     }
+                    // 销毁队列
+                    tasks = null;
                     // 销毁当前线程
                     isDestruct = true;
                     return;
@@ -146,6 +154,8 @@ public class AutoDestructSentinel implements SchedulerSentinel {
             try {
                 // 如果已经销毁忽略
                 if (isDestruct || count.get() == 0) {
+                    // 销毁队列
+                    tasks = null;
                     return;
                 }
                 // 重启
@@ -171,8 +181,9 @@ public class AutoDestructSentinel implements SchedulerSentinel {
         task.run();
         long end = System.nanoTime();
         timeout = (end - start) * 8;
-        // 大于2s按照2s算
-        if (timeout > 2_000_000_000) {
+        if (timeout < 100_000_000) {
+            timeout = 100_000_000;
+        } else if (timeout > 2_000_000_000) {
             timeout = 2_000_000_000;
         }
     }
