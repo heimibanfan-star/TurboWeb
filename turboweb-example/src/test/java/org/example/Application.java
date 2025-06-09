@@ -2,6 +2,7 @@ package org.example;
 
 import io.netty.buffer.ByteBuf;
 import org.example.controller.HelloController;
+import org.example.controller.UserController;
 import top.turboweb.commons.senntinels.AutoDestructSentinel;
 import top.turboweb.core.server.StandardTurboWebServer;
 import top.turboweb.websocket.AbstractWebSocketHandler;
@@ -19,26 +20,13 @@ import java.util.concurrent.ExecutionException;
  */
 public class Application {
     public static void main(String[] args) throws InterruptedException {
-        List<Object> list = new ArrayList<>(10000000);
-        CountDownLatch latch = new CountDownLatch(1);
-        int size = 1000000;
-        for (int i = 0; i < size; i++) {
-            Thread.ofVirtual().start(() -> {
-                try {
-                    Thread.sleep(100000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        }
-        for (int i = 0; i < 10; i++) {
-            Thread.sleep(1000);
-            long start = System.nanoTime();
-            Thread.ofVirtual().start(() -> {
-                System.out.println("time" + (System.nanoTime() - start));
-            });
-        }
-        latch.await();
+        StandardTurboWebServer server = new StandardTurboWebServer(Application.class);
+        server.controllers(new UserController());
+        server.enableRequestSerial();
+        server.config(config -> {
+            config.setShowRequestLog(false);
+        });
+        server.start();
     }
 
 }
