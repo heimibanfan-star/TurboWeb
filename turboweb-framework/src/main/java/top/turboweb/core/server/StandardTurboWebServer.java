@@ -110,6 +110,18 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	}
 
 	@Override
+	public TurboWebServer enableRequestSerial(int initCapacity, int maxCapacity) {
+		httpWorkDispatcherFactory.enableRequestSerial(initCapacity, maxCapacity);
+		return this;
+	}
+
+	@Override
+	public TurboWebServer enableRequestSerial() {
+		httpWorkDispatcherFactory.enableRequestSerial();
+		return this;
+	}
+
+	@Override
 	public ChannelFuture start() {
 		return start(8080);
 	}
