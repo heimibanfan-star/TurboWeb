@@ -83,7 +83,7 @@ public class HttpProtocolDispatcher extends SimpleChannelInboundHandler<FullHttp
                 httpScheduler.execute(fullHttpRequest, connectSession);
             });
             if (!submitted) {
-                log.warn("http request too many");
+                channelHandlerContext.writeAndFlush(HttpResponseUtils.rejectResponse(HttpResponseStatus.TOO_MANY_REQUESTS, "Too Many Requests"));
             }
         }
     }
