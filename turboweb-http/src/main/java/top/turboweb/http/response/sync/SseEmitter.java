@@ -20,7 +20,7 @@ public abstract class SseEmitter extends DefaultHttpResponse {
 	private final int maxMessageCache;
 	protected int messageCacheSize = 0;
 	protected ReentrantLock cacheLock = new ReentrantLock();
-	protected final ReentrantReadWriteLock sseLock = new ReentrantReadWriteLock();
+	protected final ReentrantReadWriteLock sseLock = new ReentrantReadWriteLock(true);
 
 	public SseEmitter(ConnectSession session, int maxMessageCache) {
 		super(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
