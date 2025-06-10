@@ -50,6 +50,12 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	}
 
 	@Override
+	public TurboWebServer controller(Object controller, Class<?> originClass) {
+		httpWorkDispatcherFactory.controller(controller, originClass);
+		return this;
+	}
+
+	@Override
 	public TurboWebServer middlewares(Middleware... middlewares) {
 		httpWorkDispatcherFactory.middlewares(middlewares);
 		return this;

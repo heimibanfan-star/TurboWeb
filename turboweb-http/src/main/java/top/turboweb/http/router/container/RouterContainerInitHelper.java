@@ -13,6 +13,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,6 +21,16 @@ import java.util.regex.Pattern;
  * 路由定义信息初始化工具
  */
 public class RouterContainerInitHelper {
+
+    public static class ControllerAttribute {
+        private final Object instance;
+        private final Class<?> clazz;
+
+        public ControllerAttribute(Object instance, Class<?> clazz) {
+            this.instance = instance;
+            this.clazz = clazz;
+        }
+    }
 
     private static final String PATH_VAR_CHECK_REGEX = "^(/(\\{[^/]+}))+$";
     private static final String PATH_VALUE_SEARCH_REGEX = "\\{(.*?)}";
@@ -32,19 +43,19 @@ public class RouterContainerInitHelper {
     /**
      * 初始化路由容器
      *
-     * @param controllerList 控制器类集合
+     * @param controllerAttributes 控制器类集合
      * @return 路由容器
      */
-    public static RouterContainer initContainer(List<Object> controllerList) {
+    public static RouterContainer initContainer(List<ControllerAttribute> controllerAttributes) {
         RouterContainer routerContainer = new AnnoRouterContainer();
-        for (Object controller : controllerList) {
+        for (ControllerAttribute controllerAttribute : controllerAttributes) {
             // 判断类上是否有注解
-            Class<?> aClass = controller.getClass();
+            Class<?> aClass = Objects.requireNonNullElseGet(controllerAttribute.clazz, controllerAttribute.instance::getClass);
             RequestPath annotation = aClass.getAnnotation(RequestPath.class);
             if (annotation == null) {
                 throw new TurboControllerCreateException("类上没有RequestPath注解:" + aClass);
             }
-            routerContainer.getControllerInstances().put(aClass, controller);
+            routerContainer.getControllerInstances().put(aClass, controllerAttribute.instance);
             // 获取类中所有的方法
             Method[] methods = aClass.getMethods();
             for (Method method : methods) {

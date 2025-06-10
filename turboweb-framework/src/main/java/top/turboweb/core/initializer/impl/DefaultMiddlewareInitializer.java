@@ -30,14 +30,21 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultMiddlewareInitializer.class);
     // 存储控制器对象
-    private final List<Object> controllers = new ArrayList<>();
+    private final List<RouterContainerInitHelper.ControllerAttribute> controllerAttributes = new ArrayList<>();
     // 存储中间件对象
     private final List<Middleware> middlewares = new ArrayList<>();
 
 
     @Override
     public void addController(Object... controllers) {
-        this.controllers.addAll(List.of(controllers));
+        for (Object controller : controllers) {
+            controllerAttributes.add(new RouterContainerInitHelper.ControllerAttribute(controller, null));
+        }
+    }
+
+    @Override
+    public void addController(Object instance, Class<?> originClass) {
+        controllerAttributes.add(new RouterContainerInitHelper.ControllerAttribute(instance, originClass));
     }
 
     @Override
@@ -143,7 +150,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
      * @return 路由分发器的中间件
      */
     private HttpRouterDispatcherMiddleware getHttpDispatcherMiddleware() {
-        RouterContainer routerContainer = RouterContainerInitHelper.initContainer(controllers);
+        RouterContainer routerContainer = RouterContainerInitHelper.initContainer(controllerAttributes);
         RouterMatcher routerMatcher = new DefaultRouterMatcher(routerContainer);
         HttpDispatcher dispatcher =  new DefaultHttpDispatcher(routerMatcher);
         log.info("http分发器初始化成功");

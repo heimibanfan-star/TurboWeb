@@ -19,6 +19,13 @@ public interface HttpWorkDispatcherFactory {
 	void controllers(Object... controllers);
 
 	/**
+	 * 添加控制器
+	 * @param controller 控制器
+	 * @param originClass 原始类
+	 */
+	void controller(Object controller, Class<?> originClass);
+
+	/**
 	 * 添加中间件
 	 * @param middlewares 中间件
 	 */

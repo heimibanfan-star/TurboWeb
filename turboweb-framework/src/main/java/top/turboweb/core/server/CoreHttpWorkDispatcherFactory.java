@@ -37,7 +37,12 @@ public class CoreHttpWorkDispatcherFactory implements HttpWorkDispatcherFactory 
 		middlewareInitializer.addController(controllers);
 	}
 
-	@Override
+    @Override
+    public void controller(Object controller, Class<?> originClass) {
+        middlewareInitializer.addController(controller, originClass);
+    }
+
+    @Override
 	public void middlewares(Middleware... middlewares) {
 		middlewareInitializer.addMiddleware(middlewares);
 	}

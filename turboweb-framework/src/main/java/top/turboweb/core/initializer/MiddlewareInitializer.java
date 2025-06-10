@@ -18,6 +18,14 @@ public interface MiddlewareInitializer {
     void addController(Object... controllers);
 
     /**
+     * 添加控制器对象
+     *
+     * @param instance 控制器对象
+     * @param originClass 原始控制器类
+     */
+    void addController(Object instance, Class<?> originClass);
+
+    /**
      * 添加中间件对象
      *
      * @param middleware 中间件对象
