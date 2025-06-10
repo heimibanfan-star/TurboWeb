@@ -1,7 +1,6 @@
 package top.turboweb.commons.senntinels;
 
 import io.netty.channel.EventLoop;
-import io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,26 +14,6 @@ import java.util.concurrent.locks.ReentrantLock;
  * 自毁哨兵
  */
 public class AutoDestructSentinel implements SchedulerSentinel {
-
-    public static class EnableScheduler {
-        private final int initCapacity;
-        private final int maxCapacity;
-
-        public EnableScheduler(int initCapacity, int maxCapacity) {
-            this.initCapacity = initCapacity;
-            this.maxCapacity = maxCapacity;
-        }
-
-        public int initCapacity() {
-            return initCapacity;
-        }
-
-        public int maxCapacity() {
-            return maxCapacity;
-        }
-    }
-
-    public static AttributeKey<SchedulerSentinel> ATTRIBUTE_KEY = AttributeKey.valueOf("AutoDestructSentinel");
 
     private static final Logger log = LoggerFactory.getLogger(AutoDestructSentinel.class);
     private Runnable[] tasks;

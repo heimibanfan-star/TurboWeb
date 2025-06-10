@@ -31,7 +31,7 @@ public class TurboChannelHandler extends ChannelInitializer<NioSocketChannel> {
     ) {
         super();
         this.maxContentLength = maxContentLength;
-        this.httpProtocolDispatcher = new HttpProtocolDispatcher(httpScheduler, webSocketDispatcherHandler, websocketPath, gateway, null);
+        this.httpProtocolDispatcher = new HttpProtocolDispatcher(httpScheduler, webSocketDispatcherHandler, websocketPath, gateway);
         this.gateway = gateway;
     }
 

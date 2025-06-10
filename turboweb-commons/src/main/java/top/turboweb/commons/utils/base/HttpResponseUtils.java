@@ -1,8 +1,7 @@
 package top.turboweb.commons.utils.base;
 
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.HttpResponse;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -46,23 +45,5 @@ public class HttpResponseUtils {
             // 如果目标响应没有该头部，或者不受特殊处理的头部，则直接添加
             target.headers().set(headerName, headerValue);
         }
-    }
-
-    /**
-     * 创建一个拒绝响应对象
-     *
-     * @param status 响应状态码
-     * @param message 响应消息
-     * @return 拒绝响应对象
-     */
-    public static HttpResponse rejectResponse(HttpResponseStatus status, String message) {
-        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
-        if (message == null || message.isEmpty()) {
-            message = "error";
-        }
-        response.headers().set("Content-Type", "application/json");
-        response.content().writeBytes(message.getBytes(StandardCharsets.UTF_8));
-        response.headers().set("Content-Length", message.length());
-        return response;
     }
 }

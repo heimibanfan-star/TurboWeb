@@ -68,16 +68,4 @@ public interface HttpWorkDispatcherFactory {
 	 */
 	void replaceSessionManager(SessionManager sessionManager);
 
-	/**
-	 * 启用请求串行化
-	 */
-	void enableRequestSerial();
-
-	/**
-	 * 启用请求串行化
-	 * @param initCapacity 初始容量
-	 * @param maxCapacity 最大容量
-	 */
-	void enableRequestSerial(int initCapacity, int maxCapacity);
-
 }

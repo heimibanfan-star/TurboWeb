@@ -106,17 +106,6 @@ public interface TurboWebServer {
 	TurboWebServer replaceSessionManager(SessionManager sessionManager);
 
 	/**
-	 * 启用请求序列化
-	 *
-	 * @param initCapacity 初始容量
-	 * @param maxCapacity  最大容量
-	 * @return 当前实例
-	 */
-	TurboWebServer enableRequestSerial(int initCapacity, int maxCapacity);
-
-	TurboWebServer enableRequestSerial();
-
-	/**
 	 * 启动
 	 *
 	 * @return ChannelFuture 异步对象
