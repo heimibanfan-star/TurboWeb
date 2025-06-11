@@ -86,4 +86,9 @@ public class CoreHttpWorkDispatcherFactory implements HttpWorkDispatcherFactory 
 	public void replaceSessionManager(SessionManager sessionManager) {
 		sessionManagerProxyInitializer.setSessionManager(sessionManager);
 	}
+
+	@Override
+	public void disableVirtualHttpScheduler() {
+		httpSchedulerInitializer.disableVirtualThread();
+	}
 }

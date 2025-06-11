@@ -108,6 +108,13 @@ public interface TurboWebServer {
 	TurboWebServer replaceSessionManager(SessionManager sessionManager);
 
 	/**
+	 * 禁用虚拟线程HttpScheduler
+	 *
+	 * @return 当前实例
+	 */
+	TurboWebServer disableVirtualHttpScheduler();
+
+	/**
 	 * 启动
 	 *
 	 * @return ChannelFuture 异步对象

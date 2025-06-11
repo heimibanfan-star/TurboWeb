@@ -25,6 +25,7 @@ public class Application {
         server.config(config -> {
             config.setShowRequestLog(false);
         });
+//        server.disableVirtualHttpScheduler();
         server.start(8080);
     }
 

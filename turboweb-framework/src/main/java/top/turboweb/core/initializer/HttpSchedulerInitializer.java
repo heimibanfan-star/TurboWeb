@@ -26,4 +26,9 @@ public interface HttpSchedulerInitializer {
         Middleware chain,
         ServerParamConfig config
     );
+
+    /**
+     * 禁用虚拟线程
+     */
+    void disableVirtualThread();
 }

@@ -70,4 +70,8 @@ public interface HttpWorkDispatcherFactory {
 	 */
 	void replaceSessionManager(SessionManager sessionManager);
 
+	/**
+	 * 禁用虚拟http调度器
+	 */
+	void disableVirtualHttpScheduler();
 }

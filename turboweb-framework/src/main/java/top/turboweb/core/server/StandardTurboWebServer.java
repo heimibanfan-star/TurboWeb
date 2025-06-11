@@ -110,6 +110,12 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	}
 
 	@Override
+	public TurboWebServer disableVirtualHttpScheduler() {
+		httpWorkDispatcherFactory.disableVirtualHttpScheduler();
+		return this;
+	}
+
+	@Override
 	public ChannelFuture start() {
 		return start(8080);
 	}

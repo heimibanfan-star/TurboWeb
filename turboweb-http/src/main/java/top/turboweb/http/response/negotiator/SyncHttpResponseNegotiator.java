@@ -7,9 +7,9 @@ import top.turboweb.http.response.sync.InternalSseEmitter;
 import top.turboweb.http.response.sync.SseEmitter;
 
 /**
- * 用于虚拟线程调度器的响应协商器
+ * 用于同步模型调度器的响应协商器
  */
-public class VirtualHttpResponseNegotiator implements HttpResponseNegotiator {
+public class SyncHttpResponseNegotiator implements HttpResponseNegotiator {
 
     @Override
     public HttpResponse negotiate(HttpContext context, Object middlewareResult) {
