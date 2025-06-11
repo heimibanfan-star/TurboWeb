@@ -1,7 +1,9 @@
 package top.turboweb.http.response.negotiator;
 
 import io.netty.handler.codec.http.HttpResponse;
+import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.FileRegionResponse;
 import top.turboweb.http.response.IgnoredHttpResponse;
 import top.turboweb.http.response.sync.InternalSseEmitter;
 import top.turboweb.http.response.sync.SseEmitter;
@@ -31,10 +33,12 @@ public class SyncHttpResponseNegotiator implements HttpResponseNegotiator {
                     InternalSseEmitter internalSseEmitter = (InternalSseEmitter) sseEmitter;
                     internalSseEmitter.initSse();
                     httpResponse = IgnoredHttpResponse.ignore();
-                }
-                // 判断是否需要释放内存
-                if (context.getResponse() != httpResponse) {
-                    context.getResponse().release();
+                    // 判断是否需要释放内存
+                    if (context.getResponse() != httpResponse) {
+                        context.getResponse().release();
+                    }
+                } else if (httpResponse instanceof FileRegionResponse fileRegionResponse) {
+                    httpResponse = fileRegionResponse.getFileResponse(context.getConnectSession());
                 }
                 return httpResponse;
             }

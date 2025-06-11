@@ -82,6 +82,17 @@ public class DefaultHttpResponseHandler implements HttpResponseHandler {
                     future.setFailure(e);
                 }
             });
+		} else if (response instanceof FileRegionResponse fileRegionResponse) {
+			session.getChannel().writeAndFlush(fileRegionResponse.getFileRegion())
+					.addListener(f -> {
+						if (f.isSuccess()) {
+							future.setSuccess();
+						} else {
+							future.setFailure(f.cause());
+						}
+					});
+		} else {
+			future.setFailure(new TurboFileException("file download fail:not support response type"));
 		}
 		return future;
 	}

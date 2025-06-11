@@ -6,6 +6,7 @@ import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.Post;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.FileRegionResponse;
 import top.turboweb.http.response.FileStreamResponse;
 import top.turboweb.http.response.sync.SseEmitter;
 
@@ -23,7 +24,7 @@ public class HelloController {
 
 	@Get("/download")
 	public HttpResponse download(HttpContext c) {
-		return new FileStreamResponse(new File("C:\\Users\\heimi\\Downloads\\ideaIU-2024.3.6.exe"));
+		return new FileRegionResponse(new File("C:\\Users\\heimi\\Downloads\\phpStudy_64.zip"));
 	}
 
 	@Get
