@@ -29,7 +29,7 @@ public class HelloController {
 
 	@Get
 	public String hello(HttpContext c) throws InterruptedException {
-		return "hello world";
+		return "<h1>hello world</h1>";
 	}
 
 	@Get("/sse")

@@ -22,7 +22,7 @@ public class SyncHttpResponseNegotiator implements HttpResponseNegotiator {
         // 如果为空返回空内容
         switch (middlewareResult) {
             case null -> {
-                context.text("");
+                context.html("");
                 return context.getResponse();
             }
             // 判断返回值是否是响应对象
@@ -45,7 +45,7 @@ public class SyncHttpResponseNegotiator implements HttpResponseNegotiator {
             // 处理字符串类型
             case String s -> {
                 // 写入ctx
-                context.text(s);
+                context.html(s);
                 return context.getResponse();
             }
             default -> {
