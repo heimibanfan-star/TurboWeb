@@ -57,13 +57,6 @@ public interface TurboWebServer {
 	TurboWebServer config(Consumer<ServerParamConfig> consumer);
 
 	/**
-	 * 使用响应式服务器
-	 *
-	 * @return 当前实例
-	 */
-	TurboWebServer useReactiveServer();
-
-	/**
 	 * 设置网关
 	 *
 	 * @param gateway 网关

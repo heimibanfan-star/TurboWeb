@@ -69,11 +69,6 @@ public class CoreHttpWorkDispatcherFactory implements HttpWorkDispatcherFactory 
 	}
 
 	@Override
-	public void useReactive() {
-		httpSchedulerInitializer.isReactive(true);
-	}
-
-	@Override
 	public HttpProtocolDispatcher create(Class<?> mainClass, ServerParamConfig config) {
 		ExceptionHandlerMatcher handlerMatcher = exceptionHandlerInitializer.init();
 		SessionManagerHolder sessionManagerHolder = sessionManagerProxyInitializer.init(config);

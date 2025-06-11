@@ -35,19 +35,4 @@ public abstract class Middleware extends BaseMiddleware {
             return getNext().invoke(ctx);
         }
     }
-
-    /**
-     * 执行下一个中间件
-     *
-     * @param ctx 上下文
-     * @return 执行结果
-     */
-    protected Mono<?> nextMono(HttpContext ctx) {
-        Object result = next(ctx);
-        if (result instanceof Mono<?> mono) {
-            return mono;
-        } else {
-            throw new TurboReactiveException("TurboWeb仅支持Mono类型的反应式对象");
-        }
-    }
 }

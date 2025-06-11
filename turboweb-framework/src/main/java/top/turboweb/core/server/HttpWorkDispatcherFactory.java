@@ -59,11 +59,6 @@ public interface HttpWorkDispatcherFactory {
 	void gateway(Gateway gateway);
 
 	/**
-	 * 使用反应式
-	 */
-	void useReactive();
-
-	/**
 	 * 创建http工作分发器
 	 * @return http工作分发器
 	 */

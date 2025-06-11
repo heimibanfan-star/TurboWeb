@@ -12,13 +12,6 @@ import top.turboweb.http.session.SessionManagerHolder;
 public interface HttpSchedulerInitializer {
 
     /**
-     * 设置是否为反应式调度器
-     *
-     * @param flag 表示
-     */
-    void isReactive(boolean flag);
-
-    /**
      * 初始化http调度器
      *
      * @param sessionManagerHolder session管理器代理

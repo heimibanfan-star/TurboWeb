@@ -74,12 +74,6 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	}
 
 	@Override
-	public TurboWebServer useReactiveServer() {
-		httpWorkDispatcherFactory.useReactive();
-		return this;
-	}
-
-	@Override
 	public TurboWebServer gateway(Gateway gateway) {
 		httpWorkDispatcherFactory.gateway(gateway);
 		return this;
