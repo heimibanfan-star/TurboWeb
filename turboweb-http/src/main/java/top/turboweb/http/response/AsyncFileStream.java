@@ -13,6 +13,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 
 /**
@@ -24,7 +25,7 @@ public class AsyncFileStream implements FileStream, Closeable {
     private final long fileSize;
     private final int chunkSize;
     private long offset;
-    private final Object lock = new Object();
+    private final ReentrantLock lock = new ReentrantLock();
     DefaultChannelPromise channelFuture;
 
     public AsyncFileStream(File file, int chunkSize, boolean backPress) throws IOException {
@@ -35,41 +36,56 @@ public class AsyncFileStream implements FileStream, Closeable {
 
     @Override
     public ChannelFuture readFileWithChunk(BiFunction<ByteBuf, Exception, ChannelFuture> function) {
-        // 判断是否有数据
-        if (offset >= fileSize) {
-            channelFuture.setSuccess();
-            return channelFuture;
-        }
-        // 设置读取位置
+        lock.lock();
         try {
-            fileChannel.position(offset);
-            int bufSize = chunkSize > fileSize - offset ? (int) (fileSize - offset) : chunkSize;
-            ByteBuf buf = PooledByteBufAllocator.DEFAULT.directBuffer(bufSize);
-            // 读取文件内容
-            int read = fileChannel.read(buf.nioBuffer());
-            if (read > 0) {
-                offset += read;
-                ChannelFuture future = function.apply(buf, null);
+            // 判断是否有数据
+            if (offset >= fileSize) {
                 if (channelFuture != null) {
-                    channelFuture = new DefaultChannelPromise(future.channel());
+                    channelFuture.setSuccess();
                 }
-                future.addListener(f -> {
-                    if (!f.isSuccess()) {
-                        channelFuture.setFailure(f.cause());
-                        log.error("文件读取失败", f.cause());
-                    } else {
-                        BackupThreadUtils.execute(() -> {
-                            readFileWithChunk(function);
-                        });
+                return channelFuture;
+            }
+            // 设置读取位置
+            try {
+                fileChannel.position(offset);
+                int bufSize = chunkSize > fileSize - offset ? (int) (fileSize - offset) : chunkSize;
+                ByteBuf buf = PooledByteBufAllocator.DEFAULT.directBuffer(bufSize);
+                // 读取文件内容
+                int read = fileChannel.read(buf.nioBuffer());
+                if (read > 0) {
+                    // 设置偏移
+                    offset += read;
+                    ChannelFuture future = function.apply(buf, null);
+                    if (channelFuture == null) {
+                        channelFuture = new DefaultChannelPromise(future.channel());
                     }
-                });
+                    future.addListener(f -> {
+                        if (!f.isSuccess()) {
+                            channelFuture.setFailure(f.cause());
+                            log.error("文件读取失败", f.cause());
+                        } else {
+                            // 读取下一个分块
+                            BackupThreadUtils.execute(() -> {
+                                readFileWithChunk(function);
+                            });
+                        }
+                    });
+                } else {
+                    if (channelFuture != null) {
+                        channelFuture.setSuccess();
+                    }
+                }
+                return channelFuture;
+            } catch (IOException e) {
+                if (channelFuture != null) {
+                    channelFuture.setFailure(e);
+                }
+                function.apply(null, new TurboFileException("文件读取失败", e));
             }
             return channelFuture;
-        } catch (IOException e) {
-            channelFuture.setFailure(e);
-            function.apply(null, new TurboFileException("文件读取失败", e));
+        } finally {
+            lock.unlock();
         }
-        return channelFuture;
     }
     @Override
     public void close() throws IOException {
