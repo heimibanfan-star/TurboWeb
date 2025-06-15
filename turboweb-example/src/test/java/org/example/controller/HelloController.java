@@ -24,7 +24,7 @@ public class HelloController {
 
 	@Get("/download")
 	public HttpResponse download(HttpContext c) {
-		return new FileRegionResponse(new File("C:\\Users\\heimi\\Downloads\\phpStudy_64.zip"));
+		return new FileStreamResponse(new File("D:\\java学习资料\\1.数据结构与算法.zip"), 1024 * 1024 * 1024,  true);
 	}
 
 	@Get
@@ -36,16 +36,16 @@ public class HelloController {
 	public HttpResponse sse(HttpContext c) throws InterruptedException {
 		SseEmitter sseEmitter = c.createSseEmitter();
 		Thread.ofVirtual().start(() -> {
-			for (int i = 0; i < 20; i++) {
+			for (int i = 0; i < 10000; i++) {
+				sseEmitter.send("hello" + i);
                 try {
-					test();
+                    Thread.sleep(50);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-				sseEmitter.send("hello" + i);
             }
+			sseEmitter.close();
 		});
-		Thread.sleep(5000);
 		return sseEmitter;
 	}
 

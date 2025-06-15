@@ -20,12 +20,12 @@ import java.util.concurrent.ExecutionException;
  */
 public class Application {
         public static void main(String[] args) throws InterruptedException {
-            TurboWebServer server = new StandardTurboWebServer(Application.class, 200);
+            TurboWebServer server = new StandardTurboWebServer(Application.class, 8);
             server.controller(new HelloController(), HelloController.class);
             server.config(config -> {
                 config.setShowRequestLog(false);
             });
-            server.disableVirtualHttpScheduler();
+//            server.disableVirtualHttpScheduler();
             server.start(8080);
         }
 
