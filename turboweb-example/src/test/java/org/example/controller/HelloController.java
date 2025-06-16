@@ -24,7 +24,7 @@ public class HelloController {
 
 	@Get("/download")
 	public HttpResponse download(HttpContext c) {
-		return new FileStreamResponse(new File("D:\\java学习资料\\前端.zip"),  false);
+		return new FileStreamResponse(new File("D:\\java学习资料\\前端.zip"), 1024 * 1024 * 100, false);
 	}
 
 	@Get

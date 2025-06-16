@@ -66,9 +66,19 @@ public class BackPressFileStream implements FileStream {
                         log.error("文件读取失败", f.cause());
                     } else {
                         // 读取下一个分块
-                        BackupThreadUtils.execute(() -> {
+                        boolean ok = BackupThreadUtils.execute(() -> {
                             readFileWithChunk(function);
                         });
+                        if (!ok) {
+                            try {
+                                if (channelFuture != null) {
+                                    channelFuture.setFailure(new TurboFileException("task queue is full, file download error"));
+                                }
+                                function.apply(null, new TurboFileException("task queue is full, file download error"));
+                            } finally {
+                                closeFileChannel();
+                            }
+                        }
                     }
                 });
             } else {

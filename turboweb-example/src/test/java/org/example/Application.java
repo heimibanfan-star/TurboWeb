@@ -6,6 +6,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 import org.example.controller.HelloController;
 import top.turboweb.core.server.StandardTurboWebServer;
 import top.turboweb.core.server.TurboWebServer;
+import top.turboweb.http.middleware.ServerInfoMiddleware;
 
 import javax.management.*;
 
@@ -16,8 +17,9 @@ import java.lang.management.ManagementFactory;
  */
 public class Application {
         public static void main(String[] args) throws InterruptedException, MalformedObjectNameException, ReflectionException, AttributeNotFoundException, InstanceNotFoundException, MBeanException {
-            TurboWebServer server = new StandardTurboWebServer(Application.class, 8);
+            TurboWebServer server = new StandardTurboWebServer(Application.class, 1);
             server.controller(new HelloController(), HelloController.class);
+            server.middlewares(new ServerInfoMiddleware());
             server.config(config -> {
                 config.setShowRequestLog(false);
             });
