@@ -1,25 +1,21 @@
 package org.example;
 
-import io.netty.buffer.ByteBuf;
+
+import com.sun.management.OperatingSystemMXBean;
+import io.netty.buffer.PooledByteBufAllocator;
 import org.example.controller.HelloController;
-import top.turboweb.commons.senntinels.AutoDestructSentinel;
 import top.turboweb.core.server.StandardTurboWebServer;
 import top.turboweb.core.server.TurboWebServer;
-import top.turboweb.websocket.AbstractWebSocketHandler;
-import top.turboweb.websocket.WebSocketSession;
 
-import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
+import javax.management.*;
+
+import java.lang.management.ManagementFactory;
 
 /**
  * TODO
  */
 public class Application {
-        public static void main(String[] args) throws InterruptedException {
+        public static void main(String[] args) throws InterruptedException, MalformedObjectNameException, ReflectionException, AttributeNotFoundException, InstanceNotFoundException, MBeanException {
             TurboWebServer server = new StandardTurboWebServer(Application.class, 8);
             server.controller(new HelloController(), HelloController.class);
             server.config(config -> {
@@ -27,6 +23,7 @@ public class Application {
             });
 //            server.disableVirtualHttpScheduler();
             server.start(8080);
+
         }
 
 }
