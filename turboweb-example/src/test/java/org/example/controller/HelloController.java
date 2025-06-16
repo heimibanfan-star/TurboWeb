@@ -24,7 +24,7 @@ public class HelloController {
 
 	@Get("/download")
 	public HttpResponse download(HttpContext c) {
-		return new FileStreamResponse(new File("D:\\java学习资料\\1.数据结构与算法.zip"), 1024 * 1024 * 1024,  true);
+		return new FileStreamResponse(new File("D:\\java学习资料\\前端\\1.JavaScript基础\\视频\\第1天视频\\JS基础Day1-00-大展宏“兔”课程必读.mp4"), 1024,  true);
 	}
 
 	@Get

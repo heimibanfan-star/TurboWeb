@@ -36,7 +36,11 @@ public class FileStreamResponse extends AbstractFileResponse{
 	public FileStreamResponse(HttpVersion version, HttpResponseStatus status, File file, Charset filenameCharset, int chunkSize, boolean backPress) {
 		super(version, status, file, filenameCharset);
 		try {
-			chunkedFile = new DefaultFileStream(file, chunkSize, backPress);
+			if (backPress) {
+				chunkedFile = new BackPressFileStream(file, chunkSize);
+			} else {
+				chunkedFile = new DefaultFileStream(file, chunkSize);
+			}
 		} catch (IOException e) {
 			throw new TurboFileException(e);
 		}

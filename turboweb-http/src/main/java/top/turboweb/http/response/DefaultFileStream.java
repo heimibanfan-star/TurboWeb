@@ -23,25 +23,15 @@ public class DefaultFileStream implements FileStream {
 	private final int chunkSize;
 	private long offset;
 	private final Object lock = new Object();
-	private final boolean backPress;
 
 	public DefaultFileStream(File file) throws IOException {
-		this(file, 8192, true);
+		this(file, 8192);
 	}
 
 	public DefaultFileStream(File file, int chunkSize) throws IOException {
-		this(file, chunkSize, true);
-	}
-
-	public DefaultFileStream(File file, boolean backPress) throws IOException {
-		this(file, 8192, backPress);
-	}
-
-	public DefaultFileStream(File file, int chunkSize, boolean backPress) throws IOException {
 		this.fileChannel = FileChannel.open(file.toPath());
 		this.fileSize = fileChannel.size();
 		this.chunkSize = chunkSize;
-		this.backPress = backPress;
 	}
 
 	@Override
@@ -60,20 +50,7 @@ public class DefaultFileStream implements FileStream {
 				}
 				// 判断是否有异常产生
 				if (exception == null) {
-					try {
-						channelFuture = function.apply(buf, null);
-						if (backPress) {
-							channelFuture.addListener(future -> {
-								synchronized (lock) {
-									lock.notify();
-								}
-							});
-							synchronized (lock) {
-								lock.wait(20);
-							}
-						}
-					} catch (InterruptedException ignored) {
-					}
+					channelFuture = function.apply(buf, null);
 				} else {
 					function.apply(null, exception);
 					return channelFuture;
