@@ -1,31 +1,27 @@
 package org.example;
 
 
-import com.sun.management.OperatingSystemMXBean;
-import io.netty.buffer.PooledByteBufAllocator;
 import org.example.controller.HelloController;
-import top.turboweb.core.server.StandardTurboWebServer;
+import org.example.controller.UserController;
+import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.core.server.TurboWebServer;
 import top.turboweb.http.middleware.ServerInfoMiddleware;
 
 import javax.management.*;
-
-import java.lang.management.ManagementFactory;
 
 /**
  * TODO
  */
 public class Application {
         public static void main(String[] args) throws InterruptedException, MalformedObjectNameException, ReflectionException, AttributeNotFoundException, InstanceNotFoundException, MBeanException {
-            TurboWebServer server = new StandardTurboWebServer(Application.class, 1);
-            server.controller(new HelloController(), HelloController.class);
-            server.middlewares(new ServerInfoMiddleware());
-            server.config(config -> {
-                config.setShowRequestLog(false);
-            });
-//            server.disableVirtualHttpScheduler();
-            server.start(8080);
-
+            BootStrapTurboWebServer.create(Application.class)
+                    .http()
+                    .controller(new UserController())
+                    .and()
+                    .config(config -> {
+                        config.setShowRequestLog(false);
+                    })
+                    .start(8080);
         }
 
 }

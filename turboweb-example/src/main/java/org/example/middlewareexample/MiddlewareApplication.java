@@ -1,7 +1,7 @@
 package org.example.middlewareexample;
 
 import io.netty.handler.codec.http.HttpMethod;
-import top.turboweb.core.server.StandardTurboWebServer;
+import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.core.server.TurboWebServer;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.AbstractConcurrentLimitMiddleware;
@@ -9,8 +9,8 @@ import top.turboweb.http.middleware.AbstractGlobalConcurrentLimitMiddleware;
 
 public class MiddlewareApplication {
 	public static void main(String[] args) {
-		TurboWebServer server = new StandardTurboWebServer(MiddlewareApplication.class);
-		server.controllers(new UserController());
+		TurboWebServer server = new BootStrapTurboWebServer(MiddlewareApplication.class);
+		server.http().controller(new UserController());
 //		server.middlewares(new FirstMiddleware(), new SecondMiddleware());
 //		server.middlewares(new SecondMiddleware(), new FirstMiddleware());
 //		server.middlewares(interceptorMiddleware);
@@ -33,7 +33,7 @@ public class MiddlewareApplication {
 			}
 		};
 		concurrentLimitMiddleware.addStrategy(HttpMethod.GET, "/user/example06", 1);
-		server.middlewares(globalConcurrentLimitMiddleware, concurrentLimitMiddleware);
+		server.http().middleware(globalConcurrentLimitMiddleware, concurrentLimitMiddleware);
 		server.start();
 	}
 }

@@ -4,9 +4,14 @@ import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
+import top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory;
+import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
+import top.turboweb.core.initializer.factory.HttpSchedulerInitFactory;
 import top.turboweb.gateway.Gateway;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.websocket.WebSocketHandler;
 import top.turboweb.core.initializer.impl.DefaultHttpClientInitializer;
@@ -18,53 +23,43 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * 标准的TurboWebServer
+ * TurboWebServer实现类
  */
-public class StandardTurboWebServer extends CoreTurboWebServer implements TurboWebServer {
+public class BootStrapTurboWebServer extends CoreTurboWebServer implements TurboWebServer {
 
-	private static final Logger log = LoggerFactory.getLogger(StandardTurboWebServer.class);
+
+	private static final Logger log = LoggerFactory.getLogger(BootStrapTurboWebServer.class);
 	private final ServerParamConfig config = new ServerParamConfig();
-	private final HttpWorkDispatcherFactory httpWorkDispatcherFactory = new CoreHttpWorkDispatcherFactory();
+	private final HttpSchedulerInitFactory httpSchedulerInitFactory;
+	private final HttpProtocolDispatcherInitFactory httpProtocolDispatcherInitFactory;
 	private final Class<?> mainClass;
 	private final List<TurboWebListener> defaultListeners = new ArrayList<>(1);
 	private final List<TurboWebListener> customListeners = new ArrayList<>(1);
 	private boolean executeDefaultListener = true;
 
 	{
+		httpSchedulerInitFactory = new HttpSchedulerInitFactory(this);
+		httpProtocolDispatcherInitFactory = new HttpProtocolDispatcherInitFactory(this);
 		defaultListeners.add(new DefaultJacksonTurboWebListener());
 	}
 
-	public StandardTurboWebServer(Class<?> mainClass) {
+	public BootStrapTurboWebServer(Class<?> mainClass) {
 		this(mainClass, 0);
 	}
 
-	public StandardTurboWebServer(Class<?> mainClass, int ioThreadNum) {
+	public BootStrapTurboWebServer(Class<?> mainClass, int ioThreadNum) {
 		super(ioThreadNum);
 		this.mainClass = mainClass;
 	}
 
 	@Override
-	public TurboWebServer controllers(Object... controllers) {
-		httpWorkDispatcherFactory.controllers(controllers);
-		return this;
+	public HttpProtocolDispatcherBuilder protocol() {
+		return this.httpProtocolDispatcherInitFactory;
 	}
 
 	@Override
-	public TurboWebServer controller(Object controller, Class<?> originClass) {
-		httpWorkDispatcherFactory.controller(controller, originClass);
-		return this;
-	}
-
-	@Override
-	public TurboWebServer middlewares(Middleware... middlewares) {
-		httpWorkDispatcherFactory.middlewares(middlewares);
-		return this;
-	}
-
-	@Override
-	public TurboWebServer exceptionHandlers(Object... exceptionHandlers) {
-		httpWorkDispatcherFactory.exceptionHandlers(exceptionHandlers);
-		return this;
+	public HttpSchedulerInitBuilder http() {
+		return this.httpSchedulerInitFactory;
 	}
 
 	@Override
@@ -73,23 +68,6 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 		return this;
 	}
 
-	@Override
-	public TurboWebServer gateway(Gateway gateway) {
-		httpWorkDispatcherFactory.gateway(gateway);
-		return this;
-	}
-
-	@Override
-	public TurboWebServer websocket(String pathRegex, WebSocketHandler webSocketHandler) {
-		httpWorkDispatcherFactory.websocketHandler(pathRegex, webSocketHandler);
-		return this;
-	}
-
-	@Override
-	public TurboWebServer websocket(String pathRegex, WebSocketHandler webSocketHandler, int forkJoinThreadNum) {
-		httpWorkDispatcherFactory.websocketHandler(pathRegex, webSocketHandler, forkJoinThreadNum);
-		return this;
-	}
 
 	@Override
 	public TurboWebServer executeDefaultListener(boolean flag) {
@@ -100,18 +78,6 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	@Override
 	public TurboWebServer listeners(TurboWebListener... listeners) {
 		customListeners.addAll(List.of(listeners));
-		return this;
-	}
-
-	@Override
-	public TurboWebServer replaceSessionManager(SessionManager sessionManager) {
-		httpWorkDispatcherFactory.replaceSessionManager(sessionManager);
-		return this;
-	}
-
-	@Override
-	public TurboWebServer disableVirtualHttpScheduler() {
-		httpWorkDispatcherFactory.disableVirtualHttpScheduler();
 		return this;
 	}
 
@@ -149,7 +115,10 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 	 */
 	private void init() {
 		new DefaultHttpClientInitializer().init(workers());
-		HttpProtocolDispatcher httpProtocolDispatcher = httpWorkDispatcherFactory.create(mainClass, config);
+		// 创建http调度器
+		HttpScheduler httpScheduler = httpSchedulerInitFactory.createHttpScheduler(mainClass, config);
+		// 创建http协议分发器
+		HttpProtocolDispatcher httpProtocolDispatcher = httpProtocolDispatcherInitFactory.createDispatcher(httpScheduler);
 		initPipeline(httpProtocolDispatcher, config.getMaxContentLength());
 	}
 
@@ -181,5 +150,26 @@ public class StandardTurboWebServer extends CoreTurboWebServer implements TurboW
 			turboWebListener.afterServerStart();
 		}
 		log.info("TurboWeb启动后监听器方法执行完成");
+	}
+
+	/**
+	 * 创建TurboWebServer
+	 *
+	 * @param mainClass 主类
+	 * @return TurboWebServer
+	 */
+	public static TurboWebServer create(Class<?> mainClass) {
+		return new BootStrapTurboWebServer(mainClass);
+	}
+
+	/**
+	 * 创建TurboWebServer
+	 *
+	 * @param mainClass 主类
+	 * @param ioThreadNum IO线程数
+	 * @return TurboWebServer
+	 */
+	public static TurboWebServer create(Class<?> mainClass, int ioThreadNum) {
+		return new BootStrapTurboWebServer(mainClass, ioThreadNum);
 	}
 }

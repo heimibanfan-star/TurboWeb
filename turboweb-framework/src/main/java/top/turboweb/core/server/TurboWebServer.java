@@ -2,6 +2,8 @@ package top.turboweb.core.server;
 
 import io.netty.channel.ChannelFuture;
 import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
+import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
 import top.turboweb.gateway.Gateway;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.session.SessionManager;
@@ -16,37 +18,18 @@ import java.util.function.Consumer;
 public interface TurboWebServer {
 
 	/**
-	 * 添加控制器
+	 * 配置协议处理
 	 *
-	 * @param controllers 控制器
-	 * @return 当前实例
+	 * @return HttpProtocolDispatcherBuilder
 	 */
-	TurboWebServer controllers(Object... controllers);
+	HttpProtocolDispatcherBuilder protocol();
 
 	/**
-	 * 添加控制器
+	 * 配置http处理
 	 *
-	 * @param controller 控制器
-	 * @param originClass 原始类
-	 * @return 当前实例
+	 * @return HttpSchedulerInitBuilder
 	 */
-	TurboWebServer controller(Object controller, Class<?> originClass);
-
-	/**
-	 * 添加中间件
-	 *
-	 * @param middlewares 中间件
-	 * @return 当前实例
-	 */
-	TurboWebServer middlewares(Middleware... middlewares);
-
-	/**
-	 * 添加异常处理器
-	 *
-	 * @param exceptionHandlers 异常处理器
-	 * @return 当前实例
-	 */
-	TurboWebServer exceptionHandlers(Object... exceptionHandlers);
+	HttpSchedulerInitBuilder http();
 
 	/**
 	 * 添加配置
@@ -55,34 +38,6 @@ public interface TurboWebServer {
 	 * @return 当前实例
 	 */
 	TurboWebServer config(Consumer<ServerParamConfig> consumer);
-
-	/**
-	 * 设置网关
-	 *
-	 * @param gateway 网关
-	 * @return 当前实例
-	 */
-	TurboWebServer gateway(Gateway gateway);
-
-	/**
-	 * 添加websocket处理器
-	 *
-	 * @param pathRegex        路径正则
-	 * @param webSocketHandler websocket处理器
-	 * @return 当前实例
-	 */
-	TurboWebServer websocket(String pathRegex, WebSocketHandler webSocketHandler);
-
-	/**
-	 * 添加websocket处理器
-	 *
-	 * @param pathRegex        路径正则
-	 * @param webSocketHandler websocket处理器
-	 * @param forkJoinThreadNum forkJoin线程数
-	 * @return 当前实例
-	 */
-	TurboWebServer websocket(String pathRegex, WebSocketHandler webSocketHandler, int forkJoinThreadNum);
-
 	/**
 	 * 执行默认的监听器
 	 *
@@ -98,21 +53,6 @@ public interface TurboWebServer {
 	 * @return 当前实例
 	 */
 	TurboWebServer listeners(TurboWebListener... listeners);
-
-	/**
-	 * 替换sessionManager
-	 *
-	 * @param sessionManager sessionManager
-	 * @return 当前实例
-	 */
-	TurboWebServer replaceSessionManager(SessionManager sessionManager);
-
-	/**
-	 * 禁用虚拟线程HttpScheduler
-	 *
-	 * @return 当前实例
-	 */
-	TurboWebServer disableVirtualHttpScheduler();
 
 	/**
 	 * 启动

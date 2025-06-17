@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import top.turboweb.client.HttpClientUtils;
 import top.turboweb.client.PromiseHttpClient;
 import top.turboweb.client.result.RestResponseResult;
-import top.turboweb.core.server.StandardTurboWebServer;
+import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.core.server.TurboWebServer;
 
 import java.util.Map;
@@ -13,8 +13,8 @@ import java.util.concurrent.ExecutionException;
 
 public class ClientApplication {
 	public static void main(String[] args) throws ExecutionException, InterruptedException {
-		TurboWebServer server = new StandardTurboWebServer(ClientApplication.class);
-		server.controllers(new UserController());
+		TurboWebServer server = new BootStrapTurboWebServer(ClientApplication.class);
+		server.http().controller(new UserController());
 		server.start(8080);
 
 //		example01();
