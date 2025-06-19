@@ -86,7 +86,7 @@ public class BackupThreadUtils {
                     int cpuNum = Runtime.getRuntime().availableProcessors();
                     EXECUTOR = new ThreadPoolExecutor(
                             1,
-                            cpuNum * 8,
+                            cpuNum * 2,
                             5,
                             TimeUnit.MINUTES,
                             new ArrayBlockingQueue<>(6),
