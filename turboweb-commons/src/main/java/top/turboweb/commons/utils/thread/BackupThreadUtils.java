@@ -72,13 +72,13 @@ public class BackupThreadUtils {
                    Runnable task = TASKS.take();
                    long sleepTime = 1000;
                    while (true) {
+                       LockSupport.parkNanos(sleepTime);
                        try {
                            submitTask(task);
                        } catch (RejectedExecutionException e) {
                            if (sleepTime < 16384000) {
                                sleepTime <<= 1;
                            }
-                           LockSupport.parkNanos(sleepTime);
                            continue;
                        }
                        break;
@@ -98,7 +98,15 @@ public class BackupThreadUtils {
         if (!isInit) {
             throw new IllegalStateException("BackUpThreadUtils has not been initialized yet");
         }
-        return TASKS.offer(runnable);
+        // 尝试直接执行任务
+        try {
+            EXECUTOR.execute(runnable);
+            return true;
+        } catch (RejectedExecutionException e) {
+            log.debug("core queue is full, submit to task cache");
+            // 尝试将任务加入缓冲区
+            return TASKS.offer(runnable);
+        }
     }
 
     /**
