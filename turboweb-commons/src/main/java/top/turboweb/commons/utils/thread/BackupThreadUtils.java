@@ -72,13 +72,13 @@ public class BackupThreadUtils {
                    Runnable task = TASKS.take();
                    long sleepTime = 1000;
                    while (true) {
-                       LockSupport.parkNanos(sleepTime);
                        try {
                            submitTask(task);
                        } catch (RejectedExecutionException e) {
                            if (sleepTime < 16384000) {
                                sleepTime <<= 1;
                            }
+                           LockSupport.parkNanos(sleepTime);
                            continue;
                        }
                        break;
