@@ -22,4 +22,10 @@ public interface HttpClientInitializer {
      * @param group 事件循环线程组
      */
     void init(EventLoopGroup group);
+
+    /**
+     * 替换配置
+     * @param httpClientConfig 配置
+     */
+    void replaceConfig(HttpClientConfig httpClientConfig);
 }

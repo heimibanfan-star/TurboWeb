@@ -1,6 +1,6 @@
 package top.turboweb.core.initializer.factory;
 
-import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.initializer.ExceptionHandlerInitializer;
 import top.turboweb.core.initializer.HttpSchedulerInitializer;
 import top.turboweb.core.initializer.MiddlewareInitializer;
@@ -119,7 +119,7 @@ public class HttpSchedulerInitFactory implements HttpSchedulerInitBuilder {
      * @param config 服务器配置
      * @return http调度器
      */
-    public HttpScheduler createHttpScheduler(Class<?> mainClass, ServerParamConfig config) {
+    public HttpScheduler createHttpScheduler(Class<?> mainClass, HttpServerConfig config) {
         // 初始化异常处理器匹配器
         ExceptionHandlerMatcher exceptionHandlerMatcher = exceptionHandlerInitializer.init();
         // 初始化session管理器

@@ -2,7 +2,7 @@ package top.turboweb.core.initializer.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.HttpRouterDispatcherMiddleware;
 import top.turboweb.http.middleware.Middleware;
@@ -57,7 +57,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
         SessionManagerHolder sessionManagerHolder,
         Class<?> mainClass,
         ExceptionHandlerMatcher matcher,
-        ServerParamConfig config
+        HttpServerConfig config
     ) {
         Middleware chain = initMiddlewareChain();
         // 执行依赖注入
@@ -99,7 +99,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
         SessionManagerHolder sessionManagerHolder,
         ExceptionHandlerMatcher exceptionHandlerMatcher,
         Class<?> mainClass,
-        ServerParamConfig config
+        HttpServerConfig config
     ) {
         while (ptr != null) {
             // 判断是否实现Aware

@@ -1,13 +1,10 @@
 package top.turboweb.core.server;
 
 import io.netty.channel.ChannelFuture;
-import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.client.config.HttpClientConfig;
+import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
-import top.turboweb.gateway.Gateway;
-import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.session.SessionManager;
-import top.turboweb.websocket.WebSocketHandler;
 import top.turboweb.core.listener.TurboWebListener;
 
 import java.util.function.Consumer;
@@ -32,12 +29,37 @@ public interface TurboWebServer {
 	HttpSchedulerInitBuilder http();
 
 	/**
-	 * 添加配置
+	 * 配置服务器参数
 	 *
 	 * @param consumer 配置
 	 * @return 当前实例
 	 */
-	TurboWebServer config(Consumer<ServerParamConfig> consumer);
+	TurboWebServer configServer(Consumer<HttpServerConfig> consumer);
+
+	/**
+	 * 替换服务器参数
+	 *
+	 * @param httpServerConfig 参数
+	 * @return 当前实例
+	 */
+	TurboWebServer replaceServerConfig(HttpServerConfig httpServerConfig);
+
+	/**
+	 * 配置客户端参数
+	 *
+	 * @param consumer 配置
+	 * @return 当前实例
+	 */
+	TurboWebServer configClient(Consumer<HttpClientConfig> consumer);
+
+	/**
+	 * 替换客户端参数
+	 *
+	 * @param httpClientConfig 参数
+	 * @return 当前实例
+	 */
+	TurboWebServer replaceClientConfig(HttpClientConfig httpClientConfig);
+
 	/**
 	 * 执行默认的监听器
 	 *

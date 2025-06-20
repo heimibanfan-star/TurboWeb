@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 public class ParamApplication {
 	public static void main(String[] args) {
 		TurboWebServer server = new BootStrapTurboWebServer(ParamApplication.class, 1);
-		server.config(config -> {
+		server.configServer(config -> {
 			// 由此进行参数配置
 			config.setCharset(StandardCharsets.UTF_8);
 			config.setMaxContentLength(1024 * 1024 * 10);
@@ -17,7 +17,6 @@ public class ParamApplication {
 			config.setSessionCheckTime(300000);
 			config.setSessionMaxNotUseTime(-1);
 			config.setCheckForSessionNum(256);
-			config.setReactiveServiceThreadNum(16);
 		});
 	}
 }

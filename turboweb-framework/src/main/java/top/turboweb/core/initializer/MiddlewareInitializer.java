@@ -1,6 +1,6 @@
 package top.turboweb.core.initializer;
 
-import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.session.SessionManagerHolder;
@@ -41,6 +41,6 @@ public interface MiddlewareInitializer {
         SessionManagerHolder sessionManagerHolder,
         Class<?> mainClass,
         ExceptionHandlerMatcher matcher,
-        ServerParamConfig config
+        HttpServerConfig config
     );
 }

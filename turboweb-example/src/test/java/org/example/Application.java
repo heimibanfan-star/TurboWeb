@@ -1,13 +1,11 @@
 package org.example;
 
 
-import org.example.controller.HelloController;
 import org.example.controller.UserController;
 import top.turboweb.core.server.BootStrapTurboWebServer;
-import top.turboweb.core.server.TurboWebServer;
-import top.turboweb.http.middleware.ServerInfoMiddleware;
 
 import javax.management.*;
+import java.nio.charset.StandardCharsets;
 
 /**
  * TODO
@@ -18,8 +16,11 @@ public class Application {
                 .http()
                 .controller(new UserController())
                 .and()
-                .config(config -> {
-                    config.setShowRequestLog(false);
+                .configServer(c -> {
+                    c.setShowRequestLog(false);
+                })
+                .configClient(c -> {
+                    c.setCharset(StandardCharsets.UTF_8);
                 })
                 .start(8080);
     }

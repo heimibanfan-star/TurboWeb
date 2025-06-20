@@ -2,7 +2,7 @@ package top.turboweb.core.initializer.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.scheduler.HttpScheduler;
@@ -20,7 +20,7 @@ public class DefaultHttpSchedulerInitializer implements HttpSchedulerInitializer
     private boolean useVirtualThread = true;
 
     @Override
-    public HttpScheduler init(SessionManagerHolder sessionManagerHolder, ExceptionHandlerMatcher matcher, Middleware chain, ServerParamConfig config) {
+    public HttpScheduler init(SessionManagerHolder sessionManagerHolder, ExceptionHandlerMatcher matcher, Middleware chain, HttpServerConfig config) {
         HttpScheduler scheduler;
         if (useVirtualThread) {
             scheduler = new VirtualThreadHttpScheduler(

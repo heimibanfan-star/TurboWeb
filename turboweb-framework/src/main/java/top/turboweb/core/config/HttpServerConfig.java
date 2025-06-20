@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * 服务器初始化配置类
  */
-public class ServerParamConfig {
+public class HttpServerConfig {
 
     /**
      * 最大请求内容长度
@@ -29,23 +29,13 @@ public class ServerParamConfig {
     private long sessionCheckTime = 300000;
 
     /**
-     * reactive线程池大小
-     */
-    private int reactiveServiceThreadNum = 8;
-
-    public int getReactiveServiceThreadNum() {
-        return reactiveServiceThreadNum;
-    }
-
-    public void setReactiveServiceThreadNum(int reactiveServiceThreadNum) {
-        this.reactiveServiceThreadNum = reactiveServiceThreadNum;
-    }
-
-    /**
      * session最大不活跃时间
      */
     private long sessionMaxNotUseTime = -1;
 
+    /**
+     * 触发session检查的阈值
+     */
     private long checkForSessionNum = 256;
 
     public long getCheckForSessionNum() {

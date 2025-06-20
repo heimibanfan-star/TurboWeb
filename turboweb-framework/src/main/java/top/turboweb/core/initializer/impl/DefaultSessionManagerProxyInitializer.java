@@ -2,7 +2,7 @@ package top.turboweb.core.initializer.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.session.*;
 import top.turboweb.http.session.DefaultSessionManagerHolder;
 import top.turboweb.http.session.SessionManagerHolder;
@@ -22,7 +22,7 @@ public class DefaultSessionManagerProxyInitializer implements SessionManagerProx
     }
 
     @Override
-    public SessionManagerHolder init(ServerParamConfig config) {
+    public SessionManagerHolder init(HttpServerConfig config) {
         SessionManagerHolder proxy =  new DefaultSessionManagerHolder(
             sessionManager,
             config.getSessionCheckTime(),

@@ -1,6 +1,6 @@
 package top.turboweb.core.server;
 
-import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.gateway.Gateway;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.http.middleware.Middleware;
@@ -62,7 +62,7 @@ public interface HttpWorkDispatcherFactory {
 	 * 创建http工作分发器
 	 * @return http工作分发器
 	 */
-	HttpProtocolDispatcher create(Class<?> mainClass, ServerParamConfig config);
+	HttpProtocolDispatcher create(Class<?> mainClass, HttpServerConfig config);
 
 	/**
 	 * 替换session管理器

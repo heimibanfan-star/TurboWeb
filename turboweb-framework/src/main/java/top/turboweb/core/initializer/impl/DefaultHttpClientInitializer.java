@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 public class DefaultHttpClientInitializer implements HttpClientInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultHttpClientInitializer.class);
-    private final HttpClientConfig config = new HttpClientConfig();
+    private HttpClientConfig config = new HttpClientConfig();
 
     @Override
     public void config(Consumer<HttpClientConfig> consumer) {
@@ -26,5 +26,10 @@ public class DefaultHttpClientInitializer implements HttpClientInitializer {
     public void init(EventLoopGroup group) {
         HttpClientUtils.initClient(config, group);
         log.info("HttpClient初始化完成");
+    }
+
+    @Override
+    public void replaceConfig(HttpClientConfig httpClientConfig) {
+        this.config = httpClientConfig;
     }
 }

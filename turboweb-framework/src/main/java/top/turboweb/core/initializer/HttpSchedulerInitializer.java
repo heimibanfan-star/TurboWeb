@@ -1,6 +1,6 @@
 package top.turboweb.core.initializer;
 
-import top.turboweb.core.config.ServerParamConfig;
+import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.scheduler.HttpScheduler;
@@ -24,7 +24,7 @@ public interface HttpSchedulerInitializer {
         SessionManagerHolder sessionManagerHolder,
         ExceptionHandlerMatcher matcher,
         Middleware chain,
-        ServerParamConfig config
+        HttpServerConfig config
     );
 
     /**
