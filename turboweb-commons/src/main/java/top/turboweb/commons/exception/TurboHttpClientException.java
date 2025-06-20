@@ -7,8 +7,4 @@ public class TurboHttpClientException extends RuntimeException {
     public TurboHttpClientException(String message) {
         super(message);
     }
-
-    public TurboHttpClientException(Throwable e) {
-        super(e);
-    }
 }
