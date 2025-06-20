@@ -17,9 +17,8 @@ public class BackupThreadUtils {
     private static final Logger log = LoggerFactory.getLogger(BackupThreadUtils.class);
     private static volatile ThreadPoolExecutor EXECUTOR;
     private static final ReentrantLock LOCK = new ReentrantLock();
-    private static final BlockingQueue<Runnable> TASKS = new LinkedBlockingQueue<>(4096);
-    private static final ReentrantLock TASK_LOCK = new ReentrantLock();
-    private static final Condition TASK_CONDITION = TASK_LOCK.newCondition();
+    private static volatile BlockingQueue<Runnable> TASKS;
+    private static volatile boolean isInit = false;
 
     private static class InternalThreadFactory implements ThreadFactory {
 
@@ -33,10 +32,36 @@ public class BackupThreadUtils {
         }
     }
 
-    static {
-        startVirtualSentinel();
+    public static void init(int cacheQueue, int coreQueue, int maxThreadNum) {
+        if (isInit) {
+            return;
+        }
+        LOCK.lock();
+        try {
+            if (isInit) {
+                return;
+            }
+            // 创建缓冲队列
+            TASKS = new LinkedBlockingQueue<>(cacheQueue);
+            // 创建核心线程池
+            EXECUTOR = new ThreadPoolExecutor(
+                    1,
+                    maxThreadNum,
+                    5,
+                    TimeUnit.MINUTES,
+                    new ArrayBlockingQueue<>(coreQueue),
+                    new InternalThreadFactory(),
+                    new ThreadPoolExecutor.AbortPolicy()
+            );
+            EXECUTOR.allowCoreThreadTimeOut(true);
+            // 启动哨兵线程
+            startVirtualSentinel();
+            // 修改标识位
+            isInit = true;
+        } finally {
+            LOCK.unlock();
+        }
     }
-
     /**
      * 启动虚拟哨兵线程
      */
@@ -70,6 +95,9 @@ public class BackupThreadUtils {
      * @param runnable 任务
      */
     public static boolean execute(Runnable runnable) {
+        if (!isInit) {
+            throw new IllegalStateException("BackUpThreadUtils has not been initialized yet");
+        }
         return TASKS.offer(runnable);
     }
 
@@ -79,26 +107,6 @@ public class BackupThreadUtils {
      * @param task 任务
      */
     private static void submitTask(Runnable task) {
-        if (EXECUTOR == null) {
-            LOCK.lock();
-            try {
-                if (EXECUTOR == null) {
-                    int cpuNum = Runtime.getRuntime().availableProcessors();
-                    EXECUTOR = new ThreadPoolExecutor(
-                            1,
-                            cpuNum * 2,
-                            5,
-                            TimeUnit.MINUTES,
-                            new ArrayBlockingQueue<>(6),
-                            new InternalThreadFactory(),
-                            new ThreadPoolExecutor.AbortPolicy()
-                    );
-                    EXECUTOR.allowCoreThreadTimeOut(true);
-                }
-            } finally {
-                LOCK.unlock();
-            }
-        }
         EXECUTOR.execute(task);
     }
 }

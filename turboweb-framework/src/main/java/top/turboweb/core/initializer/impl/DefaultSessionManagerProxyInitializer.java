@@ -27,7 +27,7 @@ public class DefaultSessionManagerProxyInitializer implements SessionManagerProx
             sessionManager,
             config.getSessionCheckTime(),
             config.getSessionMaxNotUseTime(),
-            config.getCheckForSessionNum()
+            config.getSessionCheckThreshold()
         );
         log.info("session管理器初始化完成");
         return proxy;

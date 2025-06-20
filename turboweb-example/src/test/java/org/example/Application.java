@@ -1,6 +1,7 @@
 package org.example;
 
 
+import org.example.controller.HelloController;
 import org.example.controller.UserController;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 
@@ -14,7 +15,7 @@ public class Application {
     public static void main(String[] args) throws InterruptedException, MalformedObjectNameException, ReflectionException, AttributeNotFoundException, InstanceNotFoundException, MBeanException {
         BootStrapTurboWebServer.create(Application.class)
                 .http()
-                .controller(new UserController())
+                .controller(new HelloController())
                 .and()
                 .configServer(c -> {
                     c.setShowRequestLog(false);

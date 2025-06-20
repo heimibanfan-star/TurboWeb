@@ -5,12 +5,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.client.config.HttpClientConfig;
 import top.turboweb.core.config.HttpServerConfig;
+import top.turboweb.core.initializer.CommonSourceInitializer;
 import top.turboweb.core.initializer.HttpClientInitializer;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitFactory;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
+import top.turboweb.core.initializer.impl.DefaultCommonSourceInitializer;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.core.initializer.impl.DefaultHttpClientInitializer;
 import top.turboweb.core.listener.DefaultJacksonTurboWebListener;
@@ -32,6 +34,7 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
 	private final HttpSchedulerInitFactory httpSchedulerInitFactory;
 	private final HttpProtocolDispatcherInitFactory httpProtocolDispatcherInitFactory;
 	private final HttpClientInitializer httpClientInitializer;
+	private final CommonSourceInitializer commonSourceInitializer;
 	private final Class<?> mainClass;
 	private final List<TurboWebListener> defaultListeners = new ArrayList<>(1);
 	private final List<TurboWebListener> customListeners = new ArrayList<>(1);
@@ -41,6 +44,7 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
 		httpSchedulerInitFactory = new HttpSchedulerInitFactory(this);
 		httpProtocolDispatcherInitFactory = new HttpProtocolDispatcherInitFactory(this);
 		httpClientInitializer = new DefaultHttpClientInitializer();
+		commonSourceInitializer = new DefaultCommonSourceInitializer();
 		defaultListeners.add(new DefaultJacksonTurboWebListener());
 	}
 
@@ -138,6 +142,9 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
 	 * 初始化
 	 */
 	private void init() {
+		// 初始化公共资源
+		commonSourceInitializer.init(serverConfig);
+		// 初始化http客户端
 		httpClientInitializer.init(workers());
 		// 创建http调度器
 		HttpScheduler httpScheduler = httpSchedulerInitFactory.createHttpScheduler(mainClass, serverConfig);

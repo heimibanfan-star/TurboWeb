@@ -16,7 +16,7 @@ public class ParamApplication {
 			config.setShowRequestLog(true);
 			config.setSessionCheckTime(300000);
 			config.setSessionMaxNotUseTime(-1);
-			config.setCheckForSessionNum(256);
+			config.setSessionCheckThreshold(256);
 		});
 	}
 }
