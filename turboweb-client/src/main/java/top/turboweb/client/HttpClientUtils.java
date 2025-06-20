@@ -9,6 +9,7 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.resources.ConnectionProvider;
 
 import java.time.Duration;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * http客户端工具
@@ -16,10 +17,11 @@ import java.time.Duration;
 public class HttpClientUtils {
 
     private static final Logger log = LoggerFactory.getLogger(HttpClientUtils.class);
-    private static HttpClient httpClient;
-    private static boolean init = false;
-    private static EventLoopGroup executors;
-    private static HttpClientConfig httpClientConfig;
+    private static volatile HttpClient httpClient;
+    private static volatile boolean init = false;
+    private static volatile EventLoopGroup executors;
+    private static final ReentrantLock LOCK = new ReentrantLock();
+    private static volatile HttpClientConfig httpClientConfig;
 
     // 返回promise的客户端
     private static volatile PromiseHttpClient promiseHttpClient;
@@ -35,7 +37,8 @@ public class HttpClientUtils {
         if (init) {
             return;
         }
-        synchronized (HttpClientUtils.class) {
+        LOCK.lock();
+        try {
             if (init) {
                 return;
             }
@@ -51,6 +54,8 @@ public class HttpClientUtils {
             httpClient = HttpClient.create(provider).runOn(group);
             init = true;
             httpClientConfig = config;
+        } finally {
+            LOCK.unlock();
         }
     }
 
