@@ -1,0 +1,110 @@
+package top.turboweb.http.processor;
+
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.handler.ExceptionHandlerDefinition;
+import top.turboweb.http.handler.ExceptionHandlerMatcher;
+import top.turboweb.http.processor.convertor.HttpResponseConverter;
+
+import java.lang.invoke.MethodHandle;
+import java.util.function.Function;
+
+/**
+ * 异常处理器内核处理器
+ */
+public class ExceptionHandlerProcessor extends Processor {
+
+    private final ExceptionHandlerMatcher exceptionHandlerMatcher;
+    private final HttpResponseConverter httpResponseConverter;
+    // 默认的异常处理
+    private static final Function<String, String> SERVER_ERROR_MSG = msg -> String.format("""
+            {
+                "code": 500,
+                "msg": %s
+            }
+            """, msg);
+    // 默认的路由未找到处理
+    private static final Function<String, String> ROUTER_NOT_FOUND_MSG = msg -> String.format("""
+            {
+                "code": 404,
+                "msg": %s
+            }
+            """, msg);
+
+
+    private enum ErrType {
+        // 服务器错误
+        SERVER_ERROR,
+        // 路由匹配失败错误
+        ROUTER_NOT_FOUND,
+    }
+
+    public ExceptionHandlerProcessor(
+            Processor nextProcessor,
+            ExceptionHandlerMatcher exceptionHandlerMatcher,
+            HttpResponseConverter converter
+    ) {
+        super(nextProcessor);
+        this.exceptionHandlerMatcher = exceptionHandlerMatcher;
+        this.httpResponseConverter = converter;
+    }
+
+    @Override
+    public HttpResponse invoke(FullHttpRequest fullHttpRequest) {
+        // 调用下一个中间件
+        try {
+            return next(fullHttpRequest);
+        } catch (Throwable e) {
+            return handleException(e);
+        }
+    }
+
+    /**
+     * 处理异常
+     *
+     * @param e 异常
+     * @return 处理结果
+     */
+    private HttpResponse handleException(Throwable e) {
+        // 获取异常处理器定义信息
+        ExceptionHandlerDefinition definition = exceptionHandlerMatcher.match(e.getClass());
+        if (definition != null) {
+            // 获取响应状态码
+            HttpResponseStatus status = definition.getHttpResponseStatus();
+            // 获取方法句柄
+            MethodHandle methodHandler = definition.getMethodHandler();
+            // 处理异常
+            try {
+                Object result = methodHandler.invoke(e);
+                // 转换响应结果
+                HttpResponse httpResponse = httpResponseConverter.convertor(result);
+                // 设置状态码
+                httpResponse.setStatus(status);
+                return httpResponse;
+            } catch (Throwable ex) {
+                return defaultExceptionHandler(e);
+            }
+        } else {
+            return defaultExceptionHandler(e);
+        }
+    }
+
+    /**
+     * 默认异常处理器
+     *
+     * @param e 异常
+     * @return 响应结果
+     */
+    private HttpResponse defaultExceptionHandler(Throwable e) {
+        if (e instanceof TurboRouterException turboRouterException && TurboRouterException.ROUTER_NOT_MATCH.equals(turboRouterException.getCode())) {
+            // 生成异常信息
+            String errMessage = ROUTER_NOT_FOUND_MSG.apply(e.getMessage());
+            // 转化结果
+            return httpResponseConverter.convertor(errMessage);
+        }
+        String errMessage = SERVER_ERROR_MSG.apply(e.getMessage());
+        return httpResponseConverter.convertor(errMessage);
+    }
+}
