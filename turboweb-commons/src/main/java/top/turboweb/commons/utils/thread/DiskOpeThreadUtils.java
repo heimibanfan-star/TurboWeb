@@ -9,7 +9,7 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * 备用线程池
+ * 磁盘操作线程池
  */
 public class DiskOpeThreadUtils {
 
