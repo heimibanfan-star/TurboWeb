@@ -1,6 +1,7 @@
 package top.turboweb.http.processor;
 
 import io.netty.handler.codec.http.*;
+import top.turboweb.http.connect.ConnectSession;
 
 import java.util.Arrays;
 import java.util.List;
@@ -22,7 +23,7 @@ public class CorsProcessor extends Processor {
     }
 
     @Override
-    public HttpResponse invoke(FullHttpRequest fullHttpRequest) {
+    public HttpResponse invoke(FullHttpRequest fullHttpRequest, ConnectSession connectSession) {
         // 获取请求头中的origin
         String origin = fullHttpRequest.headers().get("Origin");
         if (origin == null || origin.isEmpty()) {
@@ -36,7 +37,7 @@ public class CorsProcessor extends Processor {
         }
 
         // 调用后续的中间件
-        HttpResponse httpResponse = next(fullHttpRequest);
+        HttpResponse httpResponse = next(fullHttpRequest, connectSession);
         // 设置 CORS 响应头
         handleCorsHeaders(httpResponse, origin);
         return httpResponse;

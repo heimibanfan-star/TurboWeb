@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.handler.ExceptionHandlerDefinition;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.processor.convertor.HttpResponseConverter;
@@ -52,10 +53,10 @@ public class ExceptionHandlerProcessor extends Processor {
     }
 
     @Override
-    public HttpResponse invoke(FullHttpRequest fullHttpRequest) {
+    public HttpResponse invoke(FullHttpRequest fullHttpRequest, ConnectSession connectSession) {
         // 调用下一个中间件
         try {
-            return next(fullHttpRequest);
+            return next(fullHttpRequest, connectSession);
         } catch (Throwable e) {
             return handleException(e);
         }
