@@ -1,4 +1,4 @@
-package top.turboweb.http.middleware.sync;
+package top.turboweb.http.middleware.view;
 
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;

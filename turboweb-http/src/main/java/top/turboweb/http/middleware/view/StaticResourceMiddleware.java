@@ -1,10 +1,6 @@
-package top.turboweb.http.middleware.sync;
+package top.turboweb.http.middleware.view;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.middleware.AbstractStaticResourceMiddleware;
-import top.turboweb.commons.exception.TurboRouterException;
 
 /**
  * 处理静态资源的中间件

@@ -1,4 +1,4 @@
-package top.turboweb.http.middleware;
+package top.turboweb.http.middleware.view;
 
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.aware.MainClassAware;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.commons.exception.TurboStaticResourceException;
@@ -17,7 +18,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;

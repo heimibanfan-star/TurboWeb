@@ -1,4 +1,4 @@
-package top.turboweb.http.middleware.sync;
+package top.turboweb.http.middleware.view;
 
 import freemarker.cache.ClassTemplateLoader;
 import freemarker.cache.TemplateLoader;
