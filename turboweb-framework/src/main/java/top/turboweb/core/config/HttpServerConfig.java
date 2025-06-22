@@ -42,17 +42,17 @@ public class HttpServerConfig {
     /**
      * 备用线程池缓存队列大小
      */
-    private int backUpThreadCacheQueue = 4096;
+    private int diskOpeThreadCacheQueue = 4096;
 
     /**
      * 备用线程池核心队列大小
      */
-    private int backUpThreadCoreQueue = 6;
+    private int diskOpeThreadCoreQueue = 6;
 
     /**
      * 备用线程池最大线程数
      */
-    private int backUpThreadMaxThreadNum = Runtime.getRuntime().availableProcessors() * 2;
+    private int diskOpeThreadMaxThreadNum = Runtime.getRuntime().availableProcessors() * 2;
 
     public long getSessionCheckThreshold() {
         return sessionCheckThreshold;
@@ -136,50 +136,50 @@ public class HttpServerConfig {
         this.sessionMaxNotUseTime = sessionMaxNotUseTime;
     }
 
-    public int getBackUpThreadCacheQueue() {
-        return backUpThreadCacheQueue;
+    public int getDiskOpeThreadCacheQueue() {
+        return diskOpeThreadCacheQueue;
     }
 
     /**
      * 设置备用线程池重缓冲队列的大小
      *
-     * @param backUpThreadCacheQueue 缓冲队列大小
+     * @param diskOpeThreadCacheQueue 缓冲队列大小
      */
-    public void setBackUpThreadCacheQueue(int backUpThreadCacheQueue) {
-        if (backUpThreadCacheQueue < 32) {
+    public void setDiskOpeThreadCacheQueue(int diskOpeThreadCacheQueue) {
+        if (diskOpeThreadCacheQueue < 32) {
             throw new IllegalArgumentException("缓冲队列大小不能小于32");
         }
-        this.backUpThreadCacheQueue = backUpThreadCacheQueue;
+        this.diskOpeThreadCacheQueue = diskOpeThreadCacheQueue;
     }
 
-    public int getBackUpThreadCoreQueue() {
-        return backUpThreadCoreQueue;
+    public int getDiskOpeThreadCoreQueue() {
+        return diskOpeThreadCoreQueue;
     }
 
     /**
      * 设置备用线程池核心队列大小
      *
-     * @param backUpThreadCoreQueue 核心队列大小
+     * @param diskOpeThreadCoreQueue 核心队列大小
      */
-    public void setBackUpThreadCoreQueue(int backUpThreadCoreQueue) {
-        if (backUpThreadCoreQueue < 1) {
+    public void setDiskOpeThreadCoreQueue(int diskOpeThreadCoreQueue) {
+        if (diskOpeThreadCoreQueue < 1) {
             throw new IllegalArgumentException("核心队列大小不能小于1");
         }
-        this.backUpThreadCoreQueue = backUpThreadCoreQueue;
+        this.diskOpeThreadCoreQueue = diskOpeThreadCoreQueue;
     }
 
-    public int getBackUpThreadMaxThreadNum() {
-        return backUpThreadMaxThreadNum;
+    public int getDiskOpeThreadMaxThreadNum() {
+        return diskOpeThreadMaxThreadNum;
     }
 
     /**
      * 设置备用线程池最大线程数
-     * @param backUpThreadMaxThreadNum 最大线程数
+     * @param diskOpeThreadMaxThreadNum 最大线程数
      */
-    public void setBackUpThreadMaxThreadNum(int backUpThreadMaxThreadNum) {
-        if (backUpThreadMaxThreadNum < 1) {
+    public void setDiskOpeThreadMaxThreadNum(int diskOpeThreadMaxThreadNum) {
+        if (diskOpeThreadMaxThreadNum < 1) {
             throw new IllegalArgumentException("最大线程数不能小于1");
         }
-        this.backUpThreadMaxThreadNum = backUpThreadMaxThreadNum;
+        this.diskOpeThreadMaxThreadNum = diskOpeThreadMaxThreadNum;
     }
 }

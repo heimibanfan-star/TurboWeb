@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.exception.TurboFileException;
-import top.turboweb.commons.utils.thread.BackupThreadUtils;
+import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.response.*;
@@ -53,7 +53,7 @@ public class DefaultHttpResponseHandler implements HttpResponseHandler {
 	private ChannelFuture handleFileResponse(AbstractFileResponse response, InternalConnectSession session) {
 		DefaultChannelPromise future = new DefaultChannelPromise(session.getChannel());
 		if (response instanceof FileStreamResponse fileStreamResponse) {
-			BackupThreadUtils.execute(() -> {
+			DiskOpeThreadUtils.execute(() -> {
 				log.debug("File download is handed over to backup thread pool");
                 try {
                     // 处理分块文件传输的情况

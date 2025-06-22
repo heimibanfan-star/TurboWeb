@@ -7,7 +7,7 @@ import io.netty.channel.DefaultChannelPromise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.exception.TurboFileException;
-import top.turboweb.commons.utils.thread.BackupThreadUtils;
+import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -66,7 +66,7 @@ public class BackPressFileStream implements FileStream {
                         log.error("文件读取失败", f.cause());
                     } else {
                         // 读取下一个分块
-                        boolean ok = BackupThreadUtils.execute(() -> {
+                        boolean ok = DiskOpeThreadUtils.execute(() -> {
                             readFileWithChunk(function);
                         });
                         if (!ok) {

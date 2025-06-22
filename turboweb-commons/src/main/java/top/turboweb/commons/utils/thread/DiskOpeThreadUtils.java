@@ -5,16 +5,15 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 备用线程池
  */
-public class BackupThreadUtils {
+public class DiskOpeThreadUtils {
 
-    private static final Logger log = LoggerFactory.getLogger(BackupThreadUtils.class);
+    private static final Logger log = LoggerFactory.getLogger(DiskOpeThreadUtils.class);
     private static volatile ThreadPoolExecutor EXECUTOR;
     private static final ReentrantLock LOCK = new ReentrantLock();
     private static volatile BlockingQueue<Runnable> TASKS;
@@ -22,7 +21,7 @@ public class BackupThreadUtils {
 
     private static class InternalThreadFactory implements ThreadFactory {
 
-        private static final String NAME_PREFIX = "back-up-thread-";
+        private static final String NAME_PREFIX = "DiskOpe-Thread-";
         private static final AtomicInteger threadNum = new AtomicInteger();
 
         @Override
@@ -96,7 +95,7 @@ public class BackupThreadUtils {
      */
     public static boolean execute(Runnable runnable) {
         if (!isInit) {
-            throw new IllegalStateException("BackUpThreadUtils has not been initialized yet");
+            throw new IllegalStateException("DiskOpeThreadUtils has not been initialized yet");
         }
         // 尝试直接执行任务
         try {

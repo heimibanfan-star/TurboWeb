@@ -2,7 +2,7 @@ package top.turboweb.core.initializer.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.turboweb.commons.utils.thread.BackupThreadUtils;
+import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.initializer.CommonSourceInitializer;
 
@@ -22,10 +22,10 @@ public class DefaultCommonSourceInitializer implements CommonSourceInitializer {
         COMMON_SOURCE_INITIALIZERS.add(
                 // 用于初始化后背线程池
                 config -> {
-                    int backUpThreadCacheQueue = config.getBackUpThreadCacheQueue();
-                    int backUpThreadCoreQueue = config.getBackUpThreadCoreQueue();
-                    int backUpThreadMaxThreadNum = config.getBackUpThreadMaxThreadNum();
-                    BackupThreadUtils.init(backUpThreadCacheQueue, backUpThreadCoreQueue, backUpThreadMaxThreadNum);
+                    int backUpThreadCacheQueue = config.getDiskOpeThreadCacheQueue();
+                    int backUpThreadCoreQueue = config.getDiskOpeThreadCoreQueue();
+                    int backUpThreadMaxThreadNum = config.getDiskOpeThreadMaxThreadNum();
+                    DiskOpeThreadUtils.init(backUpThreadCacheQueue, backUpThreadCoreQueue, backUpThreadMaxThreadNum);
                 }
         );
     }
