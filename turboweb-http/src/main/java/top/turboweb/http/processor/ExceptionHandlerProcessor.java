@@ -43,7 +43,7 @@ public class ExceptionHandlerProcessor extends Processor {
     }
 
     public ExceptionHandlerProcessor(
-            Processor nextProcessor,
+            MiddlewareInvokeProcessor nextProcessor,
             ExceptionHandlerMatcher exceptionHandlerMatcher,
             HttpResponseConverter converter
     ) {

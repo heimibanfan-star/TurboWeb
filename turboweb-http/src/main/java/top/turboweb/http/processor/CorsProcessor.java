@@ -18,7 +18,7 @@ public class CorsProcessor extends Processor {
     private boolean allowCredentials = false;
     private int maxAge = 3600;
 
-    public CorsProcessor(Processor nextProcessor) {
+    public CorsProcessor(ExceptionHandlerProcessor nextProcessor) {
         super(nextProcessor);
     }
 
