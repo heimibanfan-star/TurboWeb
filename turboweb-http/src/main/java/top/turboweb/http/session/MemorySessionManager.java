@@ -3,6 +3,7 @@ package top.turboweb.http.session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.lock.Locks;
+import top.turboweb.commons.lock.SegmentLock;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -20,6 +21,7 @@ public class MemorySessionManager implements SessionManager {
 
     private static final Logger log = LoggerFactory.getLogger(MemorySessionManager.class);
     private final Map<String, MemorySessionMap> sessionContainer = new ConcurrentHashMap<>();
+    private final SegmentLock segmentLock = new SegmentLock(64);
 
     @Override
     public void setAttr(String sessionId, String key, Object value) {
@@ -67,12 +69,16 @@ public class MemorySessionManager implements SessionManager {
         if (sessionContainer.containsKey(sessionId)) {
             return false;
         }
-        synchronized (sessionId.intern()) {
+        // 尝试加锁
+        segmentLock.lock(sessionId);
+        try {
             if (sessionContainer.containsKey(sessionId)) {
                 return false;
             }
             sessionContainer.put(sessionId, new MemorySessionMap());
             return true;
+        } finally {
+            segmentLock.unlock(sessionId);
         }
     }
 
