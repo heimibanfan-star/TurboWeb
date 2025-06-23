@@ -60,6 +60,14 @@ public interface SessionManager {
     boolean exist(String sessionId);
 
     /**
+     * 创建session
+     *
+     * @param sessionId sessionId
+     * @return session是否存在
+     */
+    boolean createSessionMap(String sessionId);
+
+    /**
      * session垃圾回收
      *
      * @param checkTime 检查时间间隔

@@ -6,6 +6,7 @@ import top.turboweb.commons.lock.Locks;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -22,14 +23,14 @@ public class MemorySessionManager implements SessionManager {
 
     @Override
     public void setAttr(String sessionId, String key, Object value) {
-        MemorySessionMap sessionMap = getSessionMap(sessionId);
-        sessionMap.setAttr(key, value);
+        MemorySessionMap sessionMap = sessionContainer.get(sessionId);
+        Optional.ofNullable(sessionMap).ifPresent(session -> sessionMap.setAttr(key, value));
     }
 
     @Override
     public void setAttr(String sessionId, String key, Object value, long timeout) {
-        MemorySessionMap sessionMap = getSessionMap(sessionId);
-        sessionMap.setAttr(key, value, timeout);
+        MemorySessionMap sessionMap = sessionContainer.get(sessionId);
+        Optional.ofNullable(sessionMap).ifPresent(session -> sessionMap.setAttr(key, value, timeout));
     }
 
     @Override
@@ -52,13 +53,27 @@ public class MemorySessionManager implements SessionManager {
 
     @Override
     public void remAttr(String sessionId, String key) {
-        MemorySessionMap sessionMap = getSessionMap(sessionId);
-        sessionMap.remAttr(key);
+        MemorySessionMap sessionMap = sessionContainer.get(sessionId);
+        Optional.ofNullable(sessionMap).ifPresent(session -> sessionMap.remAttr(key));
     }
 
     @Override
     public boolean exist(String sessionId) {
         return sessionContainer.containsKey(sessionId);
+    }
+
+    @Override
+    public boolean createSessionMap(String sessionId) {
+        if (sessionContainer.containsKey(sessionId)) {
+            return false;
+        }
+        synchronized (sessionId.intern()) {
+            if (sessionContainer.containsKey(sessionId)) {
+                return false;
+            }
+            sessionContainer.put(sessionId, new MemorySessionMap());
+            return true;
+        }
     }
 
     @Override
@@ -102,23 +117,6 @@ public class MemorySessionManager implements SessionManager {
         MemorySessionMap sessionMap = sessionContainer.get(sessionId);
         if (sessionMap != null) {
             sessionMap.expireAt();
-        }
-    }
-
-    /**
-     * 获取sessionMap
-     *
-     * @param sessionId sessionId
-     * @return sessionMap
-     */
-    private MemorySessionMap getSessionMap(String sessionId) {
-        synchronized (sessionId.intern()) {
-            MemorySessionMap sessionMap = sessionContainer.get(sessionId);
-            if (sessionMap == null) {
-                sessionMap = new MemorySessionMap();
-                sessionContainer.put(sessionId, sessionMap);
-            }
-            return sessionMap;
         }
     }
 }

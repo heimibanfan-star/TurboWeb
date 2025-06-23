@@ -28,13 +28,13 @@ public class DefaultHttpSession implements HttpSession {
 
     @Override
     public void setAttr(String key, Object value) {
-        checkAndGenerateSessionId();
+        checkAndGenerateSession();
         sessionManager.setAttr(sessionId, key, value);
     }
 
     @Override
     public void setAttr(String key, Object value, long timeout) {
-        checkAndGenerateSessionId();
+        checkAndGenerateSession();
         sessionManager.setAttr(sessionId, key, value, timeout);
     }
 
@@ -57,7 +57,7 @@ public class DefaultHttpSession implements HttpSession {
     @Override
     public void remAttr(String key) {
         if (sessionId != null) {
-            checkAndGenerateSessionId();
+            checkAndGenerateSession();
             sessionManager.remAttr(sessionId, key);
         }
     }
@@ -72,15 +72,15 @@ public class DefaultHttpSession implements HttpSession {
     /**
      * 检查sessionId是否为空，为空则生成一个sessionId
      */
-    private void checkAndGenerateSessionId() {
+    private void checkAndGenerateSession() {
         if (this.sessionId == null) {
             String sessionId = UUID.randomUUID().toString().replace("-", "");
             int count = 0;
-            while (sessionManager.exist(sessionId) && count < MAX_RETRY_COUNT) {
+            while (count < MAX_RETRY_COUNT && !sessionManager.createSessionMap(sessionId)) {
                 sessionId = UUID.randomUUID().toString().replace("-", "");
                 count++;
             }
-            if (sessionManager.exist(sessionId)) {
+            if (count >= MAX_RETRY_COUNT) {
                 throw new TurboSessionException("sessionId generate error");
             }
             this.sessionId = sessionId;

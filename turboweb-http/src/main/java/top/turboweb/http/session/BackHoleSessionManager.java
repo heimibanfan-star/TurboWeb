@@ -32,6 +32,11 @@ public class BackHoleSessionManager implements SessionManager{
     }
 
     @Override
+    public boolean createSessionMap(String sessionId) {
+        return true;
+    }
+
+    @Override
     public void sessionGC(long checkTime, long maxNotUseTime, long sessionNumThreshold) {
 
     }
