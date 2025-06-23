@@ -2,8 +2,10 @@ package top.turboweb.http.router.container;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.turboweb.commons.struct.trie.PathTrie;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.router.definition.RouterMethodDefinition;
+import top.turboweb.http.router.container.info.MethodRouterDefinition;
+import top.turboweb.http.router.container.info.RouterDefinition;
 import top.turboweb.commons.anno.*;
 import top.turboweb.commons.exception.TurboControllerCreateException;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
@@ -120,8 +122,8 @@ public class RouterContainerInitHelper {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         try {
             MethodHandle methodHandle = lookup.unreflect(method).bindTo(instanceObj);
-            RouterMethodDefinition definition = new RouterMethodDefinition(method.getDeclaringClass(), methodHandle);
-            parsePathAndSaveDefinition(container, method, path, definition);
+            MethodRouterDefinition methodRouterDefinition = new MethodRouterDefinition(methodHandle);
+            parsePathAndSaveDefinition(container, method, path, methodRouterDefinition);
         } catch (IllegalAccessException e) {
             throw new TurboRouterDefinitionCreateException(e);
         }
@@ -153,7 +155,7 @@ public class RouterContainerInitHelper {
      * @param path      路径
      * @param definition 路由方法定义
      */
-    private static void parsePathAndSaveDefinition(RouterContainer container, Method method, String path, RouterMethodDefinition definition) {
+    private static void parsePathAndSaveDefinition(RouterContainer container, Method method, String path, MethodRouterDefinition definition) {
         String type;
         if (method.isAnnotationPresent(Get.class)) {
             type = "GET";
@@ -170,27 +172,11 @@ public class RouterContainerInitHelper {
         }
         int index = path.indexOf("{");
         if (index != -1) {
-            String subStr = path.substring(index - 1);
-            // 判断是否符合路径参数格式
-            if (!subStr.matches(PATH_VAR_CHECK_REGEX)) {
-                throw new TurboRouterDefinitionCreateException("路径参数格式错误: %s".formatted(path));
-            }
-            // 解析出所有的参数
-            Matcher matcher = PATH_VALUE_GET_PATTERN.matcher(subStr);
-            while (matcher.find()) {
-                String param = matcher.group(1);
-                if (definition.getPathParameters().contains(param)) {
-                    throw new TurboRouterDefinitionCreateException("路径参数重复: %s".formatted(path));
-                }
-                definition.getPathParameters().add(param);
-            }
-            // 将路径修改为正则表达式模板
-            path = path.replaceAll(PATH_VALUE_SEARCH_REGEX, "([^/]*)");
-            definition.setPattern(Pattern.compile(path));
-            definition.setPathVariableCount(definition.getPathParameters().size());
-            container.addPathRouter(type, path, definition);
-            return;
+            // 根据请求方式获取前缀树
+            PathTrie<RouterDefinition> pathTrie = container.getTrieRouterInfo().getPathTrie(type);
+            // 添加到前缀树中
+            pathTrie.insert(path, definition);
         }
-        container.addCompleteRouter(type, path, definition);
+        container.getExactRouterInfo().addRouter(type, path, definition);
     }
 }

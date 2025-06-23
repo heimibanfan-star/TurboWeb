@@ -22,43 +22,16 @@ public class HelloController {
 
 	private ReentrantLock lock = new ReentrantLock();
 
-	@Get("/download")
-	public HttpResponse download(HttpContext c) {
-		return new FileStreamResponse(new File("D:\\java学习资料\\前端.zip"), 1024 * 1024 * 100, false);
+	@Get("/{id:num}")
+	public String get(HttpContext ctx) {
+		Long id = ctx.paramLong("id");
+		System.out.println(id);
+		return "hello world";
 	}
 
-	@Get
-	public String hello(HttpContext c) throws InterruptedException {
-		return "<h1>hello world</h1>";
-	}
-
-	@Get("/sse")
-	public HttpResponse sse(HttpContext c) throws InterruptedException {
-		SseEmitter sseEmitter = c.createSseEmitter();
-		Thread.ofVirtual().start(() -> {
-			for (int i = 0; i < 10000; i++) {
-				sseEmitter.send("hello" + i);
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-			sseEmitter.close();
-		});
-		return sseEmitter;
-	}
-
-	private synchronized void test() throws InterruptedException {
-		System.out.println("aaa");
-		Thread.sleep(2000);
-	}
-
-	@Post("/upload")
-	public String upload(HttpContext c) throws IOException {
-		FileUpload fileUpload = c.loadFile("file");
-		System.out.println(fileUpload);
-		fileUpload.renameTo(new File("E:/tmp/123.png"));
-		return "ok";
+	@Get("/{name:num}")
+	public String getName(HttpContext ctx) {
+		System.out.println(ctx.param("name"));
+		return "hello world";
 	}
 }

@@ -14,8 +14,6 @@ import top.turboweb.http.middleware.aware.SessionManagerHolderAware;
 import top.turboweb.http.router.container.RouterContainer;
 import top.turboweb.http.router.dispatcher.HttpDispatcher;
 import top.turboweb.http.router.dispatcher.impl.DefaultHttpDispatcher;
-import top.turboweb.http.router.matcher.RouterMatcher;
-import top.turboweb.http.router.matcher.impl.DefaultRouterMatcher;
 import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.core.initializer.MiddlewareInitializer;
 import top.turboweb.http.router.container.RouterContainerInitHelper;
@@ -151,8 +149,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
      */
     private HttpRouterDispatcherMiddleware getHttpDispatcherMiddleware() {
         RouterContainer routerContainer = RouterContainerInitHelper.initContainer(controllerAttributes);
-        RouterMatcher routerMatcher = new DefaultRouterMatcher(routerContainer);
-        HttpDispatcher dispatcher =  new DefaultHttpDispatcher(routerMatcher);
+        HttpDispatcher dispatcher =  new DefaultHttpDispatcher(routerContainer);
         log.info("http分发器初始化成功");
         return new HttpRouterDispatcherMiddleware(dispatcher);
     }

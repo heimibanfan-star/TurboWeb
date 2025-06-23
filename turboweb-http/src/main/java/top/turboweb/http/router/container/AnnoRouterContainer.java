@@ -1,42 +1,67 @@
 package top.turboweb.http.router.container;
 
-import top.turboweb.http.router.definition.RouterMethodDefinition;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.commons.struct.trie.PathTrie;
+import top.turboweb.http.router.container.info.ExactRouterInfo;
+import top.turboweb.http.router.container.info.RouterDefinition;
+import top.turboweb.http.router.container.info.TrieRouterInfo;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
- * 注解路由容器
+ * 注解是路由的路由容器
  */
-public class AnnoRouterContainer extends RouterContainer {
+public class AnnoRouterContainer implements RouterContainer {
 
+    private final ExactRouterInfo exactRouterInfo;
+    private final TrieRouterInfo trieRouterInfo;
+    private final Map<Class<?>, Object> controllerInstances;
 
-    @Override
-    public void addCompleteRouter(String method, String path, RouterMethodDefinition definition) {
-        RouterInfo routerInfo = super.completeRouterInfo;
-        this.checkRepeatAndSaveRouter(routerInfo, method, path, definition);
+    public AnnoRouterContainer() {
+        this.exactRouterInfo = new ExactRouterInfo();
+        this.trieRouterInfo = new TrieRouterInfo();
+        this.controllerInstances = new HashMap<>();
     }
 
     @Override
-    public void addPathRouter(String method, String path, RouterMethodDefinition definition) {
-        RouterInfo routerInfo = super.pathRouterInfo;
-        this.checkRepeatAndSaveRouter(routerInfo, method, path, definition);
+    public Map<Class<?>, Object> getControllerInstances() {
+        return this.controllerInstances;
     }
 
-    /**
-     * 检查重复并且保存路由
-     *
-     * @param routerInfo 路由信息
-     * @param method     请求方法
-     * @param path       请求路径
-     * @param definition 路由定义
-     */
-    private void checkRepeatAndSaveRouter(RouterInfo routerInfo, String method, String path, RouterMethodDefinition definition) {
-        Map<String, RouterMethodDefinition> definitions = routerInfo.getDefinitionsByMethod(method);
-        // 判断是否包含该路径
-        if (definitions.containsKey(path)) {
-            throw new TurboRouterException("路由重复: method:%s, path:%s".formatted(method, path), TurboRouterException.ROUTER_REPEAT);
+    @Override
+    public RouterDefinition exactMatch(String method, String path) {
+        // 根据请求方式获取路由定义
+        Map<String, RouterDefinition> routerDefinition = exactRouterInfo.getRouterDefinition(method);
+        // 去除路径的查询参数部分
+        if (path.contains("?")) {
+            path = path.substring(0, path.indexOf("?"));
         }
-        definitions.put(path, definition);
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return routerDefinition.get(path);
+    }
+
+    @Override
+    public TrieMatchResult trieMatch(String method, String path) {
+        // 根据请求方式获取对应的前缀树
+        PathTrie<RouterDefinition> pathTrie = trieRouterInfo.getPathTrie(method);
+        // 去除路径的查询参数部分
+        if (path.contains("?")) {
+            path = path.substring(0, path.indexOf("?"));
+        }
+        // 进行前缀树的匹配
+        Optional<PathTrie.MatchResult<RouterDefinition>> optional = pathTrie.search(path);
+        return optional.map(routerDefinitionMatchResult -> new TrieMatchResult(routerDefinitionMatchResult.getValue(), routerDefinitionMatchResult.getParams())).orElse(null);
+    }
+
+    public ExactRouterInfo getExactRouterInfo() {
+        return exactRouterInfo;
+    }
+
+    @Override
+    public TrieRouterInfo getTrieRouterInfo() {
+        return trieRouterInfo;
     }
 }
