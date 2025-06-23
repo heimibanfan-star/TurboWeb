@@ -2,6 +2,7 @@ package top.turboweb.http.router.container;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.commons.struct.trie.PathTrie;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.container.info.MethodRouterDefinition;
@@ -33,11 +34,6 @@ public class RouterContainerInitHelper {
             this.clazz = clazz;
         }
     }
-
-    private static final String PATH_VAR_CHECK_REGEX = "^(/(\\{[^/]+}))+$";
-    private static final String PATH_VALUE_SEARCH_REGEX = "\\{(.*?)}";
-    private static final Pattern PATH_VALUE_GET_PATTERN = Pattern.compile(PATH_VALUE_SEARCH_REGEX);
-    private static final Logger log = LoggerFactory.getLogger(RouterContainerInitHelper.class);
 
     private RouterContainerInitHelper() {
     }
@@ -104,6 +100,9 @@ public class RouterContainerInitHelper {
     }
 
     private static void doInitRouterDefinition(RouterContainer container, Method method, String path) {
+        if (path.contains("*")) {
+            throw new TurboRouterDefinitionCreateException("路径不能包含*");
+        }
         if (path.isEmpty()) {
             throw new TurboRouterDefinitionCreateException("组合后的路径不能为空路径");
         }

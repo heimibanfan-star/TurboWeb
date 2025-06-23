@@ -20,8 +20,6 @@ import java.util.concurrent.locks.ReentrantLock;
 @RequestPath("/hello")
 public class HelloController {
 
-	private ReentrantLock lock = new ReentrantLock();
-
 	@Get("/{id:num}")
 	public String get(HttpContext ctx) {
 		Long id = ctx.paramLong("id");
@@ -29,7 +27,7 @@ public class HelloController {
 		return "hello world";
 	}
 
-	@Get("/{name:num}")
+	@Get("/**/{name:str}")
 	public String getName(HttpContext ctx) {
 		System.out.println(ctx.param("name"));
 		return "hello world";
