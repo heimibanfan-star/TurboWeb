@@ -10,5 +10,5 @@ public class Locks {
     /**
      * session操作的读写锁
      */
-    public static final ReentrantReadWriteLock SESSION_LOCK = new ReentrantReadWriteLock();
+    public static final ReentrantReadWriteLock SESSION_LOCK = new ReentrantReadWriteLock(true);
 }
