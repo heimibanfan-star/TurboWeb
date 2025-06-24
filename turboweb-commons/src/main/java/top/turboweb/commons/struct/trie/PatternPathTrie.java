@@ -305,12 +305,12 @@ public class PatternPathTrie<V> implements PathTrie<V> {
             matchAllValuesRecursive(staticNode, segments, idx + 1, result);
         }
 
-        // 2. 参数匹配
-        for (Node<V> c : node.children.values()) {
-            if (c.type == SegmentType.PARAM && c.paramInfo.type.match(seg)) {
-                matchAllValuesRecursive(c, segments, idx + 1, result);
-            }
-        }
+//        // 2. 参数匹配
+//        for (Node<V> c : node.children.values()) {
+//            if (c.type == SegmentType.PARAM && c.paramInfo.type.match(seg)) {
+//                matchAllValuesRecursive(c, segments, idx + 1, result);
+//            }
+//        }
 
         // 3. 单级通配符 *
         Node<V> starNode = node.children.get(WILDCARD_SINGLE);
