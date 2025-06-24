@@ -276,6 +276,60 @@ public class PatternPathTrie<V> implements PathTrie<V> {
         return new ArrayList<>(all.keySet());
     }
 
+    @Override
+    public Set<V> matchAllValues(String path) {
+        checkPath(path);
+        String[] segments = splitPath(path);
+        Set<V> result = new LinkedHashSet<>();
+        matchAllValuesRecursive(root, segments, 0, result);
+        return result;
+    }
+
+    private void matchAllValuesRecursive(Node<V> node, String[] segments, int idx, Set<V> result) {
+        if (idx == segments.length) {
+            if (node.hasValue()) {
+                result.add(node.value);
+            }
+            Node<V> multiNode = node.children.get(WILDCARD_MULTI);
+            if (multiNode != null && multiNode.hasValue()) {
+                result.add(multiNode.value);
+            }
+            return;
+        }
+
+        String seg = segments[idx];
+
+        // 1. 静态匹配
+        Node<V> staticNode = node.children.get(seg);
+        if (staticNode != null) {
+            matchAllValuesRecursive(staticNode, segments, idx + 1, result);
+        }
+
+        // 2. 参数匹配
+        for (Node<V> c : node.children.values()) {
+            if (c.type == SegmentType.PARAM && c.paramInfo.type.match(seg)) {
+                matchAllValuesRecursive(c, segments, idx + 1, result);
+            }
+        }
+
+        // 3. 单级通配符 *
+        Node<V> starNode = node.children.get(WILDCARD_SINGLE);
+        if (starNode != null) {
+            matchAllValuesRecursive(starNode, segments, idx + 1, result);
+        }
+
+        // 4. 多级通配符 **
+        Node<V> multiNode = node.children.get(WILDCARD_MULTI);
+        if (multiNode != null) {
+            matchAllValuesRecursive(multiNode, segments, idx, result); // 匹配 0 层
+            for (int i = idx + 1; i <= segments.length; i++) {
+                matchAllValuesRecursive(multiNode, segments, i, result); // 匹配 1 层+
+            }
+        }
+    }
+
+
+
     private boolean isParamSegment(String seg) {
         return seg.startsWith("{") && seg.endsWith("}");
     }
@@ -314,5 +368,4 @@ public class PatternPathTrie<V> implements PathTrie<V> {
         if (trim.isEmpty()) return new String[0];
         return trim.split("/");
     }
-
 }

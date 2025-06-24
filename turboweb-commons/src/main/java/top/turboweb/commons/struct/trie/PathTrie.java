@@ -3,6 +3,7 @@ package top.turboweb.commons.struct.trie;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 支持路径参数和通配符的路径匹配前缀树接口。
@@ -80,4 +81,11 @@ public interface PathTrie<V> {
      * @return 路径列表
      */
     List<String> allPaths();
+
+    /**
+     * 获取所有匹配路径及挂载内容
+     * @param path 请求路径
+     * @return 匹配结果列表
+     */
+    Set<V> matchAllValues(String path);
 }
