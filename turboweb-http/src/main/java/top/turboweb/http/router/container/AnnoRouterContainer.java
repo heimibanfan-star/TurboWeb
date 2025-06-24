@@ -52,7 +52,7 @@ public class AnnoRouterContainer implements RouterContainer {
             path = path.substring(0, path.indexOf("?"));
         }
         // 进行前缀树的匹配
-        Optional<PathTrie.MatchResult<RouterDefinition>> optional = pathTrie.search(path);
+        Optional<PathTrie.MatchResult<RouterDefinition>> optional = pathTrie.paramMatch(path);
         return optional.map(routerDefinitionMatchResult -> new TrieMatchResult(routerDefinitionMatchResult.getValue(), routerDefinitionMatchResult.getParams())).orElse(null);
     }
 

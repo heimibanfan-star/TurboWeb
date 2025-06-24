@@ -138,7 +138,7 @@ public class PatternPathTrie<V> implements PathTrie<V> {
 
 
     @Override
-    public Optional<MatchResult<V>> search(String path) {
+    public Optional<MatchResult<V>> paramMatch(String path) {
         checkPath(path);
         String[] segments = splitPath(path);
         Map<String, String> params = new LinkedHashMap<>();
@@ -161,7 +161,6 @@ public class PatternPathTrie<V> implements PathTrie<V> {
             }
             return null;
         }
-
         String seg = segments[idx];
 
         // 1. 静态节点精确匹配
@@ -178,27 +177,6 @@ public class PatternPathTrie<V> implements PathTrie<V> {
                 Node<V> res = searchNode(c, segments, idx + 1, params);
                 if (res != null) return res;
                 params.remove(c.paramInfo.name);
-            }
-        }
-
-        // 3. 单级通配符 '*'
-        Node<V> starNode = node.children.get(WILDCARD_SINGLE);
-        if (starNode != null) {
-            Node<V> res = searchNode(starNode, segments, idx + 1, params);
-            if (res != null) return res;
-        }
-
-        // 4. 多级通配符 '**'，匹配0个或多个
-        Node<V> multiNode = node.children.get(WILDCARD_MULTI);
-        if (multiNode != null) {
-            // 1) 匹配0层
-            Node<V> res = searchNode(multiNode, segments, idx, params);
-            if (res != null) return res;
-
-            // 2) 匹配1层及更多层，通过循环递归
-            for (int i = idx + 1; i <= segments.length; i++) {
-                res = searchNode(multiNode, segments, i, params);
-                if (res != null) return res;
             }
         }
         return null;
@@ -277,7 +255,7 @@ public class PatternPathTrie<V> implements PathTrie<V> {
     }
 
     @Override
-    public Set<V> matchAllValues(String path) {
+    public Set<V> patternMatch(String path) {
         checkPath(path);
         String[] segments = splitPath(path);
         Set<V> result = new LinkedHashSet<>();
@@ -305,20 +283,13 @@ public class PatternPathTrie<V> implements PathTrie<V> {
             matchAllValuesRecursive(staticNode, segments, idx + 1, result);
         }
 
-//        // 2. 参数匹配
-//        for (Node<V> c : node.children.values()) {
-//            if (c.type == SegmentType.PARAM && c.paramInfo.type.match(seg)) {
-//                matchAllValuesRecursive(c, segments, idx + 1, result);
-//            }
-//        }
-
-        // 3. 单级通配符 *
+        // 2. 单级通配符 *
         Node<V> starNode = node.children.get(WILDCARD_SINGLE);
         if (starNode != null) {
             matchAllValuesRecursive(starNode, segments, idx + 1, result);
         }
 
-        // 4. 多级通配符 **
+        // 3. 多级通配符 **
         Node<V> multiNode = node.children.get(WILDCARD_MULTI);
         if (multiNode != null) {
             matchAllValuesRecursive(multiNode, segments, idx, result); // 匹配 0 层

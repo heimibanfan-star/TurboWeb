@@ -99,7 +99,7 @@ public class InterceptorMiddleware extends Middleware {
             path = path.substring(0, path.length() - 1);
         }
         // 匹配所有的拦截器
-        Set<List<InterceptorHandler>> matchResult = pathTrie.matchAllValues(path);
+        Set<List<InterceptorHandler>> matchResult = pathTrie.patternMatch(path);
         int count = 0;
         for (List<InterceptorHandler> handlers : matchResult) {
             count += handlers.size();

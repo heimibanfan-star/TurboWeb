@@ -20,7 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
 @RequestPath("/hello")
 public class HelloController {
 
-	@Get
+	@Get("/{name:str}/{id:num}")
 	public String get(HttpContext ctx) {
 		Long id = ctx.paramLong("id");
 		System.out.println(id);

@@ -11,7 +11,7 @@ public class ThreeInterceptor implements InterceptorHandler {
     @Override
     public boolean preHandler(HttpContext ctx) {
         System.out.println("three preHandler");
-        int i = 1/0;
+//        int i = 1/0;
         return InterceptorHandler.super.preHandler(ctx);
     }
 

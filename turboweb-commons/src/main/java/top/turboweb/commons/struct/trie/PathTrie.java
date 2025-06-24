@@ -50,10 +50,11 @@ public interface PathTrie<V> {
 
     /**
      * 查找匹配路径及参数值
+     * 只支持{param:type}匹配不支持*和**
      * @param path 请求路径
      * @return 匹配结果或空
      */
-    Optional<MatchResult<V>> search(String path);
+    Optional<MatchResult<V>> paramMatch(String path);
 
     /**
      * 是否存在完全匹配的路径（无通配符）
@@ -83,9 +84,9 @@ public interface PathTrie<V> {
     List<String> allPaths();
 
     /**
-     * 获取所有匹配路径及挂载内容
+     * 只支持*和**模式的匹配，不支持{param:type}
      * @param path 请求路径
      * @return 匹配结果列表
      */
-    Set<V> matchAllValues(String path);
+    Set<V> patternMatch(String path);
 }
