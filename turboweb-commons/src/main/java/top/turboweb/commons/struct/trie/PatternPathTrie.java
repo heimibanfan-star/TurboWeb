@@ -324,6 +324,16 @@ public class PatternPathTrie<V> implements PathTrie<V> {
         if (path == null || !path.startsWith("/")) {
             throw new IllegalArgumentException("路径不能为空且必须以 '/' 开头: " + path);
         }
+        // 判断**出现的次数
+        int count = 0;
+        for (int i = 0; i < path.length() - 1; i++) {
+            if (path.charAt(i) == '*' && path.charAt(i + 1) == '*') {
+                count++;
+            }
+        }
+        if (count > 1) {
+            throw new IllegalArgumentException("路径中**出现的次数不能超过1: " + path);
+        }
     }
 
     private void checkPrefix(String prefix) {
