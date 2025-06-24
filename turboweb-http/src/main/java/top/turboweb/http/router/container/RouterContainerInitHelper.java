@@ -11,6 +11,7 @@ import top.turboweb.commons.anno.*;
 import top.turboweb.commons.exception.TurboControllerCreateException;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.commons.utils.base.TypeUtils;
+import top.turboweb.http.router.container.info.TrieRouterInfo;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -172,9 +173,9 @@ public class RouterContainerInitHelper {
         int index = path.indexOf("{");
         if (index != -1) {
             // 根据请求方式获取前缀树
-            PathTrie<RouterDefinition> pathTrie = container.getTrieRouterInfo().getPathTrie(type);
+            TrieRouterInfo trieRouterInfo = container.getTrieRouterInfo();
             // 添加到前缀树中
-            pathTrie.insert(path, definition);
+            trieRouterInfo.addRouter(type, path, definition);
         }
         container.getExactRouterInfo().addRouter(type, path, definition);
     }
