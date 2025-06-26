@@ -99,6 +99,6 @@ public class SseResponse extends DefaultHttpResponse implements InternalCallResp
 
 	@Override
 	public InternalCallType getType() {
-		return InternalCallType.SSE_CALLBACK;
+		return InternalCallType.SSE;
 	}
 }

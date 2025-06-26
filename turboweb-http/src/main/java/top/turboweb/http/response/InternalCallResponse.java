@@ -18,10 +18,10 @@ public interface InternalCallResponse {
         ZERO_COPY,
         // 用于调用内部的文件流
         FILE_STREAM,
-        // 基于回调的方式实现的SSE
-        SSE_CALLBACK,
-        // SSE发射器
-        SSE_EMITTER,
+        // SSE
+        SSE,
+        // 默认的策略
+        DEFAULT,
     }
 
     /**

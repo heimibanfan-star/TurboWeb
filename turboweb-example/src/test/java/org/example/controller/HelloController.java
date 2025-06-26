@@ -1,12 +1,15 @@
 package org.example.controller;
 
+import io.netty.handler.codec.http.HttpResponse;
 import reactor.core.publisher.Flux;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.FileStreamResponse;
 import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.response.SseResponse;
 
+import java.io.File;
 import java.time.Duration;
 
 /**
@@ -53,5 +56,11 @@ public class HelloController {
 			sseEmitter.close();
 		});
 		return sseEmitter;
+	}
+
+	@Get("/download")
+	public HttpResponse download(HttpContext ctx) {
+		File file = new File("D:\\java学习资料\\前端\\1.JavaScript基础\\视频\\第1天视频\\JS基础Day1-00-大展宏“兔”课程必读.mp4");
+		return new FileStreamResponse(file);
 	}
 }

@@ -63,7 +63,7 @@ public class BackPressFileStream implements FileStream {
                 future.addListener(f -> {
                     if (!f.isSuccess()) {
                         channelFuture.setFailure(f.cause());
-                        log.error("文件读取失败", f.cause());
+                        log.error("文件传输失败", f.cause());
                     } else {
                         // 读取下一个分块
                         boolean ok = DiskOpeThreadUtils.execute(() -> {

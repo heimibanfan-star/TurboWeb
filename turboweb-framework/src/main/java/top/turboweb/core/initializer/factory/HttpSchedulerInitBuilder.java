@@ -12,10 +12,6 @@ import java.util.function.Consumer;
  */
 public interface HttpSchedulerInitBuilder {
 
-    /**
-     * 禁用虚拟线程
-     */
-    HttpSchedulerInitBuilder disableVirtual();
 
     /**
      * 添加异常处理器

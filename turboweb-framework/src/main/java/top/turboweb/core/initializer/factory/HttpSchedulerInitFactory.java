@@ -44,15 +44,6 @@ public class HttpSchedulerInitFactory implements HttpSchedulerInitBuilder {
     }
 
     /**
-     * 禁用虚拟线程
-     */
-    @Override
-    public HttpSchedulerInitBuilder disableVirtual() {
-        httpSchedulerInitializer.disableVirtualThread();
-        return this;
-    }
-
-    /**
      * 添加异常处理器
      *
      * @param exceptionHandler 异常处理器

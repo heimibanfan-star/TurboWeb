@@ -6,12 +6,10 @@ import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.commons.constants.FontColors;
 import top.turboweb.commons.utils.thread.VirtualThreadUtils;
 import top.turboweb.http.connect.ConnectSession;
+import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.processor.Processor;
-import top.turboweb.http.response.IgnoredHttpResponse;
-import top.turboweb.http.response.InternalSseEmitter;
-import top.turboweb.http.response.SseEmitter;
-import top.turboweb.http.response.handler.DefaultHttpResponseHandler;
-import top.turboweb.http.response.handler.HttpResponseHandler;
+import top.turboweb.http.scheduler.strategy.ResponseStrategy;
+import top.turboweb.http.scheduler.strategy.ResponseStrategyContext;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,7 +21,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
 
     protected final Processor processorChain;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
-    private final HttpResponseHandler httpResponseHandler = new DefaultHttpResponseHandler();
+    private final ResponseStrategyContext responseStrategyContext = new ResponseStrategyContext();
     protected boolean showRequestLog = true;
 
     {
@@ -54,14 +52,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
     }
 
     private HttpResponse doExecute(FullHttpRequest request, ConnectSession session) {
-        HttpResponse httpResponse = processorChain.invoke(request, session);
-        // 判断是否是SSE发射器
-        if (httpResponse instanceof SseEmitter sseEmitter) {
-            InternalSseEmitter internalSseEmitter = (InternalSseEmitter) sseEmitter;
-            internalSseEmitter.initSse();
-            httpResponse = IgnoredHttpResponse.ignore();
-        }
-        return httpResponse;
+        return processorChain.invoke(request, session);
     }
 
     @Override
@@ -98,7 +89,10 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
      * @param startTime 开始时间
      */
     protected void writeResponse(ConnectSession session, FullHttpRequest request, HttpResponse response, long startTime) {
-        ChannelFuture channelFuture = httpResponseHandler.writeHttpResponse(response, session);
+        // 获取响应策略
+        ResponseStrategy responseStrategy = responseStrategyContext.chooseStrategy(response);
+        // 执行对应的策略
+        ChannelFuture channelFuture = responseStrategy.handle(response, (InternalConnectSession) session);
         // 打印性能日志
         if (showRequestLog && channelFuture != null) {
             channelFuture.addListener(future -> {

@@ -91,6 +91,6 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Internal
 
 	@Override
 	public InternalCallType getType() {
-		return InternalCallType.SSE_EMITTER;
+		return InternalCallType.SSE;
 	}
 }

@@ -1,6 +1,8 @@
 package top.turboweb.http.processor;
 
 import io.netty.handler.codec.http.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.handler.ExceptionHandlerDefinition;
@@ -16,6 +18,7 @@ import java.util.function.Function;
  */
 public class ExceptionHandlerProcessor extends Processor {
 
+    private static final Logger log = LoggerFactory.getLogger(ExceptionHandlerProcessor.class);
     private final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final HttpResponseConverter httpResponseConverter;
     // 默认的异常处理
@@ -101,6 +104,7 @@ public class ExceptionHandlerProcessor extends Processor {
             String errMessage = ROUTER_NOT_FOUND_MSG.apply(e.getMessage());
             return buildErrResponse(errMessage, HttpResponseStatus.NOT_FOUND);
         }
+        log.error("服务器异常", e);
         String errMessage = SERVER_ERROR_MSG.apply(e.getMessage());
         return buildErrResponse(errMessage, HttpResponseStatus.INTERNAL_SERVER_ERROR);
     }
