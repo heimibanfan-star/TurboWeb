@@ -7,8 +7,6 @@ import org.slf4j.LoggerFactory;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpInfoResponse;
-import top.turboweb.http.response.sync.InternalSseEmitter;
-import top.turboweb.http.response.sync.SseEmitter;
 import top.turboweb.commons.exception.TurboArgsValidationException;
 import top.turboweb.commons.exception.TurboParamParseException;
 import top.turboweb.commons.exception.TurboResponseRepeatWriteException;

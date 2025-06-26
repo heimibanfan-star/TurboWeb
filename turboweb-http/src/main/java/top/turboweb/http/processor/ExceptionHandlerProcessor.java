@@ -1,8 +1,6 @@
 package top.turboweb.http.processor;
 
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.*;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.handler.ExceptionHandlerDefinition;
@@ -10,6 +8,7 @@ import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.processor.convertor.HttpResponseConverter;
 
 import java.lang.invoke.MethodHandle;
+import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
 
 /**
@@ -43,11 +42,9 @@ public class ExceptionHandlerProcessor extends Processor {
     }
 
     public ExceptionHandlerProcessor(
-            MiddlewareInvokeProcessor nextProcessor,
             ExceptionHandlerMatcher exceptionHandlerMatcher,
             HttpResponseConverter converter
     ) {
-        super(nextProcessor);
         this.exceptionHandlerMatcher = exceptionHandlerMatcher;
         this.httpResponseConverter = converter;
     }
@@ -102,10 +99,24 @@ public class ExceptionHandlerProcessor extends Processor {
         if (e instanceof TurboRouterException turboRouterException && TurboRouterException.ROUTER_NOT_MATCH.equals(turboRouterException.getCode())) {
             // 生成异常信息
             String errMessage = ROUTER_NOT_FOUND_MSG.apply(e.getMessage());
-            // 转化结果
-            return httpResponseConverter.convertor(errMessage);
+            return buildErrResponse(errMessage, HttpResponseStatus.NOT_FOUND);
         }
         String errMessage = SERVER_ERROR_MSG.apply(e.getMessage());
-        return httpResponseConverter.convertor(errMessage);
+        return buildErrResponse(errMessage, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    /**
+     * 构建错误响应
+     *
+     * @param content 响应内容
+     * @param status  响应状态码
+     * @return 响应结果
+     */
+    private HttpResponse buildErrResponse(String content, HttpResponseStatus status) {
+        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
+        response.content().writeBytes(content.getBytes(StandardCharsets.UTF_8));
+        response.headers().add(HttpHeaderNames.CONTENT_TYPE, "application/json;charset=" + StandardCharsets.UTF_8.name());
+        response.headers().add(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
+        return response;
     }
 }

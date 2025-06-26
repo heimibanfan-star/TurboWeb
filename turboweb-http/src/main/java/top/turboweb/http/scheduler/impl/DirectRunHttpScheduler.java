@@ -2,6 +2,7 @@ package top.turboweb.http.scheduler.impl;
 
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.http.processor.Processor;
 import top.turboweb.http.session.SessionManagerHolder;
 
 /**
@@ -10,11 +11,9 @@ import top.turboweb.http.session.SessionManagerHolder;
 public class DirectRunHttpScheduler extends SyncHttpScheduler {
 
     public DirectRunHttpScheduler(
-            SessionManagerHolder sessionManagerHolder,
-            Middleware chain,
-            ExceptionHandlerMatcher exceptionHandlerMatcher
+            Processor processorChain
     ) {
-        super(sessionManagerHolder, chain, exceptionHandlerMatcher, DirectRunHttpScheduler.class);
+        super(processorChain, DirectRunHttpScheduler.class);
     }
 
     @Override

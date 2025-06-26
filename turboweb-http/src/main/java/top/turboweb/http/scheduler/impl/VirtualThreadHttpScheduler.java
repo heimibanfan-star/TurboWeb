@@ -3,6 +3,7 @@ package top.turboweb.http.scheduler.impl;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.http.processor.Processor;
 import top.turboweb.http.session.SessionManagerHolder;
 
 /**
@@ -11,14 +12,10 @@ import top.turboweb.http.session.SessionManagerHolder;
 public class VirtualThreadHttpScheduler extends SyncHttpScheduler {
 
     public VirtualThreadHttpScheduler(
-            SessionManagerHolder sessionManagerHolder,
-            Middleware chain,
-            ExceptionHandlerMatcher exceptionHandlerMatcher
+            Processor processorChain
     ) {
         super(
-                sessionManagerHolder,
-                chain,
-                exceptionHandlerMatcher,
+                processorChain,
                 VirtualThreadHttpScheduler.class
         );
     }

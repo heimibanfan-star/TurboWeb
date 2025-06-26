@@ -1,0 +1,32 @@
+package top.turboweb.http.response;
+
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
+
+/**
+ * 进行框架内部功能的调用
+ * 继承该接口的类，
+ */
+public interface InternalCallResponse {
+
+    /**
+     * 内部调用的类型
+     */
+    enum InternalCallType {
+        // 零拷贝
+        ZERO_COPY,
+        // 用于调用内部的文件流
+        FILE_STREAM,
+        // 基于回调的方式实现的SSE
+        SSE_CALLBACK,
+        // SSE发射器
+        SSE_EMITTER,
+    }
+
+    /**
+     * 获取内部调用的类型
+     * @return 内部调用的类型
+     */
+    InternalCallType getType();
+}

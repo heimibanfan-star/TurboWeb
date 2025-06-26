@@ -13,7 +13,7 @@ import java.util.function.Function;
 /**
  * sse的响应结果
  */
-public class SseResponse extends DefaultHttpResponse {
+public class SseResponse extends DefaultHttpResponse implements InternalCallResponse {
 
 	private final ConnectSession connectSession;
 	private Consumer<ConnectSession> sseCallback;
@@ -95,5 +95,10 @@ public class SseResponse extends DefaultHttpResponse {
 	 */
 	public <T> void setSseCallback(Flux<T> flux) {
 		this.setSseCallback(flux, null, ConnectSession::close);
+	}
+
+	@Override
+	public InternalCallType getType() {
+		return InternalCallType.SSE_CALLBACK;
 	}
 }

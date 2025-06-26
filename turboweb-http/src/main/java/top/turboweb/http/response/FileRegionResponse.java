@@ -19,7 +19,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * 实现零拷贝
  */
-public class FileRegionResponse extends AbstractFileResponse{
+public class FileRegionResponse extends AbstractFileResponse implements InternalCallResponse{
 
     private static final Logger log = LoggerFactory.getLogger(FileRegionResponse.class);
     private final FileRegion fileRegion;
@@ -73,4 +73,8 @@ public class FileRegionResponse extends AbstractFileResponse{
         return fileStreamResponse;
     }
 
+    @Override
+    public InternalCallType getType() {
+        return InternalCallType.ZERO_COPY;
+    }
 }

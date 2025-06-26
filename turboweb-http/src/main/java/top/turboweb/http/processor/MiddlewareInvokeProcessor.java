@@ -33,7 +33,6 @@ public class MiddlewareInvokeProcessor extends Processor{
     private final HttpResponseConverter converter;
 
     public MiddlewareInvokeProcessor(Middleware chain, SessionManagerHolder sessionManagerHolder, HttpResponseConverter converter) {
-        super(null);
         this.chain = chain;
         this.sessionManagerHolder = sessionManagerHolder;
         this.converter = converter;

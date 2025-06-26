@@ -16,16 +16,16 @@ public class DefaultHttpResponseConverter implements HttpResponseConverter {
     public HttpResponse convertor(Object result) {
         return switch (result) {
             // 如果无返回值，则返回空字符串
-            case null -> buildResponse("", "text/plain");
+            case null -> buildResponse("", "text/plain;charset=" + StandardCharsets.UTF_8);
             // 如果是正常的反应类型，则直接返回
             case HttpResponse httpResponse -> httpResponse;
             // 如果是字符串，按照text/html构建
-            case String string -> buildResponse(string, "text/html");
+            case String string -> buildResponse(string, "text/html;charset=" + StandardCharsets.UTF_8);
             // 按照application/json构建
             default -> {
                 try {
                     String json = BeanUtils.getObjectMapper().writeValueAsString(result);
-                    yield buildResponse(json, "application/json");
+                    yield buildResponse(json, "application/json;charset=" + StandardCharsets.UTF_8);
                 } catch (JsonProcessingException e) {
                     throw new TurboSerializableException(e);
                 }

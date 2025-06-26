@@ -5,7 +5,7 @@ import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.response.SseResponse;
-import top.turboweb.http.response.sync.SseEmitter;
+import top.turboweb.http.response.SseEmitter;
 
 @RequestPath("/hello")
 public class HelloController {

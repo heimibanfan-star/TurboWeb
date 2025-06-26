@@ -9,11 +9,7 @@ import top.turboweb.http.connect.ConnectSession;
  */
 public abstract class Processor {
 
-    private final Processor nextProcessor;
-
-    public Processor(Processor nextProcessor) {
-        this.nextProcessor = nextProcessor;
-    }
+    private Processor nextProcessor;
 
     /**
      * 中间件处理方法
@@ -24,7 +20,7 @@ public abstract class Processor {
     public abstract HttpResponse invoke(FullHttpRequest fullHttpRequest, ConnectSession connectSession);
 
     /**
-     * 调用下一个内核中间件
+     * 调用下一个内核处理器
      *
      * @param fullHttpRequest 完整的http请求对象
      * @param connectSession 连接会话
@@ -35,5 +31,14 @@ public abstract class Processor {
             return nextProcessor.invoke(fullHttpRequest, connectSession);
         }
         return null;
+    }
+
+    /**
+     * 设置下一个内核处理器
+     *
+     * @param nextProcessor 下一个内核中间件
+     */
+    public void setNextProcessor(Processor nextProcessor) {
+        this.nextProcessor = nextProcessor;
     }
 }

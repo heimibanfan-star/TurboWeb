@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.http.processor.Processor;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.scheduler.impl.DirectRunHttpScheduler;
 import top.turboweb.http.scheduler.impl.VirtualThreadHttpScheduler;
@@ -20,20 +21,16 @@ public class DefaultHttpSchedulerInitializer implements HttpSchedulerInitializer
     private boolean useVirtualThread = true;
 
     @Override
-    public HttpScheduler init(SessionManagerHolder sessionManagerHolder, ExceptionHandlerMatcher matcher, Middleware chain, HttpServerConfig config) {
+    public HttpScheduler init(Processor processorChain, HttpServerConfig config) {
         HttpScheduler scheduler;
         if (useVirtualThread) {
             scheduler = new VirtualThreadHttpScheduler(
-                    sessionManagerHolder,
-                    chain,
-                    matcher
+                    processorChain
             );
             log.info("Use virtualThreadHttpScheduler");
         } else {
             scheduler = new DirectRunHttpScheduler(
-                    sessionManagerHolder,
-                    chain,
-                    matcher
+                    processorChain
             );
             log.warn("Current Use directRunHttpScheduler Please Increase IO Thread Num");
         }

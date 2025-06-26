@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * 流式文件传输的响应结果
  */
-public class FileStreamResponse extends AbstractFileResponse{
+public class FileStreamResponse extends AbstractFileResponse implements InternalCallResponse{
 
 	private static final Logger log = LoggerFactory.getLogger(FileStreamResponse.class);
 	private final FileStream chunkedFile;
@@ -78,5 +78,10 @@ public class FileStreamResponse extends AbstractFileResponse{
 			return freeMemorySize / fileSize < 2;
 		}
 		return true;
+	}
+
+	@Override
+	public InternalCallType getType() {
+		return InternalCallType.FILE_STREAM;
 	}
 }

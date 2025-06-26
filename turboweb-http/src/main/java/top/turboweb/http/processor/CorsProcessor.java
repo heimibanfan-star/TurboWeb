@@ -11,15 +11,40 @@ import java.util.List;
  */
 public class CorsProcessor extends Processor {
 
-    private List<String> allowedOrigins = List.of("*");
-    private List<String> allowedMethods = Arrays.asList("GET", "POST", "PUT", "DELETE");
-    private List<String> allowedHeaders = List.of("*");
-    private List<String> exposedHeaders = List.of("Content-Disposition");
-    private boolean allowCredentials = false;
-    private int maxAge = 3600;
+    private final Config config = new Config();
 
-    public CorsProcessor(ExceptionHandlerProcessor nextProcessor) {
-        super(nextProcessor);
+    public static class Config {
+        private List<String> allowedOrigins = List.of("*");
+        private List<String> allowedMethods = Arrays.asList("GET", "POST", "PUT", "DELETE");
+        private List<String> allowedHeaders = List.of("*");
+        private List<String> exposedHeaders = List.of("Content-Disposition");
+        private boolean allowCredentials = false;
+        private int maxAge = 3600;
+
+        // 提供 setter 方法来允许外部配置这些属性
+        public void setAllowedOrigins(List<String> allowedOrigins) {
+            this.allowedOrigins = allowedOrigins;
+        }
+
+        public void setAllowedMethods(List<String> allowedMethods) {
+            this.allowedMethods = allowedMethods;
+        }
+
+        public void setAllowedHeaders(List<String> allowedHeaders) {
+            this.allowedHeaders = allowedHeaders;
+        }
+
+        public void setExposedHeaders(List<String> exposedHeaders) {
+            this.exposedHeaders = exposedHeaders;
+        }
+
+        public void setAllowCredentials(boolean allowCredentials) {
+            this.allowCredentials = allowCredentials;
+        }
+
+        public void setMaxAge(int maxAge) {
+            this.maxAge = maxAge;
+        }
     }
 
     @Override
@@ -49,7 +74,7 @@ public class CorsProcessor extends Processor {
      * @param origin 请求的 origin
      */
     private void handleCorsHeaders(HttpResponse response, String origin) {
-        if (allowCredentials) {
+        if (config.allowCredentials) {
             if ("*".equals(origin)) {
                 // CORS 标准禁止 Access-Control-Allow-Credentials 与 * 一起出现
                 return;
@@ -57,39 +82,22 @@ public class CorsProcessor extends Processor {
             response.headers().set("Access-Control-Allow-Credentials", "true");
         }
         // 检查是否允许跨域
-        if (allowedOrigins.contains("*") || allowedOrigins.contains(origin)) {
+        if (config.allowedOrigins.contains("*") || config.allowedOrigins.contains(origin)) {
             // 设置 CORS 响应头
             response.headers().set("Access-Control-Allow-Origin", origin);
-            response.headers().set("Access-Control-Allow-Methods", allowedMethods.contains("*")? "*": String.join(",", allowedMethods));
-            response.headers().set("Access-Control-Allow-Headers", allowedHeaders.contains("*")? "*": String.join(",", allowedHeaders));
-            response.headers().set("Access-Control-Expose-Headers", exposedHeaders.contains("*")? "*": String.join(",", exposedHeaders));
-            response.headers().set("Access-Control-Max-Age", String.valueOf(maxAge));
+            response.headers().set("Access-Control-Allow-Methods", config.allowedMethods.contains("*")? "*": String.join(",", config.allowedMethods));
+            response.headers().set("Access-Control-Allow-Headers", config.allowedHeaders.contains("*")? "*": String.join(",", config.allowedHeaders));
+            response.headers().set("Access-Control-Expose-Headers", config.exposedHeaders.contains("*")? "*": String.join(",", config.exposedHeaders));
+            response.headers().set("Access-Control-Max-Age", String.valueOf(config.maxAge));
         }
     }
 
-    // 提供 setter 方法来允许外部配置这些属性
-    public void setAllowedOrigins(List<String> allowedOrigins) {
-        this.allowedOrigins = allowedOrigins;
-    }
-
-    public void setAllowedMethods(List<String> allowedMethods) {
-        this.allowedMethods = allowedMethods;
-    }
-
-    public void setAllowedHeaders(List<String> allowedHeaders) {
-        this.allowedHeaders = allowedHeaders;
-    }
-
-    public void setExposedHeaders(List<String> exposedHeaders) {
-        this.exposedHeaders = exposedHeaders;
-    }
-
-    public void setAllowCredentials(boolean allowCredentials) {
-        this.allowCredentials = allowCredentials;
-    }
-
-    public void setMaxAge(int maxAge) {
-        this.maxAge = maxAge;
+    /**
+     * 获取 CORS 配置
+     * @return CORS 配置
+     */
+    public Config getConfig() {
+        return config;
     }
 
 }

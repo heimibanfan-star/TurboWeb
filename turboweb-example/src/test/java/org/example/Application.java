@@ -12,6 +12,7 @@ import top.turboweb.http.middleware.interceptor.InterceptorMiddleware;
 
 import javax.management.*;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * TODO
@@ -26,6 +27,9 @@ public class Application {
                 .http()
                 .controller(new HelloController())
                 .middleware(interceptorMiddleware)
+                .cors(config -> {
+                    config.setAllowedMethods(List.of("POST"));
+                })
                 .and()
                 .start(8080);
     }

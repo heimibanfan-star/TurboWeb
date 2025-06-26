@@ -1,12 +1,11 @@
 package top.turboweb.http.response.negotiator;
 
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.response.FileRegionResponse;
 import top.turboweb.http.response.IgnoredHttpResponse;
-import top.turboweb.http.response.sync.InternalSseEmitter;
-import top.turboweb.http.response.sync.SseEmitter;
+import top.turboweb.http.response.InternalSseEmitter;
+import top.turboweb.http.response.SseEmitter;
 
 /**
  * 用于同步模型调度器的响应协商器

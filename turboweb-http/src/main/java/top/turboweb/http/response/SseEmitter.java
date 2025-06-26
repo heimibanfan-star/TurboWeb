@@ -1,4 +1,4 @@
-package top.turboweb.http.response.sync;
+package top.turboweb.http.response;
 
 import io.netty.handler.codec.http.*;
 import top.turboweb.http.connect.ConnectSession;
@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 /**
  * sse发射器
  */
-public abstract class SseEmitter extends DefaultHttpResponse {
+public abstract class SseEmitter extends DefaultHttpResponse implements InternalCallResponse {
 
 	protected final ConnectSession session;
 	protected volatile boolean isInit = false;
@@ -87,5 +87,10 @@ public abstract class SseEmitter extends DefaultHttpResponse {
 		session.closeListener(() -> {
 			consumer.accept(this);
 		});
+	}
+
+	@Override
+	public InternalCallType getType() {
+		return InternalCallType.SSE_EMITTER;
 	}
 }

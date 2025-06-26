@@ -7,8 +7,8 @@ import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.response.SseResponse;
-import top.turboweb.http.response.sync.InternalSseEmitter;
-import top.turboweb.http.response.sync.SseEmitter;
+import top.turboweb.http.response.InternalSseEmitter;
+import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.session.HttpSession;
 
 
