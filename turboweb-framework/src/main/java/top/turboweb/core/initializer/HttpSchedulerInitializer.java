@@ -23,9 +23,4 @@ public interface HttpSchedulerInitializer {
             Processor processorChain,
             HttpServerConfig config
     );
-
-    /**
-     * 禁用虚拟线程
-     */
-    void disableVirtualThread();
 }

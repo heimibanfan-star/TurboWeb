@@ -1,34 +1,26 @@
-package top.turboweb.http.scheduler.impl;
+package top.turboweb.http.scheduler;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.multipart.FileUpload;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import top.turboweb.commons.constants.FontColors;
+import top.turboweb.commons.utils.thread.VirtualThreadUtils;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.processor.Processor;
+import top.turboweb.http.response.IgnoredHttpResponse;
+import top.turboweb.http.response.InternalSseEmitter;
+import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.response.handler.DefaultHttpResponseHandler;
 import top.turboweb.http.response.handler.HttpResponseHandler;
-import top.turboweb.http.scheduler.HttpScheduler;
-import top.turboweb.http.handler.ExceptionHandlerMatcher;
-import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.request.HttpInfoRequest;
-import top.turboweb.http.session.HttpSession;
-import top.turboweb.http.session.SessionManagerHolder;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 抽象http请求调度器
+ * 使用虚拟县城的阻塞线程调度器
  */
-public abstract class AbstractHttpScheduler implements HttpScheduler {
+public class VirtualThreadHttpScheduler implements HttpScheduler {
 
-    protected final Logger log;
     protected final Processor processorChain;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     private final HttpResponseHandler httpResponseHandler = new DefaultHttpResponseHandler();
@@ -42,12 +34,34 @@ public abstract class AbstractHttpScheduler implements HttpScheduler {
         colors.put("PATCH", FontColors.MAGENTA);
     }
 
-    public AbstractHttpScheduler(
-            Processor processorChain,
-            Class<?> subClass
+    public VirtualThreadHttpScheduler(
+            Processor processorChain
     ) {
-        this.log = LoggerFactory.getLogger(subClass);
         this.processorChain = processorChain;
+    }
+
+    @Override
+    public void execute(FullHttpRequest request, ConnectSession session) {
+        VirtualThreadUtils.execute(() -> {
+            long startTime = System.nanoTime();
+            try {
+                HttpResponse response = doExecute(request, session);
+                writeResponse(session, request, response, startTime);
+            } finally {
+                request.release();
+            }
+        });
+    }
+
+    private HttpResponse doExecute(FullHttpRequest request, ConnectSession session) {
+        HttpResponse httpResponse = processorChain.invoke(request, session);
+        // 判断是否是SSE发射器
+        if (httpResponse instanceof SseEmitter sseEmitter) {
+            InternalSseEmitter internalSseEmitter = (InternalSseEmitter) sseEmitter;
+            internalSseEmitter.initSse();
+            httpResponse = IgnoredHttpResponse.ignore();
+        }
+        return httpResponse;
     }
 
     @Override
