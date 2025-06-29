@@ -50,6 +50,7 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
                     } else {
                         log.error("文件读取失败", e);
                         session.getChannel().close();
+                        future.setFailure(new TurboFileException("file download fail"));
                         return null;
                     }
                 });
