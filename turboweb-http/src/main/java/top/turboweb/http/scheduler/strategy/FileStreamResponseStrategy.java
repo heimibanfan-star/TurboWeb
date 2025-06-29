@@ -44,16 +44,7 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
             try {
                 // 处理分块文件传输的情况
                 FileStream chunkedFile = fileStreamResponse.getChunkedFile();
-                ChannelFuture channelFuture = chunkedFile.readFileWithChunk((buf, e) -> {
-                    if (e == null) {
-                        return session.getChannel().writeAndFlush(new DefaultHttpContent(buf));
-                    } else {
-                        log.error("文件读取失败", e);
-                        session.getChannel().close();
-                        future.setFailure(new TurboFileException("file download fail"));
-                        return null;
-                    }
-                });
+                ChannelFuture channelFuture = doReadFileChunk(chunkedFile, session);
                 if (channelFuture == null) {
                     future.setFailure(new TurboFileException("file download fail"));
                 } else {
@@ -70,5 +61,22 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
             }
         });
         return future;
+    }
+
+    /**
+     * 读取文件分块
+     *
+     * @param fileStream 文件流
+     * @param session 连接的 session
+     * @return 异步监听对象
+     */
+    private ChannelFuture doReadFileChunk(FileStream fileStream, InternalConnectSession session) {
+        return fileStream.readFileWithChunk((buf, e) -> {
+            if (e != null) {
+                return null;
+            } else {
+                return session.getChannel().writeAndFlush(new DefaultHttpContent(buf));
+            }
+        });
     }
 }
