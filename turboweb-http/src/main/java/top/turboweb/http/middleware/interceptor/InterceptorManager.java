@@ -12,9 +12,9 @@ import java.util.*;
 /**
  * 用于实现拦截器的中间件
  */
-public class InterceptorMiddleware extends Middleware {
+public class InterceptorManager extends Middleware {
 
-    private static final Logger log = LoggerFactory.getLogger(InterceptorMiddleware.class);
+    private static final Logger log = LoggerFactory.getLogger(InterceptorManager.class);
     // 用于存储用户注册的拦截器
     private final Map<String, List<InterceptorHandler>> interceptorHandlers = new HashMap<>();
     // 防止排序重复
