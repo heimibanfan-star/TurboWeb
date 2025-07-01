@@ -23,23 +23,23 @@ public class FileStreamResponse extends AbstractFileResponse implements Internal
 	private ChannelProgressiveFutureListener listener;
 
 	public FileStreamResponse(File file, boolean backPress) {
-		this(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 8192, backPress);
+		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 8192, backPress);
 	}
 
 	public FileStreamResponse(File file) {
-		this(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 8192, true);
+		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 8192, true);
 	}
 
 	public FileStreamResponse(File file, Charset filenameCharset, boolean backPress) {
-		this(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, file, filenameCharset, 8192, backPress);
+		this(HttpResponseStatus.OK, file, filenameCharset, 8192, backPress);
 	}
 
 	public FileStreamResponse(File file, int chunkSize, boolean backPress) {
-		this(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, file, StandardCharsets.UTF_8, chunkSize, backPress);
+		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, chunkSize, backPress);
 	}
 
-	public FileStreamResponse(HttpVersion version, HttpResponseStatus status, File file, Charset filenameCharset, int chunkSize, boolean backPress) {
-		super(version, status, file, filenameCharset);
+	public FileStreamResponse(HttpResponseStatus status, File file, Charset filenameCharset, int chunkSize, boolean backPress) {
+		super(status, file, filenameCharset);
 		try {
 			boolean openProtectMemory = openProtectMemory(file.length());
 			if (!backPress && openProtectMemory) {

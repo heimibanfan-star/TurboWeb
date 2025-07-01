@@ -46,8 +46,8 @@ public abstract class CoreHttpContext implements HttpContext{
 	}
 
 	@Override
-	public SseResponse newSseResponse() {
-		return new SseResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, response.headers(), connectSession);
+	public SseResponse createSseResponse() {
+		return new SseResponse(HttpResponseStatus.OK, response.headers(), connectSession);
 	}
 
 	@Override

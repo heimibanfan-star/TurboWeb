@@ -66,7 +66,7 @@ public class UserController {
 
 	@Get("/example09")
 	public HttpResponse example09(HttpContext c) {
-		HttpInfoResponse response = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+		HttpInfoResponse response = new HttpInfoResponse(HttpResponseStatus.OK);
 		response.setContent("<h1>Hello TurboWeb</h1>");
 		response.setContentType("text/html");
 		return response;

@@ -1,7 +1,6 @@
 package org.example.controller;
 
 import io.netty.handler.codec.http.HttpResponse;
-import reactor.core.publisher.Flux;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
@@ -10,7 +9,6 @@ import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.response.SseResponse;
 
 import java.io.File;
-import java.time.Duration;
 
 /**
  * TODO
@@ -27,7 +25,7 @@ public class HelloController {
 
 	@Get("/sse")
 	public SseResponse sse(HttpContext ctx) {
-		SseResponse sseResponse = ctx.newSseResponse();
+		SseResponse sseResponse = ctx.createSseResponse();
 		sseResponse.setSseCallback((session) -> {
 			for (int i = 0; i < 10; i++) {
 				session.send("hello:" + i);

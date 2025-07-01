@@ -44,7 +44,7 @@ public class ExceptionHandlerSchedulerHelper {
                     throw new TurboExceptionHandlerException("异常处理器不允许返回io.netty.handler.codec.http.HttpResponse");
                 } else {
                     String json = BeanUtils.getObjectMapper().writeValueAsString(result);
-                    HttpInfoResponse newResponse = new HttpInfoResponse(response.protocolVersion(), definition.getHttpResponseStatus());
+                    HttpInfoResponse newResponse = new HttpInfoResponse(definition.getHttpResponseStatus());
                     HttpResponseUtils.mergeHeaders(response, newResponse);
                     newResponse.setContent(json);
                     newResponse.setContentType("application/json");
@@ -97,7 +97,7 @@ public class ExceptionHandlerSchedulerHelper {
                  } else {
                      try {
                          String json = BeanUtils.getObjectMapper().writeValueAsString(result);
-                         HttpInfoResponse newResponse = new HttpInfoResponse(response.protocolVersion(), HttpResponseStatus.OK);
+                         HttpInfoResponse newResponse = new HttpInfoResponse(HttpResponseStatus.OK);
                          HttpResponseUtils.mergeHeaders(response, newResponse);
                          newResponse.setContent(json);
                          newResponse.setContentType("application/json");
@@ -123,7 +123,7 @@ public class ExceptionHandlerSchedulerHelper {
             log.error("业务逻辑处理失败", e);
             Map<String, String> errorMsg = new HashMap<>();
             if (e instanceof TurboRouterException exception && Objects.equals(exception.getCode(), TurboRouterException.ROUTER_NOT_MATCH)) {
-                HttpInfoResponse newResponse = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
+                HttpInfoResponse newResponse = new HttpInfoResponse(HttpResponseStatus.NOT_FOUND);
                 HttpResponseUtils.mergeHeaders(response, newResponse);
                 errorMsg.put("code", "404");
                 errorMsg.put("msg", e.getMessage());
@@ -131,7 +131,7 @@ public class ExceptionHandlerSchedulerHelper {
                 newResponse.setContentType("application/json");
                 return newResponse;
             } else {
-                HttpInfoResponse newResponse = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                HttpInfoResponse newResponse = new HttpInfoResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR);
                 HttpResponseUtils.mergeHeaders(response, newResponse);
                 errorMsg.put("code", "500");
                 errorMsg.put("msg", e.getMessage());
@@ -141,7 +141,7 @@ public class ExceptionHandlerSchedulerHelper {
             }
         } catch (JsonProcessingException ex) {
             log.error("json序列化异常", ex);
-            HttpInfoResponse newResponse = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            HttpInfoResponse newResponse = new HttpInfoResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR);
             HttpResponseUtils.mergeHeaders(response, newResponse);
             newResponse.setContent("{\"code\":\"500\",\"msg\":\"异常结果封装失败：json序列化异常\"}");
             newResponse.setContentType("application/json");

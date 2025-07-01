@@ -148,7 +148,6 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
     private HttpInfoResponse buildResponse(HttpContext ctx, ResourceCache cache) {
         // 构建响应对象
         HttpInfoResponse response = new HttpInfoResponse(
-            ctx.getRequest().getProtocolVersion(),
             HttpResponseStatus.OK,
             Unpooled.wrappedBuffer(cache.bytes)
         );

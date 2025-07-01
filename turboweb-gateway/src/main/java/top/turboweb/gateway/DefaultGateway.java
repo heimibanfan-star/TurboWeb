@@ -153,7 +153,7 @@ public class DefaultGateway implements Gateway {
      */
     private ChannelFuture responseError(Channel channel, Throwable throwable) {
         String content = gatewayBadContent(throwable.getMessage());
-        HttpInfoResponse httpInfoResponse = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_GATEWAY);
+        HttpInfoResponse httpInfoResponse = new HttpInfoResponse(HttpResponseStatus.BAD_GATEWAY);
         httpInfoResponse.setContent(Objects.requireNonNullElse(content, ""));
         return channel.writeAndFlush(httpInfoResponse);
     }

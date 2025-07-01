@@ -38,7 +38,7 @@ public class UserController {
 
 	@Get("/remove")
 	public String remove(HttpContext c) {
-		SseResponse sseResponse = c.newSseResponse();
+		SseResponse sseResponse = c.createSseResponse();
 		HttpSession session = c.getHttpSession();
 		session.remAttr("name");
 		return "remove session";

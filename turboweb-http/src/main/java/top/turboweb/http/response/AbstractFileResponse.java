@@ -13,8 +13,8 @@ import java.nio.charset.Charset;
  */
 public abstract class AbstractFileResponse extends DefaultHttpResponse {
 
-	protected AbstractFileResponse(HttpVersion version, HttpResponseStatus status, File file, Charset filenameCharset) {
-		super(version, status);
+	protected AbstractFileResponse(HttpResponseStatus status, File file, Charset filenameCharset) {
+		super(HttpVersion.HTTP_1_1, status);
 		init(file, filenameCharset);
 	}
 

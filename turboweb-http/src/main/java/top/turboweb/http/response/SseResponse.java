@@ -18,8 +18,8 @@ public class SseResponse extends DefaultHttpResponse implements InternalCallResp
 	private final ConnectSession connectSession;
 	private Consumer<ConnectSession> sseCallback;
 
-	public SseResponse(HttpVersion version, HttpResponseStatus status, HttpHeaders headers, ConnectSession connectSession) {
-		super(version, status, headers);
+	public SseResponse(HttpResponseStatus status, HttpHeaders headers, ConnectSession connectSession) {
+		super(HttpVersion.HTTP_1_1, status, headers);
 		assert connectSession != null;
 		this.connectSession = connectSession;
 		this.setSseHeaders();

@@ -60,7 +60,7 @@ public class MiddlewareInvokeProcessor extends Processor{
         HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(fullHttpRequest);
         try {
             // 构造响应对象
-            HttpInfoResponse httpInfoResponse = new HttpInfoResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            HttpInfoResponse httpInfoResponse = new HttpInfoResponse(HttpResponseStatus.OK);
             // 初始化session
             Cookies cookies = httpInfoRequest.getCookies();
             String originSessionId = cookies.getCookie("JSESSIONID");

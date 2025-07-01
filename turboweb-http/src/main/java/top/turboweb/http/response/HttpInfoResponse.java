@@ -14,12 +14,12 @@ import java.nio.charset.StandardCharsets;
  */
 public class HttpInfoResponse extends DefaultFullHttpResponse {
 
-    public HttpInfoResponse(HttpVersion version, HttpResponseStatus status) {
-        super(version, status);
+    public HttpInfoResponse(HttpResponseStatus status) {
+        super(HttpVersion.HTTP_1_1, status);
     }
 
-    public HttpInfoResponse(HttpVersion version, HttpResponseStatus status, ByteBuf content) {
-        super(version, status, content);
+    public HttpInfoResponse(HttpResponseStatus status, ByteBuf content) {
+        super(HttpVersion.HTTP_1_1, status, content);
     }
 
     /**

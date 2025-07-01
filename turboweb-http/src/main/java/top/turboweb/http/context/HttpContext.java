@@ -19,7 +19,7 @@ public interface HttpContext extends ParamBinder, ResponseWriter {
 
 	ConnectSession getConnectSession();
 
-	SseResponse newSseResponse();
+	SseResponse createSseResponse();
 
 	/**
 	 * 获取cookie

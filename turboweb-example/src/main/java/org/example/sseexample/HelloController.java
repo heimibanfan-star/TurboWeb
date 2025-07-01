@@ -29,7 +29,7 @@ public class HelloController {
 
 	@Get("/example02")
 	public HttpResponse example02(HttpContext c) {
-		SseResponse sseResponse = c.newSseResponse();
+		SseResponse sseResponse = c.createSseResponse();
 		sseResponse.setSseCallback((session) -> {
 			for (int i = 0; i < 10; i++) {
 				session.send("hello:" + i);
