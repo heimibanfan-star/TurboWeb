@@ -1,34 +1,24 @@
 package org.example;
 
-
-import org.example.controller.HelloController;
-import org.example.interceptors.OneInterceptor;
-import org.example.interceptors.ThreeInterceptor;
-import org.example.interceptors.TwoInterceptor;
+import org.example.controller.UserController;
+import org.example.middleware.TestMiddleware;
 import top.turboweb.core.server.BootStrapTurboWebServer;
-import top.turboweb.http.middleware.interceptor.InterceptorManager;
-
-import javax.management.*;
-import java.util.List;
+import top.turboweb.core.server.TurboWebServer;
+import top.turboweb.http.middleware.router.AnnoRouterManager;
+import top.turboweb.http.middleware.router.RouterManager;
 
 /**
  * TODO
  */
 public class Application {
-    public static void main(String[] args) throws InterruptedException, MalformedObjectNameException, ReflectionException, AttributeNotFoundException, InstanceNotFoundException, MBeanException {
-        InterceptorManager interceptorManager = new InterceptorManager();
-        interceptorManager.addInterceptionHandler("/hello/**", new OneInterceptor());
-        interceptorManager.addInterceptionHandler("/hello/*", new TwoInterceptor());
-        interceptorManager.addInterceptionHandler("/hello/**", new ThreeInterceptor());
+    public static void main(String[] args) {
+        AnnoRouterManager routerManager = new AnnoRouterManager();
+        routerManager.addController(new UserController());
         BootStrapTurboWebServer.create(Application.class)
                 .http()
-                .controller(new HelloController())
-                .middleware(interceptorManager)
-                .cors(config -> {
-                    config.setAllowedMethods(List.of("POST"));
-                })
+                .middleware(new TestMiddleware())
+                .routerManager(routerManager)
                 .and()
                 .start(8080);
     }
-
 }

@@ -3,6 +3,7 @@ package top.turboweb.core.initializer;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.http.middleware.router.RouterManager;
 import top.turboweb.http.session.SessionManagerHolder;
 
 /**
@@ -11,19 +12,11 @@ import top.turboweb.http.session.SessionManagerHolder;
 public interface MiddlewareInitializer {
 
     /**
-     * 添加控制器对象
+     * 设置路由管理器
      *
-     * @param controllers 控制器对象
+     * @param routerManager 路由管理器
      */
-    void addController(Object... controllers);
-
-    /**
-     * 添加控制器对象
-     *
-     * @param instance 控制器对象
-     * @param originClass 原始控制器类
-     */
-    void addController(Object instance, Class<?> originClass);
+    void routerManager(RouterManager routerManager);
 
     /**
      * 添加中间件对象

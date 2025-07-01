@@ -6,6 +6,7 @@ import top.turboweb.core.initializer.impl.*;
 import top.turboweb.core.server.TurboWebServer;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.http.middleware.router.RouterManager;
 import top.turboweb.http.processor.CorsProcessor;
 import top.turboweb.http.processor.Processor;
 import top.turboweb.http.scheduler.HttpScheduler;
@@ -76,26 +77,9 @@ public class HttpSchedulerInitFactory implements HttpSchedulerInitBuilder {
         return this;
     }
 
-    /**
-     * 添加控制器
-     *
-     * @param controllers 控制器
-     */
     @Override
-    public HttpSchedulerInitBuilder controller(Object... controllers) {
-        middlewareInitializer.addController(controllers);
-        return this;
-    }
-
-    /**
-     * 添加控制器
-     *
-     * @param instance 控制器的实例
-     * @param originClass 控制器的原始类
-     */
-    @Override
-    public HttpSchedulerInitBuilder controller(Object instance, Class<?> originClass) {
-        middlewareInitializer.addController(instance, originClass);
+    public HttpSchedulerInitBuilder routerManager(RouterManager routerManager) {
+        middlewareInitializer.routerManager(routerManager);
         return this;
     }
 

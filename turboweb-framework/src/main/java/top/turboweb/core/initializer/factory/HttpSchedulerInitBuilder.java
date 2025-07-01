@@ -2,6 +2,7 @@ package top.turboweb.core.initializer.factory;
 
 import top.turboweb.core.server.TurboWebServer;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.http.middleware.router.RouterManager;
 import top.turboweb.http.processor.CorsProcessor;
 import top.turboweb.http.session.SessionManager;
 
@@ -33,20 +34,13 @@ public interface HttpSchedulerInitBuilder {
      * @param middleware 中间件
      */
     HttpSchedulerInitBuilder middleware(Middleware... middleware);
-    /**
-     * 添加控制器
-     *
-     * @param controllers 控制器
-     */
-    HttpSchedulerInitBuilder controller(Object... controllers);
 
     /**
-     * 添加控制器
+     * 设置路由管理器
      *
-     * @param instance 控制器的实例
-     * @param originClass 控制器的原始类
+     * @param routerManager 路由管理器
      */
-    HttpSchedulerInitBuilder controller(Object instance, Class<?> originClass);
+    HttpSchedulerInitBuilder routerManager(RouterManager routerManager);
 
     /**
      * 添加CORS处理器

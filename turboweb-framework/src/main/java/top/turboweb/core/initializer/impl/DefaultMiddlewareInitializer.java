@@ -4,19 +4,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
-import top.turboweb.http.middleware.HttpRouterDispatcherMiddleware;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.middleware.aware.CharsetAware;
 import top.turboweb.http.middleware.aware.ExceptionHandlerMatcherAware;
 import top.turboweb.http.middleware.aware.MainClassAware;
 import top.turboweb.http.middleware.aware.SessionManagerHolderAware;
-import top.turboweb.http.router.container.RouterContainer;
-import top.turboweb.http.router.dispatcher.HttpDispatcher;
-import top.turboweb.http.router.dispatcher.impl.DefaultHttpDispatcher;
+import top.turboweb.http.middleware.router.RouterManager;
 import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.core.initializer.MiddlewareInitializer;
-import top.turboweb.http.router.container.RouterContainerInitHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,22 +23,15 @@ import java.util.List;
 public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultMiddlewareInitializer.class);
-    // 存储控制器对象
-    private final List<RouterContainerInitHelper.ControllerAttribute> controllerAttributes = new ArrayList<>();
+    // 路由管理器
+    private RouterManager routerManager;
     // 存储中间件对象
     private final List<Middleware> middlewares = new ArrayList<>();
 
 
     @Override
-    public void addController(Object... controllers) {
-        for (Object controller : controllers) {
-            controllerAttributes.add(new RouterContainerInitHelper.ControllerAttribute(controller, null));
-        }
-    }
-
-    @Override
-    public void addController(Object instance, Class<?> originClass) {
-        controllerAttributes.add(new RouterContainerInitHelper.ControllerAttribute(instance, originClass));
+    public void routerManager(RouterManager routerManager) {
+        this.routerManager = routerManager;
     }
 
     @Override
@@ -79,7 +68,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
             ptr.setNext(middleware);
             ptr = middleware;
         }
-        ptr.setNext(getHttpDispatcherMiddleware());
+        ptr.setNext(routerManager);
         return chain;
     }
 
@@ -140,17 +129,5 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
             ptr = ptr.getNext();
         }
         log.info("中间件锁定完成");
-    }
-
-    /**
-     * 创建路由分发器的中间件
-     *
-     * @return 路由分发器的中间件
-     */
-    private HttpRouterDispatcherMiddleware getHttpDispatcherMiddleware() {
-        RouterContainer routerContainer = RouterContainerInitHelper.initContainer(controllerAttributes);
-        HttpDispatcher dispatcher =  new DefaultHttpDispatcher(routerContainer);
-        log.info("http分发器初始化成功");
-        return new HttpRouterDispatcherMiddleware(dispatcher);
     }
 }

@@ -10,8 +10,14 @@ import top.turboweb.http.context.HttpContext;
 @RequestPath("/user")
 public class UserController {
 
-	@Get("/{id}")
-	public String helloUser(HttpContext c) {
-		return "hello user";
-	}
+    @Get
+    public String hello(HttpContext c) {
+        return "Hello World";
+    }
+
+    @Get("/{name:str}")
+    public String showName(HttpContext c) {
+        int i = 1/0;
+        return "name:" + c.param("name");
+    }
 }
