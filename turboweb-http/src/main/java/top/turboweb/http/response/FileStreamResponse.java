@@ -23,15 +23,15 @@ public class FileStreamResponse extends AbstractFileResponse implements Internal
 	private ChannelProgressiveFutureListener listener;
 
 	public FileStreamResponse(File file, boolean backPress) {
-		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 8192, backPress);
+		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 2097152 , backPress);
 	}
 
 	public FileStreamResponse(File file) {
-		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 8192, true);
+		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 2097152, true);
 	}
 
 	public FileStreamResponse(File file, Charset filenameCharset, boolean backPress) {
-		this(HttpResponseStatus.OK, file, filenameCharset, 8192, backPress);
+		this(HttpResponseStatus.OK, file, filenameCharset, 2097152, backPress);
 	}
 
 	public FileStreamResponse(File file, int chunkSize, boolean backPress) {
