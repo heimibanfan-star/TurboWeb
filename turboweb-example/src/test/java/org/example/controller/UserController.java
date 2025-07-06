@@ -3,6 +3,7 @@ package org.example.controller;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.HttpResult;
 
 /**
  * TODO
@@ -10,14 +11,15 @@ import top.turboweb.http.context.HttpContext;
 @RequestPath("/user")
 public class UserController {
 
+    public record User(String name, int age) {}
+
     @Get
-    public String hello(HttpContext c) {
-        return "Hello World";
+    public HttpResult<User> hello(HttpContext c) {
+        return HttpResult.create(500, new User("turbo", 18));
     }
 
     @Get("/{name:str}")
     public String showName(HttpContext c) {
-        int i = 1/0;
         return "name:" + c.param("name");
     }
 }
