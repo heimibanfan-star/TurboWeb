@@ -16,7 +16,8 @@ public class ResponseStrategyContext {
         responseStrategyMap = Map.of(
                 InternalCallResponse.InternalCallType.SSE, new SseResponseStrategy(),
                 InternalCallResponse.InternalCallType.FILE_STREAM, new FileStreamResponseStrategy(),
-                InternalCallResponse.InternalCallType.DEFAULT, new DefaultResponseStrategy()
+                InternalCallResponse.InternalCallType.DEFAULT, new DefaultResponseStrategy(),
+                InternalCallResponse.InternalCallType.AIO_FILE, new AsyncFileResponseStrategy()
         );
     }
 

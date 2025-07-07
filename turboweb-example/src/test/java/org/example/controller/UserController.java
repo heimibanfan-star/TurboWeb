@@ -3,7 +3,10 @@ package org.example.controller;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.AsyncFileResponse;
 import top.turboweb.http.response.HttpResult;
+
+import java.io.File;
 
 /**
  * TODO
@@ -21,5 +24,11 @@ public class UserController {
     @Get("/{name:str}")
     public String showName(HttpContext c) {
         return "name:" + c.param("name");
+    }
+
+    @Get("/download")
+    public AsyncFileResponse download(HttpContext c) {
+        String path = "C:\\Users\\heimi\\Downloads\\NeteaseCloudMusic_Music_official_2.10.13.202675_32.exe";
+        return new AsyncFileResponse(new File(path), 16);
     }
 }

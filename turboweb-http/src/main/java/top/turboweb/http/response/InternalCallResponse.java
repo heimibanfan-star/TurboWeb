@@ -18,6 +18,8 @@ public interface InternalCallResponse {
         ZERO_COPY,
         // 用于调用内部的文件流
         FILE_STREAM,
+        // 基于AIO的文件响应
+        AIO_FILE,
         // SSE
         SSE,
         // 默认的策略
