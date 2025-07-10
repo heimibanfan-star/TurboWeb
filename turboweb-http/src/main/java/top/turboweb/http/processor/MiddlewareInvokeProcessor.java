@@ -59,12 +59,9 @@ public class MiddlewareInvokeProcessor extends Processor{
         // 封装请求对象
         HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(fullHttpRequest);
         try {
-            // 构造响应对象
-            HttpInfoResponse httpInfoResponse = new HttpInfoResponse(HttpResponseStatus.OK);
             // 初始化Cookie
             HttpCookieManager cookieManager = new DefaultHttpCookieManager(fullHttpRequest.headers());
             // 初始化session
-
             String originSessionId = cookieManager.getCookie("JSESSIONID");
             HttpSession httpSession = new DefaultHttpSession(sessionManagerHolder.getSessionManager(), originSessionId);
             // 创建HttpContext对象

@@ -5,6 +5,8 @@ import top.turboweb.http.middleware.router.container.info.ExactRouterInfo;
 import top.turboweb.http.middleware.router.container.info.RouterDefinition;
 import top.turboweb.http.middleware.router.container.info.TrieRouterInfo;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -53,7 +55,21 @@ public class AnnoRouterContainer implements RouterContainer {
         }
         // 进行前缀树的匹配
         Optional<PathTrie.MatchResult<RouterDefinition>> optional = pathTrie.paramMatch(path);
-        return optional.map(routerDefinitionMatchResult -> new TrieMatchResult(routerDefinitionMatchResult.getValue(), routerDefinitionMatchResult.getParams())).orElse(null);
+        return optional
+                .map(routerDefinitionMatchResult -> {
+                    Map<String, String> params = routerDefinitionMatchResult.getParams();
+                    Map<String, String> newParams = new HashMap<>(params.size());
+                    params.forEach((key, value) -> {
+                        value = decode(value);
+                        newParams.put(key, value);
+                    });
+                    return new TrieMatchResult(routerDefinitionMatchResult.getValue(), newParams);
+                })
+                .orElse(null);
+    }
+
+    private String decode(String value) {
+        return URLDecoder.decode(value, StandardCharsets.UTF_8);
     }
 
     public ExactRouterInfo getExactRouterInfo() {
