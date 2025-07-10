@@ -26,9 +26,14 @@ public class InternalSseEmitter extends SseEmitter{
 			InternalConnectSession internalConnectSession = (InternalConnectSession) session;
 			channelFuture = internalConnectSession.getChannel().writeAndFlush(this);
 			// 清空缓冲区
-			while (!messageCache.isEmpty()) {
-				String message = messageCache.poll();
-				channelFuture = session.send(message);
+			cacheLock.lock();
+			try {
+				while (!messageCache.isEmpty()) {
+					String message = messageCache.poll();
+					channelFuture = session.send(message);
+				}
+			} finally {
+				cacheLock.unlock();
 			}
 			isInit = true;
 			// 卸载缓存
