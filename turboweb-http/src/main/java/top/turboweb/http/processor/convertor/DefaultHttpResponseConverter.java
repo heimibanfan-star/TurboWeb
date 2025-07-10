@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.exception.TurboSerializableException;
 import top.turboweb.commons.utils.base.BeanUtils;
+import top.turboweb.http.response.HttpFileResult;
 import top.turboweb.http.response.HttpResult;
 
 import java.nio.charset.StandardCharsets;
@@ -20,6 +21,8 @@ public class DefaultHttpResponseConverter implements HttpResponseConverter {
             case HttpResult<?> httpResult -> httpResult.createResponse();
             // 如果是字符串，按照text/html构建
             case String string -> buildResponse(string, "text/html;charset=" + StandardCharsets.UTF_8);
+            // 处理HttpFileResult的类型
+            case HttpFileResult httpFileResult -> httpFileResult.createResponse();
             // 如果是正常的反应类型，则直接返回
             case HttpResponse httpResponse -> httpResponse;
             // 如果无返回值，则返回空字符串
