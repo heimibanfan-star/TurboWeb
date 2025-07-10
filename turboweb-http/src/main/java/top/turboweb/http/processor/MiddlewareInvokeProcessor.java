@@ -3,13 +3,13 @@ package top.turboweb.http.processor;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.commons.lock.Locks;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.cookie.Cookies;
+import top.turboweb.http.cookie.DefaultHttpCookieManager;
+import top.turboweb.http.cookie.HttpCookieManager;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.processor.convertor.HttpResponseConverter;
 import top.turboweb.http.request.HttpInfoRequest;
@@ -61,31 +61,26 @@ public class MiddlewareInvokeProcessor extends Processor{
         try {
             // 构造响应对象
             HttpInfoResponse httpInfoResponse = new HttpInfoResponse(HttpResponseStatus.OK);
+            // 初始化Cookie
+            HttpCookieManager cookieManager = new DefaultHttpCookieManager(fullHttpRequest.headers());
             // 初始化session
-            Cookies cookies = httpInfoRequest.getCookies();
-            String originSessionId = cookies.getCookie("JSESSIONID");
+
+            String originSessionId = cookieManager.getCookie("JSESSIONID");
             HttpSession httpSession = new DefaultHttpSession(sessionManagerHolder.getSessionManager(), originSessionId);
             // 创建HttpContext对象
-            HttpContext context = new FullHttpContext(httpInfoRequest, httpSession, httpInfoResponse, connectSession);
+            HttpContext context = new FullHttpContext(httpInfoRequest, httpSession, cookieManager, connectSession);
             // 执行中间件
             Object result = chain.invoke(context);
-            HttpResponse response;
-            if (context.isWrite()) {
-                response = context.getResponse();
-            } else {
-                response = converter.convertor(result);
-            }
+            HttpResponse response = converter.convertor(result);
+            // 处理Cookie
+            cookieManager.setCookieForResponse(response);
             // 处理session
             if (httpSession.sessionId() != null && (!Objects.equals(httpSession.sessionId(), originSessionId) || httpSession.pathIsUpdate())) {
                 response.headers().add("Set-Cookie", "JSESSIONID=" + httpSession.sessionId() + "; Path="+ httpSession.getPath() +"; HttpOnly");
             }
             // 续时
             httpSession.expireAt();
-            // 处理响应结果
-            if (context.isWrite()) {
-                return context.getResponse();
-            }
-            return converter.convertor(result);
+            return response;
         } finally {
             releaseFiles(httpInfoRequest);
         }

@@ -3,6 +3,7 @@ package top.turboweb.http.middleware;
 import jakarta.validation.constraints.NotBlank;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.request.HttpInfoRequest;
+import top.turboweb.http.response.HttpResult;
 
 import java.lang.management.*;
 import java.util.*;
@@ -26,22 +27,22 @@ public class ServerInfoMiddleware extends Middleware {
     private Object handleServerInfo(HttpContext ctx) {
         QueryCon queryCon = ctx.loadValidQuery(QueryCon.class);
         return switch (queryCon.getType()) {
-            case "memory" -> ctx.json(Map.of(
+            case "memory" -> HttpResult.ok(Map.of(
                     "type", "memory",
                     "info", getMemoryInfo(),
                     "code", "success"
             ));
-            case "thread" -> ctx.json(Map.of(
+            case "thread" -> HttpResult.ok(Map.of(
                     "type", "thread",
                     "info", getThreadInfo(),
                     "code", "success"
             ));
-            case "gc" -> ctx.json(Map.of(
+            case "gc" -> HttpResult.ok(Map.of(
                     "type", "gc",
                     "info", getGcInfo(),
                     "code", "success"
             ));
-            default -> ctx.json(Map.of(
+            default -> HttpResult.ok(Map.of(
                     "code", "error",
                     "message", "type不支持"
             ));

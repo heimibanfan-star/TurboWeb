@@ -16,19 +16,21 @@ public class UserController {
 
     public record User(String name, int age) {}
 
-    @Get
-    public HttpResult<User> hello(HttpContext c) {
-        return HttpResult.create(500, new User("turbo", 18));
+    @Get("/set")
+    public String setCookie(HttpContext c) {
+        c.httpSession().setAttr("name", "turboweb", 10000);
+        return "setSession";
     }
 
-    @Get("/{name:str}")
-    public String showName(HttpContext c) {
-        return "name:" + c.param("name");
+    @Get("/get")
+    public String getCookie(HttpContext c) {
+        String name = c.httpSession().getAttr("name", String.class);
+        return "getSession: " + name;
     }
 
-    @Get("/download")
-    public AsyncFileResponse download(HttpContext c) {
-        String path = "C:\\Users\\heimi\\Downloads\\NeteaseCloudMusic_Music_official_2.10.13.202675_32.exe";
-        return new AsyncFileResponse(new File(path), 16);
+    @Get("/rem")
+    public String removeCookie(HttpContext c) {
+        c.httpSession().remAttr("name");
+        return "remSession";
     }
 }

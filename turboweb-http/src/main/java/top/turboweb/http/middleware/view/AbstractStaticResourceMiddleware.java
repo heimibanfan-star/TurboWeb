@@ -151,7 +151,6 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
             HttpResponseStatus.OK,
             Unpooled.wrappedBuffer(cache.bytes)
         );
-        response.headers().set(ctx.getResponse().headers());
         response.setContentType(cache.mimeType);
         // 设置响应内容的大小
         response.headers().set(HttpHeaderNames.CONTENT_LENGTH, cache.bytes.length);

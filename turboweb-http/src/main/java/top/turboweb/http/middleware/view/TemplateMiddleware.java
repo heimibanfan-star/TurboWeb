@@ -14,7 +14,7 @@ public abstract class TemplateMiddleware extends Middleware {
         Object result = next(ctx);
         // 判断是否是模板渲染
         if (result instanceof ViewModel viewModel) {
-            return ctx.html(render(ctx, viewModel));
+            return render(ctx, viewModel);
         }
         return result;
     }

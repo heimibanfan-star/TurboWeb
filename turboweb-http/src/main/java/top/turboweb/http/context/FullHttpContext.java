@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.http.connect.ConnectSession;
+import top.turboweb.http.cookie.HttpCookieManager;
 import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.commons.exception.TurboArgsValidationException;
@@ -30,8 +31,8 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	private static final Logger log = LoggerFactory.getLogger(FullHttpContext.class);
 	private Map<String, String> pathParams;
 
-	public FullHttpContext(HttpInfoRequest request, HttpSession httpSession, HttpInfoResponse response, ConnectSession connectSession) {
-		super(request, httpSession, response, connectSession);
+	public FullHttpContext(HttpInfoRequest request, HttpSession httpSession, HttpCookieManager cookieManager, ConnectSession connectSession) {
+		super(request, httpSession, cookieManager, connectSession);
 	}
 
 	@Override
@@ -48,66 +49,6 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		if (!errorMsg.isEmpty()) {
 			throw new TurboArgsValidationException(errorMsg);
 		}
-	}
-
-	@Override
-	public Void json(HttpResponseStatus status, Object data) {
-		if (isWrite()) {
-			throw new TurboResponseRepeatWriteException("response repeat write");
-		}
-		response.setStatus(status);
-		try {
-			response.setContent(BeanUtils.getObjectMapper().writeValueAsString(data));
-		} catch (JsonProcessingException e) {
-			throw new TurboSerializableException(e.getMessage());
-		}
-		response.setContentType("application/json;charset=utf-8");
-		setWrite();
-		return end();
-	}
-
-	@Override
-	public Void json(Object data) {
-		return json(HttpResponseStatus.OK, data);
-	}
-
-	@Override
-	public Void json(HttpResponseStatus status) {
-		return json(status, "");
-	}
-
-	@Override
-	public Void text(HttpResponseStatus status, String data) {
-		if (isWrite()) {
-			throw new TurboResponseRepeatWriteException("response repeat write");
-		}
-		response.setStatus(status);
-		response.setContent(data);
-		response.setContentType("text/plain;charset=utf-8");
-		setWrite();
-		return end();
-	}
-
-	@Override
-	public Void text(String data) {
-		return text(HttpResponseStatus.OK, data);
-	}
-
-	@Override
-	public Void html(HttpResponseStatus status, String data) {
-		if (isWrite()) {
-			throw new TurboResponseRepeatWriteException("response repeat write");
-		}
-		response.setStatus(status);
-		response.setContent(data);
-		response.setContentType("text/html;charset=utf-8");
-		setWrite();
-		return end();
-	}
-
-	@Override
-	public Void html(String data) {
-		return html(HttpResponseStatus.OK, data);
 	}
 
 	@Override

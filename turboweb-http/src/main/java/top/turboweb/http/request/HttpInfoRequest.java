@@ -3,8 +3,6 @@ package top.turboweb.http.request;
 import io.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.turboweb.http.cookie.Cookies;
-import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
 
 import java.util.List;
@@ -19,15 +17,12 @@ public class HttpInfoRequest {
 
 
     private final FullHttpRequest request;
-    private final Cookies cookies;
-    private HttpSession httpSession;
     private final Map<String, List<String>> queryParams;
     private final HttpContent content;
     private final String contentType;
 
-    public HttpInfoRequest(FullHttpRequest request, Cookies cookies, Map<String, List<String>> queryParams, HttpContent content) {
+    public HttpInfoRequest(FullHttpRequest request, Map<String, List<String>> queryParams, HttpContent content) {
         this.request = request;
-        this.cookies = cookies;
         this.queryParams = queryParams;
         this.content = content;
         if (content != null) {
@@ -80,29 +75,11 @@ public class HttpInfoRequest {
     }
 
     /**
-     * 判断session是否为空
-     *
-     * @return true:session为空
-     */
-    public boolean sessionIsNull() {
-        return httpSession == null;
-    }
-
-    /**
      * 获取请求头
      *
      * @return 请求头
      */
     public HttpHeaders getHeaders() {
         return request.headers();
-    }
-
-    /**
-     * 获取请求cookie
-     *
-     * @return 请求cookie
-     */
-    public Cookies getCookies() {
-        return cookies;
     }
 }
