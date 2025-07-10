@@ -34,7 +34,7 @@
         <netty.version>4.1.112.Final</netty.version>
         <logback.version>1.5.16</logback.version>
         <commons-lang3.version>3.17.0</commons-lang3.version>
-        <httpclient.version>5.3.1</httpclient.version>
+        <httpcore5.version>5.3.1</httpcore5.version>
         <jackson.version>2.17.3</jackson.version>
         <validation.version>3.0.0</validation.version>
         <hibernate.version>7.0.0.Final</hibernate.version>
@@ -64,10 +64,11 @@
         </dependency>
         <!-- httpclient -->
         <dependency>
-            <groupId>org.apache.httpcomponents.client5</groupId>
-            <artifactId>httpclient5</artifactId>
-            <version>${httpclient.version}</version>
+            <groupId>org.apache.httpcomponents.core5</groupId>
+            <artifactId>httpcore5</artifactId>
+            <version>${httpcore5.version}</version> <!-- 或你需要的版本 -->
         </dependency>
+
     </dependencies>
 
     <build>
