@@ -8,6 +8,7 @@ import top.turboweb.http.response.HttpFileResult;
 import top.turboweb.http.response.HttpResult;
 
 import java.io.File;
+import java.time.LocalDate;
 
 /**
  * TODO
@@ -17,10 +18,45 @@ public class UserController {
 
     public record User(String name, int age) {}
 
-    @Get("/{name:str}")
-    public String name(HttpContext ctx) {
-        String name = ctx.param("name");
-        System.out.println(name);
+//    @Get("/{name:str}")
+//    public String name(HttpContext ctx) {
+//        String name = ctx.param("name");
+//        System.out.println(name);
+//        return "hello world";
+//    }
+
+    @Get("/{age:int}")
+    public String age(HttpContext ctx) {
+        int age = ctx.paramInt("age");
+        System.out.println(age);
         return "hello world";
     }
+//
+//    @Get("/{money:num}")
+//    public String money(HttpContext ctx) {
+//        double money = ctx.paramDouble("money");
+//        System.out.println(money);
+//        return "hello world";
+//    }
+
+//    @Get("/{date:date}")
+//    public String date(HttpContext ctx) {
+//        LocalDate date = ctx.paramDate("date");
+//        System.out.println(date);
+//        return "hello world";
+//    }
+//
+//    @Get("/{bool:bool}")
+//    public String bool(HttpContext ctx) {
+//        boolean bool = ctx.paramBool("bool");
+//        System.out.println(bool);
+//        return "hello world";
+//    }
+//
+//    @Get("/{ip:ipv4}")
+//    public String ip(HttpContext ctx) {
+//        String ip = ctx.param("ip");
+//        System.out.println(ip);
+//        return "hello world";
+//    }
 }

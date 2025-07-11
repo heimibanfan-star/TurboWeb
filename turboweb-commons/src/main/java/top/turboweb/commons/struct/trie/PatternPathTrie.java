@@ -36,7 +36,7 @@ public class PatternPathTrie<V> implements PathTrie<V> {
     }
 
     private enum ParamType {
-        STR, NUM, BOOL;
+        STR, NUM, INT, BOOL, DATE, IPV4;
 
         static ParamType fromString(String s) {
             if (s == null) return STR;
@@ -44,14 +44,20 @@ public class PatternPathTrie<V> implements PathTrie<V> {
                 case "num" -> NUM;
                 case "bool" -> BOOL;
                 case "str" -> STR;
+                case "int" -> INT;
+                case "date" -> DATE;
+                case "ipv4" -> IPV4;
                 default -> throw new IllegalArgumentException("Unsupported param type: " + s);
             };
         }
 
         boolean match(String value) {
             return switch (this) {
-                case NUM -> value.matches("^-?\\d+$");
+                case NUM -> value.matches("^-?\\d+(\\.\\d+)?$");
+                case INT -> value.matches("^-?\\d+$");
                 case BOOL -> "true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value);
+                case DATE -> value.matches("^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$");
+                case IPV4 -> value.matches("^((25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)$");
                 default -> true;
             };
         }

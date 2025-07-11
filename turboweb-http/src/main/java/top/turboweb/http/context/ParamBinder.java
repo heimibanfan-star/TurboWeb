@@ -2,6 +2,7 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.multipart.FileUpload;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -44,7 +45,11 @@ public interface ParamBinder {
 
     Long paramLong(String name);
 
-    Boolean paramBoolean(String name);
+    Boolean paramBool(String name);
+
+    Double paramDouble(String name);
+
+    LocalDate paramDate(String name);
 
     /**
      * 获取查询参数

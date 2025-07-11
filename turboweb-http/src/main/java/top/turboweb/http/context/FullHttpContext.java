@@ -18,6 +18,7 @@ import top.turboweb.http.session.HttpSession;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -91,12 +92,30 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
-	public Boolean paramBoolean(String name) {
+	public Boolean paramBool(String name) {
 		String param = param(name);
 		if (param == null) {
 			return null;
 		}
 		return Boolean.parseBoolean(param);
+	}
+
+	@Override
+	public Double paramDouble(String name) {
+		String param = param(name);
+		if (param == null) {
+			return null;
+		}
+		return Double.parseDouble(param);
+	}
+
+	@Override
+	public LocalDate paramDate(String name) {
+		String param = param(name);
+		if (param == null) {
+			return null;
+		}
+		return LocalDate.parse(param);
 	}
 
 	@Override
