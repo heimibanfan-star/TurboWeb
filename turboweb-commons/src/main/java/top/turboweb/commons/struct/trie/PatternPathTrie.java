@@ -1,6 +1,10 @@
 package top.turboweb.commons.struct.trie;
 
+import org.apache.tika.pipes.PipesResult;
+
 import java.util.*;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 /**
  * 支持多级通配符 '**'，单级通配符 '*'，路径参数 {name} 和 {name:type}（num,bool,str）
@@ -35,8 +39,52 @@ public class PatternPathTrie<V> implements PathTrie<V> {
         }
     }
 
-    private enum ParamType {
-        STR, NUM, INT, BOOL, DATE, IPV4;
+    /**
+     * 默认参数匹配正则表达式
+     */
+    private static class REGEX_PATTERN {
+        static final Pattern NUM = Pattern.compile("^-?\\d+(\\.\\d+)?$");
+        static final Pattern INT = Pattern.compile("^-?\\d+$");
+        static final Pattern DATE = Pattern.compile("^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$");
+        static final Pattern IPV4 = Pattern.compile("^((25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)$");
+    }
+
+    /**
+     * 参数类型
+     */
+    private final static class ParamType {
+        static final ParamType STR = new ParamType("str");
+        static final ParamType NUM = new ParamType("num");
+        static final ParamType INT = new ParamType("int");
+        static final ParamType BOOL = new ParamType("bool");
+        static final ParamType DATE = new ParamType("date");
+        static final ParamType IPV4 = new ParamType("ipv4");
+
+        final String regex;
+        final String name;
+
+        /**
+         * 匹配策略，用于参数值匹配
+         */
+        static final Map<ParamType, Function<String, Boolean>> STRATEGY = Map.of(
+                NUM, value -> REGEX_PATTERN.NUM.matcher(value).matches(),
+                INT, value -> REGEX_PATTERN.INT.matcher(value).matches(),
+                BOOL, value -> "true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value),
+                DATE, value -> REGEX_PATTERN.DATE.matcher(value).matches(),
+                IPV4, value -> REGEX_PATTERN.IPV4.matcher(value).matches(),
+                STR, value -> true
+        );
+
+        ParamType(String name) {
+            this.regex = null;
+            this.name = name;
+        }
+
+        ParamType(String name, String regex) {
+            Objects.requireNonNull(regex);
+            this.regex = regex;
+            this.name = name;
+        }
 
         static ParamType fromString(String s) {
             if (s == null) return STR;
@@ -47,19 +95,32 @@ public class PatternPathTrie<V> implements PathTrie<V> {
                 case "int" -> INT;
                 case "date" -> DATE;
                 case "ipv4" -> IPV4;
-                default -> throw new IllegalArgumentException("Unsupported param type: " + s);
+                default -> {
+                    if (s.startsWith("regex=")) {
+                        s = s.substring(6);
+                        yield new ParamType("regex", s);
+                    }
+                    throw new IllegalArgumentException("Unsupported param type: " + s);
+                }
             };
         }
 
         boolean match(String value) {
-            return switch (this) {
-                case NUM -> value.matches("^-?\\d+(\\.\\d+)?$");
-                case INT -> value.matches("^-?\\d+$");
-                case BOOL -> "true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value);
-                case DATE -> value.matches("^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$");
-                case IPV4 -> value.matches("^((25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)$");
-                default -> true;
-            };
+            Function<String, Boolean> function = STRATEGY.get(this);
+            if (function == null) {
+                // 判断正则表达式是否是空
+                if (this.regex == null) {
+                    return false;
+                }
+                // 匹配
+                return value.matches(this.regex);
+            } else {
+                return function.apply(value);
+            }
+        }
+
+        String name() {
+            return this.name;
         }
     }
 
@@ -145,7 +206,9 @@ public class PatternPathTrie<V> implements PathTrie<V> {
 
     @Override
     public Optional<MatchResult<V>> paramMatch(String path) {
-        checkPath(path);
+        if (path == null || !path.startsWith("/")) {
+            throw new IllegalArgumentException("路径不能为空且必须以'/'开头: " + path);
+        }
         String[] segments = splitPath(path);
         Map<String, String> params = new LinkedHashMap<>();
         Node<V> matched = searchNode(root, segments, 0, params);
@@ -262,7 +325,9 @@ public class PatternPathTrie<V> implements PathTrie<V> {
 
     @Override
     public Set<V> patternMatch(String path) {
-        checkPath(path);
+        if (path == null || !path.startsWith("/")) {
+            throw new IllegalArgumentException("路径不能为空且必须以'/'开头: " + path);
+        }
         String[] segments = splitPath(path);
         Set<V> result = new LinkedHashSet<>();
         matchAllValuesRecursive(root, segments, 0, result);

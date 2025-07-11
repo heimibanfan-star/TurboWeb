@@ -24,14 +24,14 @@ public class UserController {
 //        System.out.println(name);
 //        return "hello world";
 //    }
-
-    @Get("/{age:int}")
-    public String age(HttpContext ctx) {
-        int age = ctx.paramInt("age");
-        System.out.println(age);
-        return "hello world";
-    }
 //
+//    @Get("/{age:str}")
+//    public String age(HttpContext ctx) {
+//        int age = ctx.paramInt("age");
+//        System.out.println(age);
+//        return "hello world";
+//    }
+
 //    @Get("/{money:num}")
 //    public String money(HttpContext ctx) {
 //        double money = ctx.paramDouble("money");
@@ -53,10 +53,10 @@ public class UserController {
 //        return "hello world";
 //    }
 //
-//    @Get("/{ip:ipv4}")
-//    public String ip(HttpContext ctx) {
-//        String ip = ctx.param("ip");
-//        System.out.println(ip);
-//        return "hello world";
-//    }
+    @Get("/{ip:regex=hello}")
+    public String ip(HttpContext ctx) {
+        String ip = ctx.param("ip");
+        System.out.println(ip);
+        return "hello world";
+    }
 }
