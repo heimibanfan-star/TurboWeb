@@ -35,7 +35,6 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
 	private final HttpProtocolDispatcherInitFactory httpProtocolDispatcherInitFactory;
 	private final HttpClientInitializer httpClientInitializer;
 	private final CommonSourceInitializer commonSourceInitializer;
-	private final Class<?> mainClass;
 	private final List<TurboWebListener> defaultListeners = new ArrayList<>(1);
 	private final List<TurboWebListener> customListeners = new ArrayList<>(1);
 	private boolean executeDefaultListener = true;
@@ -48,14 +47,12 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
 		defaultListeners.add(new DefaultJacksonTurboWebListener());
 	}
 
-	public BootStrapTurboWebServer(Class<?> mainClass) {
-		this(mainClass, 0);
+	public BootStrapTurboWebServer() {
+		this( 0);
 	}
 
-	public BootStrapTurboWebServer(Class<?> mainClass, int ioThreadNum) {
+	public BootStrapTurboWebServer(int ioThreadNum) {
 		super(ioThreadNum);
-		Objects.requireNonNull(mainClass, "mainClass can not be null");
-		this.mainClass = mainClass;
 	}
 
 	@Override
@@ -147,7 +144,7 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
 		// 初始化http客户端
 		httpClientInitializer.init(workers());
 		// 创建http调度器
-		HttpScheduler httpScheduler = httpSchedulerInitFactory.createHttpScheduler(mainClass, serverConfig);
+		HttpScheduler httpScheduler = httpSchedulerInitFactory.createHttpScheduler(serverConfig);
 		// 创建http协议分发器
 		HttpProtocolDispatcher httpProtocolDispatcher = httpProtocolDispatcherInitFactory.createDispatcher(httpScheduler);
 		initPipeline(httpProtocolDispatcher, serverConfig.getMaxContentLength());
@@ -189,18 +186,17 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
 	 * @param mainClass 主类
 	 * @return TurboWebServer
 	 */
-	public static TurboWebServer create(Class<?> mainClass) {
-		return new BootStrapTurboWebServer(mainClass);
+	public static TurboWebServer create() {
+		return new BootStrapTurboWebServer();
 	}
 
 	/**
 	 * 创建TurboWebServer
 	 *
-	 * @param mainClass 主类
 	 * @param ioThreadNum IO线程数
 	 * @return TurboWebServer
 	 */
-	public static TurboWebServer create(Class<?> mainClass, int ioThreadNum) {
-		return new BootStrapTurboWebServer(mainClass, ioThreadNum);
+	public static TurboWebServer create(int ioThreadNum) {
+		return new BootStrapTurboWebServer(ioThreadNum);
 	}
 }

@@ -7,7 +7,6 @@ import freemarker.template.Template;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.middleware.aware.MainClassAware;
 import top.turboweb.http.response.ViewModel;
 import top.turboweb.commons.exception.TurboTemplateRenderException;
 
@@ -20,10 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * freemarker模板渲染中间件
  */
-public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements MainClassAware {
+public class FreemarkerTemplateMiddleware extends TemplateMiddleware {
 
-    // 主启动类
-    private Class<?> mainClass;
     // 模板文件的存储路径
     private String templatePath = "templates";
     // 模板文件的后缀
@@ -34,6 +31,17 @@ public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements 
     private boolean openCache = true;
     // 模板的缓存
     private final Map<String, Template> templateCache = new ConcurrentHashMap<>();
+    private final ClassLoader classLoader;
+
+    public FreemarkerTemplateMiddleware() {
+        super();
+        this.classLoader = FreemarkerTemplateMiddleware.class.getClassLoader();
+    }
+
+    public FreemarkerTemplateMiddleware(ClassLoader classLoader) {
+        super();
+        this.classLoader = classLoader;
+    }
 
     @Override
     public String render(HttpContext ctx, ViewModel viewModel) {
@@ -87,11 +95,6 @@ public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements 
         }
     }
 
-    @Override
-    public void setMainClass(Class<?> mainClass) {
-        this.mainClass = mainClass;
-    }
-
     public void setTemplatePath(String templatePath) {
         this.templatePath = templatePath;
     }
@@ -117,7 +120,7 @@ public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements 
     private Configuration loadTemplateConfiguration() {
         Configuration configuration = new Configuration(Configuration.VERSION_2_3_32);
         // 创建模板加载器
-        TemplateLoader templateLoader = new ClassTemplateLoader(mainClass.getClassLoader(), templatePath);
+        TemplateLoader templateLoader = new ClassTemplateLoader(classLoader, templatePath);
         configuration.setTemplateLoader(templateLoader);
         configuration.setDefaultEncoding(GlobalConfig.getResponseCharset().name());
         return configuration;

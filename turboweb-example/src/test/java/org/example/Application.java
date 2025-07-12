@@ -23,7 +23,7 @@ public class Application {
     public static void main(String[] args) throws IOException, InterruptedException {
         AnnoRouterManager routerManager = new AnnoRouterManager();
         routerManager.addController(new UserController());
-        BootStrapTurboWebServer.create(Application.class)
+        BootStrapTurboWebServer.create()
                 .http()
                 .middleware(new TestMiddleware())
                 .routerManager(routerManager)

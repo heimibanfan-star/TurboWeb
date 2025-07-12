@@ -2,15 +2,9 @@ package top.turboweb.core.initializer.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.turboweb.core.config.HttpServerConfig;
-import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
-import top.turboweb.http.middleware.aware.ExceptionHandlerMatcherAware;
-import top.turboweb.http.middleware.aware.MainClassAware;
-import top.turboweb.http.middleware.aware.SessionManagerHolderAware;
 import top.turboweb.http.middleware.router.RouterManager;
-import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.core.initializer.MiddlewareInitializer;
 
 import java.util.ArrayList;
@@ -39,15 +33,8 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
     }
 
     @Override
-    public Middleware init(
-        SessionManagerHolder sessionManagerHolder,
-        Class<?> mainClass,
-        ExceptionHandlerMatcher matcher,
-        HttpServerConfig config
-    ) {
+    public Middleware init() {
         Middleware chain = initMiddlewareChain();
-        // 执行依赖注入
-        initMiddlewareForAware(chain, sessionManagerHolder, matcher, mainClass, config);
         // 执行中间件的初始化方法
         doMiddlewareChainInit(chain);
         // 锁定中间件
@@ -69,38 +56,6 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
         }
         ptr.setNext(routerManager);
         return chain;
-    }
-
-    /**
-     * 进行中间件依赖底层组件的依赖注入
-     *
-     * @param ptr 头结点的指针
-     * @param sessionManagerHolder session代理
-     * @param exceptionHandlerMatcher 异常匹配器
-     * @param mainClass 主启动类
-     * @param config 配置
-     */
-    private void initMiddlewareForAware(
-        Middleware ptr,
-        SessionManagerHolder sessionManagerHolder,
-        ExceptionHandlerMatcher exceptionHandlerMatcher,
-        Class<?> mainClass,
-        HttpServerConfig config
-    ) {
-        while (ptr != null) {
-            // 判断是否实现Aware
-            if (ptr instanceof SessionManagerHolderAware aware) {
-                aware.setSessionManagerProxy(sessionManagerHolder);
-            }
-            if (ptr instanceof ExceptionHandlerMatcherAware aware) {
-                aware.setExceptionHandlerMatcher(exceptionHandlerMatcher);
-            }
-            if (ptr instanceof MainClassAware aware) {
-                aware.setMainClass(mainClass);
-            }
-            ptr = ptr.getNext();
-        }
-        log.info("中间件依赖注入完成");
     }
 
     /**

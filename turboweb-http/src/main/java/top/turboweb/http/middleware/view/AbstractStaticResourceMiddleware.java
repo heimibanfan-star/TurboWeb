@@ -11,14 +11,12 @@ import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.middleware.aware.MainClassAware;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.commons.exception.TurboStaticResourceException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -27,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 静态资源处理中间件的抽象类
  */
-public abstract class AbstractStaticResourceMiddleware extends Middleware implements MainClassAware {
+public abstract class AbstractStaticResourceMiddleware extends Middleware {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractStaticResourceMiddleware.class);
 
@@ -36,8 +34,6 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
         String mimeType;
     }
 
-    // 主启动类
-    private Class<?> mainClass;
     // 默认的静态请求路径
     protected String staticResourceUri = "/static";
     // 静态资源路径
@@ -49,6 +45,15 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
     // 用于缓存静态文件的缓存
     private final Map<String, ResourceCache> caches = new ConcurrentHashMap<>();
     private final Tika tika = new Tika();
+    private final ClassLoader classLoader;
+
+    public AbstractStaticResourceMiddleware(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
+
+    public AbstractStaticResourceMiddleware() {
+        this(AbstractStaticResourceMiddleware.class.getClassLoader());
+    }
 
     /**
      * 处理静态资源
@@ -105,7 +110,7 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
             diskPath = diskPath.substring(1);
         }
         // 从文件中读取
-        InputStream inputStream = mainClass.getClassLoader().getResourceAsStream(diskPath);
+        InputStream inputStream = classLoader.getResourceAsStream(diskPath);
         try (inputStream) {
             if (inputStream != null) {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -132,11 +137,6 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
             throw new TurboStaticResourceException("file read error, path:" + path, e);
         }
         throw new TurboRouterException("file not found for path:" + path, TurboRouterException.ROUTER_NOT_MATCH);
-    }
-
-    @Override
-    public void setMainClass(Class<?> mainClass) {
-        this.mainClass = mainClass;
     }
 
     /**

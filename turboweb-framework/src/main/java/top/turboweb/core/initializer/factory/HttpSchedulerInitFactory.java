@@ -1,5 +1,6 @@
 package top.turboweb.core.initializer.factory;
 
+import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.initializer.*;
 import top.turboweb.core.initializer.impl.*;
@@ -13,6 +14,8 @@ import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.session.SessionManagerHolder;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.function.Consumer;
 
 /**
@@ -98,23 +101,51 @@ public class HttpSchedulerInitFactory implements HttpSchedulerInitBuilder {
     /**
      * 初始化http调度器
      *
-     * @param mainClass 字节码对象
      * @param config 服务器配置
      * @return http调度器
      */
-    public HttpScheduler createHttpScheduler(Class<?> mainClass, HttpServerConfig config) {
-        // 初始化异常处理器匹配器
-        ExceptionHandlerMatcher exceptionHandlerMatcher = exceptionHandlerInitializer.init();
-        // 初始化session管理器
-        SessionManagerHolder sessionManagerHolder = sessionManagerProxyInitializer.init(config);
-        // 初始化中间件
-        Middleware chain = middlewareInitializer.init(sessionManagerHolder, mainClass, exceptionHandlerMatcher, config);
-        // 初始化内核处理器
-        Processor processor = processorInitializer.init(chain, sessionManagerHolder, exceptionHandlerMatcher);
+    public HttpScheduler createHttpScheduler(HttpServerConfig config) {
+        // 获取cpu内核数
+        int cpuNum = Runtime.getRuntime().availableProcessors();
+        Processor processor;
+        if (cpuNum >= 2) {
+            processor = parallelInitProcessor(config);
+        } else {
+            processor = serialInitProcessor(config);
+        }
         // 初始化Http调度器
         return httpSchedulerInitializer.init(
                 processor,
                 config
         );
+    }
+
+
+    private Processor serialInitProcessor(HttpServerConfig config) {
+        // 初始化中间件
+        Middleware chain = middlewareInitializer.init();
+        // 初始化异常处理器匹配器
+        ExceptionHandlerMatcher exceptionHandlerMatcher = exceptionHandlerInitializer.init();
+        // 初始化session管理器
+        SessionManagerHolder sessionManagerHolder = sessionManagerProxyInitializer.init(config);
+        // 初始化内核处理器
+        return processorInitializer.init(chain, sessionManagerHolder, exceptionHandlerMatcher);
+    }
+
+    private Processor parallelInitProcessor(HttpServerConfig config) {
+        FutureTask<Middleware> futureTask = new FutureTask<>(middlewareInitializer::init);
+        Thread thread = new Thread(futureTask, "middleware-init-thread");
+        thread.start();
+        // 初始化异常处理器匹配器
+        ExceptionHandlerMatcher exceptionHandlerMatcher = exceptionHandlerInitializer.init();
+        // 初始化session管理器
+        SessionManagerHolder sessionManagerHolder = sessionManagerProxyInitializer.init(config);
+        try {
+            Middleware chain = futureTask.get();
+            // 初始化内核处理器
+            return processorInitializer.init(chain, sessionManagerHolder, exceptionHandlerMatcher);
+        } catch (InterruptedException | ExecutionException e) {
+            throw new TurboServerInitException("middleware init error");
+        }
     }
 }
