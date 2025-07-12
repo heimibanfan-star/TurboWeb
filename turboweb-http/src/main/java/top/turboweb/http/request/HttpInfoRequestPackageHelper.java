@@ -9,11 +9,10 @@ import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.net.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboHttpParseException;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -27,8 +26,6 @@ public class HttpInfoRequestPackageHelper {
 
     private static final Map<String, Function<FullHttpRequest, HttpContent>> bodyInfoParseFunctions = new ConcurrentHashMap<>();
 
-    private static Charset charset = StandardCharsets.UTF_8;
-
     static {
         bodyInfoParseFunctions.put("application/json", HttpInfoRequestPackageHelper::doParseJsonBodyInfo);
         bodyInfoParseFunctions.put("application/x-www-form-urlencoded", HttpInfoRequestPackageHelper::doParseFormBodyInfo);
@@ -36,10 +33,6 @@ public class HttpInfoRequestPackageHelper {
     }
 
     private HttpInfoRequestPackageHelper() {
-    }
-
-    public static void setCharset(Charset charset) {
-        HttpInfoRequestPackageHelper.charset = charset;
     }
 
     /**
@@ -122,7 +115,7 @@ public class HttpInfoRequestPackageHelper {
         // 获取请求体的内容
         ByteBuf contentBuf = request.content();
         // 将请求体转化为字符串
-        String jsonContent = contentBuf.toString(charset);
+        String jsonContent = contentBuf.toString(GlobalConfig.getRequestCharset());
         if (jsonContent == null || jsonContent.isBlank()) {
             jsonContent = "{}";
         }

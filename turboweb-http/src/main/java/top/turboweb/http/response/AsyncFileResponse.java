@@ -2,6 +2,7 @@ package top.turboweb.http.response;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
 import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
 import top.turboweb.commons.utils.thread.WorkStealThreadUtils;
@@ -33,7 +34,7 @@ public class AsyncFileResponse extends AbstractFileResponse implements InternalC
     }
 
     public AsyncFileResponse(File file, int chunkSize) {
-        this(HttpResponseStatus.OK, file, chunkSize, StandardCharsets.UTF_8);
+        this(HttpResponseStatus.OK, file, chunkSize, GlobalConfig.getResponseCharset());
     }
 
     public AsyncFileResponse(HttpResponseStatus status, File file, int chunkSize, Charset filenameCharset) {

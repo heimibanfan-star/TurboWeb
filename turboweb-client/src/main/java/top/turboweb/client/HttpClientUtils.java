@@ -87,7 +87,7 @@ public class HttpClientUtils {
             if (promiseHttpClient != null) {
                 return promiseHttpClient;
             }
-            promiseHttpClient = new PromiseHttpClient(httpClient, executors, httpClientConfig.getCharset());
+            promiseHttpClient = new PromiseHttpClient(httpClient, executors);
             return promiseHttpClient;
         }
     }
@@ -108,7 +108,7 @@ public class HttpClientUtils {
             if (reactiveHttpClient != null) {
                 return reactiveHttpClient;
             }
-            reactiveHttpClient = new ReactiveHttpClient(httpClient, httpClientConfig.getCharset());
+            reactiveHttpClient = new ReactiveHttpClient(httpClient);
             return reactiveHttpClient;
        }
     }

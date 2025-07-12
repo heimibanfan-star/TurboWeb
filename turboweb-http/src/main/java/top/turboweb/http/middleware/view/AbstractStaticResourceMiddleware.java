@@ -7,6 +7,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
@@ -165,7 +166,7 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware implem
     private Path safePath(String path) {
         try {
             // URL 解码，防止编码绕过
-            String decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8);
+            String decodedPath = URLDecoder.decode(path, GlobalConfig.getRequestCharset());
             Path basePath = Paths.get(staticResourcePath);
             Path normalizedPath = basePath.resolve(decodedPath).normalize();
 

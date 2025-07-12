@@ -3,6 +3,7 @@ package top.turboweb.http.processor;
 import io.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.handler.ExceptionHandlerDefinition;
@@ -118,8 +119,8 @@ public class ExceptionHandlerProcessor extends Processor {
      */
     private HttpResponse buildErrResponse(String content, HttpResponseStatus status) {
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
-        response.content().writeBytes(content.getBytes(StandardCharsets.UTF_8));
-        response.headers().add(HttpHeaderNames.CONTENT_TYPE, "application/json;charset=" + StandardCharsets.UTF_8.name());
+        response.content().writeBytes(content.getBytes(GlobalConfig.getResponseCharset()));
+        response.headers().add(HttpHeaderNames.CONTENT_TYPE, "application/json;charset=" + GlobalConfig.getResponseCharset().name());
         response.headers().add(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
         return response;
     }

@@ -5,6 +5,7 @@ import io.netty.channel.ChannelProgressiveFutureListener;
 import io.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
 
 import java.io.File;
@@ -23,11 +24,11 @@ public class FileStreamResponse extends AbstractFileResponse implements Internal
 	private ChannelProgressiveFutureListener listener;
 
 	public FileStreamResponse(File file, boolean backPress) {
-		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 2097152 , backPress);
+		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152 , backPress);
 	}
 
 	public FileStreamResponse(File file) {
-		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, 2097152, true);
+		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152, true);
 	}
 
 	public FileStreamResponse(File file, Charset filenameCharset, boolean backPress) {
@@ -35,7 +36,7 @@ public class FileStreamResponse extends AbstractFileResponse implements Internal
 	}
 
 	public FileStreamResponse(File file, int chunkSize, boolean backPress) {
-		this(HttpResponseStatus.OK, file, StandardCharsets.UTF_8, chunkSize, backPress);
+		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), chunkSize, backPress);
 	}
 
 	public FileStreamResponse(HttpResponseStatus status, File file, Charset filenameCharset, int chunkSize, boolean backPress) {

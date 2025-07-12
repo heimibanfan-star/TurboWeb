@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import top.turboweb.commons.config.GlobalConfig;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -42,7 +43,7 @@ public class HttpInfoResponse extends DefaultFullHttpResponse {
     }
 
     public void setContent(String content) {
-        this.setContent(content, StandardCharsets.UTF_8);
+        this.setContent(content, GlobalConfig.getResponseCharset());
     }
 
     /**

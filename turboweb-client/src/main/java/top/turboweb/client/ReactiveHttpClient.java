@@ -17,8 +17,8 @@ import java.util.function.Function;
  */
 public class ReactiveHttpClient extends AbstractHttpClient {
 
-    public ReactiveHttpClient(HttpClient httpClient, Charset charset) {
-        super(httpClient, charset);
+    public ReactiveHttpClient(HttpClient httpClient) {
+        super(httpClient);
     }
 
     /**

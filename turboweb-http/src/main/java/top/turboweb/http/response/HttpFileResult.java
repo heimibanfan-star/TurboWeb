@@ -2,6 +2,7 @@ package top.turboweb.http.response;
 
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.*;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
 
 import java.io.File;
@@ -30,7 +31,7 @@ public class HttpFileResult {
         Objects.requireNonNull(buffer, "buffer can not be null");
         this.buffer = buffer;
         if (filename != null && !filename.isEmpty()) {
-            this.filename = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+            this.filename = URLEncoder.encode(filename, GlobalConfig.getResponseCharset()).replace("+", "%20");
         } else {
             this.filename = UUID.randomUUID().toString();
         }
@@ -53,7 +54,7 @@ public class HttpFileResult {
         this.file = file;
         this.contentType = contentType;
         buffer = null;
-        filename = URLEncoder.encode(file.getName(), StandardCharsets.UTF_8).replace("+", "%20");
+        filename = URLEncoder.encode(file.getName(), GlobalConfig.getResponseCharset()).replace("+", "%20");
         this.openFile = openFile;
     }
 

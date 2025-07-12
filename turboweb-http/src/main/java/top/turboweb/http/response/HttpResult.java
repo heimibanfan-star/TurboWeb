@@ -2,6 +2,7 @@ package top.turboweb.http.response;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.*;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboSerializableException;
 import top.turboweb.commons.utils.base.BeanUtils;
 
@@ -70,7 +71,7 @@ public class HttpResult <T> {
     private void setContent(FullHttpResponse response, String content) {
         response.content().clear();
         if (content != null) {
-            response.content().writeBytes(content.getBytes(StandardCharsets.UTF_8));
+            response.content().writeBytes(content.getBytes(GlobalConfig.getResponseCharset()));
             response.headers().set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
         } else {
             response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);

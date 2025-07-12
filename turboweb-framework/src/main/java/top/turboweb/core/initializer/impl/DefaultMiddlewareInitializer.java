@@ -6,7 +6,6 @@ import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
-import top.turboweb.http.middleware.aware.CharsetAware;
 import top.turboweb.http.middleware.aware.ExceptionHandlerMatcherAware;
 import top.turboweb.http.middleware.aware.MainClassAware;
 import top.turboweb.http.middleware.aware.SessionManagerHolderAware;
@@ -98,9 +97,6 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
             }
             if (ptr instanceof MainClassAware aware) {
                 aware.setMainClass(mainClass);
-            }
-            if (ptr instanceof CharsetAware aware) {
-                aware.setCharset(config.getCharset());
             }
             ptr = ptr.getNext();
         }

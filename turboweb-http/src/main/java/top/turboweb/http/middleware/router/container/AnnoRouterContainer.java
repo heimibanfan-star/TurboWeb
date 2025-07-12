@@ -1,5 +1,6 @@
 package top.turboweb.http.middleware.router.container;
 
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.struct.trie.PathTrie;
 import top.turboweb.http.middleware.router.container.info.ExactRouterInfo;
 import top.turboweb.http.middleware.router.container.info.RouterDefinition;
@@ -69,7 +70,7 @@ public class AnnoRouterContainer implements RouterContainer {
     }
 
     private String decode(String value) {
-        return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        return URLDecoder.decode(value, GlobalConfig.getRequestCharset());
     }
 
     public ExactRouterInfo getExactRouterInfo() {

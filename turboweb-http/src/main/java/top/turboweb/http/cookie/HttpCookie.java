@@ -1,5 +1,7 @@
 package top.turboweb.http.cookie;
 
+import top.turboweb.commons.config.GlobalConfig;
+
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -101,7 +103,7 @@ public class HttpCookie {
         sb.append(key).append("=");
 
         // 对 value 进行简单 URL 编码
-        String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8);
+        String encodedValue = URLEncoder.encode(value, GlobalConfig.getResponseCharset());
         sb.append(encodedValue);
 
         if (path != null && !path.isEmpty()) {

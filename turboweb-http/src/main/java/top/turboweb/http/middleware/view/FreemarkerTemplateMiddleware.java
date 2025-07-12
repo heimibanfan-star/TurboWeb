@@ -4,9 +4,9 @@ import freemarker.cache.ClassTemplateLoader;
 import freemarker.cache.TemplateLoader;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.middleware.aware.CharsetAware;
 import top.turboweb.http.middleware.aware.MainClassAware;
 import top.turboweb.http.response.ViewModel;
 import top.turboweb.commons.exception.TurboTemplateRenderException;
@@ -14,14 +14,13 @@ import top.turboweb.commons.exception.TurboTemplateRenderException;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * freemarker模板渲染中间件
  */
-public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements MainClassAware, CharsetAware {
+public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements MainClassAware {
 
     // 主启动类
     private Class<?> mainClass;
@@ -29,8 +28,6 @@ public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements 
     private String templatePath = "templates";
     // 模板文件的后缀
     private String templateSuffix = ".ftl";
-    // 工程的编码
-    private Charset charset;
     // 模板配置
     private Configuration configuration;
     // 是否缓存模板
@@ -108,11 +105,6 @@ public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements 
     }
 
     @Override
-    public void setCharset(Charset charset) {
-        this.charset = charset;
-    }
-
-    @Override
     public void init(Middleware chain) {
         this.configuration = loadTemplateConfiguration();
     }
@@ -127,7 +119,7 @@ public class FreemarkerTemplateMiddleware extends TemplateMiddleware implements 
         // 创建模板加载器
         TemplateLoader templateLoader = new ClassTemplateLoader(mainClass.getClassLoader(), templatePath);
         configuration.setTemplateLoader(templateLoader);
-        configuration.setDefaultEncoding(charset.name());
+        configuration.setDefaultEncoding(GlobalConfig.getResponseCharset().name());
         return configuration;
     }
 }

@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.*;
 import org.apache.hc.core5.net.URIBuilder;
 import top.turboweb.client.result.RestResponseResult;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboHttpClientException;
 import top.turboweb.commons.utils.base.BeanUtils;
 import reactor.core.publisher.Mono;
@@ -20,11 +21,9 @@ import java.util.Map;
 public abstract class AbstractHttpClient {
 
     protected final HttpClient httpClient;
-    private final Charset charset;
 
-    public AbstractHttpClient(HttpClient httpClient, Charset charset) {
+    public AbstractHttpClient(HttpClient httpClient) {
         this.httpClient = httpClient;
-        this.charset = charset;
     }
 
     /**
@@ -114,7 +113,7 @@ public abstract class AbstractHttpClient {
         ByteBuf contentBuf = response.content();
         // 判断是否是字符串
         if (type == String.class) {
-            return new RestResponseResult<>(response.headers(), contentBuf != null ? (T) contentBuf.toString(charset) : (T) "");
+            return new RestResponseResult<>(response.headers(), contentBuf != null ? (T) contentBuf.toString(GlobalConfig.getResponseCharset()) : (T) "");
         }
         String responseContent;
         if (contentBuf == null) {
@@ -124,7 +123,7 @@ public abstract class AbstractHttpClient {
             if (contentBuf.readableBytes() == 0) {
                 responseContent = "{}";
             } else {
-                responseContent = contentBuf.toString(charset);
+                responseContent = contentBuf.toString(GlobalConfig.getResponseCharset());
             }
         }
         T value = BeanUtils.getObjectMapper().readValue(responseContent, type);

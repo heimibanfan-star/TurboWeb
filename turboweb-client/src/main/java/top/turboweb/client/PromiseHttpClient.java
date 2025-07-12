@@ -20,8 +20,8 @@ public class PromiseHttpClient extends AbstractHttpClient {
 
     private final EventLoopGroup executors;
 
-    public PromiseHttpClient(HttpClient httpClient, EventLoopGroup executors, Charset charset) {
-        super(httpClient, charset);
+    public PromiseHttpClient(HttpClient httpClient, EventLoopGroup executors) {
+        super(httpClient);
         this.executors = executors;
     }
 

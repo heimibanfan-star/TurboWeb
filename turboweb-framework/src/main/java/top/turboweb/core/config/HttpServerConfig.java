@@ -15,11 +15,6 @@ public class HttpServerConfig {
     private int maxContentLength = 1024 * 1024 * 10;
 
     /**
-     * 字符编码
-     */
-    private Charset charset = StandardCharsets.UTF_8;
-
-    /**
      * 是否显示请求日志
      */
     private boolean showRequestLog = true;
@@ -82,17 +77,6 @@ public class HttpServerConfig {
         this.maxContentLength = maxContentLength;
     }
 
-    public Charset getCharset() {
-        return charset;
-    }
-
-    /**
-     * 字符集
-     */
-    public void setCharset(Charset charset) {
-        Objects.requireNonNull(charset, "charset不能为空");
-        this.charset = charset;
-    }
 
     public boolean isShowRequestLog() {
         return showRequestLog;
