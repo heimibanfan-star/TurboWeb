@@ -2,6 +2,7 @@ package top.turboweb.gateway;
 
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.FullHttpRequest;
+import reactor.netty.http.client.HttpClient;
 
 
 /**
@@ -16,6 +17,15 @@ public interface Gateway {
      * @param urls 路由
      */
     void addServerNode(String prefix, String... urls);
+
+    /**
+     * 设置 HttpClient 实例，仅允许调用一次。
+     * 框架启动时会自动注入默认 HttpClient，但如果用户在此之前已设置，
+     * 框架将不会覆盖用户配置。
+     *
+     * @param httpClient HttpClient
+     */
+    void setHttpClient(HttpClient httpClient);
 
     /**
      * 匹配节点的主机地址

@@ -3,10 +3,8 @@ package top.turboweb.core.server;
 import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.turboweb.client.config.HttpClientConfig;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.initializer.CommonSourceInitializer;
-import top.turboweb.core.initializer.HttpClientInitializer;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
@@ -14,7 +12,6 @@ import top.turboweb.core.initializer.factory.HttpSchedulerInitFactory;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.initializer.impl.DefaultCommonSourceInitializer;
 import top.turboweb.http.scheduler.HttpScheduler;
-import top.turboweb.core.initializer.impl.DefaultHttpClientInitializer;
 import top.turboweb.core.listener.DefaultJacksonTurboWebListener;
 import top.turboweb.core.listener.TurboWebListener;
 
@@ -33,7 +30,6 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
     private HttpServerConfig serverConfig = new HttpServerConfig();
     private final HttpSchedulerInitFactory httpSchedulerInitFactory;
     private final HttpProtocolDispatcherInitFactory httpProtocolDispatcherInitFactory;
-    private final HttpClientInitializer httpClientInitializer;
     private final CommonSourceInitializer commonSourceInitializer;
     private final List<TurboWebListener> defaultListeners = new ArrayList<>(1);
     private final List<TurboWebListener> customListeners = new ArrayList<>(1);
@@ -42,7 +38,6 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
     {
         httpSchedulerInitFactory = new HttpSchedulerInitFactory(this);
         httpProtocolDispatcherInitFactory = new HttpProtocolDispatcherInitFactory(this);
-        httpClientInitializer = new DefaultHttpClientInitializer();
         commonSourceInitializer = new DefaultCommonSourceInitializer();
         defaultListeners.add(new DefaultJacksonTurboWebListener());
     }
@@ -79,19 +74,6 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
         return this;
     }
 
-    @Override
-    public TurboWebServer configClient(Consumer<HttpClientConfig> consumer) {
-        Objects.requireNonNull(consumer, "consumer can not be null");
-        httpClientInitializer.config(consumer);
-        return this;
-    }
-
-    @Override
-    public TurboWebServer replaceClientConfig(HttpClientConfig httpClientConfig) {
-        Objects.requireNonNull(httpClientConfig, "httpClientConfig can not be null");
-        this.httpClientInitializer.replaceConfig(httpClientConfig);
-        return this;
-    }
 
 
     @Override
@@ -142,12 +124,10 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
     private void init() {
         // 初始化公共资源
         commonSourceInitializer.init(serverConfig);
-        // 初始化http客户端
-        httpClientInitializer.init(workers());
         // 创建http调度器
         HttpScheduler httpScheduler = httpSchedulerInitFactory.createHttpScheduler(serverConfig);
         // 创建http协议分发器
-        HttpProtocolDispatcher httpProtocolDispatcher = httpProtocolDispatcherInitFactory.createDispatcher(httpScheduler);
+        HttpProtocolDispatcher httpProtocolDispatcher = httpProtocolDispatcherInitFactory.createDispatcher(httpScheduler, workers());
         initPipeline(httpProtocolDispatcher, serverConfig.getMaxContentLength());
     }
 

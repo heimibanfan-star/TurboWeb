@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import top.turboweb.gateway.matcher.LoadBalanceRouterMatcher;
 import top.turboweb.gateway.matcher.RoundRobinRouterMatcher;
 import top.turboweb.http.response.HttpInfoResponse;
-import top.turboweb.client.HttpClientUtils;
 import top.turboweb.commons.utils.base.BeanUtils;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
@@ -25,8 +24,8 @@ import java.util.Objects;
  */
 public class DefaultGateway implements Gateway {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultGateway.class);
     private final LoadBalanceRouterMatcher routerMatcher;
+    private HttpClient httpClient;
 
     public DefaultGateway() {
         this(new RoundRobinRouterMatcher());
@@ -36,6 +35,13 @@ public class DefaultGateway implements Gateway {
         routerMatcher = loadBalanceRouterMatcher;
     }
 
+    @Override
+    public void setHttpClient(HttpClient httpClient) {
+        Objects.requireNonNull(httpClient, "httpClient can not be null");
+        if (this.httpClient == null) {
+            this.httpClient = httpClient;
+        }
+    }
 
     @Override
     public void addServerNode(String prefix, String... urls) {
@@ -49,7 +55,6 @@ public class DefaultGateway implements Gateway {
 
     @Override
     public void forwardRequest(String url, FullHttpRequest fullHttpRequest, Channel channel) {
-        HttpClient httpClient = HttpClientUtils.httpClient();
         // 创建异步回调对象
         Promise<HttpResponse> promise = channel.eventLoop().newPromise();
         // 处理响应对象到达时

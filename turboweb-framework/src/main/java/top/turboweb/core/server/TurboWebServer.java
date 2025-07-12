@@ -45,22 +45,6 @@ public interface TurboWebServer {
 	TurboWebServer replaceServerConfig(HttpServerConfig httpServerConfig);
 
 	/**
-	 * 配置客户端参数
-	 *
-	 * @param consumer 配置
-	 * @return 当前实例
-	 */
-	TurboWebServer configClient(Consumer<HttpClientConfig> consumer);
-
-	/**
-	 * 替换客户端参数
-	 *
-	 * @param httpClientConfig 参数
-	 * @return 当前实例
-	 */
-	TurboWebServer replaceClientConfig(HttpClientConfig httpClientConfig);
-
-	/**
 	 * 执行默认的监听器
 	 *
 	 * @param flag 是否执行

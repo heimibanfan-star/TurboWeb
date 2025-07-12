@@ -1,10 +1,12 @@
 package top.turboweb.core.initializer.factory;
 
+import io.netty.channel.EventLoopGroup;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.initializer.WebSocketHandlerInitializer;
 import top.turboweb.core.initializer.impl.DefaultWebSocketHandlerInitializer;
 import top.turboweb.core.server.TurboWebServer;
 import top.turboweb.gateway.Gateway;
+import top.turboweb.gateway.client.ReactorHttpClientFactory;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.websocket.WebSocketHandler;
 
@@ -75,7 +77,10 @@ public class HttpProtocolDispatcherInitFactory implements HttpProtocolDispatcher
      * @param httpScheduler http调度器
      * @return Http协议分发器
      */
-    public HttpProtocolDispatcher createDispatcher(HttpScheduler httpScheduler) {
+    public HttpProtocolDispatcher createDispatcher(HttpScheduler httpScheduler, EventLoopGroup group) {
+        if (gateway != null) {
+            gateway.setHttpClient(ReactorHttpClientFactory.createHttpClient(group, builder -> builder));
+        }
         return new HttpProtocolDispatcher(
                 httpScheduler,
                 webSocketHandlerInitializer.isUse()? webSocketHandlerInitializer.init() : null,
