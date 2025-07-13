@@ -3,6 +3,7 @@ package top.turboweb.http.request;
 import io.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.turboweb.http.session.HttpSession;
 
 import java.util.List;
 import java.util.Map;
@@ -16,11 +17,19 @@ public class HttpInfoRequest {
 
 
     private final FullHttpRequest request;
-    private Map<String, List<String>> queryParams;
-    private HttpContent content;
+    private final Map<String, List<String>> queryParams;
+    private final HttpContent content;
+    private final String contentType;
 
-    public HttpInfoRequest(FullHttpRequest request) {
+    public HttpInfoRequest(FullHttpRequest request, Map<String, List<String>> queryParams, HttpContent content) {
         this.request = request;
+        this.queryParams = queryParams;
+        this.content = content;
+        if (content != null) {
+            this.contentType = content.getContentType();
+        } else {
+            this.contentType = null;
+        }
     }
 
     public FullHttpRequest getRequest() {
@@ -28,22 +37,15 @@ public class HttpInfoRequest {
     }
 
     public Map<String, List<String>> getQueryParams() {
-        if (queryParams == null) {
-            this.queryParams = HttpRequestDecoder.parseQueryParams(request.uri());
-        }
         return queryParams;
     }
 
     public HttpContent getContent() {
-        if (this.content != null) {
-            return this.content;
-        }
-        this.content = HttpRequestDecoder.parseBodyInfo(request);
-        return this.content;
+        return content;
     }
 
     public String getContentType() {
-        return this.getContent().getContentType();
+        return contentType;
     }
 
     public HttpVersion getProtocolVersion() {
