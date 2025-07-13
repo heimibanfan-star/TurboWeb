@@ -13,50 +13,29 @@ import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboHttpParseException;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 /**
  * 用于封装HttpRequest
  */
-public class HttpInfoRequestPackageHelper {
+public class HttpRequestDecoder {
 
-    private static final Logger log = LoggerFactory.getLogger(HttpInfoRequestPackageHelper.class);
+    private static final Logger log = LoggerFactory.getLogger(HttpRequestDecoder.class);
 
     private static final Map<String, Function<FullHttpRequest, HttpContent>> bodyInfoParseFunctions = new ConcurrentHashMap<>();
 
     static {
-        bodyInfoParseFunctions.put("application/json", HttpInfoRequestPackageHelper::doParseJsonBodyInfo);
-        bodyInfoParseFunctions.put("application/x-www-form-urlencoded", HttpInfoRequestPackageHelper::doParseFormBodyInfo);
-        bodyInfoParseFunctions.put("multipart/form-data", HttpInfoRequestPackageHelper::doParseFormBodyInfo);
+        bodyInfoParseFunctions.put("application/json", HttpRequestDecoder::doParseJsonBodyInfo);
+        bodyInfoParseFunctions.put("application/x-www-form-urlencoded", HttpRequestDecoder::doParseFormBodyInfo);
+        bodyInfoParseFunctions.put("multipart/form-data", HttpRequestDecoder::doParseFormBodyInfo);
     }
 
-    private HttpInfoRequestPackageHelper() {
-    }
-
-    /**
-     * 封装请求对象
-     *
-     * @param request netty的请求
-     * @return 自定义的http请求对象
-     */
-    public static HttpInfoRequest packageRequest(FullHttpRequest request) {
-        Map<String, List<String>> queryParams = parseQueryParams(request.uri());
-        HttpContent content = null;
-        // 获取请求方式
-        String method = request.method().name();
-        if (HttpMethod.POST.name().equals(method) || HttpMethod.PUT.name().equals(method) || HttpMethod.PATCH.name().equals(method)) {
-            if (request.headers().get(HttpHeaderNames.CONTENT_TYPE) != null) {
-                // 只有当请求方式为post、put、patch时，并且请求体不为空时，才进行解析
-                content = parseBodyInfo(request);
-            } else {
-                content = HttpContent.empty();
-            }
-        } else {
-            content = HttpContent.empty();
-        }
-        return new HttpInfoRequest(request, queryParams, content);
+    private HttpRequestDecoder() {
     }
 
     /**
@@ -65,7 +44,7 @@ public class HttpInfoRequestPackageHelper {
      * @param uri uri地址
      * @return 参数map
      */
-    private static Map<String, List<String>> parseQueryParams(String uri) {
+    public static Map<String, List<String>> parseQueryParams(String uri) {
         Map<String, List<String>> paramsForSearch = new HashMap<>();
         try {
             URIBuilder uriBuilder = new URIBuilder(uri);
@@ -88,20 +67,31 @@ public class HttpInfoRequestPackageHelper {
      * @param request 请求对象
      * @return 请求体
      */
-    private static HttpContent parseBodyInfo(FullHttpRequest request) {
-        // 获取请求的格式
-        String contentType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
-        if (contentType != null && !contentType.isBlank()) {
-            contentType = contentType.split(";")[0];
+    public static HttpContent parseBodyInfo(FullHttpRequest request) {
+        // 获取请求方式
+        String method = request.method().name();
+        if (HttpMethod.POST.name().equals(method) || HttpMethod.PUT.name().equals(method) || HttpMethod.PATCH.name().equals(method)) {
+            if (request.headers().get(HttpHeaderNames.CONTENT_TYPE) != null) {
+                // 只有当请求方式为post、put、patch时，并且请求体不为空时，才进行解析
+                // 获取请求的格式
+                String contentType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
+                if (contentType != null && !contentType.isBlank()) {
+                    contentType = contentType.split(";")[0];
+                }
+                // 判断是否是支持的格式
+                if (!bodyInfoParseFunctions.containsKey(contentType)) {
+                    throw new TurboHttpParseException("不支持的请求体格式:" + contentType);
+                }
+                // 获取请求处理器
+                Function<FullHttpRequest, HttpContent> function = bodyInfoParseFunctions.get(contentType);
+                // 处理请求信息
+                return function.apply(request);
+            } else {
+                return HttpContent.empty();
+            }
+        } else {
+            return HttpContent.empty();
         }
-        // 判断是否是支持的格式
-        if (!bodyInfoParseFunctions.containsKey(contentType)) {
-            throw new TurboHttpParseException("不支持的请求体格式:" + contentType);
-        }
-        // 获取请求处理器
-        Function<FullHttpRequest, HttpContent> function = bodyInfoParseFunctions.get(contentType);
-        // 处理请求信息
-        return function.apply(request);
     }
 
     /**

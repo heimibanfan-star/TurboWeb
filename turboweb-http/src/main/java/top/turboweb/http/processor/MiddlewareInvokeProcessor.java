@@ -2,7 +2,6 @@ package top.turboweb.http.processor;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.commons.lock.Locks;
 import top.turboweb.http.connect.ConnectSession;
@@ -13,8 +12,6 @@ import top.turboweb.http.cookie.HttpCookieManager;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.processor.convertor.HttpResponseConverter;
 import top.turboweb.http.request.HttpInfoRequest;
-import top.turboweb.http.request.HttpInfoRequestPackageHelper;
-import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.session.BackHoleSessionManager;
 import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
@@ -61,8 +58,7 @@ public class MiddlewareInvokeProcessor extends Processor{
      * @return 响应对象
      */
     private HttpResponse executeMiddleware(FullHttpRequest fullHttpRequest, ConnectSession connectSession) {
-        // 封装请求对象
-        HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(fullHttpRequest);
+        HttpInfoRequest httpInfoRequest = new HttpInfoRequest(fullHttpRequest);
         try {
             // 初始化Cookie
             HttpCookieManager cookieManager = new DefaultHttpCookieManager(fullHttpRequest.headers());
