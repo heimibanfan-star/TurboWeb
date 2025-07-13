@@ -21,45 +21,6 @@ public class AnnoRouterManager extends RouterManager {
     private final Set<RouterContainerInitHelper.ControllerAttribute> controllers = new HashSet<>();
     private RouterContainer routerContainer;
 
-    @Override
-    protected RouterDefinition matchDefinition(HttpContext ctx) {
-        // 获取请求方式
-        String method = ctx.getRequest().getMethod();
-        // 获取请求的路径
-        String path = ctx.getRequest().getUri();
-        // 数据校验
-        if (method == null || path == null || method.isEmpty() || path.isEmpty()) {
-            throw new TurboRequestException("request method and request uri is null or empty");
-        }
-        // 尝试进行精确匹配
-        RouterDefinition routerDefinition = routerContainer.exactMatch(method, path);
-        if (routerDefinition != null) {
-            return routerDefinition;
-        }
-        // 当精确匹配无法匹配到时进行参数模式匹配
-        RouterContainer.TrieMatchResult matchResult = routerContainer.trieMatch(method, path);
-        if (matchResult != null) {
-            // 解析路径参数
-            parsePathVariable(ctx, matchResult);
-            return matchResult.definition();
-        }
-        return null;
-    }
-
-    /**
-     * 解析路径参数
-     *
-     * @param ctx              上下文
-     * @param trieMatchResult 前缀树匹配结果
-     */
-    private void parsePathVariable(HttpContext ctx, RouterContainer.TrieMatchResult trieMatchResult) {
-        Map<String, String> params = trieMatchResult.params();
-        if (params == null) {
-            params = new HashMap<>(1);
-        }
-        ctx.injectPathParam(params);
-    }
-
     /**
      * 添加controller
      *
@@ -100,5 +61,10 @@ public class AnnoRouterManager extends RouterManager {
     public void init(Middleware chain) {
         this.routerContainer = RouterContainerInitHelper.initContainer(controllers);
         log.info("AnnoRouterManager init success");
+    }
+
+    @Override
+    protected RouterContainer getRouterContainer() {
+        return this.routerContainer;
     }
 }

@@ -7,7 +7,6 @@ import top.turboweb.http.middleware.router.container.info.RouterDefinition;
 import top.turboweb.http.middleware.router.container.info.TrieRouterInfo;
 
 import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -15,13 +14,13 @@ import java.util.Optional;
 /**
  * 注解是路由的路由容器
  */
-public class AnnoRouterContainer implements RouterContainer {
+public class DefaultRouterContainer implements RouterContainer {
 
     private final ExactRouterInfo exactRouterInfo;
     private final TrieRouterInfo trieRouterInfo;
     private final Map<Class<?>, Object> controllerInstances;
 
-    public AnnoRouterContainer() {
+    public DefaultRouterContainer() {
         this.exactRouterInfo = new ExactRouterInfo();
         this.trieRouterInfo = new TrieRouterInfo();
         this.controllerInstances = new HashMap<>();

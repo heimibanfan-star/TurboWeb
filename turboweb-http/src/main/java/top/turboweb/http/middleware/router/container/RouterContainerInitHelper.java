@@ -39,7 +39,7 @@ public class RouterContainerInitHelper {
      * @return 路由容器
      */
     public static RouterContainer initContainer(Collection<ControllerAttribute> controllerAttributes) {
-        RouterContainer routerContainer = new AnnoRouterContainer();
+        RouterContainer routerContainer = new DefaultRouterContainer();
         for (ControllerAttribute controllerAttribute : controllerAttributes) {
             // 判断类上是否有注解
             Class<?> aClass = Objects.requireNonNullElseGet(controllerAttribute.clazz, controllerAttribute.instance::getClass);
@@ -71,6 +71,12 @@ public class RouterContainerInitHelper {
     private static void initRouterDefinition(RouterContainer container, Method method, Class<?> clazz) {
         RequestPath annotation = clazz.getAnnotation(RequestPath.class);
         String prePath = annotation.value();
+        if (prePath == null || prePath.isEmpty()) {
+            prePath = "/";
+        }
+        if (!prePath.startsWith("/")) {
+            prePath = "/" + prePath;
+        }
         if (prePath.endsWith("/")) {
             prePath = prePath.substring(0, prePath.length() - 1);
         }
