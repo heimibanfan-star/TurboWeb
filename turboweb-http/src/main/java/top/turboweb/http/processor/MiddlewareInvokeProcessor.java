@@ -15,6 +15,7 @@ import top.turboweb.http.processor.convertor.HttpResponseConverter;
 import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.request.HttpInfoRequestPackageHelper;
 import top.turboweb.http.response.HttpInfoResponse;
+import top.turboweb.http.session.BackHoleSessionManager;
 import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.session.SessionManagerHolder;
@@ -40,12 +41,16 @@ public class MiddlewareInvokeProcessor extends Processor{
 
     @Override
     public HttpResponse invoke(FullHttpRequest fullHttpRequest, ConnectSession connectSession) {
-        // 获取session的读锁
-        Locks.SESSION_LOCK.readLock().lock();
-        try {
+        boolean needLock = !(sessionManagerHolder.getSessionManager() instanceof BackHoleSessionManager);
+        if (needLock) {
+            Locks.SESSION_LOCK.readLock().lock();
+            try {
+                return executeMiddleware(fullHttpRequest, connectSession);
+            } finally {
+                Locks.SESSION_LOCK.readLock().unlock();
+            }
+        } else {
             return executeMiddleware(fullHttpRequest, connectSession);
-        } finally {
-            Locks.SESSION_LOCK.readLock().unlock();
         }
     }
 

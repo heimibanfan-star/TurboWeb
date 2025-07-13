@@ -5,6 +5,7 @@ import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.gateway.DefaultGateway;
 import top.turboweb.gateway.Gateway;
 import top.turboweb.http.middleware.router.AnnoRouterManager;
+import top.turboweb.http.session.BackHoleSessionManager;
 
 import java.io.IOException;
 
@@ -19,6 +20,7 @@ public class UserApplication {
         gateway.addServerNode("/order", "http://localhost:8081");
         BootStrapTurboWebServer.create()
                 .http().routerManager(manager)
+                .replaceSessionManager(new BackHoleSessionManager())
                 .and()
                 .protocol().gateway(gateway)
                 .and()
