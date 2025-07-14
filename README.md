@@ -27,5 +27,3 @@ TurboWeb 是一个**现代、高性能、无废话**的 Java Web 框架。它是
 
 接下来一起进入TurboWeb：
 
-[目录](./docs/sync/guide.md)
-
