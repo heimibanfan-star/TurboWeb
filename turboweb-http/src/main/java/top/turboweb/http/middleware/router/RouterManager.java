@@ -5,7 +5,7 @@ import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.router.container.RouterContainer;
-import top.turboweb.http.middleware.router.container.info.RouterDefinition;
+import top.turboweb.http.middleware.router.info.RouterDefinition;
 
 import java.util.HashMap;
 import java.util.Map;
