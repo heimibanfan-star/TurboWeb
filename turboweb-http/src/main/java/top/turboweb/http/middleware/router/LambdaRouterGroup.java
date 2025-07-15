@@ -47,9 +47,17 @@ public abstract class LambdaRouterGroup {
             return this;
         }
 
+        public RouterRegister get(LambdaHandler handler) {
+            return get("/", handler);
+        }
+
         public RouterRegister post(String path, LambdaHandler handler) {
             routers.add(new RouterInfo(HttpMethod.POST.name(), path, handler));
             return this;
+        }
+
+        public RouterRegister post(LambdaHandler handler) {
+            return post("/", handler);
         }
 
         public RouterRegister put(String path, LambdaHandler handler) {
@@ -57,14 +65,26 @@ public abstract class LambdaRouterGroup {
             return this;
         }
 
+        public RouterRegister put(LambdaHandler handler) {
+            return put("/", handler);
+        }
+
         public RouterRegister patch(String path, LambdaHandler handler) {
             routers.add(new RouterInfo(HttpMethod.PATCH.name(), path, handler));
             return this;
         }
 
+        public RouterRegister patch(LambdaHandler handler) {
+            return patch("/", handler);
+        }
+
         public RouterRegister delete(String path, LambdaHandler handler) {
             routers.add(new RouterInfo(HttpMethod.DELETE.name(), path, handler));
             return this;
+        }
+
+        public RouterRegister delete(LambdaHandler handler) {
+            return delete("/", handler);
         }
     }
 
@@ -72,7 +92,9 @@ public abstract class LambdaRouterGroup {
      * 获取请求路径
      * @return 请求路径
      */
-    public abstract String requestPath();
+    public String requestPath() {
+        return "";
+    }
 
     /**
      * 注册路由
