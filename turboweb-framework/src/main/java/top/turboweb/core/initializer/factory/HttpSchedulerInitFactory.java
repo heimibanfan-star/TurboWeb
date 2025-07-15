@@ -145,7 +145,7 @@ public class HttpSchedulerInitFactory implements HttpSchedulerInitBuilder {
             // 初始化内核处理器
             return processorInitializer.init(chain, sessionManagerHolder, exceptionHandlerMatcher);
         } catch (InterruptedException | ExecutionException e) {
-            throw new TurboServerInitException("middleware init error");
+            throw new TurboServerInitException(e);
         }
     }
 }

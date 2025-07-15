@@ -71,43 +71,29 @@ public class RouterContainerInitHelper {
     private static void initRouterDefinition(RouterContainer container, Method method, Class<?> clazz) {
         RequestPath annotation = clazz.getAnnotation(RequestPath.class);
         String prePath = annotation.value();
-        if (prePath == null || prePath.isEmpty()) {
-            prePath = "/";
-        }
-        if (!prePath.startsWith("/")) {
-            prePath = "/" + prePath;
-        }
-        if (prePath.endsWith("/")) {
-            prePath = prePath.substring(0, prePath.length() - 1);
-        }
         // 获取方法的注解
         if (method.isAnnotationPresent(Get.class)) {
-            String path = prePath + method.getAnnotation(Get.class).value();
+            String path = PathHelper.mergePath(prePath, method.getAnnotation(Get.class).value());
             doInitRouterDefinition(container, method, path);
         } else if (method.isAnnotationPresent(Post.class)) {
-            String path = prePath + method.getAnnotation(Post.class).value();
+            String path = PathHelper.mergePath(prePath, method.getAnnotation(Post.class).value());
             doInitRouterDefinition(container, method, path);
         } else if (method.isAnnotationPresent(Put.class)) {
-            String path = prePath + method.getAnnotation(Put.class).value();
+            String path = PathHelper.mergePath(prePath, method.getAnnotation(Put.class).value());
             doInitRouterDefinition(container, method, path);
         } else if (method.isAnnotationPresent(Patch.class)) {
-            String path = prePath + method.getAnnotation(Patch.class).value();
+            String path = PathHelper.mergePath(prePath, method.getAnnotation(Patch.class).value());
             doInitRouterDefinition(container, method, path);
         } else if (method.isAnnotationPresent(Delete.class)) {
-            String path = prePath + method.getAnnotation(Delete.class).value();
+            String path = PathHelper.mergePath(prePath, method.getAnnotation(Delete.class).value());
             doInitRouterDefinition(container, method, path);
         }
     }
 
+
     private static void doInitRouterDefinition(RouterContainer container, Method method, String path) {
         if (path.contains("*")) {
             throw new TurboRouterDefinitionCreateException("路径不能包含*");
-        }
-        if (path.isEmpty()) {
-            throw new TurboRouterDefinitionCreateException("组合后的路径不能为空路径");
-        }
-        if (path.endsWith("/")) {
-            path = path.substring(0, path.length() - 1);
         }
         // 判断参数中是否存在http数据交换上下文
         Parameter[] parameters = method.getParameters();

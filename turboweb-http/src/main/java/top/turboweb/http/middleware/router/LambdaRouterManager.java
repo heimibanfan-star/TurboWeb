@@ -2,6 +2,7 @@ package top.turboweb.http.middleware.router;
 
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.middleware.router.container.DefaultRouterContainer;
+import top.turboweb.http.middleware.router.container.PathHelper;
 import top.turboweb.http.middleware.router.container.RouterContainer;
 import top.turboweb.http.middleware.router.info.ExactRouterInfo;
 import top.turboweb.http.middleware.router.info.LambdaRouterDefinition;
@@ -23,18 +24,9 @@ public class LambdaRouterManager extends RouterManager {
 
     public LambdaRouterManager addGroup(LambdaRouterGroup group) {
         List<LambdaRouterGroup.RouterInfo> routers = group.getRouters();
-        String requestPath = group.requestPath();
-        if (requestPath == null) {
-            requestPath = "/";
-        }
-        if (!requestPath.startsWith("/")) {
-            requestPath = "/" + requestPath;
-        }
-        if (requestPath.endsWith("/")) {
-            requestPath = requestPath.substring(0, requestPath.length() - 1);
-        }
+        String prePath = group.requestPath();
         for (LambdaRouterGroup.RouterInfo router : routers) {
-            String allPath = router.getPath() != null ? requestPath + router.getPath() : requestPath;
+            String allPath = PathHelper.mergePath(prePath, router.getPath());
             if (allPath.endsWith("/")) {
                 allPath = allPath.substring(0, allPath.length() - 1);
             }

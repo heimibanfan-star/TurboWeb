@@ -14,5 +14,5 @@ public @interface Get {
     /**
      * 请求路径
      */
-    String value() default "";
+    String value() default "/";
 }

@@ -14,5 +14,5 @@ public @interface Post {
     /**
      * 请求路径
      */
-    String value() default "";
+    String value() default "/";
 }
