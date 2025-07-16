@@ -26,14 +26,14 @@ public class ExceptionHandlerProcessor extends Processor {
     private static final Function<String, String> SERVER_ERROR_MSG = msg -> String.format("""
             {
                 "code": 500,
-                "msg": %s
+                "msg": "%s"
             }
             """, msg);
     // 默认的路由未找到处理
     private static final Function<String, String> ROUTER_NOT_FOUND_MSG = msg -> String.format("""
             {
                 "code": 404,
-                "msg": %s
+                "msg": "%s"
             }
             """, msg);
 

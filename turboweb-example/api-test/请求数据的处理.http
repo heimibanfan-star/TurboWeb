@@ -1,0 +1,47 @@
+### user01
+GET http://localhost:8080/user01?name=张三
+
+### user02
+GET http://localhost:8080/user02?name=张三&name=李四
+
+### user03
+GET http://localhost:8080/user03?age=18
+
+### user04
+GET http://localhost:8080/user04?pageNum=2&pageSize=20
+
+### user05
+POST http://localhost:8080/user05
+Content-Type: application/x-www-form-urlencoded
+
+username=zhangsan&nickname=张三&password=123456
+
+### user06
+POST http://localhost:8080/user06
+Content-Type: application/json
+
+{
+  "username": "lisi",
+  "nickname": "李四",
+  "password": "123456"
+}
+
+### user07
+POST http://localhost:8080/user07
+Content-Type: application/json
+
+{
+  "username": "lisi",
+  "nickname": "李四"
+}
+
+### user08
+POST http://localhost:8080/user08
+Content-Type: application/json
+
+{
+
+}
+
+### user09
+GET http://localhost:8080/user09/zhangsan
