@@ -393,13 +393,13 @@ public String getOrder(HttpContext context) {
 
 类似于 `queryInt()` 等方法，TurboWeb 提供了多种自动转换方法方便直接获取对应类型的路径参数：
 
-| 方法                     | 说明                                              |
-| ------------------------ | ------------------------------------------------- |
-| `param(String name)`     | 返回字符串类型参数                                |
-| `paramInt(String name)`  | 返回整型参数                                      |
-| `paramLong(String name)` | 返回长整型参数                                    |
-| `paramBool(String name)` | 返回布尔类型参数                                  |
-| `paramDate(String name)` | 返回 `java.util.Date` 类型参数，格式 `yyyy-MM-dd` |
+| 方法                     | 说明                                  |
+| ------------------------ |-------------------------------------|
+| `param(String name)`     | 返回字符串类型参数                           |
+| `paramInt(String name)`  | 返回整型参数                              |
+| `paramLong(String name)` | 返回长整型参数                             |
+| `paramBool(String name)` | 返回布尔类型参数                            |
+| `paramDate(String name)` | 返回 `LocalDate` 类型参数，格式 `yyyy-MM-dd` |
 
 **_注意事项_**
 
