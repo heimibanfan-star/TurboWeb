@@ -13,6 +13,9 @@ import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboHttpParseException;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -115,7 +118,7 @@ public class HttpInfoRequestPackageHelper {
         // 获取请求体的内容
         ByteBuf contentBuf = request.content();
         // 将请求体转化为字符串
-        String jsonContent = contentBuf.toString(GlobalConfig.getRequestCharset());
+        String jsonContent = contentBuf.toString(getRequestCharset(request));
         if (jsonContent == null || jsonContent.isBlank()) {
             jsonContent = "{}";
         }
@@ -139,7 +142,7 @@ public class HttpInfoRequestPackageHelper {
         Map<String, List<String>> formParams = new HashMap<>();
         Map<String, List<FileUpload>> formFiles = new HashMap<>();
         // 创建处理器
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(new DefaultHttpDataFactory(Integer.MAX_VALUE), request);
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(new DefaultHttpDataFactory(Integer.MAX_VALUE), request, getRequestCharset(request));
         List<InterfaceHttpData> httpDataList = decoder.getBodyHttpDatas();
         // 解析数据
         for (InterfaceHttpData httpData : httpDataList) {
@@ -181,4 +184,38 @@ public class HttpInfoRequestPackageHelper {
         }
         return content;
     }
+
+    /**
+     * 从 FullHttpRequest 中提取请求体编码
+     * @param request FullHttpRequest 对象
+     * @return 请求体字符编码
+     */
+    private static Charset getRequestCharset(FullHttpRequest request) {
+        if (request == null) {
+            return GlobalConfig.getRequestCharset();
+        }
+
+        String contentType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
+        if (contentType != null && !contentType.isBlank()) {
+            // contentType 形如 "application/json; charset=UTF-8"
+            String[] parts = contentType.split(";");
+            for (String part : parts) {
+                part = part.trim();
+                if (part.toLowerCase(Locale.ROOT).startsWith("charset=")) {
+                    String charsetName = part.substring("charset=".length()).trim();
+                    if (charsetName.isEmpty()) {
+                        continue;
+                    }
+                    try {
+                        return Charset.forName(charsetName);
+                    } catch (Exception ignore) {
+                        // 继续尝试其他部分，或者最终返回默认
+                    }
+                }
+            }
+        }
+        // 没指定 charset，默认
+        return GlobalConfig.getRequestCharset();
+    }
+
 }
