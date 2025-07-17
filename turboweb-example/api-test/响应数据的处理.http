@@ -1,0 +1,11 @@
+### user01
+GET http://localhost:8080/user01
+
+### user02
+GET http://localhost:8080/user02
+
+### user03
+GET http://localhost:8080/user03
+
+### resp
+GET http://localhost:8080/resp

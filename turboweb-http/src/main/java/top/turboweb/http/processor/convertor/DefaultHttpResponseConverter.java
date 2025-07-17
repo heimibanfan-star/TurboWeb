@@ -27,7 +27,7 @@ public class DefaultHttpResponseConverter implements HttpResponseConverter {
             // 如果是正常的反应类型，则直接返回
             case HttpResponse httpResponse -> httpResponse;
             // 如果无返回值，则返回空字符串
-            case null -> buildResponse("", "text/plain;charset=" + GlobalConfig.getResponseCharset().name());
+            case null -> buildResponse("", "text/html;charset=" + GlobalConfig.getResponseCharset().name());
             // 按照application/json构建
             default -> {
                 try {
