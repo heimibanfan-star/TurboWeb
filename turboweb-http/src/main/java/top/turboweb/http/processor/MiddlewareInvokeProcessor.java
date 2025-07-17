@@ -63,12 +63,13 @@ public class MiddlewareInvokeProcessor extends Processor{
     private HttpResponse executeMiddleware(FullHttpRequest fullHttpRequest, ConnectSession connectSession) {
         // 封装请求对象
         HttpInfoRequest httpInfoRequest = HttpInfoRequestPackageHelper.packageRequest(fullHttpRequest);
+        HttpSession httpSession = null;
         try {
             // 初始化Cookie
             HttpCookieManager cookieManager = new DefaultHttpCookieManager(fullHttpRequest.headers());
             // 初始化session
             String originSessionId = cookieManager.getCookie("JSESSIONID");
-            HttpSession httpSession = new DefaultHttpSession(sessionManagerHolder.getSessionManager(), originSessionId);
+            httpSession = new DefaultHttpSession(sessionManagerHolder.getSessionManager(), originSessionId);
             // 创建HttpContext对象
             HttpContext context = new FullHttpContext(httpInfoRequest, httpSession, cookieManager, connectSession);
             // 执行中间件
@@ -80,11 +81,12 @@ public class MiddlewareInvokeProcessor extends Processor{
             if (httpSession.sessionId() != null && (!Objects.equals(httpSession.sessionId(), originSessionId) || httpSession.pathIsUpdate())) {
                 response.headers().add("Set-Cookie", "JSESSIONID=" + httpSession.sessionId() + "; Path="+ httpSession.getPath() +"; HttpOnly");
             }
-            // 续时
-            httpSession.expireAt();
             return response;
         } finally {
             releaseFiles(httpInfoRequest);
+            if (httpSession != null) {
+                httpSession.expireAt();
+            }
         }
     }
 

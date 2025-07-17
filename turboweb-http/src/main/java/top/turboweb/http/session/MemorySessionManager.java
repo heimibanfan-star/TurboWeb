@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 呢哦村session管理器
@@ -22,6 +23,7 @@ public class MemorySessionManager implements SessionManager {
     private static final Logger log = LoggerFactory.getLogger(MemorySessionManager.class);
     private final Map<String, MemorySessionMap> sessionContainer = new ConcurrentHashMap<>();
     private final SegmentLock segmentLock = new SegmentLock(64);
+    private final AtomicBoolean isStartGC = new AtomicBoolean(false);
 
     @Override
     public void setAttr(String sessionId, String key, Object value) {
@@ -84,6 +86,9 @@ public class MemorySessionManager implements SessionManager {
 
     @Override
     public void sessionGC(long checkTime, long maxNotUseTime, long checkForSessionNums) {
+        if (!isStartGC.compareAndSet(false, true)) {
+            return;
+        }
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
             // 判断是否到达检查条件

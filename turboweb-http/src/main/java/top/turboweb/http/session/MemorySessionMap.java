@@ -57,7 +57,6 @@ public class MemorySessionMap implements HttpSessionStore {
      */
     @Override
     public void setAttr(String key, Object value) {
-        this.expireAt();
         sessionMap.put(key, new SessionAttributeDefinition(value, null));
     }
 
@@ -70,7 +69,6 @@ public class MemorySessionMap implements HttpSessionStore {
      */
     @Override
     public void setAttr(String key, Object value, long timeout) {
-        this.expireAt();
         timeout = System.currentTimeMillis() + timeout;
         sessionMap.put(key, new SessionAttributeDefinition(value, timeout));
     }
@@ -83,15 +81,10 @@ public class MemorySessionMap implements HttpSessionStore {
      */
     @Override
     public Object getAttr(String key) {
-        this.expireAt();
         // 获取session的定义信息
         SessionAttributeDefinition definition = sessionMap.get(key);
         // 判断session是否存在、是否过期
-        if (definition == null) {
-            return null;
-        }
-        if (definition.isTimeout()) {
-            sessionMap.remove(key);
+        if (definition == null || definition.isTimeout()) {
             return null;
         }
         // 获取正确的内容
@@ -121,7 +114,6 @@ public class MemorySessionMap implements HttpSessionStore {
      */
     @Override
     public void remAttr(String key) {
-        this.expireAt();
         sessionMap.remove(key);
     }
 
