@@ -71,6 +71,12 @@ public interface HttpCookieManager {
     void clearToWriteCookies();
 
     /**
+     * 清空当前上下文中所有 Cookie。
+     * 常用于中间件或控制器中清除 Cookie。
+     */
+    void clearAll();
+
+    /**
      * 将当前上下文中的 Cookie 状态写入响应头。
      * 常用于中间件或控制器中设置 Cookie。
      *

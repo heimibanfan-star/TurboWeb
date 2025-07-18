@@ -93,6 +93,11 @@ public class DefaultHttpCookieManager implements HttpCookieManager {
 
     @Override
     public void clearToWriteCookies() {
+        toWriteHttpCookies.clear();
+    }
+
+    @Override
+    public void clearAll() {
         toRemoveHttpCookies.clear();
         for (String key : toWriteHttpCookies) {
             httpCookieMap.remove(key);
