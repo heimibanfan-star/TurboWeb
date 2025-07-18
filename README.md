@@ -68,3 +68,5 @@ TurboWeb 不依赖传统中心化网关。通过“服务间路由共享”，�
 
 [文件的上传和下载](./docs/file.md)
 
+[异常处理器](./docs/exceptionhandler.md)
+

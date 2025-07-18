@@ -1,0 +1,9 @@
+### 测试路径找不到
+GET http://localhost:8080/user/123
+
+### 测试自定义抛出异常
+GET http://localhost:8080/excep
+
+### 数据校验异常
+POST http://localhost:8080/excep/stu
+Content-Type: application/json
