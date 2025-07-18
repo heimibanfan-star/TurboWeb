@@ -1,0 +1,8 @@
+### 获取线程信息
+GET http://localhost:8080/turboWeb/serverInfo?type=thread
+
+### 获取内存信息
+GET http://localhost:8080/turboWeb/serverInfo?type=memory
+
+### 获取gc信息
+GET http://localhost:8080/turboWeb/serverInfo?type=gc

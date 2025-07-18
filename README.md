@@ -72,8 +72,10 @@ TurboWeb 不依赖传统中心化网关。通过“服务间路由共享”，�
 
 [中间件的使用](./docs/middleware.md)
 
- [拦截器的使用](./docs/interceptor.md)
+[拦截器的使用](./docs/interceptor.md)
 
 [静态资源的支持](./docs/staticresource.md)
 
 [模板技术的支持](./docs/template.md)
+
+[运行信息的获取](./docs/serverinfo.md)
