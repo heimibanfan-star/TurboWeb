@@ -16,7 +16,7 @@ public class BaseMiddleware {
 		return next;
 	}
 
-	public void setNext(Middleware next) {
+	public final void setNext(Middleware next) {
 		if (isLock) {
 			log.warn("Middleware is locked, can not set next middleware");
 		} else {
@@ -27,7 +27,7 @@ public class BaseMiddleware {
 	/**
 	 * 锁定中间件，不允许设置下一个中间件
 	 */
-	public void lockMiddleware() {
+	public final void lockMiddleware() {
 		isLock = true;
 	}
 

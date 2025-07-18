@@ -1,0 +1,12 @@
+### test1
+GET http://localhost:8080
+
+### test2
+GET http://localhost:8080
+
+### noAuth
+GET  http://localhost:8080/user
+
+### auth
+GET http://localhost:8080/user
+Authorization: 123456
