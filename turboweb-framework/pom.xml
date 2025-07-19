@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.gitee.turboweb</groupId>
         <artifactId>turboweb</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.0.0</version>
     </parent>
 
     <artifactId>turboweb-framework</artifactId>
@@ -33,12 +33,6 @@
         <dependency>
             <groupId>${turboweb.groupId}</groupId>
             <artifactId>turboweb-http</artifactId>
-            <version>${turboweb.version}</version>
-        </dependency>
-        <!-- 提供的客户端 -->
-        <dependency>
-            <groupId>${turboweb.groupId}</groupId>
-            <artifactId>turboweb-client</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
         <!-- websocket -->

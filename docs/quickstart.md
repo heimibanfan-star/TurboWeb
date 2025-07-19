@@ -4,7 +4,13 @@
 
 **_1.引入相关jar包_**
 
-// TODO 待补充
+```xml
+<dependency>
+    <groupId>${turboweb.groupId}</groupId>
+    <artifactId>turboweb-framework</artifactId>
+    <version>2.0.0</version>
+</dependency>
+```
 
 **_2.编写Controller接口_**
 

@@ -1,7 +1,6 @@
 package top.turboweb.core.server;
 
 import io.netty.channel.ChannelFuture;
-import top.turboweb.client.config.HttpClientConfig;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
