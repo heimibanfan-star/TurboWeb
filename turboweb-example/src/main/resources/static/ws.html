@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>websocket</title>
+    <title>Title</title>
 </head>
 <body>
 <script>
-    const ws = new WebSocket('ws://localhost:8080/ws/');
+    const ws = new WebSocket('ws://localhost:8080/ws/123456');
     ws.onopen = function (event) {
-        ws.send('Hello World')
-    };
+        ws.send('hello');
+    }
     ws.onmessage = function (event) {
-        console.log(event.data)
+        console.log(event.data);
         ws.close()
     }
 </script>
