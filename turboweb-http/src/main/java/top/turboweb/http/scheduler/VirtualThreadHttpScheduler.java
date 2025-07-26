@@ -130,6 +130,8 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
                                 writeResponse(session, request, toManyRequestResponse(), startTime);
                                 return;
                             }
+                            // 处理虚假唤醒的情况
+                            boolean ignore = waitThreads.remove(Thread.currentThread());
                         }
                     }
                 }
