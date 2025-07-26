@@ -1,9 +1,5 @@
 package top.turboweb.core.config;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.Objects;
-
 /**
  * 服务器初始化配置类
  */
@@ -38,6 +34,26 @@ public class HttpServerConfig {
      * 备用线程池缓存队列大小
      */
     private int diskOpeThreadCacheQueue = 4096;
+
+    /**
+     * 调度器是否开启限流
+     */
+    private boolean enableHttpSchedulerLimit = false;
+
+    /**
+     * 调度器限流数量
+     */
+    private int httpSchedulerLimitCount = 10000;
+
+    /**
+     * 可以进入等待的线程数量
+     */
+    private int httpSchedulerLimitCacheThread = 2000;
+
+    /**
+     * 线程池限流超时时间
+     */
+    private long httpSchedulerLimitTimeout = 500;
 
     /**
      * 备用线程池核心队列大小
@@ -165,5 +181,46 @@ public class HttpServerConfig {
             throw new IllegalArgumentException("最大线程数不能小于1");
         }
         this.diskOpeThreadMaxThreadNum = diskOpeThreadMaxThreadNum;
+    }
+
+    public boolean isEnableHttpSchedulerLimit() {
+        return enableHttpSchedulerLimit;
+    }
+
+    public void setEnableHttpSchedulerLimit(boolean enableHttpSchedulerLimit) {
+        this.enableHttpSchedulerLimit = enableHttpSchedulerLimit;
+    }
+
+    public int getHttpSchedulerLimitCount() {
+        return httpSchedulerLimitCount;
+    }
+
+    public void setHttpSchedulerLimitCount(int httpSchedulerLimitCount) {
+        if (httpSchedulerLimitCount < 0) {
+            throw new IllegalArgumentException("httpSchedulerLimitCacheThread must be greater than or equal to 0");
+        }
+        this.httpSchedulerLimitCount = httpSchedulerLimitCount;
+    }
+
+    public int getHttpSchedulerLimitCacheThread() {
+        return httpSchedulerLimitCacheThread;
+    }
+
+    public void setHttpSchedulerLimitCacheThread(int httpSchedulerLimitCacheThread) {
+        if (httpSchedulerLimitCacheThread < 0) {
+            throw new IllegalArgumentException("httpSchedulerLimitCacheThread must be greater than or equal to 0");
+        }
+        this.httpSchedulerLimitCacheThread = httpSchedulerLimitCacheThread;
+    }
+
+    public long getHttpSchedulerLimitTimeout() {
+        return httpSchedulerLimitTimeout;
+    }
+
+    public void setHttpSchedulerLimitTimeout(long httpSchedulerLimitTimeout) {
+        if (httpSchedulerLimitTimeout < 0) {
+            throw new IllegalArgumentException("httpSchedulerLimitTimeout must be greater than or equal to 0");
+        }
+        this.httpSchedulerLimitTimeout = httpSchedulerLimitTimeout;
     }
 }

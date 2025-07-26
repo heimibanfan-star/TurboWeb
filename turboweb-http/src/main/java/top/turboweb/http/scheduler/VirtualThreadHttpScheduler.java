@@ -70,6 +70,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
         // 创建虚拟线程执行
         VirtualThreadUtils.execute(() -> {
             boolean acquire = preAcquire;
+            long waitNanos = TimeUnit.MILLISECONDS.toNanos(timeout);
             for (;;) {
                 if (acquire) {
                     try {
@@ -112,10 +113,12 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
                                 }
                             }
                         } else {
+                            long startNanos = System.nanoTime();
                             // 打断自己
-                            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(timeout));
+                            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(waitNanos));
+                            waitNanos = waitNanos - (System.nanoTime() - startNanos);
                             // 判断是否被唤醒
-                            if (!Thread.interrupted()) {
+                            if (waitNanos <= 0) {
                                 boolean removed = waitThreads.remove(Thread.currentThread());
                                 // 如果被别的线程提前订阅，将唤醒机会交给别的线程
                                 if (!removed) {
@@ -153,7 +156,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
      * 释放凭据
      */
     private int releaseCredential() {
-        return threadNum.decrementAndGet();
+        return limit - threadNum.decrementAndGet();
     }
 
     /**
