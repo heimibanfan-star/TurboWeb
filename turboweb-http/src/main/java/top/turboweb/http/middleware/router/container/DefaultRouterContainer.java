@@ -39,7 +39,7 @@ public class DefaultRouterContainer implements RouterContainer {
         if (path.contains("?")) {
             path = path.substring(0, path.indexOf("?"));
         }
-        if (path.endsWith("/")) {
+        if (path.endsWith("/") && !"/".equals(path)) {
             path = path.substring(0, path.length() - 1);
         }
         return routerDefinition.get(path);
