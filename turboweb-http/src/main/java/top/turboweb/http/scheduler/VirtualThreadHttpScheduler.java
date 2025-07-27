@@ -74,7 +74,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
             for (;;) {
                 if (acquire) {
                     try {
-                        doExecute(request, session);
+                        doExecute(request, session, startTime);
                         return;
                     } finally {
                         // 释放凭据
@@ -164,13 +164,19 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
     }
 
     /**
+     * 执行任务
+     */
+    private void doExecute(FullHttpRequest request, ConnectSession session) {
+        doExecute(request, session, System.nanoTime());
+    }
+
+    /**
      * 执行
      *
      * @param request  请求对象
      * @param session  session对象
      */
-    private void doExecute(FullHttpRequest request, ConnectSession session) {
-        long startTime = System.nanoTime();
+    private void doExecute(FullHttpRequest request, ConnectSession session, long startTime) {
         try {
             HttpResponse response = processorChain.invoke(request, session);
             writeResponse(session, request, response, startTime);
