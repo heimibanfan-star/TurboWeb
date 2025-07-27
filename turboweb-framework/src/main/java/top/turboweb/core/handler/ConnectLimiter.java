@@ -38,11 +38,7 @@ public class ConnectLimiter extends ChannelInboundHandlerAdapter {
 
         @Override
         public boolean increase() {
-            if (count < maxCount) {
-                count++;
-                return true;
-            }
-            return false;
+            return count++ < maxCount;
         }
 
         @Override
@@ -62,10 +58,7 @@ public class ConnectLimiter extends ChannelInboundHandlerAdapter {
 
         @Override
         public boolean increase() {
-            if (count.get() >= maxCount) {
-                return false;
-            }
-            return count.getAndIncrement() >= maxCount;
+            return count.getAndIncrement() < maxCount;
         }
 
         @Override
@@ -91,11 +84,7 @@ public class ConnectLimiter extends ChannelInboundHandlerAdapter {
             }
             lock.lock();
             try {
-                if (count >= maxCount) {
-                    return false;
-                }
-                count++;
-                return true;
+                return count++ < maxCount;
             } finally {
                 lock.unlock();
             }
