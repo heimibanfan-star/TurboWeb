@@ -1,8 +1,6 @@
 package top.turboweb.commons.limit;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 
 /**
@@ -32,7 +30,6 @@ public class TokenBucket {
      * @return 是否成功获取令牌
      */
     public boolean tryAcquire() {
-        long stamp = stampedLock.tryOptimisticRead();
         long now = System.currentTimeMillis();
         // 判断是否需要更新令牌
         if (Math.abs(now - lastUpdateTime) >= intervalSeconds * 1000) {
@@ -47,6 +44,8 @@ public class TokenBucket {
                 stampedLock.unlockWrite(writeStamp);
             }
         }
+        // 判断是否有正在写入的线程
+        long stamp = stampedLock.tryOptimisticRead();
         // 判断令牌桶是否发生了重置
         if (stampedLock.validate(stamp)) {
             return popToken();
