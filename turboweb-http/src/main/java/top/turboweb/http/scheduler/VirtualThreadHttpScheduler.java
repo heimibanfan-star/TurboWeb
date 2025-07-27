@@ -145,13 +145,15 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
      * @return 是否成功获取
      */
     private boolean tryAcquireCredential() {
-        int count = threadNum.getAndIncrement();
-        if (count < limit) {
-            return true;
+        for (;;) {
+            int c = threadNum.get();
+            if (c >= limit) {
+                return false;
+            }
+            if (threadNum.compareAndSet(c, c + 1)) {
+                return true;
+            }
         }
-        // 归还凭据
-        threadNum.getAndDecrement();
-        return false;
     }
 
     /**
