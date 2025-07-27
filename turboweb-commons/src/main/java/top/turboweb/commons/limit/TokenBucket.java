@@ -49,29 +49,29 @@ public class TokenBucket {
         }
         // 判断令牌桶是否发生了重置
         if (stampedLock.validate(stamp)) {
-            for (;;) {
-                int tokens = tokenCount.get();
-                if (tokens <= 0) {
-                    return false;
-                }
-                if (tokenCount.compareAndSet(tokens, tokens - 1)) {
-                    return true;
-                }
-            }
+            return popToken();
         } else {
             stamp = stampedLock.readLock();
             try {
-                for (;;) {
-                    int tokens = tokenCount.get();
-                    if (tokens <= 0) {
-                        return false;
-                    }
-                    if (tokenCount.compareAndSet(tokens, tokens - 1)) {
-                        return true;
-                    }
-                }
+                return popToken();
             } finally {
                 stampedLock.unlockRead(stamp);
+            }
+        }
+    }
+
+    /**
+     * 弹出令牌
+     * @return 是否成功弹出令牌
+     */
+    private boolean popToken() {
+        for (;;) {
+            int tokens = tokenCount.get();
+            if (tokens <= 0) {
+                return false;
+            }
+            if (tokenCount.compareAndSet(tokens, tokens - 1)) {
+                return true;
             }
         }
     }
