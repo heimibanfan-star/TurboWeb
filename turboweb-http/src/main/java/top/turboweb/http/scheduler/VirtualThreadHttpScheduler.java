@@ -116,7 +116,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
                             long startNanos = System.nanoTime();
                             // 打断自己
                             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(waitNanos));
-                            waitNanos = waitNanos - (System.nanoTime() - startNanos);
+                            waitNanos = Math.abs(waitNanos - (System.nanoTime() - startNanos));
                             // 判断是否被唤醒
                             if (waitNanos <= 0) {
                                 boolean removed = waitThreads.remove(Thread.currentThread());
