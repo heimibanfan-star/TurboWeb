@@ -1,7 +1,7 @@
 package top.turboweb.http.middleware.limiter;
 
 import io.netty.handler.codec.http.*;
-import top.turboweb.commons.limit.TokenBucket;
+import top.turboweb.commons.limit.FixedIntervalTokenBucket;
 import top.turboweb.commons.struct.trie.PatternPathTrie;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
@@ -14,7 +14,7 @@ import java.util.Set;
  */
 public class PathLimiter extends Middleware {
 
-    private final PatternPathTrie<TokenBucket> pathTrie = new PatternPathTrie<>();
+    private final PatternPathTrie<FixedIntervalTokenBucket> pathTrie = new PatternPathTrie<>();
 
 
     @Override
@@ -26,15 +26,15 @@ public class PathLimiter extends Middleware {
             path = path.substring(0, path.length() - 1);
         }
         // 匹配规则
-        Set<TokenBucket> tokenBuckets = pathTrie.patternMatch(path);
+        Set<FixedIntervalTokenBucket> fixedIntervalTokenBuckets = pathTrie.patternMatch(path);
         // 没有规则直接放行
-        if (tokenBuckets.isEmpty()) {
+        if (fixedIntervalTokenBuckets.isEmpty()) {
             return next(ctx);
         }
         // 获取第一个规则
-        TokenBucket tokenBucket = tokenBuckets.iterator().next();
+        FixedIntervalTokenBucket fixedIntervalTokenBucket = fixedIntervalTokenBuckets.iterator().next();
         // 进行限流处理
-        boolean acquired = tokenBucket.tryAcquire();
+        boolean acquired = fixedIntervalTokenBucket.tryAcquire();
         // 拦截请求
         if (!acquired) {
             return doReject(ctx);
@@ -66,7 +66,7 @@ public class PathLimiter extends Middleware {
         if (intervalSeconds <= 0) {
             throw new IllegalArgumentException("intervalSeconds must be greater than 0");
         }
-        pathTrie.insert(path, new TokenBucket(limit, intervalSeconds));
+        pathTrie.insert(path, new FixedIntervalTokenBucket(limit, intervalSeconds));
     }
 
     /**
