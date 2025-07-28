@@ -12,10 +12,8 @@ import top.turboweb.http.scheduler.strategy.ResponseStrategyContext;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * 使用虚拟县城的阻塞线程调度器
@@ -26,11 +24,10 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
     private final ResponseStrategyContext responseStrategyContext = new ResponseStrategyContext();
     private final boolean enableLimit;
-    private final int limit;
-    private final BlockingQueue<Thread> waitThreads;
-    private final int cacheThreadNum;
+    private final AtomicInteger suspendThreads = new AtomicInteger(0);
+    private final int maxSuspendThreadNum;
     private final long timeout;
-    private final AtomicInteger threadNum = new AtomicInteger(0);
+    private final Semaphore permission;
     protected boolean showRequestLog = true;
 
     {
@@ -45,13 +42,12 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
         this(processorChain, false, 0, 0, 0);
     }
 
-    public VirtualThreadHttpScheduler(Processor processorChain, boolean enableLimit, int limit, int cacheThreadNum, long timeout) {
+    public VirtualThreadHttpScheduler(Processor processorChain, boolean enableLimit, int limit, int maxSuspendThreadNum, long timeout) {
         this.processorChain = processorChain;
         this.enableLimit = enableLimit;
-        this.limit = limit;
-        waitThreads = cacheThreadNum > 0 ? new LinkedBlockingQueue<>(cacheThreadNum) : null;
-        this.cacheThreadNum = cacheThreadNum;
+        this.maxSuspendThreadNum = maxSuspendThreadNum;
         this.timeout = timeout;
+        permission = new Semaphore(limit);
     }
 
     @Override
@@ -61,77 +57,55 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
             VirtualThreadUtils.execute(() -> doExecute(request, session));
             return;
         }
-        boolean preAcquire;
-        // 如果凭据不足，并且缓冲队列已满直接拒绝
-        if (!(preAcquire = tryAcquireCredential()) && waitThreads.size() >= cacheThreadNum) {
+        boolean prePermission;
+        // 判断是否许可耗尽，并且超过最大挂起数
+        if (!(prePermission = permission.tryAcquire()) && suspendThreads.get() >= maxSuspendThreadNum) {
             writeResponse(session, request, toManyRequestResponse(), startTime);
             return;
         }
-        // 创建虚拟线程执行
+        // 创建虚拟线程
         VirtualThreadUtils.execute(() -> {
-            boolean acquire = preAcquire;
-            long waitNanos = TimeUnit.MILLISECONDS.toNanos(timeout);
-            for (;;) {
-                if (acquire) {
+            boolean hasPermission = prePermission;
+            long waitTime = timeout;
+            for (; ; ) {
+                if (hasPermission) {
+                    // 如果拥有凭据直接执行
                     try {
                         doExecute(request, session, startTime);
-                        return;
                     } finally {
                         // 释放凭据
-                        int c = releaseCredential();
-                        for (int n = 0; n < c; n++) {
-                            Thread t;
-                            if ((t = waitThreads.poll()) == null) {
-                                break;
-                            }
-                            LockSupport.unpark(t);
-                        }
+                        permission.release();
                     }
-                } else if (tryAcquireCredential()) {
-                    acquire = true;
+                } else if (permission.tryAcquire()) {
+                    hasPermission = true;
                 } else {
-                    // 尝试加入阻塞队列
-                    if (!waitThreads.offer(Thread.currentThread())) {
-                        if (tryAcquireCredential()) {
-                            acquire = true;
+                    // 判断是否到达最大挂起数
+                    if (!trySuspendedThread()) {
+                        // 再次尝试获取凭据
+                        if (permission.tryAcquire()) {
+                            hasPermission = true;
                         } else {
-                            // 拒绝请求
                             writeResponse(session, request, toManyRequestResponse(), startTime);
                             return;
                         }
                     } else {
-                        // 再次尝试获取凭据
-                        if (tryAcquireCredential()) {
-                            acquire = true;
-                            // 从阻塞队列中删除自己
-                            boolean removed = waitThreads.remove(Thread.currentThread());
-                            // 将唤醒的机会交给别的线程
-                            if (!removed) {
-                                Thread t = waitThreads.poll();
-                                if (t != null) {
-                                    LockSupport.unpark(t);
-                                }
-                            }
-                        } else {
-                            long startNanos = System.nanoTime();
-                            // 打断自己
-                            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(waitNanos));
-                            waitNanos = Math.abs(waitNanos - (System.nanoTime() - startNanos));
-                            // 判断是否被唤醒
-                            if (waitNanos <= 0) {
-                                boolean removed = waitThreads.remove(Thread.currentThread());
-                                // 如果被别的线程提前订阅，将唤醒机会交给别的线程
-                                if (!removed) {
-                                    Thread t = waitThreads.poll();
-                                    if (t != null) {
-                                        LockSupport.unpark(t);
-                                    }
-                                }
+                        if (waitTime <= 0) {
+                            writeResponse(session, request, toManyRequestResponse(), startTime);
+                            return;
+                        }
+                        // 挂起线程
+                        long time = System.currentTimeMillis();
+                        try {
+                            hasPermission = permission.tryAcquire(waitTime, TimeUnit.MILLISECONDS);
+                            if (!hasPermission) {
+                                // 减少挂起的线程数
+                                activeThread();
+                                // 拒绝请求
                                 writeResponse(session, request, toManyRequestResponse(), startTime);
-                                return;
                             }
-                            // 处理虚假唤醒的情况
-                            boolean ignore = waitThreads.remove(Thread.currentThread());
+                        } catch (InterruptedException e) {
+                            activeThread();
+                            waitTime = waitTime - (System.currentTimeMillis() - time);
                         }
                     }
                 }
@@ -144,23 +118,24 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
      *
      * @return 是否成功获取
      */
-    private boolean tryAcquireCredential() {
-        for (;;) {
-            int c = threadNum.get();
-            if (c >= limit) {
+    private boolean trySuspendedThread() {
+        for (; ; ) {
+            int n = suspendThreads.get();
+            // 判断是否超过最大挂起数
+            if (n >= maxSuspendThreadNum) {
                 return false;
             }
-            if (threadNum.compareAndSet(c, c + 1)) {
+            if (suspendThreads.compareAndSet(n, n + 1)) {
                 return true;
             }
         }
     }
 
     /**
-     * 释放凭据
+     * 减少挂起的线程数
      */
-    private int releaseCredential() {
-        return limit - threadNum.decrementAndGet();
+    private void activeThread() {
+        suspendThreads.decrementAndGet();
     }
 
     /**
@@ -173,8 +148,8 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
     /**
      * 执行
      *
-     * @param request  请求对象
-     * @param session  session对象
+     * @param request 请求对象
+     * @param session session对象
      */
     private void doExecute(FullHttpRequest request, ConnectSession session, long startTime) {
         try {
