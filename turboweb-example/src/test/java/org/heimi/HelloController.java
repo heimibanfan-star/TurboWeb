@@ -15,7 +15,7 @@ public class HelloController {
     @Get
     public String hello(HttpContext context) throws InterruptedException {
         System.out.println("hello world");
-        TimeUnit.SECONDS.sleep(8);
+//        TimeUnit.SECONDS.sleep(8);
         return "hello world";
     }
 }

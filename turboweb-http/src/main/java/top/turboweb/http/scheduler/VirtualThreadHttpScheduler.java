@@ -72,6 +72,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
                     // 如果拥有凭据直接执行
                     try {
                         doExecute(request, session, startTime);
+                        return;
                     } finally {
                         // 释放凭据
                         permission.release();
