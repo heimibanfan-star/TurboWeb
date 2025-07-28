@@ -1,5 +1,8 @@
-# <img src=".\docs\image\logo.png"/>
->  你还在纠结“同步代码写得爽”还是“异步框架性能强”？
+<p align="center">
+ <img src="./docs/image/logo.png" alt=""/>
+</p>
+
+> 你还在纠结“同步代码写得爽”还是“异步框架性能强”？
 >
 > **别选了，全都要！**
 >
