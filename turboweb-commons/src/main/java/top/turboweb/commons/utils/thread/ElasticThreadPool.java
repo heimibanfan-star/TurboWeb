@@ -80,6 +80,14 @@ public class ElasticThreadPool implements ExecutorService {
     @Override
     public void shutdown() {
         threadPoolExecutor.shutdown();
+        // 判断剩余的任务
+        if (!cacheQueue.isEmpty()) {
+            if (cacheQueue.size() < 8) {
+                syncConsumerTask();
+            } else {
+                asyncConsumerTask();
+            }
+        }
     }
 
     @Override
@@ -89,16 +97,7 @@ public class ElasticThreadPool implements ExecutorService {
 
     @Override
     public boolean isShutdown() {
-        boolean shutdown = threadPoolExecutor.isShutdown();
-        // 判断剩余的任务
-        if (!cacheQueue.isEmpty()) {
-            if (cacheQueue.size() < 8) {
-                syncConsumerTask();
-            } else {
-                asyncConsumerTask();
-            }
-        }
-        return shutdown;
+        return threadPoolExecutor.isShutdown();
     }
 
     /**
