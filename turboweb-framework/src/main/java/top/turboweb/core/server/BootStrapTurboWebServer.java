@@ -6,6 +6,7 @@ import io.netty.channel.ChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.core.config.HttpServerConfig;
+import top.turboweb.core.handler.ChannelHandlerFactory;
 import top.turboweb.core.initializer.CommonSourceInitializer;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory;
@@ -63,8 +64,14 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
     }
 
     @Override
-    public TurboWebServer addNettyFrontHandler(ChannelHandler channelHandler) {
-        super.addFrontHandler(channelHandler);
+    public TurboWebServer addNettyFrontHandler(ChannelHandlerFactory channelHandlerFactory) {
+        super.addFrontHandler(channelHandlerFactory);
+        return this;
+    }
+
+    @Override
+    public TurboWebServer addNettyBackHandler(ChannelHandlerFactory channelHandlerFactory) {
+        super.addBackHandler(channelHandlerFactory);
         return this;
     }
 

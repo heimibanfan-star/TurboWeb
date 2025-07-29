@@ -10,6 +10,7 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.handler.ConnectLimiter;
+import top.turboweb.core.handler.ChannelHandlerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,8 +21,8 @@ import java.util.List;
 public class CoreTurboWebServer {
 
 	private final CoreNettyServer coreNettyServer;
-	private final List<ChannelHandler> frontHandlers = new ArrayList<>();
-	private final List<ChannelHandler> backHandlers = new ArrayList<>();
+	private final List<ChannelHandlerFactory> frontHandlerFactories = new ArrayList<>();
+	private final List<ChannelHandlerFactory> backHandlerFactories = new ArrayList<>();
 	private final int ioThreadNum;
 
 	public CoreTurboWebServer(int ioThreadNum) {
@@ -33,10 +34,10 @@ public class CoreTurboWebServer {
 	/**
 	 * 添加前端处理器
 	 *
-	 * @param channelHandler 前端处理器
+	 * @param handlerFactory 前端处理器
 	 */
-	public void addFrontHandler(ChannelHandler channelHandler) {
-		frontHandlers.add(channelHandler);
+	public void addFrontHandler(ChannelHandlerFactory handlerFactory) {
+		frontHandlerFactories.add(handlerFactory);
 	}
 
 	/**
@@ -62,10 +63,10 @@ public class CoreTurboWebServer {
 	/**
 	 * 添加后端处理器
 	 *
-	 * @param channelHandler 后端处理器
+	 * @param handlerFactory 后端处理器
 	 */
-	public void addBackHandler(ChannelHandler channelHandler) {
-		backHandlers.add(channelHandler);
+	public void addBackHandler(ChannelHandlerFactory handlerFactory) {
+		backHandlerFactories.add(handlerFactory);
 	}
 
 	/**
@@ -99,19 +100,15 @@ public class CoreTurboWebServer {
 			// 添加连接限制器
 			pipeline.addFirst(connectLimiter);
 			// 添加前置处理器
-			for (ChannelHandler channelHandler : frontHandlers) {
-				// 判断是否带共享注解
-				if (!channelHandler.getClass().isAnnotationPresent(ChannelHandler.Sharable.class)) {
-					throw new TurboServerInitException("FrontHandler must be Sharable");
-				}
-				pipeline.addLast(channelHandler);
+			for (ChannelHandlerFactory frontHandlerFactory : frontHandlerFactories) {
+				pipeline.addLast(frontHandlerFactory.create());
 			}
 			pipeline.addLast(new HttpServerCodec());
 			pipeline.addLast(new HttpObjectAggregator(maxContentLen));
 			pipeline.addLast(new ChunkedWriteHandler());
 			pipeline.addLast(dispatcherHandler);
-			for (ChannelHandler channelHandler : backHandlers) {
-				pipeline.addLast(channelHandler);
+			for (ChannelHandlerFactory backHandlerFactory : backHandlerFactories) {
+				pipeline.addLast(backHandlerFactory.create());
 			}
 		});
 	}
