@@ -20,6 +20,7 @@ public class Application {
                     c.setHttpSchedulerLimitCacheThread(2);
                     c.setHttpSchedulerLimitTimeout(120000);
                     c.setShowRequestLog(false);
+                    c.setMaxConnections(1);
                 }).start();
     }
 }

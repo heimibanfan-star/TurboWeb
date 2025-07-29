@@ -1,6 +1,7 @@
 package top.turboweb.core.server;
 
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
@@ -26,6 +27,14 @@ public interface TurboWebServer {
 	 * @return HttpSchedulerInitBuilder
 	 */
 	HttpSchedulerInitBuilder http();
+
+	/**
+	 * 添加前置处理器
+	 *
+	 * @param channelHandler 前置处理器
+	 * @return 当前实例
+	 */
+	TurboWebServer addNettyFrontHandler(ChannelHandler channelHandler);
 
 	/**
 	 * 配置服务器参数

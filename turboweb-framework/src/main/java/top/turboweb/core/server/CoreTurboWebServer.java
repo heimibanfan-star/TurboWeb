@@ -7,7 +7,9 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
+import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
+import top.turboweb.core.handler.ConnectLimiter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,10 +22,12 @@ public class CoreTurboWebServer {
 	private final CoreNettyServer coreNettyServer;
 	private final List<ChannelHandler> frontHandlers = new ArrayList<>();
 	private final List<ChannelHandler> backHandlers = new ArrayList<>();
+	private final int ioThreadNum;
 
 	public CoreTurboWebServer(int ioThreadNum) {
 		this.coreNettyServer = new CoreNettyServer(ioThreadNum);
 		coreNettyServer.childOption(ChannelOption.SO_KEEPALIVE, true);
+		this.ioThreadNum = ioThreadNum;
 	}
 
 	/**
@@ -89,9 +93,17 @@ public class CoreTurboWebServer {
 	 * @param dispatcherHandler http工作分发器
 	 * @param maxContentLen 最大内容长度
 	 */
-	protected final void initPipeline(HttpProtocolDispatcher dispatcherHandler, int maxContentLen) {
+	protected final void initPipeline(HttpProtocolDispatcher dispatcherHandler, int maxContentLen, int nCPU, int maxConnect) {
+		ConnectLimiter connectLimiter = new ConnectLimiter(maxConnect, ioThreadNum, nCPU);
 		coreNettyServer.childChannelInitPipeline(pipeline -> {
+			// 添加连接限制器
+			pipeline.addFirst(connectLimiter);
+			// 添加前置处理器
 			for (ChannelHandler channelHandler : frontHandlers) {
+				// 判断是否带共享注解
+				if (!channelHandler.getClass().isAnnotationPresent(ChannelHandler.Sharable.class)) {
+					throw new TurboServerInitException("FrontHandler must be Sharable");
+				}
 				pipeline.addLast(channelHandler);
 			}
 			pipeline.addLast(new HttpServerCodec());

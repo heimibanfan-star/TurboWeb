@@ -61,6 +61,16 @@ public class HttpServerConfig {
     private int diskOpeThreadCoreQueue = 6;
 
     /**
+     * cpu核数
+     */
+    private int cpuNum = Runtime.getRuntime().availableProcessors();
+
+    /**
+     * 最大连接数
+     */
+    private int maxConnections = 10000;
+
+    /**
      * 备用线程池最大线程数
      */
     private int diskOpeThreadMaxThreadNum = Runtime.getRuntime().availableProcessors() * 2;
@@ -223,4 +233,28 @@ public class HttpServerConfig {
         }
         this.httpSchedulerLimitTimeout = httpSchedulerLimitTimeout;
     }
+
+    public int getCpuNum() {
+        return cpuNum;
+    }
+
+    public void setCpuNum(int cpuNum) {
+        if (cpuNum < 1) {
+            throw new IllegalArgumentException("cpuNum must be greater than or equal to 1");
+        }
+        this.cpuNum = cpuNum;
+    }
+
+    public int getMaxConnections() {
+        return maxConnections;
+    }
+
+    public void setMaxConnections(int maxConnections) {
+        if (maxConnections < 1) {
+            throw new IllegalArgumentException("maxConnections must be greater than or equal to 1");
+        }
+        this.maxConnections = maxConnections;
+    }
+
+
 }

@@ -1,5 +1,6 @@
 package top.turboweb.core.handler;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -10,6 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * 连接限流器
  */
+@ChannelHandler.Sharable
 public class ConnectLimiter extends ChannelInboundHandlerAdapter {
 
     private interface Counter {

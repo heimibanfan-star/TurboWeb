@@ -1,6 +1,8 @@
 package top.turboweb.core.server;
 
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.core.config.HttpServerConfig;
@@ -58,6 +60,12 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
     @Override
     public HttpSchedulerInitBuilder http() {
         return this.httpSchedulerInitFactory;
+    }
+
+    @Override
+    public TurboWebServer addNettyFrontHandler(ChannelHandler channelHandler) {
+        super.addFrontHandler(channelHandler);
+        return this;
     }
 
     @Override
@@ -128,7 +136,7 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
         HttpScheduler httpScheduler = httpSchedulerInitFactory.createHttpScheduler(serverConfig);
         // 创建http协议分发器
         HttpProtocolDispatcher httpProtocolDispatcher = httpProtocolDispatcherInitFactory.createDispatcher(httpScheduler, workers());
-        initPipeline(httpProtocolDispatcher, serverConfig.getMaxContentLength());
+        initPipeline(httpProtocolDispatcher, serverConfig.getMaxContentLength(), serverConfig.getCpuNum(), serverConfig.getMaxConnections());
     }
 
     public static void printBanner() {
