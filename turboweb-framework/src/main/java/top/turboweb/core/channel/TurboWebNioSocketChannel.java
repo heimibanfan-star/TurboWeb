@@ -79,7 +79,7 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
     public Channel flush() {
         lock.lock();
         try {
-            if (isSuspend) {
+            if (!isSuspend) {
                 return super.flush();
             }
         } finally {

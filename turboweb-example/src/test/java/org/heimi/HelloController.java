@@ -23,16 +23,16 @@ public class HelloController {
 
     @Get
     public String hello(HttpContext context) throws InterruptedException, IOException {
-        FileInputStream fis = new FileInputStream("E:\\tmp\\evection.png");
-        FileChannel fileChannel = fis.getChannel();
-        InternalConnectSession connectSession = (InternalConnectSession) context.getConnectSession();
-        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        response.headers().add(HttpHeaderNames.CONTENT_TYPE, "image/png");
-        response.headers().add(HttpHeaderNames.CONTENT_LENGTH, fileChannel.size());
-        connectSession.getChannel().writeAndFlush(response);
-        EventLoop eventExecutors = connectSession.getChannel().eventLoop();
-        System.out.println(eventExecutors);
-        connectSession.getChannel().writeAndFlush(new DefaultFileRegion(fileChannel, 0, fileChannel.size()));
-        return "hello world";
+//        FileInputStream fis = new FileInputStream("E:\\tmp\\evection.png");
+//        FileChannel fileChannel = fis.getChannel();
+//        InternalConnectSession connectSession = (InternalConnectSession) context.getConnectSession();
+//        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+//        response.headers().add(HttpHeaderNames.CONTENT_TYPE, "image/png");
+//        response.headers().add(HttpHeaderNames.CONTENT_LENGTH, fileChannel.size());
+//        connectSession.getChannel().writeAndFlush(response);
+//        EventLoop eventExecutors = connectSession.getChannel().eventLoop();
+//        System.out.println(eventExecutors);
+//        connectSession.getChannel().writeAndFlush(new DefaultFileRegion(fileChannel, 0, fileChannel.size()));
+        return "hello world123";
     }
 }
