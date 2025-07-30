@@ -75,6 +75,18 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
         return super.write(msg);
     }
 
+    @Override
+    public Channel flush() {
+        lock.lock();
+        try {
+            if (!isSuspend) {
+                return super.flush();
+            }
+        } finally {
+            lock.unlock();
+        }
+        return this;
+    }
 
     @Override
     protected void doWrite(ChannelOutboundBuffer in) throws Exception {
