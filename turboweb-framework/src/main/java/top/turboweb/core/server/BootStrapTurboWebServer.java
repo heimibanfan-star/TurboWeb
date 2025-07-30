@@ -46,11 +46,15 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
     }
 
     public BootStrapTurboWebServer() {
-        this(0);
+        this(0, 0);
+    }
+    
+    public BootStrapTurboWebServer(int ioThreadNum) {
+        this(ioThreadNum, 0);
     }
 
-    public BootStrapTurboWebServer(int ioThreadNum) {
-        super(ioThreadNum);
+    public BootStrapTurboWebServer(int ioThreadNum, int zeroCopyThreadNum) {
+        super(ioThreadNum, zeroCopyThreadNum);
     }
 
     @Override

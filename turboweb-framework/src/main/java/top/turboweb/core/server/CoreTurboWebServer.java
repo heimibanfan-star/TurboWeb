@@ -25,8 +25,8 @@ public class CoreTurboWebServer {
 	private final List<ChannelHandlerFactory> backHandlerFactories = new ArrayList<>();
 	private final int ioThreadNum;
 
-	public CoreTurboWebServer(int ioThreadNum) {
-		this.coreNettyServer = new CoreNettyServer(ioThreadNum);
+	public CoreTurboWebServer(int ioThreadNum, int zeroCopyThreadNum) {
+		this.coreNettyServer = new CoreNettyServer(ioThreadNum, zeroCopyThreadNum);
 		coreNettyServer.childOption(ChannelOption.SO_KEEPALIVE, true);
 		this.ioThreadNum = ioThreadNum;
 	}
@@ -105,7 +105,7 @@ public class CoreTurboWebServer {
 			}
 			pipeline.addLast(new HttpServerCodec());
 			pipeline.addLast(new HttpObjectAggregator(maxContentLen));
-			pipeline.addLast(new ChunkedWriteHandler());
+//			pipeline.addLast(new ChunkedWriteHandler());
 			pipeline.addLast(dispatcherHandler);
 			for (ChannelHandlerFactory backHandlerFactory : backHandlerFactories) {
 				pipeline.addLast(backHandlerFactory.create());

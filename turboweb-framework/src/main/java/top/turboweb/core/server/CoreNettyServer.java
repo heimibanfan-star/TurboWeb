@@ -6,7 +6,11 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import top.turboweb.core.channel.TurboWebNioServerSocketChannel;
+import top.turboweb.core.channel.TurboWebNioSocketChannel;
 
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -16,17 +20,51 @@ public class CoreNettyServer {
 
 	private final ServerBootstrap serverBootstrap = new ServerBootstrap();
 	private final EventLoopGroup workers;
+	private final ThreadPoolExecutor zeroCopyExecutor;
 
-	public CoreNettyServer(int ioThreadNum) {
+	private static class ZeroCopyThreadFactory implements ThreadFactory {
+
+		private final AtomicLong count = new AtomicLong();
+
+		@Override
+		public Thread newThread(Runnable r) {
+			count.compareAndSet(Long.MAX_VALUE, 0);
+			Thread thread = new Thread(r, "zero-copy-thread-" + count.getAndIncrement());
+			thread.setDaemon(true);
+			return thread;
+		}
+	}
+
+	public CoreNettyServer(int ioThreadNum, int zeroCopyThreadNum) {
 		if (ioThreadNum <= 0) {
 			ioThreadNum = 1;
 		}
+		if (zeroCopyThreadNum <= 0) {
+			zeroCopyThreadNum = Runtime.getRuntime().availableProcessors() * 2;
+		}
+		// 创建专门用于零拷贝的线程池
+		zeroCopyExecutor = new ThreadPoolExecutor(
+				zeroCopyThreadNum,
+				zeroCopyThreadNum,
+				60,
+				TimeUnit.SECONDS,
+				new LinkedBlockingQueue<>(),
+				new ZeroCopyThreadFactory()
+		);
+		// 允许核心线程过期
+		zeroCopyExecutor.allowCoreThreadTimeOut(true);
 		workers = new NioEventLoopGroup(ioThreadNum);
 		serverBootstrap.group(
 			new NioEventLoopGroup(1),
 			workers
 		);
-		serverBootstrap.channel(NioServerSocketChannel.class);
+//		serverBootstrap.channel(TurboWebNioServerSocketChannel.class);
+		serverBootstrap.channelFactory(new ChannelFactory<TurboWebNioServerSocketChannel>() {
+			@Override
+			public TurboWebNioServerSocketChannel newChannel() {
+				return new TurboWebNioServerSocketChannel(zeroCopyExecutor);
+			}
+		});
 	}
 
 	/**
@@ -57,9 +95,9 @@ public class CoreNettyServer {
 	 * @param consumer 函数式接口
 	 */
 	public void childChannelInitPipeline(Consumer<ChannelPipeline> consumer) {
-		serverBootstrap.childHandler(new ChannelInitializer<NioSocketChannel>() {
+		serverBootstrap.childHandler(new ChannelInitializer<TurboWebNioSocketChannel>() {
 			@Override
-			protected void initChannel(NioSocketChannel nioSocketChannel) throws Exception {
+			protected void initChannel(TurboWebNioSocketChannel nioSocketChannel) throws Exception {
 				consumer.accept(nioSocketChannel.pipeline());
 			}
 		});
