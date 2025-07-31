@@ -43,7 +43,6 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
     @Override
     protected void doWrite(ChannelOutboundBuffer in) throws Exception {
         if (isWriting) {
-            System.out.println("doWrite");
             return;
         }
         SocketChannel ch = javaChannel();
