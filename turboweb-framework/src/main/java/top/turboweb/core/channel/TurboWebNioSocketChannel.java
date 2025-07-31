@@ -17,7 +17,7 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
     private final ReentrantLock lock = new ReentrantLock();
     private final Queue<SuspendTask> suspendTasks = new ConcurrentLinkedQueue<>();
 
-    private record SuspendTask(Object task, DefaultChannelPromise channelFuture) {
+    private record SuspendTask(Object task, ChannelPromise channelFuture) {
     }
 
     public TurboWebNioSocketChannel(Channel parent, SocketChannel socket, ExecutorService pool) {
@@ -27,42 +27,36 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
 
     @Override
     public ChannelFuture writeAndFlush(Object msg) {
-        lock.lock();
-        try {
-            if (isSuspend) {
-                DefaultChannelPromise channelFuture = new DefaultChannelPromise(this);
-                suspendTasks.add(new SuspendTask(msg, channelFuture));
-                return channelFuture;
-            } else if (msg instanceof FileRegion) {
-                // 挂起当前连接
-                isSuspend = true;
-                // 执行零拷贝
-                return super.writeAndFlush(msg);
-            }
-        } finally {
-            lock.unlock();
-        }
-        return super.writeAndFlush(msg);
+        return this.writeAndFlush(msg, new DefaultChannelPromise(this));
     }
 
     @Override
     public ChannelFuture writeAndFlush(Object msg, ChannelPromise promise) {
-        throw new UnsupportedOperationException();
+        lock.lock();
+        try {
+            // 判断当前连接是否被挂起
+            if (isSuspend) {
+                suspendTasks.add(new SuspendTask(msg, promise));
+                return promise;
+            } else if (msg instanceof FileRegion) {
+                // 挂起当前连接
+                isSuspend = true;
+                // 执行零拷贝
+                return super.writeAndFlush(msg, promise);
+            }
+        } finally {
+            lock.unlock();
+        }
+        return super.writeAndFlush(msg, promise);
     }
 
     @Override
     public ChannelFuture write(Object msg, ChannelPromise promise) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ChannelFuture write(Object msg) {
         lock.lock();
         try {
             if (isSuspend) {
-                DefaultChannelPromise channelFuture = new DefaultChannelPromise(this);
-                suspendTasks.add(new SuspendTask(msg, channelFuture));
-                return channelFuture;
+                suspendTasks.add(new SuspendTask(msg, promise));
+                return promise;
             } else if (msg instanceof FileRegion) {
                 // 挂起当前连接
                 isSuspend = true;
@@ -72,7 +66,12 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
         } finally {
             lock.unlock();
         }
-        return super.write(msg);
+        return super.write(msg, promise);
+    }
+
+    @Override
+    public ChannelFuture write(Object msg) {
+        return this.write(msg, new DefaultChannelPromise(this));
     }
 
     @Override
@@ -125,31 +124,15 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
                    try {
                        Object msg = task.task;
                        if (msg instanceof FileRegion) {
-                           executeSuspectTask(task);
+                           super.writeAndFlush(msg, task.channelFuture);
                            break;
                        } else {
-                           executeSuspectTask(task);
+                           super.writeAndFlush(msg, task.channelFuture);
                        }
                    } catch (Exception ignore) {
                    }
                }
            }
-        });
-    }
-
-    /**
-     * 执行挂起的任务
-     *
-     * @param suspendTask 挂起的任务
-     */
-    private void executeSuspectTask(SuspendTask suspendTask) {
-        ChannelFuture channelFuture = super.writeAndFlush(suspendTask.task);
-        channelFuture.addListener(f -> {
-            if (f.isSuccess()) {
-                suspendTask.channelFuture.setSuccess();
-            } else {
-                suspendTask.channelFuture.setFailure(f.cause());
-            }
         });
     }
 }
