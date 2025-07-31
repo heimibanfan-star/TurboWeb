@@ -43,7 +43,7 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
     @Override
     protected void doWrite(ChannelOutboundBuffer in) throws Exception {
         if (isWriting) {
-            incompleteWrite(false);
+            System.out.println("doWrite");
             return;
         }
         SocketChannel ch = javaChannel();
@@ -78,11 +78,10 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
                             } finally {
                                 isWriting = false;
                                 // 刷新缓冲区
-                                incompleteWrite(true);
+                                incompleteWrite(false);
                                 this.flush();
                             }
                         });
-                        incompleteWrite(false);
                         return;
                     }
                     writeSpinCount -= doWrite0(in);
