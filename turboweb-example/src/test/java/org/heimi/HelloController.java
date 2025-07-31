@@ -3,12 +3,16 @@ package org.heimi;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.*;
+import org.apache.hc.core5.http.ContentType;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.HttpFileResult;
 import top.turboweb.http.response.SseEmitter;
+import top.turboweb.http.response.ZeroCopyResponse;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -22,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 public class HelloController {
 
     @Get
-    public String hello(HttpContext context) throws InterruptedException, IOException {
+    public HttpResponse hello(HttpContext context) throws InterruptedException, IOException {
 //        FileInputStream fis = new FileInputStream("E:\\tmp\\evection.png");
 //        FileChannel fileChannel = fis.getChannel();
 //        InternalConnectSession connectSession = (InternalConnectSession) context.getConnectSession();
@@ -33,6 +37,22 @@ public class HelloController {
 //        EventLoop eventExecutors = connectSession.getChannel().eventLoop();
 //        System.out.println(eventExecutors);
 //        connectSession.getChannel().writeAndFlush(new DefaultFileRegion(fileChannel, 0, fileChannel.size()));
-        return "hello world123";
+        File file = new File("E:\\tmp\\evection.png");
+        ZeroCopyResponse response = new ZeroCopyResponse(file);
+        response.setContentType(ContentType.IMAGE_PNG);
+        // 在浏览器直接打开
+        response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "inline;filename=\"" + file.getName() + "\"");
+        return response;
+    }
+
+    @Get("/1")
+    public String helloWorld(HttpContext context) {
+        return "helloWorld";
+    }
+
+    @Get("/2")
+    public HttpFileResult helloWorld2(HttpContext context) {
+        File file = new File("E:\\tmp\\evection.png");
+        return HttpFileResult.file(file);
     }
 }

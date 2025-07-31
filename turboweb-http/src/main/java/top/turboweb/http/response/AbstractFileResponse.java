@@ -18,9 +18,14 @@ public abstract class AbstractFileResponse extends DefaultHttpResponse {
 		init(file, filenameCharset);
 	}
 
+	protected AbstractFileResponse(HttpResponseStatus status, String filename, Charset filenameCharset) {
+		super(HttpVersion.HTTP_1_1, status);
+		initHeaders(filename, filenameCharset);
+	}
+
 	private void init(File file, Charset filenameCharset) {
 		fileVerify(file);
-		initHeaders(file, filenameCharset);
+		initHeaders(file.getName(), filenameCharset);
 	}
 
 	/**
@@ -43,11 +48,11 @@ public abstract class AbstractFileResponse extends DefaultHttpResponse {
 	/**
 	 * 初始化响应头
 	 *
-	 * @param file 文件
+	 * @param filename 文件名
 	 */
-	private void initHeaders(File file, Charset charset) {
+	private void initHeaders(String filename, Charset charset) {
 		this.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/octet-stream");
-		this.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=\"" + encodeFileName(file.getName(), charset) + "\"");
+		this.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=\"" + encodeFileName(filename, charset) + "\"");
 		this.headers().set(HttpHeaderNames.CONNECTION, "keep-alive");
 	}
 

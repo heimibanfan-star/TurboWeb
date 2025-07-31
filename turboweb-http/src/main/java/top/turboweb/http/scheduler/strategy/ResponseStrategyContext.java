@@ -17,7 +17,8 @@ public class ResponseStrategyContext {
                 InternalCallResponse.InternalCallType.SSE, new SseResponseStrategy(),
                 InternalCallResponse.InternalCallType.FILE_STREAM, new FileStreamResponseStrategy(),
                 InternalCallResponse.InternalCallType.DEFAULT, new DefaultResponseStrategy(),
-                InternalCallResponse.InternalCallType.AIO_FILE, new AsyncFileResponseStrategy()
+                InternalCallResponse.InternalCallType.AIO_FILE, new AsyncFileResponseStrategy(),
+                InternalCallResponse.InternalCallType.ZERO_COPY, new ZeroCopyResponseStrategy()
         );
     }
 

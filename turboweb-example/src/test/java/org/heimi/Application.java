@@ -15,11 +15,6 @@ public class Application {
                 .http().routerManager(routerManager)
                 .and()
                 .configServer(c -> {
-                    c.setEnableHttpSchedulerLimit(true);
-                    c.setHttpSchedulerLimitCount(1);
-                    c.setHttpSchedulerLimitCacheThread(2);
-                    c.setHttpSchedulerLimitTimeout(120000);
-                    c.setMaxConnections(1);
                 }).start();
     }
 }
