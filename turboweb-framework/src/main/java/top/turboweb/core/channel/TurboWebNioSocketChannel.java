@@ -5,10 +5,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.locks.ReentrantLock;
 
 import static io.netty.channel.internal.ChannelUtils.MAX_BYTES_PER_GATHERING_WRITE_ATTEMPTED_LOW_THRESHOLD;
 
@@ -18,9 +15,6 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
     private final ExecutorService zeroCopyPool;
     private volatile boolean isWriting = false;
     private int maxBytesPerGatheringWrite = Integer.MAX_VALUE;
-
-    private record SuspendTask(Object task, ChannelPromise channelFuture) {
-    }
 
     public TurboWebNioSocketChannel(Channel parent, SocketChannel socket, ExecutorService pool) {
         super(parent, socket);
@@ -78,7 +72,6 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
                                 isWriting = false;
                                 // 刷新缓冲区
                                 incompleteWrite(false);
-                                this.flush();
                             }
                         });
                         return;
