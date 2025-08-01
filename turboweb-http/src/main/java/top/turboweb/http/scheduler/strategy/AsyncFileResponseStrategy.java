@@ -6,6 +6,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.LastHttpContent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.utils.thread.WorkStealThreadUtils;
@@ -29,7 +30,12 @@ public class AsyncFileResponseStrategy extends ResponseStrategy {
         if (response instanceof AsyncFileResponse asyncFileResponse) {
             // 写入响应头
             future =  session.getChannel().writeAndFlush(asyncFileResponse);
-            WorkStealThreadUtils.execute(() -> handleAsyncFileResponse(asyncFileResponse, session));
+            future.addListener(f -> {
+               if (f.isSuccess()) {
+                   WorkStealThreadUtils.execute(() -> handleAsyncFileResponse(asyncFileResponse, session));
+               }
+            });
+
         } else {
             throw new IllegalArgumentException("Invalid response type:" + response.getClass().getName());
         }
@@ -45,6 +51,8 @@ public class AsyncFileResponseStrategy extends ResponseStrategy {
         // 获取剩余的内容大小
         long remaining = response.getRemaining();
         if (remaining <= 0) {
+            // 发送结束信号
+            session.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
             closeFileChannel(response);
             return;
         }

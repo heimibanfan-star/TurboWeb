@@ -75,6 +75,11 @@ public class HttpServerConfig {
      */
     private int diskOpeThreadMaxThreadNum = Runtime.getRuntime().availableProcessors() * 2;
 
+    /**
+     * 是否每个连接都进串行化处理
+     */
+    private boolean serializePerConnection = true;
+
     public long getSessionCheckThreshold() {
         return sessionCheckThreshold;
     }
@@ -256,5 +261,11 @@ public class HttpServerConfig {
         this.maxConnections = maxConnections;
     }
 
+    public boolean isSerializePerConnection() {
+        return serializePerConnection;
+    }
 
+    public void setSerializePerConnection(boolean serializePerConnection) {
+        this.serializePerConnection = serializePerConnection;
+    }
 }

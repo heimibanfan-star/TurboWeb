@@ -12,9 +12,7 @@ import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.util.concurrent.Future;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 /**
  *
@@ -34,7 +32,7 @@ public class BackPressFileStream implements FileStream {
     }
 
     @Override
-    public ChannelFuture readFileWithChunk(BiFunction<ByteBuf, Exception, ChannelFuture> function) {
+    public ChannelFuture readFileWithChunk(BiFunction<ByteBuf, Exception, ChannelFuture> function, Runnable success) {
         // 判断是否有数据
         if (offset >= fileSize) {
             try {
@@ -43,7 +41,8 @@ public class BackPressFileStream implements FileStream {
                 }
                 return channelFuture;
             } finally {
-                closeFileChannel();
+                closeFileChannel(fileChannel);
+                success.run();
             }
         }
         // 设置读取位置
@@ -58,19 +57,19 @@ public class BackPressFileStream implements FileStream {
                 if (future == null) {
                     channelFuture.setFailure(new TurboFileException("文件下载正常回调返回值不能为null"));
                     // 关闭文件通道
-                    closeFileChannel();
+                    closeFileChannel(fileChannel);
                     return channelFuture;
                 }
                 future.addListener(f -> {
                     if (!f.isSuccess()) {
                         channelFuture.setFailure(f.cause());
                         // 关闭文件通道
-                        closeFileChannel();
+                        closeFileChannel(fileChannel);
                         log.error("文件传输失败", f.cause());
                     } else {
                         // 读取下一个分块
                         boolean ok = DiskOpeThreadUtils.execute(() -> {
-                            readFileWithChunk(function);
+                            readFileWithChunk(function, success);
                         });
                         if (!ok) {
                             try {
@@ -79,7 +78,7 @@ public class BackPressFileStream implements FileStream {
                                 }
                                 function.apply(null, new TurboFileException("task queue is full, file download error"));
                             } finally {
-                                closeFileChannel();
+                                closeFileChannel(fileChannel);
                             }
                         }
                     }
@@ -90,7 +89,7 @@ public class BackPressFileStream implements FileStream {
                         channelFuture.setSuccess();
                     }
                 } finally {
-                    closeFileChannel();
+                    closeFileChannel(fileChannel);
                 }
             }
             return channelFuture;
@@ -101,21 +100,10 @@ public class BackPressFileStream implements FileStream {
                 }
                 function.apply(null, new TurboFileException("文件读取失败", e));
             } finally {
-                closeFileChannel();
+                closeFileChannel(fileChannel);
             }
         }
         return channelFuture;
-    }
-
-    /**
-     * 关闭文件通道
-     */
-    private void closeFileChannel() {
-        try {
-            fileChannel.close();
-        } catch (IOException e) {
-            log.error("文件关闭失败", e);
-        }
     }
 
     /**

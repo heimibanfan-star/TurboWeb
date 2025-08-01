@@ -35,7 +35,7 @@ public class DefaultFileStream implements FileStream {
 	}
 
 	@Override
-	public ChannelFuture readFileWithChunk(BiFunction<ByteBuf, Exception, ChannelFuture> function) {
+	public ChannelFuture readFileWithChunk(BiFunction<ByteBuf, Exception, ChannelFuture> function, Runnable success) {
 		Exception exception = null;
 		ChannelFuture channelFuture = null;
 		int bufSize = chunkSize > fileSize ? (int) fileSize : chunkSize;
@@ -58,9 +58,10 @@ public class DefaultFileStream implements FileStream {
 			}
 		} finally {
 			try {
-				fileChannel.close();
-			} catch (IOException e) {
-				log.error("文件关闭失败", e);
+				closeFileChannel(fileChannel);
+				success.run();
+			} catch (Exception e) {
+				log.error("成功回调调用失败", e);
 			}
 		}
 		return channelFuture;

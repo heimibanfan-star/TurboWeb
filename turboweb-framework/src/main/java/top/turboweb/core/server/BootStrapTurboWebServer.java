@@ -147,7 +147,7 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
         HttpScheduler httpScheduler = httpSchedulerInitFactory.createHttpScheduler(serverConfig);
         // 创建http协议分发器
         HttpProtocolDispatcher httpProtocolDispatcher = httpProtocolDispatcherInitFactory.createDispatcher(httpScheduler, workers());
-        initPipeline(httpProtocolDispatcher, serverConfig.getMaxContentLength(), serverConfig.getCpuNum(), serverConfig.getMaxConnections());
+        initPipeline(httpProtocolDispatcher, serverConfig.getMaxContentLength(), serverConfig.getCpuNum(), serverConfig.getMaxConnections(), serverConfig.isSerializePerConnection());
     }
 
     public static void printBanner() {

@@ -11,6 +11,7 @@ import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.handler.ConnectLimiter;
 import top.turboweb.core.handler.ChannelHandlerFactory;
+import top.turboweb.core.piplines.RequestSerializerHandler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -94,7 +95,7 @@ public class CoreTurboWebServer {
 	 * @param dispatcherHandler http工作分发器
 	 * @param maxContentLen 最大内容长度
 	 */
-	protected final void initPipeline(HttpProtocolDispatcher dispatcherHandler, int maxContentLen, int nCPU, int maxConnect) {
+	protected final void initPipeline(HttpProtocolDispatcher dispatcherHandler, int maxContentLen, int nCPU, int maxConnect, boolean serForPerConn) {
 		ConnectLimiter connectLimiter = new ConnectLimiter(maxConnect, ioThreadNum, nCPU);
 		coreNettyServer.childChannelInitPipeline(pipeline -> {
 			// 添加连接限制器
@@ -105,6 +106,9 @@ public class CoreTurboWebServer {
 			}
 			pipeline.addLast(new HttpServerCodec());
 			pipeline.addLast(new HttpObjectAggregator(maxContentLen));
+			if (serForPerConn) {
+				pipeline.addLast(new RequestSerializerHandler());
+			}
 //			pipeline.addLast(new ChunkedWriteHandler());
 			pipeline.addLast(dispatcherHandler);
 			for (ChannelHandlerFactory backHandlerFactory : backHandlerFactories) {

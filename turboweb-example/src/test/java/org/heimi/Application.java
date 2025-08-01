@@ -15,6 +15,7 @@ public class Application {
                 .http().routerManager(routerManager)
                 .and()
                 .configServer(c -> {
+                    c.setShowRequestLog(false);
                 }).start();
     }
 }
