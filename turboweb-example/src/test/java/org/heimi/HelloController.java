@@ -37,11 +37,12 @@ public class HelloController {
 //        EventLoop eventExecutors = connectSession.getChannel().eventLoop();
 //        System.out.println(eventExecutors);
 //        connectSession.getChannel().writeAndFlush(new DefaultFileRegion(fileChannel, 0, fileChannel.size()));
-        File file = new File("E:\\tmp\\tmp.zip");
+//        File file = new File("E:\\tmp\\tmp.zip");
+        File file = new File("E:\\tmp\\evection.png");
         ZeroCopyResponse response = new ZeroCopyResponse(file);
-//        response.setContentType(ContentType.IMAGE_PNG);
-//        // 在浏览器直接打开
-//        response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "inline;filename=\"" + file.getName() + "\"");
+        response.setContentType(ContentType.IMAGE_PNG);
+        // 在浏览器直接打开
+        response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "inline;filename=\"" + file.getName() + "\"");
         return response;
     }
 

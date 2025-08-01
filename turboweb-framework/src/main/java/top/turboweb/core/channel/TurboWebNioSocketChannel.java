@@ -8,6 +8,7 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.ExecutorService;
 
 import static io.netty.channel.internal.ChannelUtils.MAX_BYTES_PER_GATHERING_WRITE_ATTEMPTED_LOW_THRESHOLD;
+import static io.netty.channel.internal.ChannelUtils.WRITE_STATUS_SNDBUF_FULL;
 
 
 public class TurboWebNioSocketChannel extends NioSocketChannel {
@@ -64,14 +65,16 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
                     if (current instanceof FileRegion) {
                         isWriting = true;
                         zeroCopyPool.execute(() -> {
+                            boolean isFull = false;
                             try {
-                                doWrite0(in);
+                                int code = doWrite0(in);
+                                isFull = code == WRITE_STATUS_SNDBUF_FULL;
                             } catch (Exception e) {
                                 this.close();
                             } finally {
                                 isWriting = false;
                                 // 刷新缓冲区
-                                incompleteWrite(false);
+                                incompleteWrite(isFull);
                             }
                         });
                         return;
