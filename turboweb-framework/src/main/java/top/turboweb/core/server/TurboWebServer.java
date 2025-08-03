@@ -85,4 +85,9 @@ public interface TurboWebServer {
 	ChannelFuture start();
 	ChannelFuture start(int port);
 	ChannelFuture start(String host, int port);
+
+	/**
+	 * 停止
+	 */
+	void shutdown();
 }

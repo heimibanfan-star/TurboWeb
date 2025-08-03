@@ -27,7 +27,9 @@ public class DiskOpeThreadUtils {
         @Override
         public Thread newThread(Runnable r) {
             int num = threadNum.getAndUpdate(x -> (x == Integer.MAX_VALUE) ? 0 : x + 1);
-            return new Thread(r, NAME_PREFIX + num);
+            Thread thread = new Thread(r, NAME_PREFIX + num);
+            thread.setDaemon(true);
+            return thread;
         }
     }
 

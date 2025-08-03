@@ -9,11 +9,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 呢哦村session管理器
@@ -89,7 +87,18 @@ public class MemorySessionManager implements SessionManager {
         if (!isStartGC.compareAndSet(false, true)) {
             return;
         }
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1, new ThreadFactory() {
+            private final AtomicLong count = new AtomicLong(0);
+
+            @Override
+            public Thread newThread(Runnable r) {
+                count.compareAndSet(Long.MAX_VALUE, 0);
+                String threadName = "session-gc-thread-" + count.getAndIncrement();
+                Thread thread = new Thread(r, threadName);
+                thread.setDaemon(true);
+                return thread;
+            }
+        });
         scheduler.scheduleAtFixedRate(() -> {
             // 判断是否到达检查条件
             if (sessionContainer.size() < checkForSessionNums) {

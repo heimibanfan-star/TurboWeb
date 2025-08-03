@@ -130,11 +130,17 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
                 long time = System.currentTimeMillis() - start;
                 log.info("TurboWebServer start on: http://{}:{}, time: {}ms", host, port, time);
             } else {
+                super.shutdown();
                 log.error("TurboWebServer start failed: {}\n", future.cause().getMessage(), future.cause());
             }
 
         });
         return channelFuture;
+    }
+
+    @Override
+    public void shutdown() {
+        super.shutdown();
     }
 
     /**

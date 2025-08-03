@@ -6,6 +6,8 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import top.turboweb.core.channel.TurboWebNioServerSocketChannel;
 import top.turboweb.core.channel.TurboWebNioSocketChannel;
 
@@ -18,7 +20,9 @@ import java.util.function.Consumer;
  */
 public class CoreNettyServer {
 
+	private static final Logger log = LoggerFactory.getLogger(CoreNettyServer.class);
 	private final ServerBootstrap serverBootstrap = new ServerBootstrap();
+	private final EventLoopGroup boss = new NioEventLoopGroup(1);
 	private final EventLoopGroup workers;
 	private final ThreadPoolExecutor zeroCopyExecutor;
 
@@ -55,7 +59,7 @@ public class CoreNettyServer {
 		zeroCopyExecutor.allowCoreThreadTimeOut(true);
 		workers = new NioEventLoopGroup(ioThreadNum);
 		serverBootstrap.group(
-			new NioEventLoopGroup(1),
+			boss,
 			workers
 		);
 //		serverBootstrap.channel(TurboWebNioServerSocketChannel.class);
@@ -139,5 +143,28 @@ public class CoreNettyServer {
 	 */
 	public EventLoopGroup workers() {
 		return workers;
+	}
+
+	/**
+	 * 停止
+	 */
+	public void shutdown() {
+		// 关闭boss线程
+		boss.shutdownGracefully().addListener(
+				future -> {
+					if (future.isSuccess()) {
+						// 关闭工作线程组
+						workers.shutdownGracefully().addListener(f -> {
+							if (f.isSuccess()) {
+								log.info("server is stop success");
+							} else {
+								log.error("worker thread shutdown err");
+							}
+						});
+					} else {
+						log.error("boss thread shutdown err");
+					}
+				}
+		);
 	}
 }

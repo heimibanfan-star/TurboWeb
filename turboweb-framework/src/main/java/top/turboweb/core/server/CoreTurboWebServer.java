@@ -116,4 +116,11 @@ public class CoreTurboWebServer {
 			}
 		});
 	}
+
+	/**
+	 * 关闭
+	 */
+	protected void shutdown() {
+		coreNettyServer.shutdown();
+	}
 }

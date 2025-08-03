@@ -46,8 +46,8 @@ public class HelloController {
     }
 
     @Get("/2")
-    public HttpFileResult helloWorld2(HttpContext context) {
+    public HttpResponse helloWorld2(HttpContext context) {
         File file = new File("E:\\tmp\\evection.png");
-        return HttpFileResult.file(file);
+        return new ZeroCopyResponse( file);
     }
 }
