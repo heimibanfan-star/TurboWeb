@@ -24,6 +24,8 @@ public interface InternalCallResponse {
         SSE,
         // 默认的策略
         DEFAULT,
+        // 普通的流式调用
+        STREAM
     }
 
     /**
