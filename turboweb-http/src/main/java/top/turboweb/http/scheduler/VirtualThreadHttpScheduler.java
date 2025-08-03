@@ -3,7 +3,7 @@ package top.turboweb.http.scheduler;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.constants.FontColors;
-import top.turboweb.commons.utils.thread.VirtualThreadUtils;
+import top.turboweb.commons.utils.thread.VirtualThreads;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.processor.Processor;
@@ -29,6 +29,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
     private final long timeout;
     private final Semaphore permission;
     protected boolean showRequestLog = true;
+    private static final String THREAD_NAME = "turboweb-http-handler";
 
     {
         colors.put("GET", FontColors.GREEN);
@@ -54,7 +55,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
     public void execute(FullHttpRequest request, ConnectSession session) {
         long startTime = System.nanoTime();
         if (!enableLimit) {
-            VirtualThreadUtils.execute(() -> doExecute(request, session));
+            VirtualThreads.startThread(() -> doExecute(request, session), THREAD_NAME);
             return;
         }
         boolean prePermission;
@@ -64,7 +65,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
             return;
         }
         // 创建虚拟线程
-        VirtualThreadUtils.execute(() -> {
+        VirtualThreads.startThread(() -> {
             boolean hasPermission = prePermission;
             long waitTime = timeout;
             for (; ; ) {
@@ -111,7 +112,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
                     }
                 }
             }
-        });
+        }, THREAD_NAME);
     }
 
     /**

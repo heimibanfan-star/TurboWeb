@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.websocketx.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.exception.TurboWebSocketException;
-import top.turboweb.commons.utils.thread.VirtualThreadUtils;
+import top.turboweb.commons.utils.thread.VirtualThreads;
 import top.turboweb.websocket.*;
 
 import java.util.Map;
@@ -37,7 +37,7 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
             POOL = new ForkJoinPool(threadNum);
             log.info("websocket work on ForkJoin pool, threadNum: {}", threadNum);
         } else {
-            POOL = VirtualThreadUtils.getPool();
+            POOL = VirtualThreads.getPool();
             log.info("websocket work on VirtualThread");
         }
     }

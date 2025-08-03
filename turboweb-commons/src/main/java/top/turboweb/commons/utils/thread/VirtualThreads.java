@@ -6,7 +6,7 @@ import java.util.concurrent.Executors;
 /**
  * 虚拟线程工具类
  */
-public class VirtualThreadUtils {
+public final class VirtualThreads {
 
     private static final ExecutorService POOL;
 
@@ -14,16 +14,17 @@ public class VirtualThreadUtils {
         POOL = Executors.newVirtualThreadPerTaskExecutor();
     }
 
-    private VirtualThreadUtils() {
+    private VirtualThreads() {
     }
 
     /**
-     * 执行异步任务
+     * 创建虚拟线程并执行任务
      *
-     * @param task 任务
+     * @param task 线程任务
+     * @param name 线程名称
      */
-    public static void execute(Runnable task) {
-        POOL.execute(task);
+    public static void startThread(Runnable task, String name) {
+        Thread.ofVirtual().name(name).start(task);
     }
 
     /**
