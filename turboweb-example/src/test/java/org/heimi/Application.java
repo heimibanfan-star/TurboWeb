@@ -19,6 +19,6 @@ public class Application {
                 .and()
                 .configServer(c -> {
                     c.setShowRequestLog(false);
-                }).start(8081);
+                }).start(8080);
     }
 }

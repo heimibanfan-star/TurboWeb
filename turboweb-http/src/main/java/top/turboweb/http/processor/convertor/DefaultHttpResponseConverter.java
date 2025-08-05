@@ -2,15 +2,13 @@ package top.turboweb.http.processor.convertor;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.*;
-import reactor.core.publisher.Flux;
+import org.reactivestreams.Publisher;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboSerializableException;
 import top.turboweb.commons.utils.base.BeanUtils;
 import top.turboweb.http.response.HttpFileResult;
 import top.turboweb.http.response.HttpResult;
-import top.turboweb.http.response.StreamResponse;
-
-import java.nio.charset.StandardCharsets;
+import top.turboweb.http.response.ReactorResponse;
 
 /**
  * 默认的HttpResponse转化器
@@ -30,8 +28,8 @@ public class DefaultHttpResponseConverter implements HttpResponseConverter {
             case HttpResponse httpResponse -> httpResponse;
             // 如果无返回值，则返回空字符串
             case null -> buildResponse("", "text/html;charset=" + GlobalConfig.getResponseCharset().name());
-            // 如果是流式类型，则返回流式响应
-            case Flux<?> flux -> new StreamResponse<>(flux);
+            // 如果是异步类型，则返回reactor响应对象
+            case Publisher<?> publisher -> new ReactorResponse<>(publisher);
             // 按照application/json构建
             default -> {
                 try {

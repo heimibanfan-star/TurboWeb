@@ -19,7 +19,7 @@ public class ResponseStrategyContext {
                 InternalCallResponse.InternalCallType.DEFAULT, new DefaultResponseStrategy(),
                 InternalCallResponse.InternalCallType.AIO_FILE, new AsyncFileResponseStrategy(),
                 InternalCallResponse.InternalCallType.ZERO_COPY, new ZeroCopyResponseStrategy(),
-                InternalCallResponse.InternalCallType.STREAM, new StreamResponseStrategy()
+                InternalCallResponse.InternalCallType.REACTOR, new ReactorResponseStrategy()
         );
     }
 

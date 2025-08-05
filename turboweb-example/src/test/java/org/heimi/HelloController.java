@@ -5,6 +5,7 @@ import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.*;
 import org.apache.hc.core5.http.ContentType;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.connect.InternalConnectSession;
@@ -28,16 +29,17 @@ import java.util.concurrent.TimeUnit;
 public class HelloController {
 
     @Get
-    public Flux<String> hello(HttpContext context) throws InterruptedException, IOException {
-        return Flux.<String>create(sink -> {
-                    Thread.ofVirtual().start(() -> {
-                        for (int i = 0; i < 10; i++) {
-                            sink.next("hello " + i);
-                        }
-                        sink.complete();
-                    });
-                })
-                .delayElements(Duration.ofMillis(500));
+    public Mono<String> hello(HttpContext context) throws InterruptedException, IOException {
+//        return Flux.<String>create(sink -> {
+//                    Thread.ofVirtual().start(() -> {
+//                        for (int i = 0; i < 10; i++) {
+//                            sink.next("hello " + i);
+//                        }
+//                        sink.complete();
+//                    });
+//                })
+//                .delayElements(Duration.ofMillis(500));
+        return Mono.just("Hello World");
     }
 
     @Get("/1")
