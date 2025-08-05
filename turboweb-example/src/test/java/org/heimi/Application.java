@@ -19,6 +19,9 @@ public class Application {
                 .and()
                 .configServer(c -> {
                     c.setShowRequestLog(false);
+                    c.setHttpSchedulerLimitCount(1);
+                    c.setHttpSchedulerLimitTimeout(5);
+                    c.setEnableHttpSchedulerLimit(true);
                 }).start(8080);
     }
 }

@@ -12,16 +12,17 @@ public class ResponseStrategyContext {
 
     private final Map<InternalCallResponse.InternalCallType, ResponseStrategy> responseStrategyMap;
 
-    {
+    public ResponseStrategyContext(boolean enableLimit) {
         responseStrategyMap = Map.of(
                 InternalCallResponse.InternalCallType.SSE, new SseResponseStrategy(),
                 InternalCallResponse.InternalCallType.FILE_STREAM, new FileStreamResponseStrategy(),
                 InternalCallResponse.InternalCallType.DEFAULT, new DefaultResponseStrategy(),
                 InternalCallResponse.InternalCallType.AIO_FILE, new AsyncFileResponseStrategy(),
                 InternalCallResponse.InternalCallType.ZERO_COPY, new ZeroCopyResponseStrategy(),
-                InternalCallResponse.InternalCallType.REACTOR, new ReactorResponseStrategy()
+                InternalCallResponse.InternalCallType.REACTOR, new ReactorResponseStrategy(enableLimit)
         );
     }
+
 
     /**
      * 选择响应策略

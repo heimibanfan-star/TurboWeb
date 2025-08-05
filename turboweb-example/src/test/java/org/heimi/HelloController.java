@@ -29,17 +29,17 @@ import java.util.concurrent.TimeUnit;
 public class HelloController {
 
     @Get
-    public Mono<String> hello(HttpContext context) throws InterruptedException, IOException {
-//        return Flux.<String>create(sink -> {
-//                    Thread.ofVirtual().start(() -> {
-//                        for (int i = 0; i < 10; i++) {
-//                            sink.next("hello " + i);
-//                        }
-//                        sink.complete();
-//                    });
-//                })
-//                .delayElements(Duration.ofMillis(500));
-        return Mono.just("Hello World");
+    public Flux<String> hello(HttpContext context) throws InterruptedException, IOException {
+        return Flux.<String>create(sink -> {
+                    Thread.ofVirtual().start(() -> {
+                        for (int i = 0; i < 10; i++) {
+                            sink.next("hello " + i);
+                        }
+                        sink.complete();
+                    });
+                })
+                .delayElements(Duration.ofMillis(500));
+//        return Mono.just("Hello World");
     }
 
     @Get("/1")

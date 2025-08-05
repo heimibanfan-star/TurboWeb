@@ -9,18 +9,29 @@ import io.netty.handler.codec.http.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import top.turboweb.commons.utils.base.BeanUtils;
+import top.turboweb.commons.utils.thread.ThreadAssert;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.response.ReactorResponse;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 处理reactor响应的策略
  */
 public class ReactorResponseStrategy extends ResponseStrategy {
+
+    private final boolean enableLimit;
+
+    public ReactorResponseStrategy(boolean enableLimit) {
+        this.enableLimit = enableLimit;
+    }
+
     @Override
     protected ChannelFuture doHandle(HttpResponse response, InternalConnectSession session) {
+        ThreadAssert.assertIsVirtualThread();
         if (response instanceof ReactorResponse<?> reactorResponse) {
             ChannelPromise promise = session.getChannel().newPromise();
             writeHeader(response, session)
@@ -32,6 +43,16 @@ public class ReactorResponseStrategy extends ResponseStrategy {
                             session.close();
                         }
                     });
+            // 判断是否开启限流
+            if (enableLimit) {
+                CountDownLatch latch = new CountDownLatch(1);
+                promise.addListener(f -> latch.countDown());
+                // 卡住虚拟线程
+                try {
+                    boolean ignore = latch.await(60, TimeUnit.SECONDS);
+                } catch (InterruptedException ignore) {
+                }
+            }
             return promise;
         } else {
             throw new IllegalArgumentException("Invalid response type:" + response.getClass().getName());

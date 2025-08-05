@@ -22,7 +22,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
 
     protected final Processor processorChain;
     private final Map<String, String> colors = new ConcurrentHashMap<>(4);
-    private final ResponseStrategyContext responseStrategyContext = new ResponseStrategyContext();
+    private final ResponseStrategyContext responseStrategyContext;
     private final boolean enableLimit;
     private final AtomicInteger suspendThreads = new AtomicInteger(0);
     private final int maxSuspendThreadNum;
@@ -49,6 +49,7 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
         this.maxSuspendThreadNum = maxSuspendThreadNum;
         this.timeout = timeout;
         permission = new Semaphore(limit);
+        responseStrategyContext = new ResponseStrategyContext(enableLimit);
     }
 
     @Override
