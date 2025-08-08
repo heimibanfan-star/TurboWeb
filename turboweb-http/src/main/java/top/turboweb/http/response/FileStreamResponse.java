@@ -8,61 +8,48 @@ import org.slf4j.LoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /**
  * 流式文件传输的响应结果
  */
-public class FileStreamResponse extends AbstractFileResponse implements InternalCallResponse{
+public class FileStreamResponse extends AbstractFileResponse implements InternalCallResponse {
 
 	private static final Logger log = LoggerFactory.getLogger(FileStreamResponse.class);
-	private final FileStream chunkedFile;
-	private ChannelProgressiveFutureListener listener;
-
-	public FileStreamResponse(File file, boolean backPress) {
-		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152 , backPress);
-	}
+	private final FileChannel fileChannel;
+	private final long fileSize;
+	private final long chunkSize;
+	private final Charset filenameCharset;
 
 	public FileStreamResponse(File file) {
-		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152, true);
+		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152 );
 	}
 
-	public FileStreamResponse(File file, Charset filenameCharset, boolean backPress) {
-		this(HttpResponseStatus.OK, file, filenameCharset, 2097152, backPress);
+	public FileStreamResponse(File file, Charset filenameCharset) {
+		this(HttpResponseStatus.OK, file, filenameCharset, 2097152);
 	}
 
-	public FileStreamResponse(File file, int chunkSize, boolean backPress) {
-		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), chunkSize, backPress);
+	public FileStreamResponse(File file, int chunkSize) {
+		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), chunkSize);
 	}
 
-	public FileStreamResponse(HttpResponseStatus status, File file, Charset filenameCharset, int chunkSize, boolean backPress) {
+	public FileStreamResponse(HttpResponseStatus status, File file, Charset filenameCharset, int chunkSize) {
 		super(status, file, filenameCharset);
-		try {
-			boolean openProtectMemory = openProtectMemory(file.length());
-			if (!backPress && openProtectMemory) {
-				log.warn("file {} size {} out of limit, use BackPressFileStream", file.getName(), file.length());
-			}
-			if (backPress || openProtectMemory) {
-				chunkedFile = new BackPressFileStream(file, chunkSize);
-			} else {
-				chunkedFile = new DefaultFileStream(file, chunkSize);
-			}
-		} catch (IOException e) {
-			throw new TurboFileException(e);
-		}
 		this.headers().set(HttpHeaderNames.CONTENT_LENGTH, file.length());
-	}
-
-	public FileStream getChunkedFile() {
-		return chunkedFile;
-	}
-
-	public ChannelProgressiveFutureListener getListener() {
-		return listener;
+		this.fileSize = file.length();
+        try {
+            this.fileChannel = FileChannel.open(file.toPath());
+        } catch (IOException e) {
+            throw new TurboFileException(e);
+        }
+        this.chunkSize = chunkSize;
+		this.filenameCharset = filenameCharset;
 	}
 
 	/**
@@ -84,5 +71,21 @@ public class FileStreamResponse extends AbstractFileResponse implements Internal
 	@Override
 	public InternalCallType getType() {
 		return InternalCallType.FILE_STREAM;
+	}
+
+	public FileChannel getFileChannel() {
+		return fileChannel;
+	}
+
+	public long getChunkSize() {
+		return chunkSize;
+	}
+
+	public Charset getFilenameCharset() {
+		return filenameCharset;
+	}
+
+	public long getFileSize() {
+		return fileSize;
 	}
 }

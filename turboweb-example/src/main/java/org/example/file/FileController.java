@@ -41,7 +41,7 @@ public class FileController {
     @Get("/download2")
     public HttpResponse download02(HttpContext context) {
         File file = new File("E:\\tmp\\logo.png");
-        return new FileStreamResponse(file, 8192,  false);
+        return new FileStreamResponse(file, 8192);
     }
 
     @Get("/download3")

@@ -1,21 +1,25 @@
 package top.turboweb.http.scheduler.strategy;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelPromise;
-import io.netty.channel.DefaultChannelPromise;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
+import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.BaseSubscriber;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.SynchronousSink;
 import top.turboweb.commons.exception.TurboFileException;
 import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
-import top.turboweb.commons.utils.thread.ThreadAssert;
 import top.turboweb.http.connect.InternalConnectSession;
-import top.turboweb.http.response.FileStream;
 import top.turboweb.http.response.FileStreamResponse;
 
-import java.util.concurrent.ExecutionException;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
 
 
 /**
@@ -26,70 +30,159 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
 
     @Override
     protected ChannelFuture doHandle(HttpResponse response, InternalConnectSession session) {
-        ThreadAssert.assertIsVirtualThread();
         if (response instanceof FileStreamResponse fileStreamResponse) {
-            try {
-                session.getChannel().writeAndFlush(fileStreamResponse).get();
-            } catch (InterruptedException | ExecutionException e) {
-                ChannelPromise promise = session.getChannel().newPromise();
-                promise.setFailure(e);
-                return promise;
+            ChannelPromise promise = session.getChannel().newPromise();
+            boolean ok = DiskOpeThreadUtils.execute(() -> {
+                // 发送响应头
+                session.getChannel().writeAndFlush(fileStreamResponse)
+                        .addListener(f -> {
+                            if (!f.isSuccess()) {
+                                promise.setFailure(f.cause());
+                            } else {
+                                doSendFileWithBackPress(fileStreamResponse, session, promise);
+                            }
+                        });
+            });
+            // 判断任务是否提交成功
+            if (!ok) {
+                promise.setFailure(new TurboFileException("disk thread is busy, file download fail"));
             }
-            return handleFileStream(fileStreamResponse, session);
+            return promise;
         } else {
             throw new IllegalArgumentException("Invalid response type:" + response.getClass().getName());
         }
     }
 
     /**
-     * 进行文件流的下载
+     * 带背压的分块发送文件
      *
-     * @param fileStreamResponse 文件下载的响应读写
-     * @param session 连接的 session
-     * @return 异步监听对象
+     * @param response 响应
+     * @param session  会话
+     * @param promise  结果
      */
-    private ChannelFuture handleFileStream(FileStreamResponse fileStreamResponse, InternalConnectSession session) {
-        DefaultChannelPromise future = new DefaultChannelPromise(session.getChannel());
-        DiskOpeThreadUtils.execute(() -> {
-            log.debug("File download is handed over to backup thread pool");
-            try {
-                // 处理分块文件传输的情况
-                FileStream chunkedFile = fileStreamResponse.getChunkedFile();
-                ChannelFuture channelFuture = doReadFileChunk(chunkedFile, session);
-                if (channelFuture == null) {
-                    future.setFailure(new TurboFileException("file download fail"));
-                } else {
-                    channelFuture.addListener(f -> {
-                        if (f.isSuccess()) {
-                            future.setSuccess();
-                        } else {
-                            future.setFailure(f.cause());
+    private void doSendFileWithBackPress(FileStreamResponse response, InternalConnectSession session, ChannelPromise promise) {
+        // 创建Reactor流进行文件的背压发送
+        Flux.<ByteBuf, Long>generate(() -> 0L, (position, emitter) -> {
+                    try {
+                        Long pos = doReadChunk(position, emitter, response);
+                        if (pos == -1L) {
+                            emitter.complete();
                         }
-                    });
-                }
-            } catch (Exception e) {
-                future.setFailure(e);
-            }
-        });
-        return future;
+                        return pos;
+                    } catch (IOException e) {
+                        emitter.error(e);
+                        return position;
+                    }
+                })
+                // 处理资源的释放问题
+                .doFinally(signalType -> {
+                    closeFileChannel(response);
+                    if (!promise.isDone()) {
+                        promise.setFailure(new TurboFileException("unknown error: promise not completed"));
+                    }
+                })
+                .subscribe(new BaseSubscriber<>() {
+
+                    @Override
+                    protected void hookOnSubscribe(Subscription subscription) {
+                        boolean ok = DiskOpeThreadUtils.execute(() -> {
+                            // 订阅一个流
+                            subscription.request(1);
+                        });
+                        if (!ok) {
+                            log.error("disk thread is busy, file download fail");
+                            cancel();
+                        }
+                    }
+
+                    @Override
+                    protected void hookOnNext(ByteBuf value) {
+                        // 将数据发送出去
+                        session.getChannel().writeAndFlush(new DefaultHttpContent(value))
+                                .addListener(f -> {
+                                    if (!f.isSuccess()) {
+                                        log.error("chunk send error", f.cause());
+                                        cancel();
+                                    } else {
+                                        // 订阅下一个分块
+                                        boolean ok = DiskOpeThreadUtils.execute(() -> {
+                                            request(1);
+                                        });
+                                        if (!ok) {
+                                            log.error("disk thread is busy, file download fail");
+                                            cancel();
+                                        }
+                                    }
+                                });
+                    }
+
+                    @Override
+                    protected void hookOnComplete() {
+                        // 发送结束标识
+                        session.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
+                                .addListener(f -> {
+                                    if (!f.isSuccess()) {
+                                        log.error("chunk send error", f.cause());
+                                    } else {
+                                        promise.setSuccess();
+                                    }
+                                });
+                    }
+
+                    @Override
+                    protected void hookOnError(Throwable throwable) {
+                        promise.setFailure(throwable);
+                        // 关闭连接管道
+                        session.close();
+                    }
+
+                    @Override
+                    protected void hookOnCancel() {
+                        promise.setFailure(new TurboFileException("file download is cancel"));
+                    }
+                });
     }
 
     /**
      * 读取文件分块
      *
-     * @param fileStream 文件流
-     * @param session 连接的 session
-     * @return 异步监听对象
+     * @param position 文件的偏移量
+     * @param sink     背压流
+     * @param response 文件的响应
+     * @return 文件的偏移量
+     * @throws IOException 读取文件时发生异常
      */
-    private ChannelFuture doReadFileChunk(FileStream fileStream, InternalConnectSession session) {
-        return fileStream.readFileWithChunk((buf, e) -> {
-            if (e != null) {
-                return null;
-            } else {
-                return session.getChannel().writeAndFlush(new DefaultHttpContent(buf));
-            }
-        }, () -> {
-            session.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-        });
+    private Long doReadChunk(Long position, SynchronousSink<ByteBuf> sink, FileStreamResponse response) throws IOException {
+        long remaining = response.getFileSize() - position;
+        if (remaining <= 0) {
+            return -1L;
+        }
+        // 创建bytebuf
+        int bufSize = (int) Math.min(remaining, response.getChunkSize());
+        ByteBuf buf = PooledByteBufAllocator.DEFAULT.directBuffer(bufSize);
+        int writeIndex = buf.writerIndex();
+        int read = response.getFileChannel().read(buf.nioBuffer(writeIndex, bufSize));
+        if (read > 0) {
+            buf.writerIndex(writeIndex + read);
+            sink.next(buf);
+            return position + read;
+        } else {
+            buf.release();
+            return -1L;
+        }
     }
+
+    /**
+     * 关闭文件通道
+     *
+     * @param response 文件响应
+     */
+    private void closeFileChannel(FileStreamResponse response) {
+        try {
+            response.getFileChannel().close();
+        } catch (IOException e) {
+            log.error("关闭文件通道时出现错误", e);
+        }
+    }
+
 }

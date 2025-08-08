@@ -10,6 +10,7 @@ import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.FileStreamResponse;
 import top.turboweb.http.response.HttpFileResult;
 import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.response.ZeroCopyResponse;
@@ -50,6 +51,6 @@ public class HelloController {
     @Get("/2")
     public HttpResponse helloWorld2(HttpContext context) {
         File file = new File("E:\\tmp\\evection.png");
-        return new ZeroCopyResponse( file);
+        return new FileStreamResponse(file);
     }
 }
