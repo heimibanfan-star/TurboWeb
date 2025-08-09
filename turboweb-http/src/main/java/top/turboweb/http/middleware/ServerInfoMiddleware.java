@@ -91,7 +91,7 @@ public class ServerInfoMiddleware extends Middleware {
         List<Map<String, ?>> infos = new ArrayList<>(memoryPoolMXBeans.size());
         for (MemoryPoolMXBean memoryPoolMXBean : memoryPoolMXBeans) {
             if (memoryPoolMXBean.getType() == type) {
-                Map<String, Object> info = new HashMap<>(4);
+                Map<String, Object> info = new HashMap<>(4, 1);
                 info.put("name", memoryPoolMXBean.getName());
                 info.put("used", memoryPoolMXBean.getUsage().getUsed());
                 info.put("max", memoryPoolMXBean.getUsage().getMax());
@@ -105,7 +105,7 @@ public class ServerInfoMiddleware extends Middleware {
     private List<Map<String, ?>> getNioMemory(List<BufferPoolMXBean> bufferPoolMXBeans) {
         List<Map<String, ?>> infos = new ArrayList<>(bufferPoolMXBeans.size());
         for (BufferPoolMXBean bufferPoolMXBean : bufferPoolMXBeans) {
-            Map<String, Object> info = new HashMap<>(3);
+            Map<String, Object> info = new HashMap<>(3, 1);
             info.put("name", bufferPoolMXBean.getName());
             info.put("used", bufferPoolMXBean.getMemoryUsed());
             info.put("capacity", bufferPoolMXBean.getTotalCapacity());
@@ -120,8 +120,8 @@ public class ServerInfoMiddleware extends Middleware {
      * @return 线程信息
      */
     private Map<String, ?> getThreadInfo() {
-        Map<String, Object> map = new HashMap<>(2);
-        Map<Thread.State, Integer> stateCount = new HashMap<>(6);
+        Map<String, Object> map = new HashMap<>(2, 1);
+        Map<Thread.State, Integer> stateCount = new HashMap<>(6, 1);
         ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
         ThreadInfo[] threadInfos = threadMXBean.dumpAllThreads(
                 threadMXBean.isCurrentThreadCpuTimeSupported(),
@@ -129,7 +129,7 @@ public class ServerInfoMiddleware extends Middleware {
         );
         List<Map<String, ?>> infos = new ArrayList<>(threadInfos.length);
         for (ThreadInfo threadInfo : threadInfos) {
-            Map<String, Object> info = new HashMap<>(6);
+            Map<String, Object> info = new HashMap<>(6, 1);
             info.put("name", threadInfo.getThreadName());
             info.put("id", threadInfo.getThreadId());
             Thread.State state = threadInfo.getThreadState();
@@ -159,7 +159,7 @@ public class ServerInfoMiddleware extends Middleware {
         List<Map<String, ?>> infos = new ArrayList<>();
         List<GarbageCollectorMXBean> gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans();
         for (GarbageCollectorMXBean gcMXBean : gcMXBeans) {
-            Map<String, Object> info = new HashMap<>(3);
+            Map<String, Object> info = new HashMap<>(3, 1);
             info.put("name", gcMXBean.getName());
             info.put("count", gcMXBean.getCollectionCount());
             info.put("time", gcMXBean.getCollectionTime());

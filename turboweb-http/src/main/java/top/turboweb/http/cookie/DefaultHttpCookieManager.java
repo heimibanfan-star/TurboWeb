@@ -21,7 +21,7 @@ public class DefaultHttpCookieManager implements HttpCookieManager {
         String cookie = requestHeaders.get(HttpHeaderNames.COOKIE);
         if (cookie != null) {
             String[] cookieArray = cookie.split(";");
-            httpCookieMap = new HashMap<>(cookieArray.length);
+            httpCookieMap = new HashMap<>(cookieArray.length + 8, 1);
             for (String s : cookieArray) {
                 int index = s.indexOf('=');
                 if (index > 0) {
@@ -31,7 +31,7 @@ public class DefaultHttpCookieManager implements HttpCookieManager {
                 }
             }
         } else {
-            httpCookieMap = new HashMap<>();
+            httpCookieMap = new HashMap<>(8, 1);
         }
 
     }

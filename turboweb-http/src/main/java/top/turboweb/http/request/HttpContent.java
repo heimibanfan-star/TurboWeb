@@ -65,8 +65,8 @@ public class HttpContent {
 
     public static HttpContent empty() {
         HttpContent content = new HttpContent();
-        content.setFormParams(new HashMap<>(0));
-        content.setFormFiles(new HashMap<>(0));
+        content.setFormParams(Map.of());
+        content.setFormFiles(Map.of());
         return content;
     }
 }

@@ -79,7 +79,7 @@ public abstract class RouterManager extends Middleware {
     private void parsePathVariable(HttpContext ctx, RouterContainer.TrieMatchResult trieMatchResult) {
         Map<String, String> params = trieMatchResult.params();
         if (params == null) {
-            params = new HashMap<>(1);
+            params = Map.of();
         }
         ctx.injectPathParam(params);
     }

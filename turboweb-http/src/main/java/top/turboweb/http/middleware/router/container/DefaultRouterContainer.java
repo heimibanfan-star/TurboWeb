@@ -58,7 +58,7 @@ public class DefaultRouterContainer implements RouterContainer {
         return optional
                 .map(routerDefinitionMatchResult -> {
                     Map<String, String> params = routerDefinitionMatchResult.getParams();
-                    Map<String, String> newParams = new HashMap<>(params.size());
+                    Map<String, String> newParams = new HashMap<>(params.size(), 1);
                     params.forEach((key, value) -> {
                         value = decode(value);
                         newParams.put(key, value);

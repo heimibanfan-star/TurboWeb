@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class VirtualThreadHttpScheduler implements HttpScheduler {
 
     protected final Processor processorChain;
-    private final Map<String, String> colors = new ConcurrentHashMap<>(4);
+    private final Map<String, String> colors;
     private final ResponseStrategyContext responseStrategyContext;
     private final boolean enableLimit;
     private final AtomicInteger suspendThreads = new AtomicInteger(0);
@@ -32,11 +32,13 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
     private static final String THREAD_NAME = "turboweb-http-handler";
 
     {
-        colors.put("GET", FontColors.GREEN);
-        colors.put("POST", FontColors.YELLOW);
-        colors.put("PUT", FontColors.BLUE);
-        colors.put("DELETE", FontColors.RED);
-        colors.put("PATCH", FontColors.MAGENTA);
+        colors = Map.of(
+                "GET", FontColors.GREEN,
+                "POST", FontColors.YELLOW,
+                "PUT", FontColors.BLUE,
+                "DELETE", FontColors.RED,
+                "PATCH", FontColors.MAGENTA
+        );
     }
 
     public VirtualThreadHttpScheduler(Processor processorChain) {
