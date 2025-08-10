@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 public class Application {
 
     public static void main(String[] args) throws InterruptedException {
-        AnnoRouterManager routerManager = new AnnoRouterManager();
+        AnnoRouterManager routerManager = new AnnoRouterManager(true);
         routerManager.addController(new HelloController());
         BootStrapTurboWebServer.create(1)
                 .http().routerManager(routerManager)

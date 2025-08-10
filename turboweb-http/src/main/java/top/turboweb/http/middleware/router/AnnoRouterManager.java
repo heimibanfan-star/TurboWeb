@@ -17,6 +17,15 @@ public class AnnoRouterManager extends RouterManager {
     // 存储controller的信息
     private final Set<RouterContainerInitHelper.ControllerAttribute> controllers = new HashSet<>();
     private RouterContainer routerContainer;
+    private final boolean autoBind;
+
+    public AnnoRouterManager() {
+        this(false);
+    }
+
+    public AnnoRouterManager(boolean autoBind) {
+        this.autoBind = autoBind;
+    }
 
     /**
      * 添加controller
@@ -56,7 +65,7 @@ public class AnnoRouterManager extends RouterManager {
 
     @Override
     public void init(Middleware chain) {
-        this.routerContainer = RouterContainerInitHelper.initContainer(controllers);
+        this.routerContainer = RouterContainerInitHelper.initContainer(controllers, autoBind);
         log.info("AnnoRouterManager init success");
     }
 

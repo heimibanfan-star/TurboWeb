@@ -7,6 +7,8 @@ import org.apache.hc.core5.http.ContentType;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import top.turboweb.commons.anno.Get;
+import top.turboweb.commons.anno.Param;
+import top.turboweb.commons.anno.QueryModel;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;
@@ -29,28 +31,11 @@ import java.util.concurrent.TimeUnit;
 @RequestPath("/hello")
 public class HelloController {
 
-    @Get
-    public Flux<String> hello(HttpContext context) throws InterruptedException, IOException {
-        return Flux.<String>create(sink -> {
-                    Thread.ofVirtual().start(() -> {
-                        for (int i = 0; i < 10; i++) {
-                            sink.next("hello " + i);
-                        }
-                        sink.complete();
-                    });
-                })
-                .delayElements(Duration.ofMillis(500));
-//        return Mono.just("Hello World");
-    }
-
-    @Get("/1")
-    public String helloWorld(HttpContext context) {
-        return "helloWorld";
-    }
-
-    @Get("/2")
-    public HttpResponse helloWorld2(HttpContext context) {
-        File file = new File("E:\\tmp\\evection.png");
-        return new FileStreamResponse(file);
+    @Get("/{id:int}")
+    public String hello(@Param("id") Long id, @QueryModel User user, HttpContext ctx) {
+        System.out.println(id);
+        System.out.println(user);
+        System.out.println(ctx);
+        return "Hello User";
     }
 }
