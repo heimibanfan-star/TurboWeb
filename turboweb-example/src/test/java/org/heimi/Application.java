@@ -18,7 +18,7 @@ public class Application {
                 .http().routerManager(routerManager)
                 .and()
                 .configServer(c -> {
-                    c.setShowRequestLog(false);
+                    c.setShowRequestLog(true);
                     c.setHttpSchedulerLimitCount(1);
                     c.setHttpSchedulerLimitTimeout(5);
                     c.setEnableHttpSchedulerLimit(true);

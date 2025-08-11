@@ -32,10 +32,14 @@ import java.util.concurrent.TimeUnit;
 public class HelloController {
 
     @Get("/{id:int}")
-    public String hello(@Param("id") Long id, @QueryModel User user, HttpContext ctx) {
+    public String hello(@Param("id") Long id, @QueryModel User user) {
         System.out.println(id);
         System.out.println(user);
-        System.out.println(ctx);
         return "Hello User";
+    }
+
+    @Get
+    public String test() {
+        return "Hello World";
     }
 }

@@ -191,6 +191,23 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	}
 
 	@Override
+	public List<Double> queriesDouble(String name) {
+		return queries(name).stream().map(Double::parseDouble).toList();
+	}
+
+	@Override
+	public Double queryDouble(String name) {
+		List<Double> vals = queriesDouble(name);
+		return vals.isEmpty() ? null : vals.getFirst();
+	}
+
+	@Override
+	public Double queryDouble(String name, double defaultValue) {
+		Double val = queryDouble(name);
+		return val == null ? defaultValue : val;
+	}
+
+	@Override
 	public <T> T loadQuery(Class<T> beanType) {
 		try {
 			// 获取无参构造方法

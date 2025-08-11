@@ -81,6 +81,12 @@ public interface ParamBinder {
 
     Boolean queryBool(String name, Boolean defaultValue);
 
+    List<Double> queriesDouble(String name);
+
+    Double queryDouble(String name);
+
+    Double queryDouble(String name, double defaultValue);
+
     /**
      * 将查询参数封装为对象
      *
