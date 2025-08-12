@@ -121,6 +121,9 @@ public class HttpInfoRequestPackageHelper {
         String jsonContent = contentBuf.toString(getRequestCharset(request));
         if (jsonContent == null || jsonContent.isBlank()) {
             jsonContent = "{}";
+        } else {
+            // 去除首尾空格
+            jsonContent = jsonContent.trim();
         }
         // 判断是否是json格式
         if (jsonContent.startsWith("{") && jsonContent.endsWith("}")) {
