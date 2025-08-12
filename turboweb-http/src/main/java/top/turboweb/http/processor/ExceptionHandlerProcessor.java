@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.commons.utils.base.ErrorStrGenerator;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.handler.ExceptionHandlerDefinition;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
@@ -22,28 +23,8 @@ public class ExceptionHandlerProcessor extends Processor {
     private static final Logger log = LoggerFactory.getLogger(ExceptionHandlerProcessor.class);
     private final ExceptionHandlerMatcher exceptionHandlerMatcher;
     private final HttpResponseConverter httpResponseConverter;
-    // 默认的异常处理
-    private static final Function<String, String> SERVER_ERROR_MSG = msg -> String.format("""
-            {
-                "code": 500,
-                "msg": "%s"
-            }
-            """, msg);
-    // 默认的路由未找到处理
-    private static final Function<String, String> ROUTER_NOT_FOUND_MSG = msg -> String.format("""
-            {
-                "code": 404,
-                "msg": "%s"
-            }
-            """, msg);
 
 
-    private enum ErrType {
-        // 服务器错误
-        SERVER_ERROR,
-        // 路由匹配失败错误
-        ROUTER_NOT_FOUND,
-    }
 
     public ExceptionHandlerProcessor(
             ExceptionHandlerMatcher exceptionHandlerMatcher,
@@ -102,11 +83,11 @@ public class ExceptionHandlerProcessor extends Processor {
     private HttpResponse defaultExceptionHandler(Throwable e) {
         if (e instanceof TurboRouterException turboRouterException && TurboRouterException.ROUTER_NOT_MATCH.equals(turboRouterException.getCode())) {
             // 生成异常信息
-            String errMessage = ROUTER_NOT_FOUND_MSG.apply(e.getMessage());
+            String errMessage = ErrorStrGenerator.errHtml(404, e.getMessage());
             return buildErrResponse(errMessage, HttpResponseStatus.NOT_FOUND);
         }
         log.error("服务器异常", e);
-        String errMessage = SERVER_ERROR_MSG.apply(e.getMessage());
+        String errMessage = ErrorStrGenerator.errHtml(500, e.getMessage());
         return buildErrResponse(errMessage, HttpResponseStatus.INTERNAL_SERVER_ERROR);
     }
 
@@ -120,7 +101,7 @@ public class ExceptionHandlerProcessor extends Processor {
     private HttpResponse buildErrResponse(String content, HttpResponseStatus status) {
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
         response.content().writeBytes(content.getBytes(GlobalConfig.getResponseCharset()));
-        response.headers().add(HttpHeaderNames.CONTENT_TYPE, "application/json;charset=" + GlobalConfig.getResponseCharset().name());
+        response.headers().add(HttpHeaderNames.CONTENT_TYPE, "text/html;charset=" + GlobalConfig.getResponseCharset().name());
         response.headers().add(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
         return response;
     }
