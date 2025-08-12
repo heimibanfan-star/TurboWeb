@@ -104,14 +104,51 @@ public HttpResponse resp(HttpContext context) {
 > **适用场景：**
 >  完全控制响应格式、内容编码、二进制内容处理、非标准响应行为等。
 
-## 响应控制总结
+## 流式响应
 
-| 返回类型                            | 自动序列化         | 可设置状态码/响应头 | 用途场景                 |
-| ----------------------------------- | ------------------ | ------------------- | ------------------------ |
-| `String`                            | 否（作为 HTML）    | 否                  | 简单文本输出             |
-| Java 实体对象                       | 是（JSON）         | 否                  | 标准数据响应             |
-| `HttpResult<T>`                     | 可选（视类型而定） | 是                  | 常规 API 返回，灵活控制  |
-| `HttpInfoResponse` / `HttpResponse` | 否                 | 是                  | 高级响应控制，自定义格式 |
+TurboWeb支持返回Mono或者Flux等响应式流进行流式响应：
+
+```java
+@Get("/stream")
+public Flux<String> stream(HttpContext context) {
+    return Flux.just("hello", "world");
+}
+```
+
+TurboWeb调度器会自动会改流进行订阅。
+
+TurboWeb对流式响应的支持是依靠 `ReactorResponse` 和对应的策略对象来实现的，默认情况下流式数据响应格式是 `text/html` ,如果用户不满足默认的响应，可以自己构造流式响应对象：
+
+```java
+@Get("/stream2")
+public ReactorResponse<String> stream2(HttpContext context) {
+    Flux<String> flux = Flux.just("hello", "world");
+    ReactorResponse<String> response = new ReactorResponse<>(flux);
+    response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain");
+    return response;
+}
+```
+
+## 禁用TurboWeb对响应的处理
+
+如果TurboWeb的内置一系列响应都不满足用户的需求，那么用户可以禁用TurboWeb的响应，自己写出数据。
+
+当用户返回一个 `IgnoredHttpResponse` 的时候，改响应对象到达TurboWeb的 `HttpScheduler` 之后TurboWeb会忽略对改响应的处理，这个时候用户可以手动响应了，如下例子：
+
+```java
+@Get("/ignore")
+public HttpResponse ignore(HttpContext context) {
+    // 创建响应对象
+    HttpInfoResponse response = new HttpInfoResponse(HttpResponseStatus.OK);
+    response.setContent("hello world");
+    response.setContentType("text/plain");
+    // 获取连接会话
+    InternalConnectSession session = (InternalConnectSession) context.getConnectSession();
+    // 发送响应
+    session.getChannel().writeAndFlush(response);
+    return IgnoredHttpResponse.ignore();
+}
+```
 
 
 

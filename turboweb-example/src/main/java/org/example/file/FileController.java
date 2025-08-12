@@ -9,6 +9,7 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.response.AsyncFileResponse;
 import top.turboweb.http.response.FileStreamResponse;
 import top.turboweb.http.response.HttpFileResult;
+import top.turboweb.http.response.ZeroCopyResponse;
 
 import java.io.*;
 import java.util.List;
@@ -48,5 +49,11 @@ public class FileController {
     public HttpResponse download03(HttpContext context) {
         File file = new File("E:\\tmp\\logo.png");
         return new AsyncFileResponse(file, 8192);
+    }
+
+    @Get("/download4")
+    public HttpResponse download04(HttpContext context) {
+        File file = new File("E:\\tmp\\logo.png");
+        return new ZeroCopyResponse(file);
     }
 }

@@ -13,10 +13,9 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.*;
 
 /**
  * 自动绑定参数的路由定义信息
@@ -284,15 +283,25 @@ public class AutoBindRouterDefinition implements RouterDefinition {
      * @return 参数绑定策略
      */
     private ArgsHandler handleAnnoQuery(Parameter parameter, Query query) {
+        String typeName = "";
         // 判断类型
         short collectionType = 0;
-        if (List.class.isAssignableFrom(parameter.getType())) {
-            collectionType = 1;
-        } else if (Set.class.isAssignableFrom(parameter.getType())) {
-            collectionType = 2;
+        if (Collection.class.isAssignableFrom(parameter.getType())) {
+            if (List.class.isAssignableFrom(parameter.getType())) {
+                collectionType = 1;
+            } else if (Set.class.isAssignableFrom(parameter.getType())) {
+                collectionType = 2;
+            }
+            // 获取泛型类型
+            if (parameter.getParameterizedType() instanceof ParameterizedType parameterizedType) {
+                Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+                if (actualTypeArguments.length == 1) {
+                    typeName = actualTypeArguments[0].getTypeName();
+                }
+            }
         }
         ParamInfo info = new ParamInfo(query.value(), null, collectionType, false, null);
-        return switch (parameter.getType().getTypeName()) {
+        return switch (typeName) {
             case "java.lang.String" -> new ArgsHandler(info, Strategy.QUERY_TYPE_STRING.strategy);
             case "java.lang.Integer", "int" -> new ArgsHandler(info, Strategy.QUERY_TYPE_INTEGER.strategy);
             case "java.lang.Long", "long" -> new ArgsHandler(info, Strategy.QUERY_TYPE_LONG.strategy);

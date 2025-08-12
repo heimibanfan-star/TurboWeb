@@ -408,6 +408,148 @@ public String getOrder(HttpContext context) {
 
 路径参数自动转换如格式不正确，会抛出转换异常。
 
+## 请求参数自动注入
+
+为了简化开发，TurboWeb在`AnnoRouterManager` 中引入了参数自动注入的功能，默认是关闭的，需要手动开启。
+
+```java
+AnnoRouterManager routerManager = new AnnoRouterManager(true);
+```
+
+当开启参数自动注入时，控制器的方法不再要求必须是一个参数并且是 `HttpContext` ，而是会根据参数列表自动进行注入。
+
+**TurboWeb的参数注入的性能也是比较高的**，因为在项目启动的时候TurboWeb会对所有的方法签名进行一次**编译**，编译为对应的函数调用，当请求到达的时候直接一次执行每个参数的函数调用即可完成参数的注入，避免了运行期间进行反射操作。
+
+注入的参数有两种类型：框架对象、请求数据
+
+**TurboWeb支持部分框架内部对象的自动注入，支持的类型如下：**
+
+HttpContext、HttpSession、HttpCookieManager、SseResponse、SseEmitter。
+
+```java
+@Get("/1")
+public String bind01(
+        HttpContext ctx,
+        HttpSession session,
+        HttpCookieManager cookieManager,
+        SseResponse sseResponse,
+        SseEmitter sseEmitter
+        ) {
+    System.out.println(ctx);
+    System.out.println(session);
+    System.out.println(cookieManager);
+    System.out.println(sseResponse);
+    System.out.println(sseEmitter);
+    return "success";
+}
+```
+
+**请求数据的自动注入**
+
+获取路径参数：
+
+```java
+@Get("/2/{id:num}")
+public String bind02(@Param("id") Long id) {
+    System.out.println(id);
+    return "success";
+}
+```
+
+> 等价于调用`HttpContext` 的 `paramXX(..)` 方法。
+
+获取url查询参数：
+
+```java
+@Get("/3")
+public String bind03(@Query("id") Long id) {
+    System.out.println(id);
+    return "success";
+}
+```
+
+> 等价于调用 `HttpContext` 的 `queryXX(..)` 方法。
+
+封装多个同名的url查询参数：
+
+```java
+@Get("/4")
+public String bind04(@Query("ids") List<Long> ids) {
+    System.out.println(ids);
+    return "success";
+}
+```
+
+> 等价于调用 `HttpContext` 的 `queriesXX()`。
+
+如果需要去重可以使用set来接收：
+
+```java
+@Get("/5")
+public String bind05(@Query("ids") Set<Long> ids) {
+    System.out.println(ids);
+    return "success";
+}
+```
+
+将url参数映射为实体对象：
+
+```java
+@Get("/6")
+public String bind06(@QueryModel Student student) {
+    System.out.println(student);
+    return "success";
+}
+```
+
+> 等价于调用 `HttpContext` 的 `loadQuery(..)` 方法。
+
+将表单参数映射为实体对象：
+
+```java
+@Post("/7")
+public String bind07(@FormModel Student student) {
+    System.out.println(student);
+    return "success";
+}
+```
+
+> 等价于调用 `HttpContext` 的 `loadForm(..)` 方法。
+
+将json参数映射为实体对象：
+
+```java
+@Post("/8")
+public String bind08(@JsonModel Student student) {
+    System.out.println(student);
+    return "success";
+}
+```
+
+> 等价于调用 `HttpContext` 的 `loadJson(..)` 方法。
+
+除此之外 `@QueryModel` 、`@FormModel` 、`@JsonModel` 还支持数据校验，以 `@QueryModel`为例：
+
+```java
+@Get("/9")
+public String bind09(@QueryModel(true) Student student) {
+    System.out.println(student);
+    return "success";
+}
+```
+
+传入true开启数据校验，默认是关闭的。
+
+也支持校验组，这就需要用到该注解的第二个参数了：
+
+```java
+@Get("/9")
+public String bind09(@QueryModel(value = true, groups = Groups.Add.class) Student student) {
+    System.out.println(student);
+    return "success";
+}
+```
+
 
 
 [首页](../README.md) | [路由体系](./router.md) | [响应数据的处理](./response.md)

@@ -1,14 +1,15 @@
 package org.example.response;
 
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.*;
+import reactor.core.publisher.Flux;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.RequestPath;
+import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.response.HttpResult;
+import top.turboweb.http.response.IgnoredHttpResponse;
+import top.turboweb.http.response.ReactorResponse;
 
 @RequestPath
 public class UserController {
@@ -42,5 +43,31 @@ public class UserController {
         response.setContent("hello world");
         response.setContentType("text/plain");
         return response;
+    }
+
+    @Get("/stream")
+    public Flux<String> stream(HttpContext context) {
+        return Flux.just("hello", "world");
+    }
+
+    @Get("/stream2")
+    public ReactorResponse<String> stream2(HttpContext context) {
+        Flux<String> flux = Flux.just("hello", "world");
+        ReactorResponse<String> response = new ReactorResponse<>(flux);
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain");
+        return response;
+    }
+
+    @Get("/ignore")
+    public HttpResponse ignore(HttpContext context) {
+        // 创建响应对象
+        HttpInfoResponse response = new HttpInfoResponse(HttpResponseStatus.OK);
+        response.setContent("hello world");
+        response.setContentType("text/plain");
+        // 获取连接会话
+        InternalConnectSession session = (InternalConnectSession) context.getConnectSession();
+        // 发送响应
+        session.getChannel().writeAndFlush(response);
+        return IgnoredHttpResponse.ignore();
     }
 }

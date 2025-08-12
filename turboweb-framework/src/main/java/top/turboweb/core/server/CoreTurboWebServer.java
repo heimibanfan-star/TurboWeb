@@ -27,6 +27,12 @@ public class CoreTurboWebServer {
 	private final int ioThreadNum;
 
 	public CoreTurboWebServer(int ioThreadNum, int zeroCopyThreadNum) {
+		if (ioThreadNum <= 0) {
+			ioThreadNum = 1;
+		}
+		if (zeroCopyThreadNum <= 0) {
+			zeroCopyThreadNum = Runtime.getRuntime().availableProcessors() * 2;
+		}
 		this.coreNettyServer = new CoreNettyServer(ioThreadNum, zeroCopyThreadNum);
 		coreNettyServer.childOption(ChannelOption.SO_KEEPALIVE, true);
 		this.ioThreadNum = ioThreadNum;

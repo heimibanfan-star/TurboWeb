@@ -40,12 +40,6 @@ public class CoreNettyServer {
 	}
 
 	public CoreNettyServer(int ioThreadNum, int zeroCopyThreadNum) {
-		if (ioThreadNum <= 0) {
-			ioThreadNum = 1;
-		}
-		if (zeroCopyThreadNum <= 0) {
-			zeroCopyThreadNum = Runtime.getRuntime().availableProcessors() * 2;
-		}
 		// 创建专门用于零拷贝的线程池
 		zeroCopyExecutor = new ThreadPoolExecutor(
 				zeroCopyThreadNum,
