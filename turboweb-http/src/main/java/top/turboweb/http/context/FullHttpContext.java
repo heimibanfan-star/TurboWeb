@@ -141,11 +141,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public List<Long> queriesLong(String name) {
-		List<String> vals = queries(name);
-		if (vals.isEmpty()) {
-			return List.of();
-		}
-		return vals.stream().map(Long::parseLong).toList();
+		return queries(name).stream().map(Long::parseLong).toList();
 	}
 
 	@Override
@@ -162,11 +158,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public List<Integer> queriesInt(String name) {
-		List<String> vals = queries(name);
-		if (vals.isEmpty()) {
-			return List.of();
-		}
-		return vals.stream().map(Integer::parseInt).toList();
+		return queries(name).stream().map(Integer::parseInt).toList();
 	}
 
 	@Override
@@ -183,11 +175,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public List<Boolean> queriesBool(String name) {
-		List<String> vals = queries(name);
-		if (vals.isEmpty()) {
-			return List.of();
-		}
-		return vals.stream().map(Boolean::parseBoolean).toList();
+		return queries(name).stream().map(Boolean::parseBoolean).toList();
 	}
 
 	@Override
@@ -204,11 +192,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public List<Double> queriesDouble(String name) {
-		List<String> vals = queries(name);
-		if (vals.isEmpty()) {
-			return List.of();
-		}
-		return vals.stream().map(Double::parseDouble).toList();
+		return queries(name).stream().map(Double::parseDouble).toList();
 	}
 
 	@Override
