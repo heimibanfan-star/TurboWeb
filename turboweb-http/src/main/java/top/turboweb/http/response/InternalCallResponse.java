@@ -1,9 +1,5 @@
 package top.turboweb.http.response;
 
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-
 /**
  * 进行框架内部功能的调用
  * 继承该接口的类，
@@ -27,7 +23,9 @@ public interface InternalCallResponse {
         // 基于Reactor的响应
         REACTOR,
         // 普通的流式调用
-        STREAM
+        STREAM,
+        // 忽略对该响应的处理
+        IGNORED
     }
 
     /**

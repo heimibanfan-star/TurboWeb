@@ -12,10 +12,7 @@ import top.turboweb.commons.anno.QueryModel;
 import top.turboweb.commons.anno.RequestPath;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.response.FileStreamResponse;
-import top.turboweb.http.response.HttpFileResult;
-import top.turboweb.http.response.SseEmitter;
-import top.turboweb.http.response.ZeroCopyResponse;
+import top.turboweb.http.response.*;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,7 +36,12 @@ public class HelloController {
     }
 
     @Get
-    public String test() {
-        return "Hello World";
+    public HttpResponse test(HttpContext context) {
+        InternalConnectSession session = (InternalConnectSession) context.getConnectSession();
+        HttpInfoResponse response = new HttpInfoResponse(HttpResponseStatus.OK);
+        response.setContent("hello world");
+        response.setContentType("text/plain");
+        session.getChannel().writeAndFlush(response);
+        return IgnoredHttpResponse.ignore();
     }
 }

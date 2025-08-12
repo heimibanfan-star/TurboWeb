@@ -19,7 +19,8 @@ public class ResponseStrategyContext {
                 InternalCallResponse.InternalCallType.DEFAULT, new DefaultResponseStrategy(),
                 InternalCallResponse.InternalCallType.AIO_FILE, new AsyncFileResponseStrategy(),
                 InternalCallResponse.InternalCallType.ZERO_COPY, new ZeroCopyResponseStrategy(),
-                InternalCallResponse.InternalCallType.REACTOR, new ReactorResponseStrategy(enableLimit)
+                InternalCallResponse.InternalCallType.REACTOR, new ReactorResponseStrategy(enableLimit),
+                InternalCallResponse.InternalCallType.IGNORED, new IgnoredResponseStrategy()
         );
     }
 

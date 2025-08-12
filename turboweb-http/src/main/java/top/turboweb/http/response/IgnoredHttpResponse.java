@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.HttpVersion;
 /**
  * 忽略的响应
  */
-public class IgnoredHttpResponse extends DefaultHttpResponse {
+public class IgnoredHttpResponse extends DefaultHttpResponse implements InternalCallResponse{
 
 	private static final IgnoredHttpResponse ignoredHttpResponse;
 
@@ -23,4 +23,8 @@ public class IgnoredHttpResponse extends DefaultHttpResponse {
 		return ignoredHttpResponse;
 	}
 
+	@Override
+	public InternalCallType getType() {
+		return InternalCallType.IGNORED;
+	}
 }
