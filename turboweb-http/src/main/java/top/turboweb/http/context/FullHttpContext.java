@@ -122,7 +122,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	public List<String> queries(String name) {
 		List<String> vals = request.getQueryParams().get(name);
 		if (vals == null) {
-			return new ArrayList<>(0);
+			return List.of();
 		}
 		return vals;
 	}
@@ -141,7 +141,11 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public List<Long> queriesLong(String name) {
-		return queries(name).stream().map(Long::parseLong).toList();
+		List<String> vals = queries(name);
+		if (vals.isEmpty()) {
+			return List.of();
+		}
+		return vals.stream().map(Long::parseLong).toList();
 	}
 
 	@Override
@@ -158,7 +162,11 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public List<Integer> queriesInt(String name) {
-		return queries(name).stream().map(Integer::parseInt).toList();
+		List<String> vals = queries(name);
+		if (vals.isEmpty()) {
+			return List.of();
+		}
+		return vals.stream().map(Integer::parseInt).toList();
 	}
 
 	@Override
@@ -175,7 +183,11 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public List<Boolean> queriesBool(String name) {
-		return queries(name).stream().map(Boolean::parseBoolean).toList();
+		List<String> vals = queries(name);
+		if (vals.isEmpty()) {
+			return List.of();
+		}
+		return vals.stream().map(Boolean::parseBoolean).toList();
 	}
 
 	@Override
@@ -192,7 +204,11 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public List<Double> queriesDouble(String name) {
-		return queries(name).stream().map(Double::parseDouble).toList();
+		List<String> vals = queries(name);
+		if (vals.isEmpty()) {
+			return List.of();
+		}
+		return vals.stream().map(Double::parseDouble).toList();
 	}
 
 	@Override
