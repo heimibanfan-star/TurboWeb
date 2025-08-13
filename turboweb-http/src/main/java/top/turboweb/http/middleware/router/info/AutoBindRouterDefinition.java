@@ -153,6 +153,17 @@ public class AutoBindRouterDefinition implements RouterDefinition {
             }
         })),
 
+        // 文件上传的注入
+        UPLOAD((ctx, paramInfo) -> {
+           if (paramInfo.collectionType == 0) {
+               return ctx.loadFile(paramInfo.name);
+           } else if (paramInfo.collectionType == 1) {
+               return ctx.loadFiles(paramInfo.name);
+           } else {
+               return new HashSet<>(ctx.loadFiles(paramInfo.name));
+           }
+        }),
+
 
         // 请求上下文的注入
         HTTP_CONTEXT((ctx, paramInfo) -> ctx),
@@ -222,6 +233,18 @@ public class AutoBindRouterDefinition implements RouterDefinition {
                 } else if (annotation instanceof JsonModel jsonModel) {
                     ParamInfo info = new ParamInfo(null, parameter.getType(), (short) 0, jsonModel.value(), jsonModel.groups());
                     argsHandler = new ArgsHandler(info, Strategy.JSON_MODEL.strategy);
+                } else if (annotation instanceof Upload upload) {
+                    // 编译文件上传的注解
+                    short collectionType = 0;
+                    if (Collection.class.isAssignableFrom(parameter.getType())) {
+                        if (List.class.isAssignableFrom(parameter.getType())) {
+                            collectionType = 1;
+                        } else if (Set.class.isAssignableFrom(parameter.getType())) {
+                            collectionType = 2;
+                        }
+                    }
+                    ParamInfo info = new ParamInfo(upload.value(), null, collectionType, false, null);
+                    argsHandler = new ArgsHandler(info, Strategy.UPLOAD.strategy);
                 }
                 if (argsHandler != null) {
                     break;
