@@ -299,6 +299,8 @@ public class AutoBindRouterDefinition implements RouterDefinition {
                     typeName = actualTypeArguments[0].getTypeName();
                 }
             }
+        } else {
+            typeName = parameter.getType().getTypeName();
         }
         ParamInfo info = new ParamInfo(query.value(), null, collectionType, false, null);
         return switch (typeName) {
