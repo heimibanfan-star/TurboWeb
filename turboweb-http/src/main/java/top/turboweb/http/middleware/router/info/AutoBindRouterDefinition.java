@@ -237,9 +237,9 @@ public class AutoBindRouterDefinition implements RouterDefinition {
                     // 编译文件上传的注解
                     short collectionType = 0;
                     if (Collection.class.isAssignableFrom(parameter.getType())) {
-                        if (List.class.isAssignableFrom(parameter.getType())) {
+                        if (parameter.getType() == List.class) {
                             collectionType = 1;
-                        } else if (Set.class.isAssignableFrom(parameter.getType())) {
+                        } else if (parameter.getType() == Set.class) {
                             collectionType = 2;
                         }
                     }
@@ -310,9 +310,9 @@ public class AutoBindRouterDefinition implements RouterDefinition {
         // 判断类型
         short collectionType = 0;
         if (Collection.class.isAssignableFrom(parameter.getType())) {
-            if (List.class.isAssignableFrom(parameter.getType())) {
+            if (parameter.getType() == List.class) {
                 collectionType = 1;
-            } else if (Set.class.isAssignableFrom(parameter.getType())) {
+            } else if (parameter.getType() == Set.class) {
                 collectionType = 2;
             }
             // 获取泛型类型
