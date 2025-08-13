@@ -241,6 +241,8 @@ public class AutoBindRouterDefinition implements RouterDefinition {
                             collectionType = 1;
                         } else if (parameter.getType() == Set.class) {
                             collectionType = 2;
+                        } else {
+                            throw new TurboRouterDefinitionCreateException("not support type of collection:" + parameter.getType().getName());
                         }
                     }
                     ParamInfo info = new ParamInfo(upload.value(), null, collectionType, false, null);
@@ -314,6 +316,8 @@ public class AutoBindRouterDefinition implements RouterDefinition {
                 collectionType = 1;
             } else if (parameter.getType() == Set.class) {
                 collectionType = 2;
+            } else {
+                throw new TurboRouterDefinitionCreateException("not support type of collection:" + parameter.getType().getName());
             }
             // 获取泛型类型
             if (parameter.getParameterizedType() instanceof ParameterizedType parameterizedType) {
