@@ -1,10 +1,12 @@
 package org.example.file;
 
+import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.commons.anno.Get;
 import top.turboweb.commons.anno.Post;
 import top.turboweb.commons.anno.RequestPath;
+import top.turboweb.commons.anno.Upload;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.response.AsyncFileResponse;
 import top.turboweb.http.response.FileStreamResponse;
@@ -28,6 +30,18 @@ public class FileController {
                 throw new RuntimeException(e);
             }
         });
+        return "upload";
+    }
+
+    @Post("/upload2")
+    public String upload02(@Upload("file") FileUpload file) {
+        System.out.println(file);
+        return "upload";
+    }
+
+    @Post("/upload3")
+    public String upload03(@Upload("file") List<FileUpload> files) {
+        files.forEach(System.out::println);
         return "upload";
     }
 

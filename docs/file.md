@@ -73,6 +73,36 @@ BootStrapTurboWebServer.create()
 
 `FileUpload`对象的`renameTo(...)`方法用于将内存中的文件数据写入磁盘，建议在调用该方法前验证文件类型、大小等信息，确保系统安全。
 
+### 基于注解的方式实现文件下载
+
+使用这种方式来获取上传的文件需要开启自动绑定的功能：
+
+```java
+AnnoRouterManager routerManager = new AnnoRouterManager(true);
+```
+
+获取单个上传的文件：
+
+```java
+@Post("/upload2")
+public String upload02(@Upload("file") FileUpload file) {
+    System.out.println(file);
+    return "upload";
+}
+```
+
+`@Upload` 告诉TurboWeb这里需要注入一个文件上传类型的对象，属性是文件名，形参类型需要是 `FileUpload`。
+
+也可以接收多个上传的文件，使用 `List` 或者 `Set` 即可：
+
+```java
+@Post("/upload3")
+public String upload03(@Upload("file") List<FileUpload> files) {
+    files.forEach(System.out::println);
+    return "upload";
+}
+```
+
 ## 文件的下载
 
 在传统 Netty 中，零拷贝虽能显著提升文件传输性能，但其底层依赖的仍是**阻塞式系统调用**，会导致 Netty I/O 线程被长时间占用。
