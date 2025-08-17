@@ -7,7 +7,7 @@
     <groupId>io.gitee.turboweb</groupId>
     <artifactId>turboweb</artifactId>
     <name>turboweb</name>
-    <version>2.1.0</version>
+    <version>2.1.1-SNAPSHOT</version>
     <description>
         TurboWeb 是一款专为现代高并发场景打造的轻量级 Web 开发引擎。
         它基于 Netty 构建，原生支持虚拟线程调度，拥抱同步编程模型的同时，具备近似异步模型的吞吐能力。
@@ -21,14 +21,14 @@
     <modules>
         <module>turboweb-framework</module>
         <module>turboweb-commons</module>
-        <!--<module>turboweb-example</module>-->
+        <module>turboweb-example</module>
         <module>turboweb-websocket</module>
         <module>turboweb-http</module>
         <module>turboweb-gateway</module>
     </modules>
 
     <properties>
-        <turboweb.version>2.1.0</turboweb.version>
+        <turboweb.version>2.1.1-SNAPSHOT</turboweb.version>
         <turboweb.groupId>io.gitee.turboweb</turboweb.groupId>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
