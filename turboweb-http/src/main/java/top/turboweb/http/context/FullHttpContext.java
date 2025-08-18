@@ -209,20 +209,10 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public <T> T loadQuery(Class<T> beanType) {
-		try {
-			// 获取无参构造方法
-			Constructor<T> constructor = beanType.getConstructor();
-			// 创建实例对象
-			T instance = constructor.newInstance();
-			// 处理map集合
-			Map<String, Object> newMap = handleParamMap(request.getQueryParams());
-			// 将集合转化为对象
-			BeanUtils.mapToBean(newMap, instance);
-			return instance;
-		} catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
-			log.error("封装查询参数失败", e);
-			throw new TurboParamParseException(e.getMessage());
-		}
+		// 处理map集合
+		Map<String, Object> newMap = handleParamMap(request.getQueryParams());
+		// 将集合转化为对象
+		return BeanUtils.mapToBean(newMap, beanType);
 	}
 
 	@Override
@@ -241,17 +231,8 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public <T> T loadForm(Class<T> beanType) {
-		// 获取无参构造方法
-		try {
-			Constructor<T> constructor = beanType.getConstructor();
-			T instance = constructor.newInstance();
-			Map<String, Object> newMap = handleParamMap(request.getContent().getFormParams());
-			BeanUtils.mapToBean(newMap, instance);
-			return instance;
-		} catch (InvocationTargetException | NoSuchMethodException | InstantiationException | IllegalAccessException e) {
-			log.error("封装表单参数失败", e);
-			throw new TurboParamParseException(e.getMessage());
-		}
+		Map<String, Object> newMap = handleParamMap(request.getContent().getFormParams());
+		return BeanUtils.mapToBean(newMap, beanType);
 	}
 
 	@Override
