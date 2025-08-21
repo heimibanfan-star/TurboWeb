@@ -1,4 +1,4 @@
-package top.turboweb.commons.anno;
+package top.turboweb.anno;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,11 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * delete请求方式
+ * post请求方式
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Delete {
+public @interface Post {
     /**
      * 请求路径
      */

@@ -1,6 +1,4 @@
-package top.turboweb.commons.anno;
-
-import io.netty.handler.codec.http.HttpResponseStatus;
+package top.turboweb.anno;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -8,16 +6,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标注异常类处理器返回的状态码
+ * 异常处理器方法注解
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ExceptionResponseStatus {
+public @interface ExceptionHandler {
 
     /**
-     * 状态码
+     * 异常类
      *
-     * @return 状态码
+     * @return 异常类
      */
-    int value() default 500;
+    Class<? extends Throwable> value();
 }

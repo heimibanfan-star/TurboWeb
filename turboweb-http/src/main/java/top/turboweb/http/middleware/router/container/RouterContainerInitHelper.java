@@ -1,17 +1,14 @@
 package top.turboweb.http.middleware.router.container;
 
-import top.turboweb.http.context.HttpContext;
+import top.turboweb.anno.*;
 import top.turboweb.http.middleware.router.info.AutoBindRouterDefinition;
 import top.turboweb.http.middleware.router.info.MethodRouterDefinition;
-import top.turboweb.commons.anno.*;
 import top.turboweb.commons.exception.TurboControllerCreateException;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.commons.utils.base.TypeUtils;
 import top.turboweb.http.middleware.router.info.RouterDefinition;
 import top.turboweb.http.middleware.router.info.TrieRouterInfo;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
 import java.util.Collection;
 import java.util.Objects;

@@ -1,4 +1,4 @@
-package top.turboweb.commons.anno;
+package top.turboweb.anno;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

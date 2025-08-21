@@ -3,8 +3,8 @@ package top.turboweb.http.handler;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.turboweb.commons.anno.ExceptionHandler;
-import top.turboweb.commons.anno.ExceptionResponseStatus;
+import top.turboweb.anno.ExceptionHandler;
+import top.turboweb.anno.ExceptionResponseStatus;
 import top.turboweb.commons.exception.TurboExceptionHandlerException;
 
 import java.lang.invoke.MethodHandle;

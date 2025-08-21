@@ -1,4 +1,4 @@
-package top.turboweb.commons.anno;
+package top.turboweb.anno;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,10 +6,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * put请求方式
+ * 标注异常类处理器返回的状态码
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Put {
-    String value() default "/";
+public @interface ExceptionResponseStatus {
+
+    /**
+     * 状态码
+     *
+     * @return 状态码
+     */
+    int value() default 500;
 }

@@ -1,4 +1,4 @@
-package top.turboweb.commons.anno;
+package top.turboweb.anno;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,11 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标注文件上传的注解
+ * put请求方式
  */
-@Target(ElementType.PARAMETER)
+@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Upload {
-    // 文件名
-    String value();
+public @interface Patch {
+    String value() default "/";
 }
