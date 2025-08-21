@@ -11,10 +11,15 @@
 
     <artifactId>turboweb-http-client</artifactId>
 
-    <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+    <description>
+        http client
+    </description>
 
+    <dependencies>
+        <dependency>
+            <groupId>${turboweb.groupId}</groupId>
+            <artifactId>turboweb-commons</artifactId>
+            <version>${turboweb.version}</version>
+        </dependency>
+    </dependencies>
 </project>

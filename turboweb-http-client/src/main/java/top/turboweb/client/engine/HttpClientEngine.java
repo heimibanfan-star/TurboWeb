@@ -1,18 +1,15 @@
 package top.turboweb.client.engine;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.*;
 import io.netty.util.concurrent.Promise;
-import org.reactivestreams.Subscription;
-import reactor.core.publisher.BaseSubscriber;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.resources.ConnectionProvider;
+import top.turboweb.commons.exception.TurboHttpClientException;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -69,7 +66,7 @@ public class HttpClientEngine implements Closeable {
             // 等待响应的完成
             return promise.get();
         } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+            throw new TurboHttpClientException(e);
         }
     }
 

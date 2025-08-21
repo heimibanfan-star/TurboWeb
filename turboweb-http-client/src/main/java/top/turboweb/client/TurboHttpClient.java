@@ -1,8 +1,11 @@
 package top.turboweb.client;
 
+import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
-import top.turboweb.client.converter.Converter;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -11,7 +14,28 @@ import java.util.function.Consumer;
 public interface TurboHttpClient <T> {
 
     class Config {
+        final HttpHeaders headers = new DefaultHttpHeaders();
+        final Map<String, String> urlArgs = new HashMap<>();
 
+        /**
+         * 添加请求头
+         * @param consumer 添加请求头
+         * @return this
+         */
+        public Config headers(Consumer<HttpHeaders> consumer) {
+            consumer.accept(headers);
+            return this;
+        }
+
+        /**
+         * 添加url参数
+         * @param consumer 添加url参数
+         * @return this
+         */
+        public Config urlArgs(Consumer<Map<String, String>> consumer) {
+            consumer.accept(urlArgs);
+            return this;
+        }
     }
 
     /**
