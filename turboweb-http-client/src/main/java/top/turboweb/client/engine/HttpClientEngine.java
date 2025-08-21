@@ -107,7 +107,7 @@ public class HttpClientEngine implements Closeable {
                                 if (buf == EMPTY_BUF) {
                                     return new DefaultHttpResponse(HttpVersion.HTTP_1_1, response.status(), headers);
                                 } else {
-                                    DefaultFullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, response.status());
+                                    DefaultFullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, response.status(), buf) ;
                                     httpResponse.headers().set(headers);
                                     return httpResponse;
                                 }
