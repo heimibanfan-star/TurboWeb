@@ -12,6 +12,7 @@
         <option value="$PROJECT_DIR$/turbo-web-commons/pom.xml" />
         <option value="$PROJECT_DIR$/turbo-web-core/pom.xml" />
         <option value="$PROJECT_DIR$/turboweb-client/pom.xml" />
+        <option value="$PROJECT_DIR$/turboweb-http-core/pom.xml" />
       </set>
     </option>
   </component>
