@@ -29,6 +29,7 @@ public class HttpClientEngine implements Closeable {
     private final HttpClient httpClient;
     private final EventLoopGroup group;
     private final String baseUrl;
+    private static final ByteBuf EMPTY_BUF = UnpooledByteBufAllocator.DEFAULT.buffer(0);
 
     public HttpClientEngine(int threadNum, String baseUrl, String name, Consumer<ConnectionProvider.Builder> consumer) {
         Objects.requireNonNull(baseUrl, "baseUrl can not be null");
@@ -61,34 +62,24 @@ public class HttpClientEngine implements Closeable {
      */
     public HttpResponse send(HttpRequest request) {
         Promise<HttpResponse> promise = group.next().newPromise();
-        Flux<HttpResponse> flux = doSend(request);
-        flux.subscribe(new BaseSubscriber<HttpResponse>() {
-            @Override
-            protected void hookOnSubscribe(Subscription subscription) {
-                // 订阅一个元素
-                request(1);
-            }
-
-            @Override
-            protected void hookOnNext(HttpResponse value) {
-                promise.setSuccess(value);
-                // 取消订阅
-                cancel();
-            }
-
-            @Override
-            protected void hookOnError(Throwable throwable) {
-                promise.setFailure(throwable);
-            }
-        });
+        Mono<HttpResponse> mono = sendAsync(request);
+        // 设置响应对象
+        mono.subscribe(promise::setSuccess, promise::setFailure);
         try {
+            // 等待响应的完成
             return promise.get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private Flux<HttpResponse> doSend(HttpRequest request) {
+    /**
+     * 异步发送请求
+     *
+     * @param request 请求
+     * @return 响应
+     */
+    public Mono<HttpResponse> sendAsync(HttpRequest request) {
         String uri = request.uri().startsWith("/") ? request.uri() : "/" + request.uri();
         return httpClient
                 .request(request.method())
@@ -106,27 +97,21 @@ public class HttpClientEngine implements Closeable {
                     // 不是携带请求体的请求
                     return outbound.send(Mono.empty());
                 })
-                .response((response, content) -> {
+                .responseSingle((response, content) -> {
                     // 获取响应头
                     HttpHeaders headers = response.responseHeaders();
-                    // 对响应体增加引用
-                    return content.map(buf -> {
-                                buf.retain();
-                                return buf;
-                            })
-                            .collectList()
-                            .flatMap(bufList -> {
-                                if ((bufList.isEmpty())) {
-                                    return Mono.just(new DefaultHttpResponse(HttpVersion.HTTP_1_1, response.status(), headers));
+                    // 获取请求体
+                    return content
+                            .switchIfEmpty(Mono.just(EMPTY_BUF))
+                            .map(buf -> {
+                                if (buf == EMPTY_BUF) {
+                                    return new DefaultHttpResponse(HttpVersion.HTTP_1_1, response.status(), headers);
+                                } else {
+                                    DefaultFullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, response.status());
+                                    httpResponse.headers().set(headers);
+                                    return httpResponse;
                                 }
-                                // 聚合流
-                                CompositeByteBuf compositeByteBuf = UnpooledByteBufAllocator.DEFAULT.compositeBuffer();
-                                compositeByteBuf.addComponents(true, bufList);
-                                DefaultFullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, response.status(), compositeByteBuf);
-                                fullHttpResponse.headers().set(headers);
-                                return Mono.just(fullHttpResponse);
                             });
-
                 });
     }
 
