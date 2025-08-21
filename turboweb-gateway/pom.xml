@@ -30,7 +30,7 @@
         <!-- http相关模块 -->
         <dependency>
             <groupId>${turboweb.groupId}</groupId>
-            <artifactId>turboweb-http</artifactId>
+            <artifactId>turboweb-http-server</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
     </dependencies>

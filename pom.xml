@@ -23,9 +23,10 @@
         <module>turboweb-commons</module>
         <module>turboweb-example</module>
         <module>turboweb-websocket</module>
-        <module>turboweb-http</module>
         <module>turboweb-gateway</module>
         <module>turboweb-anno</module>
+        <module>turboweb-http-client</module>
+        <module>turboweb-http-server</module>
     </modules>
 
     <properties>
