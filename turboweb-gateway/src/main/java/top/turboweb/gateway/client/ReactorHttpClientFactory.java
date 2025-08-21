@@ -19,7 +19,7 @@ public class ReactorHttpClientFactory {
      * @return HTTP客户端
      */
     public static HttpClient createHttpClient(EventLoopGroup group, Function<ConnectionProvider.Builder, ConnectionProvider.Builder> function) {
-        ConnectionProvider.Builder builder = ConnectionProvider.builder("httpClient");
+        ConnectionProvider.Builder builder = ConnectionProvider.builder("gatewayHttpClient");
         ConnectionProvider provider = function.apply(builder).build();
         return HttpClient.create(provider).runOn(group);
     }
