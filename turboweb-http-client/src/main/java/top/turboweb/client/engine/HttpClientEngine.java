@@ -116,7 +116,7 @@ public class HttpClientEngine implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         group.shutdownGracefully();
     }
 }
