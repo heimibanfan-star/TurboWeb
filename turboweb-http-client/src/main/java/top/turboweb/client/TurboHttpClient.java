@@ -3,7 +3,6 @@ package top.turboweb.client;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
-import org.apache.hc.core5.http.ContentType;
 import top.turboweb.client.result.ClientResult;
 
 import java.util.LinkedList;

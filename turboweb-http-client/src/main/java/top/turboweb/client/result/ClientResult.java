@@ -1,5 +1,6 @@
 package top.turboweb.client.result;
 
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.client.converter.Converter;
 
@@ -35,5 +36,21 @@ public class ClientResult {
      */
     public Map<?, ?> data() {
         return converter.convert(response, Map.class);
+    }
+
+    /**
+     * 获取响应头
+     * @return 响应头
+     */
+    public HttpHeaders headers() {
+        return response.headers();
+    }
+
+    /**
+     * 获取状态码
+     * @return 状态码
+     */
+    public int status() {
+        return response.status().code();
     }
 }
