@@ -4,6 +4,9 @@ import top.turboweb.client.DefaultTurboHttpClient;
 import top.turboweb.client.TurboHttpClient;
 import top.turboweb.client.engine.HttpClientEngine;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * TODO
  */
@@ -23,7 +26,7 @@ public class ClientApplication {
                 p.add("name", "turbo");
             });
         });
-        User user = result.data(User.class);
-        System.out.println(user);
+        Result<User> userResult = result.data(new Result<User>());
+        System.out.println(userResult);
     }
 }

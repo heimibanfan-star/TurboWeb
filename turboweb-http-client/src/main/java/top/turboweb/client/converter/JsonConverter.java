@@ -19,6 +19,25 @@ import java.nio.charset.StandardCharsets;
 public class JsonConverter implements Converter{
     @Override
     public <T> T convert(HttpResponse response, Class<T> type) {
+        String jsonString = getJsonString(response);
+        try {
+            return BeanUtils.getObjectMapper().readValue(jsonString, type);
+        } catch (JsonProcessingException e) {
+            throw new TurboSerializableException(e);
+        }
+    }
+
+    @Override
+    public <T> T convert(HttpResponse response, T object) {
+        String jsonString = getJsonString(response);
+        try {
+            return BeanUtils.getObjectMapper().readerForUpdating(object).readValue(jsonString);
+        } catch (JsonProcessingException e) {
+            throw new TurboSerializableException(e);
+        }
+    }
+
+    private String getJsonString(HttpResponse response) {
         // 判断是否有请求体
         if (response instanceof FullHttpResponse fullHttpResponse) {
             String contentTypeStr = response.headers().get(HttpHeaderNames.CONTENT_TYPE);
@@ -30,16 +49,9 @@ public class JsonConverter implements Converter{
             Charset charset = contentType.getCharset() != null ? contentType.getCharset() : StandardCharsets.UTF_8;
             // 获取请求体
             ByteBuf byteBuf = fullHttpResponse.content();
-            String json = byteBuf.toString(charset);
-            // 进行序列化
-            try {
-                return BeanUtils.getObjectMapper().readValue(json, type);
-            } catch (JsonProcessingException e) {
-                throw new TurboSerializableException(e);
-            }
+            return byteBuf.toString(charset);
         } else {
             throw new TurboHttpClientException("empty response");
         }
-
     }
 }

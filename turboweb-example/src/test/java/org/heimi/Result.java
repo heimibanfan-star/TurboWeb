@@ -5,10 +5,17 @@ package org.heimi;
  */
 public class Result <T> {
 
-    private final T data;
+    private T data;
+
+    public void setData(T data) {
+        this.data = data;
+    }
 
     public Result(T data) {
         this.data = data;
+    }
+
+    public Result() {
     }
 
     public T getData() {

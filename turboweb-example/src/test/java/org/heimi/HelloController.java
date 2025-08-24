@@ -12,11 +12,11 @@ import top.turboweb.anno.RequestPath;
 public class HelloController {
 
     @Get
-    public User hello() {
+    public Result<User> hello() {
         User user = new User();
         user.setName("zhangsan");
         user.setAge(18);
-        return user;
+        return new Result<>(user);
     }
 
     @Post

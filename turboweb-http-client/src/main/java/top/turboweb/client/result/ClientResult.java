@@ -31,6 +31,16 @@ public class ClientResult {
 
     /**
      * 获取数据
+     * @param object 数据对象
+     * @param <T> 数据类型
+     * @return 数据
+     */
+    public <T> T data(T object) {
+        return converter.convert(response, object);
+    }
+
+    /**
+     * 获取数据
      *
      * @return 数据
      */
