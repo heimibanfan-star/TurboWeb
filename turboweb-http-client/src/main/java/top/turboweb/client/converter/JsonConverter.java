@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * json转化器
  */
-public class JsonConverter implements Converter {
+public class JsonConverter implements Converter{
     @Override
     public <T> T convert(HttpResponse response, Class<T> type) {
         // 判断是否有请求体
@@ -25,7 +25,7 @@ public class JsonConverter implements Converter {
             if (contentTypeStr == null) {
                 throw new TurboHttpClientException("Response Content-Type is null");
             }
-            ContentType contentType = ContentType.create(contentTypeStr);
+            ContentType contentType = ContentType.parse(contentTypeStr);
             // 获取响应编码
             Charset charset = contentType.getCharset() != null ? contentType.getCharset() : StandardCharsets.UTF_8;
             // 获取请求体

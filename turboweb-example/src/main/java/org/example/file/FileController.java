@@ -1,12 +1,11 @@
 package org.example.file;
 
-import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.multipart.FileUpload;
-import top.turboweb.commons.anno.Get;
-import top.turboweb.commons.anno.Post;
-import top.turboweb.commons.anno.RequestPath;
-import top.turboweb.commons.anno.Upload;
+import top.turboweb.anno.Get;
+import top.turboweb.anno.Post;
+import top.turboweb.anno.RequestPath;
+import top.turboweb.anno.Upload;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.response.AsyncFileResponse;
 import top.turboweb.http.response.FileStreamResponse;

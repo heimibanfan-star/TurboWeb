@@ -2,8 +2,8 @@ package org.example.sse;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import top.turboweb.commons.anno.Get;
-import top.turboweb.commons.anno.RequestPath;
+import top.turboweb.anno.Get;
+import top.turboweb.anno.RequestPath;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.response.SseEmitter;

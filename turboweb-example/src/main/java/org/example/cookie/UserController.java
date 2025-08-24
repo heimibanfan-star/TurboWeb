@@ -1,7 +1,8 @@
 package org.example.cookie;
 
-import top.turboweb.commons.anno.Get;
-import top.turboweb.commons.anno.RequestPath;
+
+import top.turboweb.anno.Get;
+import top.turboweb.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.cookie.HttpCookieManager;
