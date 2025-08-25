@@ -9,6 +9,8 @@ import org.apache.hc.core5.net.URIBuilder;
 import top.turboweb.client.converter.Converter;
 import top.turboweb.client.converter.JsonConverter;
 import top.turboweb.client.engine.HttpClientEngine;
+import top.turboweb.client.interceptor.RequestInterceptor;
+import top.turboweb.client.interceptor.ResponseInterceptor;
 import top.turboweb.client.result.ClientResult;
 import top.turboweb.commons.exception.TurboHttpClientException;
 import top.turboweb.commons.exception.TurboSerializableException;
@@ -17,6 +19,7 @@ import top.turboweb.commons.utils.base.BeanUtils;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -26,6 +29,10 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
 
     private final Converter converter;
     private final HttpClientEngine httpClientEngine;
+    // 请求拦截器
+    private final List<RequestInterceptor> requestInterceptors = new ArrayList<>();
+    // 响应拦截器
+    private final List<ResponseInterceptor> responseInterceptors = new ArrayList<>();
 
 
     public DefaultTurboHttpClient(HttpClientEngine engine, Converter converter) {
@@ -42,8 +49,21 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
         Config config = new Config();
         consumer.accept(config);
         HttpRequest request = buildRequest(path, method, data, config);
+        // 执行所有的请求拦截器
+        for (RequestInterceptor interceptor : requestInterceptors) {
+            request = interceptor.intercept(request);
+            if (request == null) {
+                throw new TurboHttpClientException("Request interceptor return null");
+            }
+        }
         // 发送请求
         HttpResponse response = httpClientEngine.send(request);
+        for (ResponseInterceptor interceptor : responseInterceptors) {
+            response = interceptor.intercept(response);
+            if (response == null) {
+                throw new TurboHttpClientException("Response interceptor return null");
+            }
+        }
         return new ClientResult(response, converter);
     }
 
@@ -105,6 +125,28 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
     @Override
     public ClientResult delete(String path, Consumer<Config> consumer) {
         return request(path, HttpMethod.DELETE, consumer);
+    }
+
+    @Override
+    public TurboHttpClient addRequestInterceptor(RequestInterceptor interceptor) {
+        Objects.requireNonNull(interceptor, "interceptor can not be null");
+        // 判断是否重复添加
+        if (requestInterceptors.contains(interceptor)) {
+            throw new TurboHttpClientException("Duplicate interceptor：" + interceptor.getClass().getName());
+        }
+        // 添加拦截器
+        requestInterceptors.add(interceptor);
+        return this;
+    }
+
+    @Override
+    public TurboHttpClient addResponseInterceptor(ResponseInterceptor interceptor) {
+        Objects.requireNonNull(interceptor, "interceptor can not be null");
+        if (responseInterceptors.contains(interceptor)) {
+            throw new TurboHttpClientException("Duplicate interceptor：" + interceptor.getClass().getName());
+        }
+        responseInterceptors.add(interceptor);
+        return this;
     }
 
     /**
@@ -190,6 +232,5 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
             throw new TurboHttpClientException("Unsupported ContentType:" + contentType);
         }
     }
-
 
 }

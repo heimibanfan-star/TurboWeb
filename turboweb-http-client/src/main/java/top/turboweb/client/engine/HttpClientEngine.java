@@ -58,16 +58,13 @@ public class HttpClientEngine implements Closeable {
      * @return 响应
      */
     public HttpResponse send(HttpRequest request) {
-        Promise<HttpResponse> promise = group.next().newPromise();
         Mono<HttpResponse> mono = sendAsync(request);
-        // 设置响应对象
-        mono.subscribe(promise::setSuccess, promise::setFailure);
-        try {
-            // 等待响应的完成
-            return promise.get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new TurboHttpClientException(e);
+        // 阻塞等待结果
+        HttpResponse response = mono.block();
+        if (response == null) {
+            throw new TurboHttpClientException("HttpClientEngine sendAsync return null");
         }
+        return response;
     }
 
     /**

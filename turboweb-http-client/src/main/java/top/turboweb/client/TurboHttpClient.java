@@ -3,6 +3,8 @@ package top.turboweb.client;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
+import top.turboweb.client.interceptor.RequestInterceptor;
+import top.turboweb.client.interceptor.ResponseInterceptor;
 import top.turboweb.client.result.ClientResult;
 
 import java.util.LinkedList;
@@ -121,4 +123,18 @@ public interface TurboHttpClient {
     ClientResult delete(String path);
 
     ClientResult delete(String path, Consumer<Config> consumer);
+
+    /**
+     * 添加请求拦截器
+     * @param interceptor 请求拦截器
+     * @return this
+     */
+    TurboHttpClient addRequestInterceptor(RequestInterceptor interceptor);
+
+    /**
+     * 添加响应拦截器
+     * @param interceptor 响应拦截器
+     * @return this
+     */
+    TurboHttpClient addResponseInterceptor(ResponseInterceptor interceptor);
 }
