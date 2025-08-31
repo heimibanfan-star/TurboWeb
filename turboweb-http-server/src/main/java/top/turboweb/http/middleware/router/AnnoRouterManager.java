@@ -12,6 +12,9 @@ import top.turboweb.http.middleware.router.info.AutoBindRouterDefinition;
 import top.turboweb.http.middleware.router.info.MethodRouterDefinition;
 import top.turboweb.http.middleware.router.info.RouterDefinition;
 import top.turboweb.http.middleware.router.info.TrieRouterInfo;
+import top.turboweb.http.middleware.router.info.autobind.AnnoParameterInfoParser;
+import top.turboweb.http.middleware.router.info.autobind.InternTypeParamInfoParser;
+import top.turboweb.http.middleware.router.info.autobind.ParameterInfoParser;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -29,7 +32,13 @@ public class AnnoRouterManager extends RouterManager {
     private final RouterContainer routerContainer = new DefaultRouterContainer();
     private final boolean autoBind;
     private boolean isInit = false;
-    private final ReentrantLock initLock = new ReentrantLock();
+    private final ReentrantLock lock = new ReentrantLock();
+    private final ArrayList<ParameterInfoParser> parsers = new ArrayList<>();
+
+    {
+        parsers.add(new InternTypeParamInfoParser());
+        parsers.add(new AnnoParameterInfoParser());
+    }
 
     public static class ControllerAttribute {
         private final Object instance;
@@ -90,7 +99,7 @@ public class AnnoRouterManager extends RouterManager {
         if (isInit) {
             return;
         }
-        initLock.lock();
+        lock.lock();
         try {
             if (isInit) {
                 return;
@@ -98,8 +107,50 @@ public class AnnoRouterManager extends RouterManager {
             initRouterContainer();
             isInit = true;
         } finally {
-            initLock.unlock();
+            lock.unlock();
         }
+    }
+
+    /**
+     * 添加参数解析器
+     * @param parser 参数解析器
+     * @return this
+     */
+    public RouterManager addParameterParserLast(ParameterInfoParser parser) {
+        for (ParameterInfoParser p : parsers) {
+            if (p.getClass() == parser.getClass()) {
+                throw new IllegalStateException("Duplicate parameter parser:" + parser.getClass().getName());
+            }
+        }
+        parsers.addLast(parser);
+        return this;
+    }
+
+    public RouterManager addParameterParserFirst(ParameterInfoParser parser) {
+        for (ParameterInfoParser p : parsers) {
+            if (p.getClass() == parser.getClass()) {
+                throw new IllegalStateException("Duplicate parameter parser:" + parser.getClass().getName());
+            }
+        }
+        parsers.addFirst(parser);
+        return this;
+    }
+
+    public RouterManager addParameterParserAt(Class<? extends ParameterInfoParser> type, ParameterInfoParser parser) {
+        int index = -1;
+        for (ParameterInfoParser p : parsers) {
+            index++;
+            if (p.getClass() == type) {
+                break;
+            }
+        }
+        if (index == -1) {
+            parsers.addLast(parser);
+        } else {
+            parsers.remove(index);
+            parsers.add(index, parser);
+        }
+        return this;
     }
 
     @Override
@@ -178,7 +229,7 @@ public class AnnoRouterManager extends RouterManager {
         // 创建路由定义信息
         RouterDefinition routerDefinition;
         if (autoBind) {
-            routerDefinition = new AutoBindRouterDefinition(instance, method);
+            routerDefinition = new AutoBindRouterDefinition(parsers, instance, method);
         } else {
             routerDefinition = new MethodRouterDefinition(instance, method);
         }
