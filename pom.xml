@@ -27,6 +27,7 @@
         <module>turboweb-anno</module>
         <module>turboweb-http-client</module>
         <module>turboweb-http-server</module>
+        <module>turboweb-rpc</module>
     </modules>
 
     <properties>
@@ -47,6 +48,8 @@
         <tika.version>2.9.2</tika.version>
         <freemarker.version>2.3.32</freemarker.version>
         <reactor.version>2024.0.3</reactor.version>
+        <cglib.version>3.3.0</cglib.version>
+        <asm.version>9.5</asm.version>
     </properties>
 
     <dependencyManagement>

@@ -40,12 +40,8 @@ public class RouterContainerInitHelper {
     public static RouterContainer initContainer(Collection<ControllerAttribute> controllerAttributes, boolean autoBind) {
         RouterContainer routerContainer = new DefaultRouterContainer();
         for (ControllerAttribute controllerAttribute : controllerAttributes) {
-            // 判断类上是否有注解
+            // 获取类的字节码对象
             Class<?> aClass = Objects.requireNonNullElseGet(controllerAttribute.clazz, controllerAttribute.instance::getClass);
-            RequestPath annotation = aClass.getAnnotation(RequestPath.class);
-            if (annotation == null) {
-                throw new TurboControllerCreateException("类上没有RequestPath注解:" + aClass);
-            }
             routerContainer.getControllerInstances().put(aClass, controllerAttribute.instance);
             // 获取类中所有的方法
             Method[] methods = aClass.getMethods();
@@ -68,8 +64,14 @@ public class RouterContainerInitHelper {
      * @param method    方法
      */
     private static void initRouterDefinition(RouterContainer container, Method method, Class<?> clazz, boolean autoBind) {
-        RequestPath annotation = clazz.getAnnotation(RequestPath.class);
-        String prePath = annotation.value();
+        String prePath = "";
+        if (clazz.isAnnotationPresent(Route.class)) {
+            Route route = clazz.getAnnotation(Route.class);
+            prePath = route.value();
+        } else if (clazz.isAnnotationPresent(RequestPath.class)) {
+            RequestPath requestPath = clazz.getAnnotation(RequestPath.class);
+            prePath = requestPath.value();
+        }
         // 获取方法的注解
         if (method.isAnnotationPresent(Get.class)) {
             String path = PathHelper.mergePath(prePath, method.getAnnotation(Get.class).value());

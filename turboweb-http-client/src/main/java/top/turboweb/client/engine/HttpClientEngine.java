@@ -5,18 +5,14 @@ import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.*;
-import io.netty.util.concurrent.Promise;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.resources.ConnectionProvider;
 import top.turboweb.commons.exception.TurboHttpClientException;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * http客户端引擎
