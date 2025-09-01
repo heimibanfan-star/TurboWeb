@@ -12,9 +12,7 @@ import top.turboweb.http.middleware.router.info.AutoBindRouterDefinition;
 import top.turboweb.http.middleware.router.info.MethodRouterDefinition;
 import top.turboweb.http.middleware.router.info.RouterDefinition;
 import top.turboweb.http.middleware.router.info.TrieRouterInfo;
-import top.turboweb.http.middleware.router.info.autobind.AnnoParameterInfoParser;
-import top.turboweb.http.middleware.router.info.autobind.InternTypeParamInfoParser;
-import top.turboweb.http.middleware.router.info.autobind.ParameterInfoParser;
+import top.turboweb.http.middleware.router.info.autobind.*;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -37,7 +35,12 @@ public class AnnoRouterManager extends RouterManager {
 
     {
         parsers.add(new InternTypeParamInfoParser());
-        parsers.add(new AnnoParameterInfoParser());
+        parsers.add(new RestParameterInfoParser());
+        parsers.add(new QueryParameterInfoParser());
+        parsers.add(new UploadParameterInfoParser());
+        parsers.add(new QueryModelParameterInfoParser());
+        parsers.add(new FormModelParameterInfoParser());
+        parsers.add(new JsonModelParameterInfoParser());
     }
 
     public static class ControllerAttribute {

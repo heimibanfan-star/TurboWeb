@@ -1,14 +1,11 @@
 package org.heimi;
-import top.turboweb.anno.Get;
-import top.turboweb.anno.JsonModel;
-import top.turboweb.anno.Post;
-import top.turboweb.anno.RequestPath;
+import top.turboweb.anno.*;
 
 
 /**
  * TODO
  */
-@RequestPath("/hello")
+@Route("/hello")
 public class HelloController {
 
     @Get
