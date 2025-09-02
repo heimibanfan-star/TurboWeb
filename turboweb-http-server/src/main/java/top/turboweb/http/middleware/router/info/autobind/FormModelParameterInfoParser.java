@@ -1,5 +1,6 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
+import top.turboweb.anno.FormModel;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Parameter;
@@ -35,6 +36,14 @@ public class FormModelParameterInfoParser implements ParameterInfoParser{
 
     @Override
     public ParameterBinder parse(Parameter parameter) {
-        return null;
+        if (!parameter.isAnnotationPresent(FormModel.class)) {
+            return null;
+        }
+        FormModel formModel = parameter.getAnnotation(FormModel.class);
+        return new FormModelParameterBinder(
+                parameter.getType(),
+                formModel.value(),
+                formModel.groups()
+        );
     }
 }
