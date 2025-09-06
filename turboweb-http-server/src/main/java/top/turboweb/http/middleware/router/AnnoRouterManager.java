@@ -32,6 +32,7 @@ public class AnnoRouterManager extends RouterManager {
     private boolean isInit = false;
     private final ReentrantLock lock = new ReentrantLock();
     private final ArrayList<ParameterInfoParser> parsers = new ArrayList<>();
+    private final String pathPrefix;
 
     {
         parsers.add(new InternTypeParamInfoParser());
@@ -54,10 +55,30 @@ public class AnnoRouterManager extends RouterManager {
     }
 
     public AnnoRouterManager() {
-        this(false);
+        this("", false);
     }
 
     public AnnoRouterManager(boolean autoBind) {
+        this("", autoBind);
+    }
+
+    public AnnoRouterManager(String pathPrefix) {
+        this(pathPrefix, false);
+    }
+
+    public AnnoRouterManager(String pathPrefix, boolean autoBind) {
+        if (pathPrefix == null || "/".equals(pathPrefix)) {
+            pathPrefix = "";
+        } else {
+            pathPrefix = pathPrefix.trim();
+        }
+        if (!pathPrefix.isEmpty()) {
+            pathPrefix = "/" + pathPrefix;
+        }
+        if (pathPrefix.endsWith("/")) {
+            pathPrefix = pathPrefix.substring(0, pathPrefix.length() - 1);
+        }
+        this.pathPrefix = pathPrefix;
         this.autoBind = autoBind;
     }
 
@@ -261,6 +282,8 @@ public class AnnoRouterManager extends RouterManager {
         } else {
             throw new TurboRouterDefinitionCreateException("未知的路由类型");
         }
+        // 拼接路径前缀
+        path = pathPrefix + path;
         int index = path.indexOf("{");
         if (index != -1) {
             // 根据请求方式获取前缀树
