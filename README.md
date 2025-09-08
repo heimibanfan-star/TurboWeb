@@ -8,6 +8,9 @@
 >
 > **TurboWeb** —— 用同步的姿势，干掉异步的活儿！
 
+> **使用案例: 飞廉管理系统**
+> 
+> 仓库地址: https://gitee.com/project-development_6/feilian
 
 
 ## TurboWeb是什么？
