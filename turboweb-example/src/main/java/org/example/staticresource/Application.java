@@ -11,7 +11,7 @@ public class Application {
         staticResourceMiddleware.setCacheStaticResource(true);
         staticResourceMiddleware.setCacheFileSize(Integer.MAX_VALUE);
         staticResourceMiddleware.setStaticResourcePath("/static");
-        staticResourceMiddleware.setStaticResourceUri("/static");
+        staticResourceMiddleware.setRequestUrl("/static");
         BootStrapTurboWebServer.create()
                 .http().middleware(staticResourceMiddleware)
                 .and().start();

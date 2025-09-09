@@ -11,7 +11,7 @@ public class StaticResourceMiddleware extends AbstractStaticResourceMiddleware {
     public Object invoke(HttpContext ctx) {
         // 获取请求的路径
         String uri = ctx.getRequest().getUri();
-        if (uri.startsWith(staticResourceUri)) {
+        if (uri.startsWith(requestUrl)) {
             return loadStaticAndBuild(ctx);
         }
         return next(ctx);

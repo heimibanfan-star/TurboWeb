@@ -9,18 +9,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.http.response.FileStreamResponse;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.commons.exception.TurboStaticResourceException;
+import top.turboweb.http.response.ZeroCopyResponse;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
+import java.io.*;
+import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 /**
  * 静态资源处理中间件的抽象类
@@ -35,11 +39,15 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware {
     }
 
     // 默认的静态请求路径
-    protected String staticResourceUri = "/static";
+    protected String requestUrl = "/static";
     // 静态资源路径
     private String staticResourcePath = "/static";
     // 是否缓存静态文件
     protected boolean cacheStaticResource = true;
+    // 是否是类路径中的文件
+    private boolean inClasspath = true;
+    // 是否开启零拷贝
+    protected boolean zeroCopy = false;
     // 多少字节以内的文件进行缓存
     private int cacheFileSize = 1024 * 1024;
     // 用于缓存静态文件的缓存
@@ -75,8 +83,57 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware {
                 return buildResponse(c, resourceCache);
             }
         }
-        ResourceCache resourceCache = loadAndCacheStaticResource(path.toString());
-        return buildResponse(c, resourceCache);
+
+        // 从磁盘中提取文件
+        File file = loadFile(path.toString());
+        // 校验文件
+        if (!file.exists() || file.isDirectory()) {
+            throw new TurboStaticResourceException("file not found for path:" + path);
+        }
+        // 判断文件是否可以被缓存
+        if (cacheStaticResource && file.length() < cacheFileSize) {
+            // 预先将文件读取出来
+            CompletableFuture<byte[]> future = new CompletableFuture<>();
+            DiskOpeThreadUtils.execute(() -> {
+                try (FileInputStream fis = new FileInputStream(file)) {
+                    future.complete(fis.readAllBytes());
+                } catch (IOException e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                byte[] bytes = future.get();
+                // 判断文件的类型
+                String mimeType = tika.detect(bytes, path.toString());
+                // 缓存文件
+                ResourceCache resourceCache = new ResourceCache();
+                resourceCache.bytes = bytes;
+                resourceCache.mimeType = mimeType;
+                caches.put(path.toString(), resourceCache);
+                return buildResponse(c, resourceCache);
+            } catch (Exception e) {
+                throw new TurboStaticResourceException("file read error, path:" + path);
+            }
+        } else {
+            // 获取文件类型
+            try {
+                String mimeType = tika.detect(file);
+                HttpResponse response;
+                if (zeroCopy) {
+                    // 使用零拷贝进行传输
+                    response = new ZeroCopyResponse(file);
+                } else {
+                    // 使用文件流进行传输
+                    response = new FileStreamResponse(file);
+                }
+                // 设置必要的响应头
+                response.headers().set(HttpHeaderNames.CONTENT_TYPE, mimeType);
+                response.headers().set(HttpHeaderNames.CONTENT_LENGTH, file.length());
+                return response;
+            } catch (IOException e) {
+                throw new TurboStaticResourceException("file read error, path:" + path);
+            }
+        }
     }
 
     /**
@@ -90,53 +147,32 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware {
         if (uri.contains("?")) {
             uri = uri.substring(0, uri.indexOf("?"));
         }
-        String tempUri = uri.substring(staticResourceUri.length());
+        String tempUri = uri.substring(requestUrl.length());
         if (tempUri.startsWith("/")) {
             return tempUri.substring(1);
         }
         return tempUri;
     }
 
-    /**
-     * 从文件中加载静态资源并缓存
-     *
-     * @param path 文件路径
-     * @return 文件缓存数据
-     */
-    private ResourceCache loadAndCacheStaticResource(String path) {
-        String diskPath = path;
+    private File loadFile(String filePath) {
+        String diskPath = filePath;
         diskPath = diskPath.replace("\\", "/");
-        if (diskPath.startsWith("/")) {
+        if (inClasspath) {
             diskPath = diskPath.substring(1);
-        }
-        // 从文件中读取
-        InputStream inputStream = classLoader.getResourceAsStream(diskPath);
-        try (inputStream) {
-            if (inputStream != null) {
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = inputStream.read(buffer)) > 0) {
-                    baos.write(buffer, 0, read);
+            // 加载静态文件
+            URL url = classLoader.getResource(diskPath);
+            if (url != null) {
+                try {
+                    return Paths.get(url.toURI()).toFile();
+                } catch (Exception e) {
+                    throw new TurboStaticResourceException("file read error, path:" + diskPath, e);
                 }
-                byte[] bytes = baos.toByteArray();
-                ResourceCache cache = new ResourceCache();
-                cache.bytes = bytes;
-                if (cacheStaticResource) {
-                    if (cache.bytes.length < cacheFileSize) {
-                        cache.mimeType = tika.detect(bytes, path);
-                        caches.put(path, cache);
-                    }
-                }
-                if (cache.mimeType == null) {
-                    cache.mimeType = tika.detect(path);
-                }
-                return cache;
+            } else {
+                throw new TurboStaticResourceException("file not found for path:" + diskPath);
             }
-        } catch (Exception e) {
-            throw new TurboStaticResourceException("file read error, path:" + path, e);
+        } else {
+            return new File(diskPath);
         }
-        throw new TurboRouterException("file not found for path:" + path, TurboRouterException.ROUTER_NOT_MATCH);
     }
 
     /**
@@ -182,13 +218,24 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware {
     }
 
 
-    public void setStaticResourceUri(String staticResourceUri) {
-        this.staticResourceUri = staticResourceUri;
+    public void setRequestUrl(String requestUrl) {
+        this.requestUrl = requestUrl;
     }
 
+    /**
+     * 设置静态资源路径
+     *
+     * @param staticResourcePath 静态资源路径
+     */
     public void setStaticResourcePath(String staticResourcePath) {
-        if (!staticResourcePath.startsWith("/")) {
-            staticResourcePath = "/" + staticResourcePath;
+        if (staticResourcePath.startsWith("classpath:")) {
+            inClasspath = true;
+            staticResourcePath = staticResourcePath.substring("classpath:".length());
+            if (!staticResourcePath.startsWith("/")) {
+                staticResourcePath = "/" + staticResourcePath;
+            }
+        } else {
+            inClasspath = false;
         }
         this.staticResourcePath = staticResourcePath;
     }
@@ -199,5 +246,9 @@ public abstract class AbstractStaticResourceMiddleware extends Middleware {
 
     public void setCacheFileSize(int cacheFileSize) {
         this.cacheFileSize = cacheFileSize;
+    }
+
+    public void setZeroCopy(boolean zeroCopy) {
+        this.zeroCopy = zeroCopy;
     }
 }
