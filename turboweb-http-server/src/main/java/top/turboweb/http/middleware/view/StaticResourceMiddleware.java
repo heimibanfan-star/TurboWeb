@@ -25,8 +25,7 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -43,8 +42,6 @@ public class StaticResourceMiddleware extends Middleware {
         byte[] bytes;
         String mimeType;
     }
-
-    private final boolean inline;
 
     // 默认的静态请求路径
     protected String requestUrl = "/static";
@@ -63,29 +60,58 @@ public class StaticResourceMiddleware extends Middleware {
     private final Tika tika = new Tika();
     private final ClassLoader classLoader;
 
-    private Set<String> rangeType = Set.of(
-            "video/mp4",
-            "video/webm",
-            "video/ogg",
-            "video/mpeg",
-            "video/quicktime",
-            "video/3gpp",
-            "video/3gpp2",
-            "video/x-msvideo"
-    );
+    private final Set<String> rangeTypes;
+    private final Set<String> inlineTypes;
+
+    {
+        rangeTypes = new HashSet<>();
+        rangeTypes.add("video/mp4");
+        rangeTypes.add("video/webm");
+        rangeTypes.add("video/ogg");
+        rangeTypes.add("video/mpeg");
+        rangeTypes.add("video/quicktime");
+        rangeTypes.add("video/3gpp");
+        rangeTypes.add("video/3gpp2");
+        rangeTypes.add("video/x-msvideo");
+        rangeTypes.add("audio/mp4");
+        rangeTypes.add("audio/webm");
+        rangeTypes.add("audio/ogg");
+        rangeTypes.add("audio/mpeg");
+        rangeTypes.add("audio/quicktime");
+        rangeTypes.add("audio/3gpp");
+        rangeTypes.add("audio/3gpp2");
+        rangeTypes.add("audio/x-ms-wma");
+        rangeTypes.add("audio/x-ms-wmv");
+        rangeTypes.add("audio/x-ms-wm");
+        rangeTypes.add("audio/x-ms-wax");
+        rangeTypes.add("application/octet-stream");
+
+        inlineTypes = new HashSet<>();
+        inlineTypes.addAll(rangeTypes);
+        inlineTypes.remove("application/octet-stream");
+        inlineTypes.add("text/html");
+        inlineTypes.add("text/css");
+        inlineTypes.add("application/javascript");
+        inlineTypes.add("image/png");
+        inlineTypes.add("image/jpeg");
+        inlineTypes.add("image/gif");
+        inlineTypes.add("application/json");
+        inlineTypes.add("application/xml");
+        inlineTypes.add("text/plain");
+    }
+
     private int maxRangeChunk = 1024 * 1024;
 
-    public StaticResourceMiddleware(ClassLoader classLoader, boolean inline) {
+    public StaticResourceMiddleware(ClassLoader classLoader) {
         this.classLoader = classLoader;
-        this.inline = inline;
     }
 
     public StaticResourceMiddleware(boolean inline) {
-        this(StaticResourceMiddleware.class.getClassLoader(), inline);
+        this(StaticResourceMiddleware.class.getClassLoader());
     }
 
     public StaticResourceMiddleware() {
-        this(StaticResourceMiddleware.class.getClassLoader(), true);
+        this(StaticResourceMiddleware.class.getClassLoader());
     }
 
     @Override
@@ -94,7 +120,7 @@ public class StaticResourceMiddleware extends Middleware {
         String uri = ctx.getRequest().getUri();
         if (uri.startsWith(requestUrl)) {
             HttpResponse response =  loadStaticAndBuild(ctx);
-            if (inline) {
+            if (inlineTypes.contains(ContentType.parse(response.headers().get(HttpHeaderNames.CONTENT_TYPE)).getMimeType())) {
                 response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "inline");
             }
             return response;
@@ -170,9 +196,8 @@ public class StaticResourceMiddleware extends Middleware {
                     if (parts.length > 1 && !parts[1].isEmpty()) {
                         end = Long.parseLong(parts[1]);
                     }
-                    enableRange = true;
                 }
-                enableRange = enableRange && rangeType.contains(mimeType) && start >= 0 && end < file.length() && start <= end;
+                enableRange = rangeTypes.contains(mimeType) && start >= 0 && end < file.length() && start <= end;
                 // 缩放区间
                 if (end - start > maxRangeChunk) {
                     end = start + maxRangeChunk - 1;
@@ -324,8 +349,20 @@ public class StaticResourceMiddleware extends Middleware {
         this.zeroCopy = zeroCopy;
     }
 
-    public void setRangeType(Set<String> rangeType) {
-        this.rangeType = rangeType;
+    public void addRangeTyoe(String... rangeTypes) {
+        this.rangeTypes.addAll(Arrays.asList(rangeTypes));
+    }
+
+    public void removeRangeTyoe(String... rangeTypes) {
+        Arrays.asList(rangeTypes).forEach(this.rangeTypes::remove);
+    }
+
+    public void addInlineType(String... inlineTypes) {
+        this.inlineTypes.addAll(Arrays.asList(inlineTypes));
+    }
+
+    public void removeInlineType(String... inlineTypes) {
+        Arrays.asList(inlineTypes).forEach(this.inlineTypes::remove);
     }
 
     public void setMaxRangeChunk(int maxRangeChunk) {
