@@ -2,13 +2,13 @@ package top.turboweb.core.initializer.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.middleware.router.RouterManager;
 import top.turboweb.core.initializer.MiddlewareInitializer;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * 默认的中间件初始化器
@@ -19,7 +19,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
     // 路由管理器
     private RouterManager routerManager;
     // 存储中间件对象
-    private final List<Middleware> middlewares = new ArrayList<>();
+    private final Set<Middleware> middlewareSet = new LinkedHashSet<>();
 
 
     @Override
@@ -28,8 +28,16 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
     }
 
     @Override
-    public void addMiddleware(Middleware... middleware) {
-        this.middlewares.addAll(List.of(middleware));
+    public void addMiddleware(Middleware... middlewares) {
+        for (Middleware middleware : middlewares) {
+            Objects.requireNonNull(middleware, "The middleware cannot be null");
+            // 判断是否存在重复的中间件
+            if (this.middlewareSet.contains(middleware)) {
+                throw new TurboServerInitException("The middleware is repeated: " + middleware);
+            }
+            // 将中间件添加到最后
+            this.middlewareSet.add(middleware);
+        }
     }
 
     @Override
@@ -50,7 +58,7 @@ public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
     private Middleware initMiddlewareChain() {
         Middleware chain = new SentinelMiddleware();
         Middleware ptr = chain;
-        for (Middleware middleware : middlewares) {
+        for (Middleware middleware : middlewareSet) {
             ptr.setNext(middleware);
             ptr = middleware;
         }
