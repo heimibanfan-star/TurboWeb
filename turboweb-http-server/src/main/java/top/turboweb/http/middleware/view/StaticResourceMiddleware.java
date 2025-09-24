@@ -9,6 +9,7 @@ import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
+import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.commons.exception.TurboStaticResourceException;
 import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
 import top.turboweb.http.context.HttpContext;
@@ -126,7 +127,8 @@ public class StaticResourceMiddleware extends Middleware {
         File file = loadFile(path.toString());
         // 校验文件
         if (!file.exists() || file.isDirectory()) {
-            throw new TurboStaticResourceException("file not found for path:" + path);
+            log.warn("file not found for path:" + path);
+            throw new TurboRouterException("not found:" + c.getRequest().getUri(), TurboRouterException.ROUTER_NOT_MATCH);
         }
         // 判断文件是否可以被缓存
         if (cacheStaticResource && file.length() < cacheFileSize) {
