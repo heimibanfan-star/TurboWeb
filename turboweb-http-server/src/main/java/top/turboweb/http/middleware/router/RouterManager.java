@@ -1,5 +1,7 @@
 package top.turboweb.http.middleware.router;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import top.turboweb.commons.exception.TurboRequestException;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.context.HttpContext;
@@ -14,6 +16,8 @@ import java.util.Map;
  * TurboWeb用于管理controller路由的抽象类
  */
 public abstract class RouterManager extends Middleware {
+
+    private static final Logger log = LoggerFactory.getLogger(RouterManager.class);
 
     @Override
     public Object invoke(HttpContext ctx) {
@@ -82,5 +86,12 @@ public abstract class RouterManager extends Middleware {
             params = Map.of();
         }
         ctx.injectPathParam(params);
+    }
+
+    @Override
+    public void init(Middleware chain) {
+        if (getNext() != null) {
+            log.warn("RouterManager can not set next middleware");
+        }
     }
 }

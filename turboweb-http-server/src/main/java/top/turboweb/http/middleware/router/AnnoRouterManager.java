@@ -120,6 +120,7 @@ public class AnnoRouterManager extends RouterManager {
 
     @Override
     public void init(Middleware chain) {
+        super.init(chain);
         if (isInit) {
             return;
         }
