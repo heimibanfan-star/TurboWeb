@@ -22,6 +22,7 @@ public class Application {
     public static void main(String[] args) throws InterruptedException, NoSuchMethodException {
         StaticResourceMiddleware staticResourceMiddleware = new StaticResourceMiddleware();
         staticResourceMiddleware.setStaticResourcePath("E:/tmp");
+        staticResourceMiddleware.setZeroCopy(true);
 
         BootStrapTurboWebServer.create(1)
                 .http()

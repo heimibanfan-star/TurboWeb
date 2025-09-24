@@ -1,20 +1,17 @@
 package top.turboweb.http.response;
 
 import com.sun.management.OperatingSystemMXBean;
-import io.netty.channel.ChannelProgressiveFutureListener;
 import io.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 
 /**
  * 流式文件传输的响应结果
@@ -23,26 +20,31 @@ public class FileStreamResponse extends AbstractFileResponse implements Internal
 
 	private static final Logger log = LoggerFactory.getLogger(FileStreamResponse.class);
 	private final FileChannel fileChannel;
-	private final long fileSize;
+	private final long end;
 	private final long chunkSize;
 	private final Charset filenameCharset;
+	private final long offset;
+	private final long length;
 
 	public FileStreamResponse(File file) {
-		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152 );
+		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152, 0, file.length());
 	}
 
 	public FileStreamResponse(File file, Charset filenameCharset) {
-		this(HttpResponseStatus.OK, file, filenameCharset, 2097152);
+		this(HttpResponseStatus.OK, file, filenameCharset, 2097152, 0, file.length());
 	}
 
 	public FileStreamResponse(File file, int chunkSize) {
-		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), chunkSize);
+		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), chunkSize, 0, file.length());
 	}
 
-	public FileStreamResponse(HttpResponseStatus status, File file, Charset filenameCharset, int chunkSize) {
+	public FileStreamResponse(File file, long offset, long length) {
+		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152, offset, length);
+	}
+
+	public FileStreamResponse(HttpResponseStatus status, File file, Charset filenameCharset, int chunkSize, long offset, long length) {
 		super(status, file, filenameCharset);
-		this.headers().set(HttpHeaderNames.CONTENT_LENGTH, file.length());
-		this.fileSize = file.length();
+		this.headers().set(HttpHeaderNames.CONTENT_LENGTH, length);
         try {
             this.fileChannel = FileChannel.open(file.toPath());
         } catch (IOException e) {
@@ -50,6 +52,9 @@ public class FileStreamResponse extends AbstractFileResponse implements Internal
         }
         this.chunkSize = chunkSize;
 		this.filenameCharset = filenameCharset;
+		this.offset = offset;
+		this.length = length;
+		this.end = offset + length;
 	}
 
 	/**
@@ -85,7 +90,15 @@ public class FileStreamResponse extends AbstractFileResponse implements Internal
 		return filenameCharset;
 	}
 
-	public long getFileSize() {
-		return fileSize;
+	public long getOffset() {
+		return offset;
+	}
+
+	public long getLength() {
+		return length;
+	}
+
+	public long getEnd() {
+		return end;
 	}
 }

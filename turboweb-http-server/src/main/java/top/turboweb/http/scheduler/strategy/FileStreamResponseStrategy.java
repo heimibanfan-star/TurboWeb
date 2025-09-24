@@ -62,24 +62,21 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
      */
     private void doSendFileWithBackPress(FileStreamResponse response, InternalConnectSession session, ChannelPromise promise) {
         // 创建Reactor流进行文件的背压发送
-        Flux.<ByteBuf, Long>generate(() -> 0L, (position, emitter) -> {
+        Flux.<ByteBuf, Long>generate(response::getOffset, (offset, emitter) -> {
                     try {
-                        Long pos = doReadChunk(position, emitter, response);
+                        Long pos = doReadChunk(offset, emitter, response);
                         if (pos == -1L) {
                             emitter.complete();
                         }
                         return pos;
                     } catch (IOException e) {
                         emitter.error(e);
-                        return position;
+                        return offset;
                     }
                 })
                 // 处理资源的释放问题
                 .doFinally(signalType -> {
                     closeFileChannel(response);
-                    if (!promise.isDone()) {
-                        promise.setFailure(new TurboFileException("unknown error: promise not completed"));
-                    }
                 })
                 .subscribe(new BaseSubscriber<>() {
 
@@ -153,7 +150,7 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
      * @throws IOException 读取文件时发生异常
      */
     private Long doReadChunk(Long position, SynchronousSink<ByteBuf> sink, FileStreamResponse response) throws IOException {
-        long remaining = response.getFileSize() - position;
+        long remaining = response.getEnd() - position;
         if (remaining <= 0) {
             return -1L;
         }
