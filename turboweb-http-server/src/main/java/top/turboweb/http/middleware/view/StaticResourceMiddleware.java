@@ -196,8 +196,9 @@ public class StaticResourceMiddleware extends Middleware {
                     if (parts.length > 1 && !parts[1].isEmpty()) {
                         end = Long.parseLong(parts[1]);
                     }
+                    enableRange = true;
                 }
-                enableRange = rangeTypes.contains(mimeType) && start >= 0 && end < file.length() && start <= end;
+                enableRange = enableRange && rangeTypes.contains(mimeType) && start >= 0 && end < file.length() && start <= end;
                 // 缩放区间
                 if (end - start > maxRangeChunk) {
                     end = start + maxRangeChunk - 1;
