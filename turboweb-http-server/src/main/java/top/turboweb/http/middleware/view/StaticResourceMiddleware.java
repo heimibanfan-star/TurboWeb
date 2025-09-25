@@ -350,11 +350,11 @@ public class StaticResourceMiddleware extends Middleware {
         this.zeroCopy = zeroCopy;
     }
 
-    public void addRangeTyoe(String... rangeTypes) {
+    public void addRangeType(String... rangeTypes) {
         this.rangeTypes.addAll(Arrays.asList(rangeTypes));
     }
 
-    public void removeRangeTyoe(String... rangeTypes) {
+    public void removeRangeType(String... rangeTypes) {
         Arrays.asList(rangeTypes).forEach(this.rangeTypes::remove);
     }
 
