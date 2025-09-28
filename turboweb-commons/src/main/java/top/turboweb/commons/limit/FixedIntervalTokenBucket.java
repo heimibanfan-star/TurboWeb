@@ -34,17 +34,15 @@ public class FixedIntervalTokenBucket implements TokenBucket {
         long now = System.currentTimeMillis();
         // 判断是否需要更新令牌
         if (Math.abs(now - lastUpdateTime) >= intervalSeconds * 1000) {
-            long writeStamp = stampedLock.tryWriteLock();
-            if (writeStamp != 0) {
-                try {
-                    // 防止令牌更新多次
-                    if (Math.abs(now - lastUpdateTime) >= intervalSeconds * 1000) {
-                        lastUpdateTime = now;
-                        tokenCount.set(maxTokenCount);
-                    }
-                } finally {
-                    stampedLock.unlockWrite(writeStamp);
+            long writeStamp = stampedLock.writeLock();
+            try {
+                // 防止令牌更新多次
+                if (Math.abs(now - lastUpdateTime) >= intervalSeconds * 1000) {
+                    lastUpdateTime = now;
+                    tokenCount.set(maxTokenCount);
                 }
+            } finally {
+                stampedLock.unlockWrite(writeStamp);
             }
         }
         // 判断是否有正在写入的线程
