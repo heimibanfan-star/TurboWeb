@@ -1,6 +1,7 @@
 package top.turboweb.commons.limit;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 
 /**
@@ -10,7 +11,7 @@ public class FixedIntervalTokenBucket implements TokenBucket {
 
     private final AtomicInteger tokenCount;
     private volatile long lastUpdateTime = 0;
-    private final StampedLock stampedLock = new StampedLock();
+    private final ReentrantLock lock = new ReentrantLock();
     private final int maxTokenCount;
     private final long intervalSeconds;
 
@@ -34,7 +35,7 @@ public class FixedIntervalTokenBucket implements TokenBucket {
         long now = System.currentTimeMillis();
         // 判断是否需要更新令牌
         if (Math.abs(now - lastUpdateTime) >= intervalSeconds * 1000) {
-            long writeStamp = stampedLock.writeLock();
+            lock.lock();
             try {
                 // 防止令牌更新多次
                 if (Math.abs(now - lastUpdateTime) >= intervalSeconds * 1000) {
@@ -42,22 +43,10 @@ public class FixedIntervalTokenBucket implements TokenBucket {
                     tokenCount.set(maxTokenCount);
                 }
             } finally {
-                stampedLock.unlockWrite(writeStamp);
+                lock.unlock();
             }
         }
-        // 判断是否有正在写入的线程
-        long stamp = stampedLock.tryOptimisticRead();
-        // 判断令牌桶是否发生了重置
-        if (stampedLock.validate(stamp)) {
-            return popToken();
-        } else {
-            stamp = stampedLock.readLock();
-            try {
-                return popToken();
-            } finally {
-                stampedLock.unlockRead(stamp);
-            }
-        }
+        return popToken();
     }
 
     /**
