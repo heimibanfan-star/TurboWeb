@@ -18,12 +18,14 @@ import reactor.netty.http.client.HttpClient;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 默认的网关实现
  */
 public class DefaultGateway implements Gateway {
 
+    private static final Logger log = LoggerFactory.getLogger(DefaultGateway.class);
     private final LoadBalanceRouterMatcher routerMatcher;
     private HttpClient httpClient;
 
@@ -55,80 +57,48 @@ public class DefaultGateway implements Gateway {
 
     @Override
     public void forwardRequest(String url, FullHttpRequest fullHttpRequest, Channel channel) {
-        // 创建异步回调对象
-        Promise<HttpResponse> promise = channel.eventLoop().newPromise();
-        // 处理响应对象到达时
-        promise.addListener(future -> {
-            if (!channel.isActive()) {
-                return;
-            }
-            if (future.isSuccess()) {
-                channel.writeAndFlush(future.getNow());
-            } else {
-                Throwable cause = future.cause();
-                responseError(channel, cause);
-            }
-        });
+        AtomicBoolean sendStarted = new AtomicBoolean(false);
         httpClient
-            .request(fullHttpRequest.method())
-            .uri(url)
-            // 设置需要发送的数据
-            .send((request, outbound) -> {
-                request.headers(fullHttpRequest.headers());
-                return outbound.send(Mono.just(fullHttpRequest.content()));
-            })
-            // 处理响应结果
-            .response((response, content) -> {
-                HttpHeaders headers = response.responseHeaders();
-                String contentType = headers.get(HttpHeaderNames.CONTENT_TYPE);
-                if (Objects.equals(contentType, "text/event-stream")) {
-                    HttpResponse httpResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-                    httpResponse.headers().add(response.responseHeaders());
-                    promise.setSuccess(httpResponse);
-                    // 处理sse推送结束
-                    return content.map(DefaultHttpContent::new).doFinally(signalType -> {
-                        channel.eventLoop().execute(channel::close);
-                    });
-                } else {
-                    // 增加引用
-                    return content.map(buf -> {
-                            buf.retain();
-                            return buf;
-                        })
-                        .collectList().flatMap(bufList -> {
-                            if (!bufList.isEmpty()) {
-                                CompositeByteBuf compositeByteBuf = channel.alloc().compositeBuffer();
-                                compositeByteBuf.addComponents(true, bufList);
-                                FullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, response.status(), compositeByteBuf);
-                                httpResponse.headers().add(response.responseHeaders());
-                                promise.setSuccess(httpResponse);
+                .request(fullHttpRequest.method())
+                .uri(url)
+                // 设置需要发送的数据
+                .send((request, outbound) -> {
+                    request.headers(fullHttpRequest.headers());
+                    return outbound.send(Mono.just(fullHttpRequest.content()));
+                })
+                // 处理响应结果
+                .response((response, content) -> {
+                    // 写入响应头
+                    HttpResponse toWriteResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+                    toWriteResponse.headers().set(response.responseHeaders());
+                    // 写入响应头
+                    channel.writeAndFlush(toWriteResponse);
+                    sendStarted.set(true);
+                    return content;
+                })
+                .map(DefaultHttpContent::new)
+                // 触发订阅，将sse内容写入channel
+                .subscribe(
+                        httpContent -> {
+                            httpContent.retain();
+                            channel.writeAndFlush(httpContent);
+                        },
+                        e -> {
+                            log.error("Gateway error", e);
+                            // 判断数据是否已经写入
+                            if (sendStarted.get()) {
+                                // 直接关闭
+                                channel.close();
                             } else {
-                                // 如果没有信号直接返回空数据
-                                FullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, response.status());
-                                httpResponse.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-                                promise.setSuccess(httpResponse);
+                                responseError(channel, e).addListener(future -> {
+                                    channel.close();
+                                });
                             }
-                            return Mono.empty();
-                        });
-                }
-            })
-            // 重试失败之后对channel关闭
-            .doOnError(e -> {
-                if (channel.isActive()) {
-                    responseError(channel, e).addListener(future -> {
-                       channel.close();
-                    });
-                }
-            })
-            // 触发订阅，将sse内容写入channel
-            .subscribe(
-                httpContent -> {
-                    httpContent.retain();
-                    channel.eventLoop().execute(() -> {
-                        channel.writeAndFlush(httpContent);
-                    });
-                }
-            );
+                        },
+                        () -> {
+                            channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+                        }
+                );
 
     }
 
@@ -152,7 +122,7 @@ public class DefaultGateway implements Gateway {
     /**
      * 回写错误信息
      *
-     * @param channel 管道
+     * @param channel   管道
      * @param throwable 异常
      * @return 异步对象
      */
