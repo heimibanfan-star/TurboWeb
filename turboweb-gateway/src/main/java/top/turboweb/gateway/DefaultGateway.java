@@ -69,7 +69,7 @@ public class DefaultGateway implements Gateway {
                 // 处理响应结果
                 .response((response, content) -> {
                     // 写入响应头
-                    HttpResponse toWriteResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+                    HttpResponse toWriteResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, response.status());
                     toWriteResponse.headers().set(response.responseHeaders());
                     // 写入响应头
                     channel.writeAndFlush(toWriteResponse);
