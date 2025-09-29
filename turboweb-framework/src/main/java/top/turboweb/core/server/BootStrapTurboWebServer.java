@@ -14,6 +14,7 @@ import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitFactory;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.initializer.impl.DefaultCommonSourceInitializer;
+import top.turboweb.gateway.GatewayChannelHandler;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.core.listener.DefaultJacksonTurboWebListener;
 import top.turboweb.core.listener.TurboWebListener;
@@ -104,6 +105,12 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
     @Override
     public TurboWebServer listeners(TurboWebListener... listeners) {
         customListeners.addAll(List.of(listeners));
+        return this;
+    }
+
+    @Override
+    public TurboWebServer testGateway(GatewayChannelHandler handler) {
+        setGatewayChannelHandler(handler);
         return this;
     }
 

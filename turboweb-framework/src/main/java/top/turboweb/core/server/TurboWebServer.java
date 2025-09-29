@@ -7,6 +7,7 @@ import top.turboweb.core.handler.ChannelHandlerFactory;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
 import top.turboweb.core.listener.TurboWebListener;
+import top.turboweb.gateway.GatewayChannelHandler;
 
 import java.util.function.Consumer;
 
@@ -76,6 +77,14 @@ public interface TurboWebServer {
 	 * @return 当前实例
 	 */
 	TurboWebServer listeners(TurboWebListener... listeners);
+
+	/**
+	 * 测试网关
+	 *
+	 * @param handler 网关处理器
+	 * @return 当前实例
+	 */
+	TurboWebServer testGateway(GatewayChannelHandler handler);
 
 	/**
 	 * 启动

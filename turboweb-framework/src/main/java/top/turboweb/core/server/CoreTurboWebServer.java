@@ -9,6 +9,8 @@ import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.handler.ConnectLimiter;
 import top.turboweb.core.handler.ChannelHandlerFactory;
 import top.turboweb.core.handler.RequestSerializerHandler;
+import top.turboweb.gateway.GatewayChannelHandler;
+import top.turboweb.gateway.client.ReactorHttpClientFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +24,7 @@ public class CoreTurboWebServer {
 	private final List<ChannelHandlerFactory> frontHandlerFactories = new ArrayList<>();
 	private final List<ChannelHandlerFactory> backHandlerFactories = new ArrayList<>();
 	private final int ioThreadNum;
+	private GatewayChannelHandler gatewayChannelHandler;
 
 	public CoreTurboWebServer(int ioThreadNum, int zeroCopyThreadNum) {
 		if (ioThreadNum <= 0) {
@@ -109,6 +112,10 @@ public class CoreTurboWebServer {
 			}
 			pipeline.addLast(new HttpServerCodec());
 			pipeline.addLast(new HttpObjectAggregator(maxContentLen));
+			// 判断是否开启网关
+			if (gatewayChannelHandler != null) {
+				pipeline.addLast(gatewayChannelHandler);
+			}
 			if (serForPerConn) {
 				pipeline.addLast(new RequestSerializerHandler());
 			}
@@ -118,6 +125,11 @@ public class CoreTurboWebServer {
 				pipeline.addLast(backHandlerFactory.create());
 			}
 		});
+	}
+
+	protected void setGatewayChannelHandler(GatewayChannelHandler gatewayChannelHandler) {
+		gatewayChannelHandler.setHttpClient(ReactorHttpClientFactory.createHttpClient(workers(), builder -> builder));
+		this.gatewayChannelHandler = gatewayChannelHandler;
 	}
 
 	/**
