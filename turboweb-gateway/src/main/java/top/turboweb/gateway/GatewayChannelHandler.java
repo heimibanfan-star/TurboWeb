@@ -1,6 +1,5 @@
 package top.turboweb.gateway;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -13,6 +12,7 @@ import top.turboweb.gateway.loadbalance.LoadBalancer;
 import top.turboweb.gateway.loadbalance.LoadBalancerFactory;
 import top.turboweb.gateway.node.Node;
 import top.turboweb.gateway.rule.Rule;
+import top.turboweb.gateway.rule.RuleDetail;
 
 import java.util.Map;
 import java.util.Objects;
@@ -58,31 +58,64 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
         request.retain();
-        String head = request.headers().get(TURBOWEB_GATEWAY_HEADER);
         Rule rule = this.rule;
-        if (rule == null || head != null) {
+        // 网关失效逻辑
+        if (rule == null) {
+            ctx.writeAndFlush(errorResponse("Gateway is not available"));
+            return;
+        }
 
-            ctx.fireChannelRead(request);
+        // 判断当前请求是否被转发
+        if (request.headers().contains(TURBOWEB_GATEWAY_HEADER)) {
+            // 判断是否允许当前节点处理
+            RuleDetail detail = rule.getLocalService(request.uri());
+            if (detail == null) {
+                ctx.writeAndFlush(errorResponse("Service not found"));
+            } else {
+                handleRequestLocal(ctx, request, detail);
+            }
             return;
         }
-        String serviceName = rule.getServiceName(request.uri());
-        if (serviceName == null) {
-            ctx.fireChannelRead(request);
+
+        // 正常节点尝试匹配
+        RuleDetail detail = rule.getService(request.uri());
+        if (detail == null) {
+            ctx.writeAndFlush(errorResponse("Service not found"));
             return;
         }
-        Node node = loadBalancer.loadBalance(serviceName);
-        if (node == null || node.isLocal()) {
-            ctx.fireChannelRead(request);
-            return;
-        }
-        // 判断是否携带websocket升级协议
-        if (request.headers().contains(HttpHeaderNames.UPGRADE, "websocket", true)) {
-            forwardWebSocket(ctx, request, node);
+        // 判断节点需要本地处理还是远程处理
+        if (detail.local()) {
+            handleRequestLocal(ctx, request, detail);
         } else {
-            // 转发请求
-            forwardHttp(ctx, request, node);
+            handleRequestRemote(ctx, request, detail);
         }
+    }
 
+    /**
+     * 处理本地请求
+     *
+     * @param ctx     ChannelHandlerContext
+     * @param request FullHttpRequest
+     * @param detail  规则详情
+     */
+    private void handleRequestLocal(ChannelHandlerContext ctx, FullHttpRequest request, RuleDetail detail) {
+        String newUri = request.uri().replaceFirst(detail.rewriteRegex(), detail.rewriteTarget());
+        FullHttpRequest fullHttpRequest = new DefaultFullHttpRequest(request.protocolVersion(), request.method(), newUri, request.content());
+        fullHttpRequest.headers().set(request.headers());
+        ctx.fireChannelRead(fullHttpRequest);
+    }
+
+    private void handleRequestRemote(ChannelHandlerContext ctx, FullHttpRequest request, RuleDetail detail) {
+        // 匹配节点
+        Node node = loadBalancer.loadBalance(detail.serviceName());
+        if (node == null) {
+            ctx.writeAndFlush(errorResponse(detail.serviceName() + " has no nodes available"));
+            return;
+        }
+        String newUri = request.uri().replaceFirst(detail.rewriteRegex(), detail.rewriteTarget());
+        String fullUrl = detail.protocol() + "://" +  node.url() + detail.extPath() + newUri;
+        // 转发请求
+        forwardHttp(ctx, request, node, fullUrl);
     }
 
     /**
@@ -103,13 +136,12 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
      * @param fullHttpRequest FullHttpRequest
      * @param node            节点
      */
-    private void forwardHttp(ChannelHandlerContext ctx, FullHttpRequest fullHttpRequest, Node node) {
+    private void forwardHttp(ChannelHandlerContext ctx, FullHttpRequest fullHttpRequest, Node node, String targetUrl) {
         AtomicBoolean sendStarted = new AtomicBoolean(false);
         // 移交远程节点
         fullHttpRequest.headers().add(TURBOWEB_GATEWAY_HEADER, "true");
-        String url = node.url() + fullHttpRequest.uri();
         httpClient.request(fullHttpRequest.method())
-                .uri(url)
+                .uri(targetUrl)
                 .send((request, outbound) -> {
                     request.headers(fullHttpRequest.headers());
                     return outbound.send(Mono.just(fullHttpRequest.content()));

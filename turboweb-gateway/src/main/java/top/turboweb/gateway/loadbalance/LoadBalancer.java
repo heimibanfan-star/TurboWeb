@@ -22,7 +22,7 @@ public interface LoadBalancer {
      * 添加服务
      *
      * @param serviceName 服务名
-     * @param urls        服务地址，如果是本地的话输入[local]
+     * @param urls        服务地址
      */
     void addServices(String serviceName, Set<String> urls);
 

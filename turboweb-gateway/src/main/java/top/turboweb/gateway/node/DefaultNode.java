@@ -6,11 +6,9 @@ package top.turboweb.gateway.node;
 public class DefaultNode implements Node {
 
     private final String url;
-    private final boolean local;
 
-    public DefaultNode(String url, boolean local) {
+    public DefaultNode(String url) {
         this.url = url;
-        this.local = local;
     }
 
 
@@ -18,9 +16,5 @@ public class DefaultNode implements Node {
     public String url() {
         return url;
     }
-
-    @Override
-    public boolean isLocal() {
-        return local;
-    }
+    
 }

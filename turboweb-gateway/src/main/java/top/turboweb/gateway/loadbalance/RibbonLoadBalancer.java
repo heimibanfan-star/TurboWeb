@@ -1,6 +1,5 @@
 package top.turboweb.gateway.loadbalance;
 
-import top.turboweb.commons.exception.TurboDuplicateException;
 import top.turboweb.gateway.node.DefaultNode;
 import top.turboweb.gateway.node.Node;
 
@@ -24,10 +23,11 @@ public class RibbonLoadBalancer implements LoadBalancer {
     }
 
     private final Map<String, ServiceNodes> services = new ConcurrentHashMap<>();
+    private final Map<String, ServiceNodes> localServices = new ConcurrentHashMap<>();
     private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock(true);
 
     @Override
-    public void addServices(String serviceName, String... urls) {
+    public void addServices(String serviceName, String... addresses) {
         readWriteLock.writeLock().lock();
         try {
             ServiceNodes serviceNodes = services.get(serviceName);
@@ -35,10 +35,10 @@ public class RibbonLoadBalancer implements LoadBalancer {
                 serviceNodes = new ServiceNodes();
                 services.put(serviceName, serviceNodes);
             }
-            for (String url : urls) {
+            for (String url : addresses) {
                 if (!serviceNodes.urls.contains(url)) {
                     serviceNodes.urls.add(url);
-                    serviceNodes.nodes.add(new DefaultNode(url, false));
+                    serviceNodes.nodes.add(new DefaultNode(url));
                 }
             }
         } finally {
@@ -47,8 +47,17 @@ public class RibbonLoadBalancer implements LoadBalancer {
     }
 
     @Override
-    public void addServices(String serviceName, Set<String> urls) {
-        String[] urlsArray = urls.toArray(new String[0]);
+    public void addServices(String serviceName, Set<String> addresses) {
+        // 处理地址
+        String[] urlsArray = addresses.stream().map(address -> {
+            Objects.requireNonNull(address);
+            // 去除协议部分
+            if (address.contains("://")) {
+                address = address.substring(address.indexOf("://") + 3);
+            }
+            // 取出末尾所有的/
+            return address.replaceAll("/$", "");
+        }).toArray(String[]::new);
         addServices(serviceName, urlsArray);
     }
 
@@ -63,15 +72,15 @@ public class RibbonLoadBalancer implements LoadBalancer {
     }
 
     @Override
-    public void removeServiceNode(String serviceName, String nodeUrl) {
+    public void removeServiceNode(String serviceName, String nodeAddress) {
         readWriteLock.writeLock().lock();
         try {
             ServiceNodes serviceNodes = services.get(serviceName);
-            if (serviceNodes != null && serviceNodes.urls.contains(nodeUrl)) {
+            if (serviceNodes != null && serviceNodes.urls.contains(nodeAddress)) {
                 Iterator<Node> iterator = serviceNodes.nodes.iterator();
                 while (iterator.hasNext()) {
                     Node node = iterator.next();
-                    if (Objects.equals(node.url(), nodeUrl)) {
+                    if (Objects.equals(node.url(), nodeAddress)) {
                         iterator.remove();
                         break;
                     }

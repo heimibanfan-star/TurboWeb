@@ -7,5 +7,4 @@ public interface Node {
 
     String url();
 
-    boolean isLocal();
 }

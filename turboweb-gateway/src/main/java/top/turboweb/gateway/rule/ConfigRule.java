@@ -6,6 +6,7 @@ import top.turboweb.commons.exception.TurboDuplicateException;
 import top.turboweb.commons.struct.trie.PathTrie;
 import top.turboweb.commons.struct.trie.PatternPathTrie;
 
+import java.net.URI;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -16,19 +17,72 @@ public class ConfigRule implements Rule {
 
     private static final Logger log = LoggerFactory.getLogger(ConfigRule.class);
     private final AtomicBoolean used = new AtomicBoolean(false);
-    private final PathTrie<String> pathTrie = new PatternPathTrie<>();
+    private final PathTrie<RuleDetail> pathTrie = new PatternPathTrie<>();
+    private final boolean localPre;
 
+    public ConfigRule(boolean localPre) {
+        this.localPre = localPre;
+    }
 
-    @Override
-    public String getServiceName(String path) {
+    public ConfigRule() {
+        this(true);
+    }
+
+    private record ServiceResult(RuleDetail local, RuleDetail remote) {
+    }
+
+    /**
+     * 获取服务名
+     *
+     * @param path         请求路径
+     * @return 服务名
+     */
+    private ServiceResult doGetService(String path) {
         if (!used.get()) {
             throw new IllegalStateException("The rules have not been used");
         }
-        Set<String> names = pathTrie.patternMatch(path);
-        if (names.size() > 1) {
-            throw new TurboDuplicateException("There are multiple services that match the path: " + path + ": " + names);
+        Set<RuleDetail> details = pathTrie.patternMatch(path);
+        if (details.size() > 2) {
+            throw new TurboDuplicateException("There are multiple rules that match the path:" + path + ", services:" + details.stream().map(RuleDetail::serviceName).toList());
         }
-        return names.isEmpty() ? null : names.iterator().next();
+        if (details.size() == 2) {
+            RuleDetail local = null;
+            RuleDetail remote = null;
+            for (RuleDetail detail : details) {
+                if (detail.local()) {
+                    local = detail;
+                } else {
+                    remote = detail;
+                }
+            }
+            return new ServiceResult(local, remote);
+        }
+        if (details.size() == 1) {
+            RuleDetail detail = details.iterator().next();
+            return new ServiceResult(detail.local()? detail : null, detail.local()? null : detail);
+        }
+        return new ServiceResult(null, null);
+    }
+
+    @Override
+    public RuleDetail getLocalService(String path) {
+        ServiceResult serviceResult = doGetService(path);
+        return serviceResult.local();
+    }
+
+    @Override
+    public RuleDetail getRemoteService(String path) {
+        ServiceResult serviceResult = doGetService(path);
+        return serviceResult.remote();
+    }
+
+    @Override
+    public RuleDetail getService(String path) {
+        ServiceResult serviceResult = doGetService(path);
+        if (localPre && serviceResult.local() != null) {
+            return serviceResult.local();
+        }
+        return serviceResult.remote();
     }
 
     @Override
@@ -39,11 +93,24 @@ public class ConfigRule implements Rule {
     /**
      * 添加规则
      *
-     * @param pattern       路径模式
+     * @param pattern     路径模式
      * @param serviceName 服务名
-     * @return 规则
+     * @return this
      */
     public ConfigRule addRule(String pattern, String serviceName) {
+        return addRule(pattern, serviceName, null, null);
+    }
+
+    /**
+     * 添加规则
+     *
+     * @param pattern           路径模式
+     * @param serviceExpression 服务表达式
+     * @param rewRegix          重写路径模式
+     * @param rewTar            重写目标
+     * @return this
+     */
+    public ConfigRule addRule(String pattern, String serviceExpression, String rewRegix, String rewTar) {
         if (!used.compareAndSet(false, false)) {
             log.warn("The rules have been used and cannot be modified");
             return this;
@@ -51,10 +118,39 @@ public class ConfigRule implements Rule {
         if (pattern == null || pattern.isEmpty()) {
             throw new IllegalArgumentException("The pattern cannot be empty");
         }
-        if (serviceName == null || serviceName.isEmpty()) {
-            throw new IllegalArgumentException("The serviceName cannot be empty");
+        if (serviceExpression == null || serviceExpression.isEmpty()) {
+            throw new IllegalArgumentException("The serviceExpression cannot be empty");
         }
-        pathTrie.insert(pattern, serviceName);
+        if (rewRegix == null) {
+            rewRegix = "";
+        }
+        if (rewTar == null) {
+            rewTar = "";
+        }
+        URI uri = URI.create(serviceExpression);
+        String protocol = uri.getScheme();
+        String serviceName = uri.getHost();
+        String extPath = uri.getPath();
+        if (serviceName == null || serviceName.isEmpty()) {
+            throw new IllegalArgumentException("Expressions are not legal:" + serviceExpression);
+        }
+        if (protocol == null || protocol.isEmpty()) {
+            protocol = "http";
+        }
+        if (extPath == null || "/".equals(extPath)) {
+            extPath = "";
+        }
+        extPath = extPath.replaceAll("/$", "");
+        // 已服务名分割协议与扩展路径
+        RuleDetail detail = new RuleDetail(
+                serviceName,
+                rewRegix,
+                rewTar,
+                "local".equals(serviceExpression),
+                protocol,
+                extPath
+        );
+        pathTrie.insert(pattern, detail);
         return this;
     }
 }

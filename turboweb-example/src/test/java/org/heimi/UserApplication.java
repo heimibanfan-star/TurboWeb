@@ -21,9 +21,9 @@ public class UserApplication {
             }
         });
         GatewayChannelHandler gatewayChannelHandler = new GatewayChannelHandler();
-        gatewayChannelHandler.addService("orderService", "http://localhost:8081");
+        gatewayChannelHandler.addService("orderService", "localhost:8081");
         ConfigRule rule = new ConfigRule();
-        rule.addRule("/order/**", "orderService");
+        rule.addRule("/order/**", "http://orderService");
         gatewayChannelHandler.setRule(rule);
         BootStrapTurboWebServer.create()
                 .http()
