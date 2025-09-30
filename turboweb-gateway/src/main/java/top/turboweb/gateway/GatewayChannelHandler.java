@@ -150,6 +150,7 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
             pipeline.addLast(new SimpleChannelInboundHandler<WebSocketFrame>() {
                 @Override
                 protected void channelRead0(ChannelHandlerContext ctx, WebSocketFrame msg) throws Exception {
+                    msg.retain();
                     sink.next(msg);
                 }
 
