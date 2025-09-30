@@ -6,9 +6,21 @@
 </head>
 <body>
 <div>
-  <video controls width="250" height="150">
-    <source src="http://localhost:8080/static/video.mp4">
-  </video>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8080/ws')
+        ws.onopen = function () {
+           setInterval(function () {
+               ws.send('hello' + Math.random())
+           }, 3000)
+        }
+        ws.onmessage = function (event) {
+            console.log(event.data)
+        }
+        ws.onclose = function () {
+            console.log('closed')
+        }
+    </script>
 </div>
 </body>
 </html>

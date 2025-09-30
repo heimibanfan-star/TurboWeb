@@ -1,11 +1,17 @@
 package top.turboweb.gateway;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.websocketx.*;
+import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 import top.turboweb.gateway.loadbalance.LoadBalancer;
@@ -113,9 +119,14 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
             return;
         }
         String newUri = request.uri().replaceFirst(detail.rewriteRegex(), detail.rewriteTarget());
-        String fullUrl = detail.protocol() + "://" +  node.url() + detail.extPath() + newUri;
-        // 转发请求
-        forwardHttp(ctx, request, node, fullUrl);
+        String fullUrl = detail.protocol() + "://" + node.url() + detail.extPath() + newUri;
+        // 判断是否需要升级为websocket
+        if (Objects.equals(request.headers().get(HttpHeaderNames.UPGRADE), "websocket")) {
+            forwardWebSocket(ctx, request, node, fullUrl);
+        } else {
+            // 转发请求
+            forwardHttp(ctx, request, node, fullUrl);
+        }
     }
 
     /**
@@ -125,8 +136,72 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
      * @param request FullHttpRequest
      * @param node    节点
      */
-    private void forwardWebSocket(ChannelHandlerContext ctx, FullHttpRequest request, Node node) {
-        ctx.writeAndFlush(errorResponse("websocket is not supported"));
+    private void forwardWebSocket(ChannelHandlerContext ctx, FullHttpRequest request, Node node, String fullUrl) {
+        ChannelPipeline pipeline = ctx.pipeline();
+        if (pipeline.get(WebSocketServerProtocolHandler.class) != null) {
+            return;
+        }
+        // 删除所有的后续处理器
+        removeAfterHandler(ctx);
+        // 添加websocket相关的处理器
+        pipeline.addLast(new WebSocketServerProtocolHandler(request.uri()));
+        // 创建Flux流接收websocket的帧
+        Flux<WebSocketFrame> webSocketFrameFlux = Flux.create(sink -> {
+            pipeline.addLast(new SimpleChannelInboundHandler<WebSocketFrame>() {
+                @Override
+                protected void channelRead0(ChannelHandlerContext ctx, WebSocketFrame msg) throws Exception {
+                    sink.next(msg);
+                }
+
+                @Override
+                public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                    sink.complete();
+                    super.channelInactive(ctx);
+                }
+            });
+        });
+        Promise<Void> closePromise = ctx.channel().newPromise();
+        // 创建远程节点的websocket连接
+        Disposable remoteDisposable = httpClient.websocket()
+                .uri(fullUrl)
+                .handle((inbound, outbound) -> {
+                    // 向远程节点发送消息
+                    Mono<Void> send = webSocketFrameFlux.flatMap(frame -> switch (frame) {
+                                case TextWebSocketFrame textWebSocketFrame ->
+                                        outbound.sendString(Mono.just(textWebSocketFrame.text()));
+                                case BinaryWebSocketFrame binaryWebSocketFrame ->
+                                        outbound.send(Mono.just(binaryWebSocketFrame.content()));
+                                case CloseWebSocketFrame ignored -> outbound.sendClose();
+                                case null, default -> Mono.empty();
+                            })
+                            .doFinally(signalType -> closePromise.setSuccess(null))
+                            .then();
+                    Mono<Void> receive = inbound
+                            .receiveFrames()
+                            .doOnNext(frame -> {
+                                frame.retain();
+                                ctx.writeAndFlush(frame);
+                            })
+                            .then();
+                    return Mono.when(send, receive);
+                })
+                .subscribe();
+        closePromise.addListener(future -> {
+            remoteDisposable.dispose();
+        });
+        ctx.fireChannelRead(request);
+    }
+
+    /**
+     * 移除后续处理器
+     *
+     * @param ctx ChannelHandlerContext
+     */
+    private void removeAfterHandler(ChannelHandlerContext ctx) {
+        ChannelPipeline pipeline = ctx.pipeline();
+        while (pipeline.last() != this) {
+            pipeline.remove(pipeline.last());
+        }
     }
 
     /**

@@ -1,11 +1,14 @@
 package org.heimi;
 
+import io.netty.buffer.ByteBuf;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.gateway.DefaultGateway;
 import top.turboweb.gateway.Gateway;
 import top.turboweb.http.middleware.router.LambdaRouterGroup;
 import top.turboweb.http.middleware.router.LambdaRouterManager;
 import top.turboweb.http.response.SseResponse;
+import top.turboweb.websocket.AbstractWebSocketHandler;
+import top.turboweb.websocket.WebSocketSession;
 
 /**
  * TODO
@@ -38,6 +41,31 @@ public class OrderApplication {
         BootStrapTurboWebServer.create()
                 .http()
                 .routerManager(routerManager)
+                .and()
+                .protocol()
+                .websocket("/ws", new AbstractWebSocketHandler() {
+
+                    @Override
+                    public void onOpen(WebSocketSession session) {
+                        System.out.println("连接成功"   );
+                    }
+
+                    @Override
+                    public void onText(WebSocketSession session, String content) {
+                        System.out.println("收到文本消息: " + content);
+                        session.sendText("收到消息: " + content);
+                    }
+
+                    @Override
+                    public void onBinary(WebSocketSession session, ByteBuf content) {
+                        System.out.println("收到二进制消息: " + content);
+                    }
+
+                    @Override
+                    public void onClose(WebSocketSession session) {
+                        System.out.println("连接关闭");
+                    }
+                })
                 .and()
                 .start(8081);
     }
