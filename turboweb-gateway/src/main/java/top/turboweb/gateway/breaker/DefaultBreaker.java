@@ -33,7 +33,6 @@ public class DefaultBreaker implements Breaker {
 
 
     private final ConcurrentHashMap<String, HealthStatus> healthStatusMap = new ConcurrentHashMap<>();
-    private final ThreadLocalRandom random = ThreadLocalRandom.current();
     // 被判断为失败的状态码
     private Set<Integer> failStatusCode;
     private final long timeout;
@@ -189,6 +188,7 @@ public class DefaultBreaker implements Breaker {
         }
     }
 
+    @Override
     public boolean isAllow(String uri) {
         uri = standardUri(uri);
         // 获取健康状态
@@ -226,7 +226,7 @@ public class DefaultBreaker implements Breaker {
      * @return true表示允许通过
      */
     private boolean randomAllow() {
-        int i = random.nextInt();
+        int i = ThreadLocalRandom.current().nextInt();
         return i % 2 == 0;
     }
 
