@@ -126,7 +126,7 @@ public class DefaultBreaker implements Breaker {
             }
             // 处理半开状态
             if (healthStatus.status == STATUS_HALF_OPEN) {
-                handleForHalfOpen(healthStatus);
+                handleForHalfOpen(healthStatus, false);
             }
         } finally {
             healthStatus.lock.unlock();
@@ -153,14 +153,18 @@ public class DefaultBreaker implements Breaker {
                 return;
             }
             // 处理半开状态
-            handleForHalfOpen(healthStatus);
+            handleForHalfOpen(healthStatus, true);
         } finally {
             healthStatus.lock.unlock();
         }
     }
 
-    private void handleForHalfOpen(HealthStatus healthStatus) {
-        healthStatus.failCount++;
+    private void handleForHalfOpen(HealthStatus healthStatus, boolean isSuccess) {
+        if (isSuccess) {
+            healthStatus.successCount++;
+        } else {
+            healthStatus.failCount++;
+        }
         double percent = healthStatus.successCount / (double) (healthStatus.successCount + healthStatus.failCount);
         // 判断是否到达阈值
         if (percent >= recoverPercent) {
