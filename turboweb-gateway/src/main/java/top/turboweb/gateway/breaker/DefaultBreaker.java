@@ -3,8 +3,7 @@ package top.turboweb.gateway.breaker;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
@@ -25,10 +24,11 @@ public class DefaultBreaker implements Breaker {
     private static final int STATUS_HALF_OPEN = 2;
 
     private static class HealthStatus {
-        private final AtomicInteger status = new AtomicInteger(STATUS_OPEN);
-        private final AtomicInteger failCount = new AtomicInteger(0);
-        private final AtomicInteger successCount = new AtomicInteger(0);
-        private final AtomicLong time = new AtomicLong(0);
+        volatile int status = STATUS_OPEN;
+        int failCount = 0;
+        int successCount = 0;
+        long time = 0;
+        final ReentrantLock lock = new ReentrantLock();
     }
 
 
@@ -104,50 +104,35 @@ public class DefaultBreaker implements Breaker {
     @Override
     public void setFail(String uri) {
         uri = standardUri(uri);
-        HealthStatus healthStatus = healthStatusMap.computeIfAbsent(uri, k -> new HealthStatus());
-        trySwitchCloseToHalfOpen(healthStatus);
-        for (; ; ) {
-            // 读取变量
-            int status = healthStatus.status.get();
-            int successCount = healthStatus.successCount.get();
-            int failCount = healthStatus.failCount.get();
-            long lastTime = healthStatus.time.get();
-            if (status == STATUS_CLOSE) {
-                break;
+        HealthStatus healthStatus = healthStatusMap.computeIfAbsent(uri, k -> {
+            HealthStatus status = new HealthStatus();
+            status.time = System.currentTimeMillis();
+            return status;
+        });
+        healthStatus.lock.lock();
+        try {
+            testCloseToHalfOpen(healthStatus);
+            // 判断是否在当前检测窗口
+            if (healthStatus.status == STATUS_OPEN && System.currentTimeMillis() - healthStatus.time > failWindowTTL) {
+                // 重置时间窗口
+                healthStatus.time = System.currentTimeMillis();
+                return;
             }
-            if (failCount == failThreshold - 1 && status != STATUS_HALF_OPEN) {
-                // CAS失败重新尝试
-                if (!healthStatus.failCount.compareAndSet(failCount, failThreshold)) {
-                    continue;
-                }
-                // CAS成功，尝试将开放转化为关闭
-                if (healthStatus.status.compareAndSet(STATUS_OPEN, STATUS_CLOSE)) {
-                    healthStatus.time.set(System.currentTimeMillis());
-                }
-                break;
-            } else if (status != STATUS_HALF_OPEN && healthStatus.failCount.compareAndSet(failCount, failCount + 1)) {
-                break;
-            } else {
-                if (!healthStatus.failCount.compareAndSet(failCount, failCount + 1)) {
-                    continue;
-                }
-                // 处理半开状态
-                long totalRequest = failCount + 1 + successCount;
-                // 计算百分比
-                double percent = (double) successCount / totalRequest;
-                if (percent > recoverPercent) {
-                    // 打开断路器
-                    trySwitchHalfOpenToOpen(healthStatus);
-                    break;
-                } else if (lastTime + recoverWindowTTL < System.currentTimeMillis()) {
-                    // 尝试关闭断路器
-                    trySwitchHalfOpenToClose(healthStatus);
-                    break;
-                }
-                break;
+            // 阈值判断
+            if (healthStatus.status == STATUS_OPEN && ++healthStatus.failCount >= failThreshold) {
+                // 切换状态
+                healthStatus.status = STATUS_CLOSE;
+                return;
             }
+            // 处理半开状态
+            if (healthStatus.status == STATUS_HALF_OPEN) {
+                handleForHalfOpen(healthStatus);
+            }
+        } finally {
+            healthStatus.lock.unlock();
         }
     }
+
 
     @Override
     public void setSuccess(String uri) {
@@ -156,53 +141,75 @@ public class DefaultBreaker implements Breaker {
         if (healthStatus == null) {
             return;
         }
-        // 尝试状态切换
-        trySwitchCloseToHalfOpen(healthStatus);
-        if (healthStatus.status.get() != STATUS_HALF_OPEN) {
+        // 不是半开状态忽略
+        if (healthStatus.status == STATUS_OPEN) {
             return;
         }
-        for (; ; ) {
-            int status = healthStatus.status.get();
-            int failCount = healthStatus.failCount.get();
-            int successCount = healthStatus.successCount.get();
-            long lastTime = healthStatus.time.get();
-            if (status != STATUS_HALF_OPEN) {
-                break;
+        healthStatus.lock.lock();
+        try {
+            testCloseToHalfOpen(healthStatus);
+            // 跳过非半开状态
+            if (healthStatus.status != STATUS_HALF_OPEN) {
+                return;
             }
-            if (!healthStatus.successCount.compareAndSet(successCount, successCount + 1)) {
-                continue;
-            }
-            long totalCount = failCount + successCount + 1;
-            // 计算百分比
-            double percent = (double) (successCount + 1) / totalCount;
-            if (percent > recoverPercent) {
-                trySwitchHalfOpenToOpen(healthStatus);
-                break;
-            } else if (lastTime + recoverWindowTTL < System.currentTimeMillis()) {
-                trySwitchHalfOpenToClose(healthStatus);
-                break;
-            }
-            break;
+            // 处理半开状态
+            handleForHalfOpen(healthStatus);
+        } finally {
+            healthStatus.lock.unlock();
         }
     }
 
-    @Override
-    public boolean isBreak(String uri) {
+    private void handleForHalfOpen(HealthStatus healthStatus) {
+        healthStatus.failCount++;
+        double percent = healthStatus.successCount / (double) (healthStatus.successCount + healthStatus.failCount);
+        // 判断是否到达阈值
+        if (percent >= recoverPercent) {
+            // 修改为打开状态
+            healthStatus.status = STATUS_OPEN;
+        } else if (healthStatus.time + recoverWindowTTL < System.currentTimeMillis()) {
+            // 恢复失败，继续设置为关闭状态
+            healthStatus.status = STATUS_CLOSE;
+        }
+    }
+
+    private void testCloseToHalfOpen(HealthStatus healthStatus) {
+        if (healthStatus.status != STATUS_CLOSE) {
+            return;
+        }
+        // 判断是否达到恢复时间
+        if (healthStatus.time + recoverTime < System.currentTimeMillis()) {
+            healthStatus.status = STATUS_HALF_OPEN;
+            healthStatus.time = System.currentTimeMillis();
+            healthStatus.failCount = 0;
+            healthStatus.successCount = 0;
+        }
+    }
+
+    public boolean isAllow(String uri) {
         uri = standardUri(uri);
-        // 健康状态检测
+        // 获取健康状态
         HealthStatus healthStatus = healthStatusMap.get(uri);
         if (healthStatus == null) {
-            return false;
+            return true;
         }
-        trySwitchCloseToHalfOpen(healthStatus);
-        // 判断断路器的状态
-        if (healthStatus.status.get() == STATUS_OPEN) {
-            return false;
+        // 判断状态
+        if (healthStatus.status == STATUS_OPEN) {
+            return true;
         }
-        if (healthStatus.status.get() == STATUS_HALF_OPEN) {
-            return randomAllow();
+        if (healthStatus.status == STATUS_CLOSE) {
+            // 判断是否到达恢复时间
+            if (healthStatus.time + recoverTime < System.currentTimeMillis()) {
+                healthStatus.lock.lock();
+                try {
+                    testCloseToHalfOpen(healthStatus);
+                } finally {
+                    healthStatus.lock.unlock();
+                }
+            } else {
+                return false;
+            }
         }
-        return true;
+        return randomAllow();
     }
 
     @Override
@@ -217,47 +224,6 @@ public class DefaultBreaker implements Breaker {
     private boolean randomAllow() {
         int i = random.nextInt();
         return i % 2 == 0;
-    }
-
-    /**
-     * 尝试将关闭状态切换为半开放状态
-     * @param healthStatus 健康状态
-     */
-    private void trySwitchCloseToHalfOpen(HealthStatus healthStatus) {
-        if (healthStatus.status.get() != STATUS_CLOSE) {
-            return;
-        }
-        if (healthStatus.time.get() + recoverTime < System.currentTimeMillis() && healthStatus.status.compareAndSet(STATUS_CLOSE, STATUS_HALF_OPEN)) {
-            healthStatus.time.set(System.currentTimeMillis());
-            healthStatus.failCount.set(0);
-            healthStatus.successCount.set(0);
-        }
-    }
-
-    /**
-     * 尝试将半开放状态切换为打开状态
-     * @param healthStatus 健康状态
-     */
-    private void trySwitchHalfOpenToOpen(HealthStatus healthStatus) {
-        if (healthStatus.status.get() != STATUS_HALF_OPEN) {
-            return;
-        }
-        if (healthStatus.status.compareAndSet(STATUS_HALF_OPEN, STATUS_OPEN)) {
-            healthStatus.time.set(System.currentTimeMillis());
-            healthStatus.failCount.set(0);
-            healthStatus.successCount.set(0);
-        }
-    }
-
-    private void trySwitchHalfOpenToClose(HealthStatus healthStatus) {
-        if (healthStatus.status.get() != STATUS_HALF_OPEN) {
-            return;
-        }
-        if (healthStatus.status.compareAndSet(STATUS_HALF_OPEN, STATUS_CLOSE)) {
-            healthStatus.time.set(System.currentTimeMillis());
-            healthStatus.failCount.set(0);
-            healthStatus.successCount.set(0);
-        }
     }
 
     /**

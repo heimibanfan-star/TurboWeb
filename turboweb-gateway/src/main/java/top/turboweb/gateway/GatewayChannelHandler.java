@@ -238,7 +238,7 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
      */
     private void forwardHttp(ChannelHandlerContext ctx, FullHttpRequest fullHttpRequest, Node node, String targetUrl) {
         // 判断当前请求是否被熔断
-        if (breaker.isBreak(fullHttpRequest.uri())) {
+        if (!breaker.isAllow(fullHttpRequest.uri())) {
             ctx.writeAndFlush(errorResponse("service " + fullHttpRequest.uri() + " is break"));
             return;
         }

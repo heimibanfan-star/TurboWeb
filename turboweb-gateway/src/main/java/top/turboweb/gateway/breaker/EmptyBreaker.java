@@ -20,9 +20,10 @@ public class EmptyBreaker implements Breaker {
     }
 
     @Override
-    public boolean isBreak(String uri) {
-        return false;
+    public boolean isAllow(String uri) {
+        return true;
     }
+
 
     @Override
     public Set<Integer> failStatusCode() {

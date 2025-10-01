@@ -26,11 +26,11 @@ public interface Breaker {
     void setSuccess(String uri);
 
     /**
-     * 是否断路
+     * 是否允许通过
      * @param uri 请求uri
-     * @return 是否断路
+     * @return 是否允许
      */
-    boolean isBreak(String uri);
+    boolean isAllow(String uri);
 
     /**
      * 认为失败的验证码
