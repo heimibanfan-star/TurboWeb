@@ -5,6 +5,8 @@ package top.turboweb.gateway.rule;
  */
 public interface Rule {
 
+    String LOCAL_SERVICE = "local";
+
 
     /**
      * 获取本地服务

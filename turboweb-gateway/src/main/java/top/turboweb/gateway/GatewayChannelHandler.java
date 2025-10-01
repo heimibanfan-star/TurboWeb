@@ -1,6 +1,5 @@
 package top.turboweb.gateway;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -14,12 +13,15 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
+import top.turboweb.gateway.breaker.Breaker;
+import top.turboweb.gateway.breaker.EmptyBreaker;
 import top.turboweb.gateway.loadbalance.LoadBalancer;
 import top.turboweb.gateway.loadbalance.LoadBalancerFactory;
 import top.turboweb.gateway.node.Node;
 import top.turboweb.gateway.rule.Rule;
 import top.turboweb.gateway.rule.RuleDetail;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -36,17 +38,31 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
     private final LoadBalancer loadBalancer;
     private volatile Rule rule;
     private HttpClient httpClient;
+    private final Breaker breaker;
 
     public GatewayChannelHandler(LoadBalancerFactory loadBalancerFactory) {
         this.loadBalancer = loadBalancerFactory.createLoadBalancer();
+        this.breaker = new EmptyBreaker();
     }
 
     public GatewayChannelHandler(LoadBalancer loadBalancer) {
         this.loadBalancer = loadBalancer;
+        this.breaker = new EmptyBreaker();
+    }
+
+    public GatewayChannelHandler(LoadBalancer loadBalancer, Breaker breaker) {
+        this.loadBalancer = loadBalancer;
+        this.breaker = breaker;
+    }
+
+    public GatewayChannelHandler(Breaker breaker) {
+        this.loadBalancer = LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer();
+        this.breaker = breaker;
     }
 
     public GatewayChannelHandler() {
         this.loadBalancer = LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer();
+        this.breaker = new EmptyBreaker();
     }
 
     /**
@@ -57,7 +73,7 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
     public void setHttpClient(HttpClient httpClient) {
         Objects.requireNonNull(httpClient, "httpClient can not be null");
         if (this.httpClient == null) {
-            this.httpClient = httpClient;
+            this.httpClient = httpClient.responseTimeout(Duration.ofMillis(breaker.getTimeout()));
         }
     }
 
@@ -221,6 +237,11 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
      * @param node            节点
      */
     private void forwardHttp(ChannelHandlerContext ctx, FullHttpRequest fullHttpRequest, Node node, String targetUrl) {
+        // 判断当前请求是否被熔断
+        if (breaker.isBreak(fullHttpRequest.uri())) {
+            ctx.writeAndFlush(errorResponse("service " + fullHttpRequest.uri() + " is break"));
+            return;
+        }
         AtomicBoolean sendStarted = new AtomicBoolean(false);
         // 移交远程节点
         fullHttpRequest.headers().add(TURBOWEB_GATEWAY_HEADER, "true");
@@ -231,6 +252,13 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
                     return outbound.send(Mono.just(fullHttpRequest.content()));
                 })
                 .response((response, content) -> {
+                    // 判断是否请求成功
+                    int statusCode = response.status().code();
+                    if (breaker.failStatusCode().contains(statusCode)) {
+                        breaker.setFail(fullHttpRequest.uri());
+                    } else {
+                        breaker.setSuccess(fullHttpRequest.uri());
+                    }
                     // 写入响应头
                     HttpResponse toWriteResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, response.status());
                     toWriteResponse.headers().set(response.responseHeaders());
@@ -254,6 +282,8 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
                             } else {
                                 ctx.close();
                             }
+                            // 设置短路失败
+                            breaker.setFail(fullHttpRequest.uri());
                         },
                         () -> {
                             ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
