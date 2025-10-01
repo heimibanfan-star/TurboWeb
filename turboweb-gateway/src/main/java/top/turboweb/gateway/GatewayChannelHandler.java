@@ -175,7 +175,6 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
                                 case CloseWebSocketFrame ignored -> outbound.sendClose();
                                 case null, default -> Mono.empty();
                             })
-                            .doFinally(signalType -> closePromise.setSuccess(null))
                             .then();
                     Mono<Void> receive = inbound
                             .receiveFrames()
@@ -184,11 +183,20 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
                                 ctx.writeAndFlush(frame);
                             })
                             .then();
-                    return Mono.when(send, receive);
+                    return Mono.firstWithSignal(send, receive);
                 })
-                .subscribe();
+                .subscribe(
+                        empty -> {},
+                        closePromise::setFailure,
+                        () -> closePromise.setSuccess(null)
+                );
         closePromise.addListener(future -> {
-            remoteDisposable.dispose();
+            if (ctx.channel().isActive()) {
+                ctx.close();
+            }
+            if (!remoteDisposable.isDisposed()) {
+                remoteDisposable.dispose();
+            }
         });
         ctx.fireChannelRead(request);
     }
