@@ -227,7 +227,7 @@ public class DefaultBreaker implements Breaker {
         if (healthStatus.status.get() != STATUS_CLOSE) {
             return;
         }
-        if (healthStatus.time.get() + failWindowTTL < System.currentTimeMillis() && healthStatus.status.compareAndSet(STATUS_CLOSE, STATUS_HALF_OPEN)) {
+        if (healthStatus.time.get() + recoverTime < System.currentTimeMillis() && healthStatus.status.compareAndSet(STATUS_CLOSE, STATUS_HALF_OPEN)) {
             healthStatus.time.set(System.currentTimeMillis());
             healthStatus.failCount.set(0);
             healthStatus.successCount.set(0);
