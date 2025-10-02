@@ -27,7 +27,6 @@
         <module>turboweb-anno</module>
         <module>turboweb-http-client</module>
         <module>turboweb-http-server</module>
-        <module>turboweb-rpc</module>
     </modules>
 
     <properties>
