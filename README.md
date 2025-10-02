@@ -2,6 +2,16 @@
  <img src="./docs/image/logo.png" alt=""/>
 </p>
 
+<div align="center">
+
+![Gitee Stars](https://gitee.com/turboweb/turboweb/badge/star.svg?theme=dark)
+![Forks](https://gitee.com/turboweb/turboweb/badge/fork.svg?theme=dark)
+![License](https://img.shields.io/badge/License-MulanPSL--2.0-red)
+
+</div>
+
+
+
 > 你还在纠结“同步代码写得爽”还是“异步框架性能强”？
 >
 > **别选了，全都要！**
@@ -161,3 +171,8 @@ TurboWeb在进行文件下载的时候，可以实现零拷贝传输而不阻塞
 [服务器参数配置](./docs/config.md)
 
 [三级限流保护体系](./docs/limiter.md)
+
+
+## 联系我们
+
+QQ 群：154319949
