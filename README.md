@@ -9,7 +9,7 @@
 
 ![Gitee Stars](https://gitee.com/turboweb/turboweb/badge/star.svg?theme=dark)
 ![Forks](https://gitee.com/turboweb/turboweb/badge/fork.svg?theme=dark)
-![License](https://img.shields.io/badge/License-MulanPSL--2.0-red)
+![License](https://img.shields.io/badge/License-Apache--2.0-red)
 
 </div>
 
@@ -132,6 +132,11 @@ TurboWeb在进行文件下载的时候，可以实现零拷贝传输而不阻塞
 当该对象到达 HttpScheduler 时，框架将忽略默认响应处理流程。
 
 开发者可直接基于 连接会话编写完全自定义的输出逻辑，满足特殊协议、分布式推送、长连接传输等场景需求。
+
+
+## 整合SpringBoot
+TurboWeb提供了与SpringBoot的整合包，详细教程看如下仓库:
+[TurboWeb-SpringBoot](https://gitee.com/turboweb/turboweb-springboot)
 
 
 
