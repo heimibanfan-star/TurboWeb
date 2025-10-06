@@ -19,8 +19,6 @@ import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.response.FileStreamResponse;
 
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-
 
 /**
  * 处理文件流响应的策略
@@ -32,21 +30,15 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
     protected ChannelFuture doHandle(HttpResponse response, InternalConnectSession session) {
         if (response instanceof FileStreamResponse fileStreamResponse) {
             ChannelPromise promise = session.getChannel().newPromise();
-            boolean ok = DiskOpeThreadUtils.execute(() -> {
-                // 发送响应头
-                session.getChannel().writeAndFlush(fileStreamResponse)
-                        .addListener(f -> {
-                            if (!f.isSuccess()) {
-                                promise.setFailure(f.cause());
-                            } else {
-                                doSendFileWithBackPress(fileStreamResponse, session, promise);
-                            }
-                        });
-            });
-            // 判断任务是否提交成功
-            if (!ok) {
-                promise.setFailure(new TurboFileException("disk thread is busy, file download fail"));
-            }
+            // 发送响应头
+            session.getChannel().writeAndFlush(fileStreamResponse)
+                    .addListener(f -> {
+                        if (!f.isSuccess()) {
+                            promise.setFailure(f.cause());
+                        } else {
+                            doSendFileWithBackPress(fileStreamResponse, session, promise);
+                        }
+                    });
             return promise;
         } else {
             throw new IllegalArgumentException("Invalid response type:" + response.getClass().getName());
