@@ -19,7 +19,7 @@ public class PathLimiter extends Middleware {
 
     @Override
     public final Object invoke(HttpContext ctx) {
-        String path = ctx.getRequest().getUri();
+        String path = ctx.getRequest().uri();
         // 删除路径参数
         path = path.substring(0, path.indexOf("?"));
         if (path.endsWith("/") && !"/".equals(path)) {

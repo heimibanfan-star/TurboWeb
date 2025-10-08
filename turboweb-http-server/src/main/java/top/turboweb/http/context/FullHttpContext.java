@@ -1,23 +1,19 @@
 package top.turboweb.http.context;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.FullHttpRequest;
+import org.apache.hc.core5.http.NameValuePair;
+import org.apache.hc.core5.net.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.cookie.HttpCookieManager;
-import top.turboweb.http.request.HttpInfoRequest;
-import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.commons.exception.TurboArgsValidationException;
 import top.turboweb.commons.exception.TurboParamParseException;
-import top.turboweb.commons.exception.TurboResponseRepeatWriteException;
 import top.turboweb.commons.exception.TurboSerializableException;
 import top.turboweb.commons.utils.base.BeanUtils;
 import top.turboweb.commons.utils.base.ValidationUtils;
 import top.turboweb.http.session.HttpSession;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,8 +27,9 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	private static final Logger log = LoggerFactory.getLogger(FullHttpContext.class);
 	private Map<String, String> pathParams;
+	private Map<String, List<String>> queryParams;
 
-	public FullHttpContext(HttpInfoRequest request, HttpSession httpSession, HttpCookieManager cookieManager, ConnectSession connectSession) {
+	public FullHttpContext(FullHttpRequest request, HttpSession httpSession, HttpCookieManager cookieManager, ConnectSession connectSession) {
 		super(request, httpSession, cookieManager, connectSession);
 	}
 
@@ -118,9 +115,35 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		return LocalDate.parse(param);
 	}
 
+	/**
+	 * 解析url中的参数
+	 *
+	 * @param uri uri地址
+	 * @return 参数map
+	 */
+	private static Map<String, List<String>> parseQueryParams(String uri) {
+		Map<String, List<String>> paramsForSearch = new HashMap<>();
+		try {
+			URIBuilder uriBuilder = new URIBuilder(uri);
+			// 获取所有的查询参数
+			List<NameValuePair> params = uriBuilder.getQueryParams();
+			for (NameValuePair param : params) {
+				paramsForSearch
+						.computeIfAbsent(param.getName(), k -> new ArrayList<>(1))
+						.add(param.getValue());
+			}
+		} catch (Exception e) {
+			log.error("解析url参数失败", e);
+		}
+		return paramsForSearch;
+	}
+
 	@Override
 	public List<String> queries(String name) {
-		List<String> vals = request.getQueryParams().get(name);
+		if (queryParams == null) {
+			queryParams = parseQueryParams(request.uri());
+		}
+		List<String> vals = queryParams.get(name);
 		if (vals == null) {
 			return List.of();
 		}
@@ -209,8 +232,11 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public <T> T loadQuery(Class<T> beanType) {
+		if (queryParams == null) {
+			queryParams = parseQueryParams(request.uri());
+		}
 		// 处理map集合
-		Map<String, Object> newMap = handleParamMap(request.getQueryParams());
+		Map<String, Object> newMap = handleParamMap(queryParams);
 		// 将集合转化为对象
 		return BeanUtils.mapToBean(newMap, beanType);
 	}
@@ -231,7 +257,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	@Override
 	public <T> T loadForm(Class<T> beanType) {
-		Map<String, Object> newMap = handleParamMap(request.getContent().getFormParams());
+		Map<String, Object> newMap = handleParamMap(httpContent.getFormParams());
 		return BeanUtils.mapToBean(newMap, beanType);
 	}
 
@@ -252,7 +278,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	@Override
 	public <T> T loadJson(Class<T> beanType) {
 		// 获取json请求体
-		String jsonContent = request.getContent().getJsonContent();
+		String jsonContent = httpContent.getJsonContent();
 		if (jsonContent == null) {
 			throw new TurboParamParseException("json请求体为空");
 		}
@@ -295,5 +321,13 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 			}
 		});
 		return newMap;
+	}
+
+	/**
+	 * 释放资源
+	 */
+	@Override
+	public void release() {
+		httpContent.release();
 	}
 }

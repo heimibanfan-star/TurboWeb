@@ -117,7 +117,7 @@ public class StaticResourceMiddleware extends Middleware {
     @Override
     public Object invoke(HttpContext ctx) {
         // 获取请求的路径
-        String uri = ctx.getRequest().getUri();
+        String uri = ctx.getRequest().uri();
         if (uri.startsWith(requestUrl)) {
             HttpResponse response =  loadStaticAndBuild(ctx);
             if (inlineTypes.contains(ContentType.parse(response.headers().get(HttpHeaderNames.CONTENT_TYPE)).getMimeType())) {
@@ -135,7 +135,7 @@ public class StaticResourceMiddleware extends Middleware {
      * @return 响应对象
      */
     protected HttpResponse loadStaticAndBuild(HttpContext c) {
-        String originUri = c.getRequest().getUri();
+        String originUri = c.getRequest().uri();
         String handledUri = handleUri(originUri);
         // 转化为标准路径
         Path path = safePath(handledUri);
@@ -154,7 +154,7 @@ public class StaticResourceMiddleware extends Middleware {
         // 校验文件
         if (!file.exists() || file.isDirectory()) {
             log.warn("file not found for path:" + path);
-            throw new TurboRouterException("not found:" + c.getRequest().getUri(), TurboRouterException.ROUTER_NOT_MATCH);
+            throw new TurboRouterException("not found:" + c.getRequest().uri(), TurboRouterException.ROUTER_NOT_MATCH);
         }
         // 判断文件是否可以被缓存
         if (cacheStaticResource && file.length() < cacheFileSize) {
@@ -189,7 +189,7 @@ public class StaticResourceMiddleware extends Middleware {
                 boolean enableRange = false;
                 long start = 0;
                 long end = file.length() - 1;
-                String range = c.getRequest().getHeaders().get(HttpHeaderNames.RANGE);
+                String range = c.getRequest().headers().get(HttpHeaderNames.RANGE);
                 if (range != null && range.startsWith("bytes=")) {
                     String[] parts = range.substring(6).split("-");
                     start = Long.parseLong(parts[0]);

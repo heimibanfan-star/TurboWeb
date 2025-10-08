@@ -1,8 +1,8 @@
 package top.turboweb.http.middleware;
 
+import io.netty.handler.codec.http.FullHttpRequest;
 import jakarta.validation.constraints.NotBlank;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.HttpResult;
 
 import java.lang.management.*;
@@ -17,8 +17,8 @@ public class ServerInfoMiddleware extends Middleware {
 
     @Override
     public Object invoke(HttpContext ctx) {
-        HttpInfoRequest request = ctx.getRequest();
-        if (!request.getUri().startsWith(requestPath)) {
+        FullHttpRequest request = ctx.getRequest();
+        if (!request.uri().startsWith(requestPath)) {
             return next(ctx);
         }
         return handleServerInfo(ctx);

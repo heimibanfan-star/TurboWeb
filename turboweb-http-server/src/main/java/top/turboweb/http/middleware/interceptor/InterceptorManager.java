@@ -25,7 +25,7 @@ public class InterceptorManager extends Middleware {
     @Override
     public Object invoke(HttpContext ctx) {
         // 获取请求的路径
-        String uri = ctx.getRequest().getUri();
+        String uri = ctx.getRequest().uri();
         // 匹配所有的拦截器
         InterceptorHandler[] interceptors = matchInterceptors(uri);
         int passIndex = -1;

@@ -1,16 +1,16 @@
 package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.cookie.HttpCookieManager;
-import top.turboweb.http.request.HttpInfoRequest;
+import top.turboweb.http.context.content.HttpContent;
 import top.turboweb.http.response.SseResponse;
 import top.turboweb.http.response.InternalSseEmitter;
 import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.session.HttpSession;
-
-import java.util.Objects;
 
 
 /**
@@ -18,20 +18,27 @@ import java.util.Objects;
  */
 public abstract class CoreHttpContext implements HttpContext{
 
-	protected final HttpInfoRequest request;
+	protected final FullHttpRequest request;
 	protected final HttpSession session;
 	protected final ConnectSession connectSession;
-	private final HttpCookieManager httpCookieManager;
+	protected final HttpCookieManager httpCookieManager;
+	protected final HttpContent httpContent;
 
-	protected CoreHttpContext(HttpInfoRequest request, HttpSession httpSession, HttpCookieManager cookieManager, ConnectSession connectSession) {
+	protected CoreHttpContext(FullHttpRequest request, HttpSession httpSession, HttpCookieManager cookieManager, ConnectSession connectSession) {
 		this.request = request;
 		this.session = httpSession;
 		this.httpCookieManager = cookieManager;
 		this.connectSession = connectSession;
+		HttpMethod method = request.method();
+		if (HttpMethod.GET == method || HttpMethod.HEAD == method) {
+			httpContent = HttpContent.empty();
+		} else {
+			httpContent = new HttpContent(request);
+		}
 	}
 
 	@Override
-	public HttpInfoRequest getRequest() {
+	public FullHttpRequest getRequest() {
 		return this.request;
 	}
 

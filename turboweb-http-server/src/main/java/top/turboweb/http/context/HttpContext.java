@@ -1,8 +1,8 @@
 package top.turboweb.http.context;
 
+import io.netty.handler.codec.http.FullHttpRequest;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.cookie.HttpCookieManager;
-import top.turboweb.http.request.HttpInfoRequest;
 import top.turboweb.http.response.SseResponse;
 import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.session.HttpSession;
@@ -12,7 +12,7 @@ import top.turboweb.http.session.HttpSession;
  */
 public interface HttpContext extends ParamBinder {
 
-	HttpInfoRequest getRequest();
+	FullHttpRequest getRequest();
 
 	ConnectSession getConnectSession();
 
@@ -35,4 +35,9 @@ public interface HttpContext extends ParamBinder {
 	SseEmitter createSseEmitter();
 
 	SseEmitter createSseEmitter(int maxMessageCache);
+
+	/**
+	 * 释放资源
+	 */
+	void release();
 }

@@ -26,7 +26,7 @@ public abstract class RouterManager extends Middleware {
         // 如果没有路由定义信息，抛出异常
         if (routerDefinition == null) {
             throw new TurboRouterException(
-                    String.format("router not found: %s %s", ctx.getRequest().getMethod(), ctx.getRequest().getUri()),
+                    String.format("router not found: %s %s", ctx.getRequest().method().name(), ctx.getRequest().uri()),
                     TurboRouterException.ROUTER_NOT_MATCH
             );
         }
@@ -52,9 +52,9 @@ public abstract class RouterManager extends Middleware {
      */
     private RouterDefinition matchDefinition(HttpContext ctx) {
         // 获取请求方式
-        String method = ctx.getRequest().getMethod();
+        String method = ctx.getRequest().method().name();
         // 获取请求的路径
-        String path = ctx.getRequest().getUri();
+        String path = ctx.getRequest().uri();
         // 数据校验
         if (method == null || path == null || method.isEmpty() || path.isEmpty()) {
             throw new TurboRequestException("request method and request uri is null or empty");
