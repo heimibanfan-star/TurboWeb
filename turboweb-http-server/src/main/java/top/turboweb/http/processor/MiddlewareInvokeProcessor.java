@@ -3,6 +3,7 @@ package top.turboweb.http.processor;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.commons.lock.Locks;
+import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
@@ -25,11 +26,18 @@ public class MiddlewareInvokeProcessor extends Processor{
     private final Middleware chain;
     private final SessionManagerHolder sessionManagerHolder;
     private final HttpResponseConverter converter;
+    private final JsonSerializer jsonSerializer;
 
-    public MiddlewareInvokeProcessor(Middleware chain, SessionManagerHolder sessionManagerHolder, HttpResponseConverter converter) {
+    public MiddlewareInvokeProcessor(
+            Middleware chain,
+            SessionManagerHolder sessionManagerHolder,
+            HttpResponseConverter converter,
+            JsonSerializer jsonSerializer
+    ) {
         this.chain = chain;
         this.sessionManagerHolder = sessionManagerHolder;
         this.converter = converter;
+        this.jsonSerializer = jsonSerializer;
     }
 
     @Override
@@ -62,7 +70,7 @@ public class MiddlewareInvokeProcessor extends Processor{
             String originSessionId = cookieManager.getCookie("JSESSIONID");
             HttpSession httpSession = new DefaultHttpSession(sessionManagerHolder.getSessionManager(), originSessionId);
             // 创建HttpContext对象
-            context = new FullHttpContext(fullHttpRequest, httpSession, cookieManager, connectSession);
+            context = new FullHttpContext(fullHttpRequest, httpSession, cookieManager, connectSession, jsonSerializer);
             // 执行中间件
             Object result = chain.invoke(context);
             HttpResponse response = converter.convertor(result);

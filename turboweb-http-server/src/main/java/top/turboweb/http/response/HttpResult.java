@@ -1,12 +1,9 @@
 package top.turboweb.http.response;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboSerializableException;
-import top.turboweb.commons.utils.base.BeanUtils;
+import top.turboweb.commons.serializer.JsonSerializer;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
@@ -38,7 +35,7 @@ public class HttpResult <T> {
         this.data = data;
     }
 
-    public HttpResponse createResponse() {
+    public HttpResponse createResponse(JsonSerializer jsonSerializer) {
         // 创建响应对象
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
         // 设置响应头
@@ -50,12 +47,8 @@ public class HttpResult <T> {
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html;charset=utf-8");
         } else {
             // 序列化对象
-            try {
-                content = BeanUtils.getObjectMapper().writeValueAsString(data);
-                response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json;charset=utf-8");
-            } catch (JsonProcessingException e) {
-                throw new TurboSerializableException(e);
-            }
+            content = jsonSerializer.beanToJson(data);
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json;charset=utf-8");
         }
         // 设置响应内容
         setContent(response, content);

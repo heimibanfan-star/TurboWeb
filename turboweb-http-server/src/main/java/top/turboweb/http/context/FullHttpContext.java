@@ -1,17 +1,15 @@
 package top.turboweb.http.context;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.FullHttpRequest;
 import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.net.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.cookie.HttpCookieManager;
 import top.turboweb.commons.exception.TurboArgsValidationException;
 import top.turboweb.commons.exception.TurboParamParseException;
-import top.turboweb.commons.exception.TurboSerializableException;
-import top.turboweb.commons.utils.base.BeanUtils;
 import top.turboweb.commons.utils.base.ValidationUtils;
 import top.turboweb.http.session.HttpSession;
 import java.time.LocalDate;
@@ -29,8 +27,14 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	private Map<String, String> pathParams;
 	private Map<String, List<String>> queryParams;
 
-	public FullHttpContext(FullHttpRequest request, HttpSession httpSession, HttpCookieManager cookieManager, ConnectSession connectSession) {
-		super(request, httpSession, cookieManager, connectSession);
+	public FullHttpContext(
+			FullHttpRequest request,
+			HttpSession httpSession,
+			HttpCookieManager cookieManager,
+			ConnectSession connectSession,
+			JsonSerializer jsonSerializer
+	) {
+		super(request, httpSession, cookieManager, connectSession, jsonSerializer);
 	}
 
 	@Override
@@ -238,7 +242,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		// 处理map集合
 		Map<String, Object> newMap = handleParamMap(queryParams);
 		// 将集合转化为对象
-		return BeanUtils.mapToBean(newMap, beanType);
+		return jsonSerializer.mapToBean(newMap, beanType);
 	}
 
 	@Override
@@ -258,7 +262,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	@Override
 	public <T> T loadForm(Class<T> beanType) {
 		Map<String, Object> newMap = handleParamMap(httpContent.getFormParams());
-		return BeanUtils.mapToBean(newMap, beanType);
+		return jsonSerializer.mapToBean(newMap, beanType);
 	}
 
 	@Override
@@ -283,12 +287,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 			throw new TurboParamParseException("json请求体为空");
 		}
 		// 序列化对象
-		try {
-			return BeanUtils.getObjectMapper().readValue(jsonContent, beanType);
-		} catch (JsonProcessingException e) {
-			log.error("序列化失败", e);
-			throw new TurboSerializableException(e.getMessage());
-		}
+		return jsonSerializer.jsonToBean(jsonContent, beanType);
 	}
 
 	@Override

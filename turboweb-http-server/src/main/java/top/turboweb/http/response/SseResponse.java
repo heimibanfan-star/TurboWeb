@@ -1,9 +1,8 @@
 package top.turboweb.http.response;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.handler.codec.http.*;
+import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.connect.ConnectSession;
-import top.turboweb.commons.utils.base.BeanUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -17,12 +16,14 @@ public class SseResponse extends DefaultHttpResponse implements InternalCallResp
 
 	private final ConnectSession connectSession;
 	private Consumer<ConnectSession> sseCallback;
+	private final JsonSerializer jsonSerializer;
 
-	public SseResponse(HttpResponseStatus status, HttpHeaders headers, ConnectSession connectSession) {
+	public SseResponse(HttpResponseStatus status, HttpHeaders headers, ConnectSession connectSession, JsonSerializer jsonSerializer) {
 		super(HttpVersion.HTTP_1_1, status, headers);
 		assert connectSession != null;
 		this.connectSession = connectSession;
 		this.setSseHeaders();
+		this.jsonSerializer = jsonSerializer;
 	}
 
 	private void setSseHeaders() {
@@ -60,10 +61,10 @@ public class SseResponse extends DefaultHttpResponse implements InternalCallResp
 						if (res instanceof String s) {
 							return Mono.just(s);
 						} else {
-							String json = BeanUtils.getObjectMapper().writeValueAsString(res);
+							String json = jsonSerializer.beanToJson(res);
 							return Mono.just(json);
 						}
-					} catch (JsonProcessingException e) {
+					} catch (Exception e) {
 						return Mono.error(e);
 					}
 				})

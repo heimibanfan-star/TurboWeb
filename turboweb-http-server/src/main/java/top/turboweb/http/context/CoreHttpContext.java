@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.cookie.HttpCookieManager;
 import top.turboweb.http.context.content.HttpContent;
@@ -23,8 +24,15 @@ public abstract class CoreHttpContext implements HttpContext{
 	protected final ConnectSession connectSession;
 	protected final HttpCookieManager httpCookieManager;
 	protected final HttpContent httpContent;
+	protected final JsonSerializer jsonSerializer;
 
-	protected CoreHttpContext(FullHttpRequest request, HttpSession httpSession, HttpCookieManager cookieManager, ConnectSession connectSession) {
+	protected CoreHttpContext(
+			FullHttpRequest request,
+			HttpSession httpSession,
+			HttpCookieManager cookieManager,
+			ConnectSession connectSession,
+			JsonSerializer jsonSerializer
+	) {
 		this.request = request;
 		this.session = httpSession;
 		this.httpCookieManager = cookieManager;
@@ -35,6 +43,7 @@ public abstract class CoreHttpContext implements HttpContext{
 		} else {
 			httpContent = new HttpContent(request);
 		}
+		this.jsonSerializer = jsonSerializer;
 	}
 
 	@Override
@@ -49,7 +58,7 @@ public abstract class CoreHttpContext implements HttpContext{
 
 	@Override
 	public SseResponse createSseResponse() {
-		return new SseResponse(HttpResponseStatus.OK, new DefaultHttpHeaders(), connectSession);
+		return new SseResponse(HttpResponseStatus.OK, new DefaultHttpHeaders(), connectSession, jsonSerializer);
 	}
 
 	@Override

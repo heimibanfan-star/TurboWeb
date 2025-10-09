@@ -1,5 +1,6 @@
 package top.turboweb.http.response;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -14,17 +15,16 @@ import java.nio.charset.Charset;
 /**
  * 支持reactor响应
  */
-public class ReactorResponse <T> extends DefaultHttpResponse implements InternalCallResponse {
+public class ReactorResponse extends DefaultHttpResponse implements InternalCallResponse {
 
-    public final Flux<T> bodyFlux;
+    public final Flux<ByteBuf> bodyFlux;
     private final Charset charset;
 
-    public ReactorResponse(Publisher<T> publisher) {
+    public ReactorResponse(Publisher<ByteBuf> publisher) {
         this(publisher, ContentType.create("text/html", GlobalConfig.getResponseCharset()));
     }
 
-
-    public ReactorResponse(Publisher<T> publisher, ContentType contentType) {
+    public ReactorResponse(Publisher<ByteBuf> publisher, ContentType contentType) {
         super(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         this.bodyFlux = Flux.from(publisher);
         this.charset = contentType.getCharset() == null ? GlobalConfig.getResponseCharset() : contentType.getCharset();
@@ -45,7 +45,7 @@ public class ReactorResponse <T> extends DefaultHttpResponse implements Internal
      *
      * @return flux流
      */
-    public Flux<T> getFlux() {
+    public Flux<ByteBuf> getFlux() {
         return bodyFlux;
     }
 

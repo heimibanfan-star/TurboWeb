@@ -9,7 +9,6 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.response.HttpInfoResponse;
 import top.turboweb.http.response.HttpResult;
 import top.turboweb.http.response.IgnoredHttpResponse;
-import top.turboweb.http.response.ReactorResponse;
 
 @RequestPath
 public class UserController {
@@ -48,14 +47,6 @@ public class UserController {
     @Get("/stream")
     public Flux<String> stream(HttpContext context) {
         return Flux.just("hello", "world");
-    }
-
-    @Get("/stream2")
-    public ReactorResponse<String> stream2(HttpContext context) {
-        Flux<String> flux = Flux.just("hello", "world");
-        ReactorResponse<String> response = new ReactorResponse<>(flux);
-        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain");
-        return response;
     }
 
     @Get("/ignore")

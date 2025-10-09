@@ -1,19 +1,15 @@
 package top.turboweb.http.scheduler.strategy;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.*;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import top.turboweb.commons.utils.base.BeanUtils;
+
 import top.turboweb.commons.utils.thread.ThreadAssert;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.response.ReactorResponse;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -32,7 +28,7 @@ public class ReactorResponseStrategy extends ResponseStrategy {
     @Override
     protected ChannelFuture doHandle(HttpResponse response, InternalConnectSession session) {
         ThreadAssert.assertIsVirtualThread();
-        if (response instanceof ReactorResponse<?> reactorResponse) {
+        if (response instanceof ReactorResponse reactorResponse) {
             ChannelPromise promise = session.getChannel().newPromise();
             writeHeader(response, session)
                     .addListener(f -> {
@@ -81,35 +77,8 @@ public class ReactorResponseStrategy extends ResponseStrategy {
      * @param promise 异步对象
      * @param charset 字符集
      */
-    private void writeBody(Flux<?> flux, InternalConnectSession session, ChannelPromise promise, Charset charset) {
-        flux.flatMap(val -> {
-                    HttpContent content;
-                    // 处理类型转化
-                    if (val instanceof String s) {
-                        ByteBuf buf = Unpooled.wrappedBuffer(s.getBytes(charset));
-                        content = new DefaultHttpContent(buf);
-                    } else if (val instanceof byte[] bytes) {
-                        ByteBuf buf = Unpooled.wrappedBuffer(bytes);
-                        content = new DefaultHttpContent(buf);
-                    } else if (val instanceof ByteBuffer buffer) {
-                        ByteBuf buf = Unpooled.wrappedBuffer(buffer);
-                        content = new DefaultHttpContent(buf);
-                    } else if (val instanceof ByteBuf byteBuf) {
-                        content = new DefaultHttpContent(byteBuf);
-                    } else if (val instanceof Number number) {
-                        ByteBuf buf = Unpooled.wrappedBuffer(number.toString().getBytes(charset));
-                        content = new DefaultHttpContent(buf);
-                    } else {
-                        try {
-                            String json = BeanUtils.getObjectMapper().writeValueAsString(val);
-                            ByteBuf buf = Unpooled.wrappedBuffer(json.getBytes(charset));
-                            content = new DefaultHttpContent(buf);
-                        } catch (JsonProcessingException e) {
-                            return Mono.error(e);
-                        }
-                    }
-                    return Mono.just(content);
-                })
+    private void writeBody(Flux<ByteBuf> flux, InternalConnectSession session, ChannelPromise promise, Charset charset) {
+        flux.map(DefaultHttpContent::new)
                 .subscribe(
                         val -> session.getChannel().writeAndFlush(val),
                         err -> {

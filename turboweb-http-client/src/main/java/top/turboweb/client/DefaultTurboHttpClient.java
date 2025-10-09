@@ -13,8 +13,6 @@ import top.turboweb.client.interceptor.RequestInterceptor;
 import top.turboweb.client.interceptor.ResponseInterceptor;
 import top.turboweb.client.result.ClientResult;
 import top.turboweb.commons.exception.TurboHttpClientException;
-import top.turboweb.commons.exception.TurboSerializableException;
-import top.turboweb.commons.utils.base.BeanUtils;
 
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -206,18 +204,8 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
         // 处理请求体
         if (ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
             Object requestData = data != null ? data : config.data;
-            String json;
-            if (requestData == null) {
-                json = "{}";
-            } else {
-                try {
-                    json = BeanUtils.getObjectMapper().writeValueAsString(requestData);
-                } catch (JsonProcessingException e) {
-                    throw new TurboSerializableException(e);
-                }
-            }
             // 构造请求体
-            return Unpooled.wrappedBuffer(json.getBytes(charset));
+            return converter.beanConvertBuf(requestData, charset);
         } else if (ContentType.APPLICATION_FORM_URLENCODED.getMimeType().equals(contentType.getMimeType())) {
             // 获取表单参数
             Params formArgs = config.formArgs;

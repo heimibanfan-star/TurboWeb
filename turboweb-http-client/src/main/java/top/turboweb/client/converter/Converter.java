@@ -1,11 +1,13 @@
 package top.turboweb.client.converter;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponse;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 
 /**
- * 响应转换器
+ * http客户端的请求和响应转化器
  */
 public interface Converter {
 
@@ -26,4 +28,12 @@ public interface Converter {
      * @return 响应对象
      */
     <T> T convert(HttpResponse response, T object);
+
+    /**
+     * 对象转换成字节流
+     * @param object 对象
+     * @param charset 编码
+     * @return 字节流
+     */
+    ByteBuf beanConvertBuf(Object object, Charset charset);
 }

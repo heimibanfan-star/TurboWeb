@@ -1,5 +1,6 @@
 package top.turboweb.core.initializer.factory;
 
+import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.core.server.TurboWebServer;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.router.RouterManager;
@@ -48,6 +49,13 @@ public interface HttpSchedulerInitBuilder {
      * @param consumer CORS处理器配置的消费者
      */
     HttpSchedulerInitBuilder cors(Consumer<CorsProcessor.Config> consumer);
+
+    /**
+     * 添加JSON序列化器
+     *
+     * @param jsonSerializer JSON序列化器
+     */
+    HttpSchedulerInitBuilder jsonSerializer(JsonSerializer jsonSerializer);
 
     TurboWebServer and();
 }

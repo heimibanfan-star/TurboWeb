@@ -1,6 +1,7 @@
 package top.turboweb.core.initializer.factory;
 
 import top.turboweb.commons.exception.TurboServerInitException;
+import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.initializer.*;
 import top.turboweb.core.initializer.impl.*;
@@ -90,6 +91,12 @@ public class HttpSchedulerInitFactory implements HttpSchedulerInitBuilder {
     public HttpSchedulerInitBuilder cors(Consumer<CorsProcessor.Config> consumer) {
         CorsProcessor.Config corsConfig = processorInitializer.getCorsConfig();
         consumer.accept(corsConfig);
+        return this;
+    }
+
+    @Override
+    public HttpSchedulerInitBuilder jsonSerializer(JsonSerializer jsonSerializer) {
+        processorInitializer.setJsonSerializer(jsonSerializer);
         return this;
     }
 

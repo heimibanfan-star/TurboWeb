@@ -16,7 +16,6 @@ import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.initializer.impl.DefaultCommonSourceInitializer;
 import top.turboweb.gateway.GatewayChannelHandler;
 import top.turboweb.http.scheduler.HttpScheduler;
-import top.turboweb.core.listener.DefaultJacksonTurboWebListener;
 import top.turboweb.core.listener.TurboWebListener;
 
 import java.util.ArrayList;
@@ -43,7 +42,6 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
         httpSchedulerInitFactory = new HttpSchedulerInitFactory(this);
         httpProtocolDispatcherInitFactory = new HttpProtocolDispatcherInitFactory(this);
         commonSourceInitializer = new DefaultCommonSourceInitializer();
-        defaultListeners.add(new DefaultJacksonTurboWebListener());
     }
 
     public BootStrapTurboWebServer() {
