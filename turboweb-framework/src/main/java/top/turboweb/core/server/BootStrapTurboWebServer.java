@@ -109,7 +109,7 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
     }
 
     @Override
-    public TurboWebServer testGateway(GatewayChannelHandler handler) {
+    public TurboWebServer gatewayHandler(GatewayChannelHandler handler) {
         setGatewayChannelHandler(handler);
         return this;
     }

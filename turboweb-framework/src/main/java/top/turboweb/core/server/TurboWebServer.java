@@ -1,7 +1,6 @@
 package top.turboweb.core.server;
 
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.handler.ChannelHandlerFactory;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
@@ -84,7 +83,7 @@ public interface TurboWebServer {
 	 * @param handler 网关处理器
 	 * @return 当前实例
 	 */
-	TurboWebServer testGateway(GatewayChannelHandler handler);
+	TurboWebServer gatewayHandler(GatewayChannelHandler handler);
 
 	/**
 	 * 启动

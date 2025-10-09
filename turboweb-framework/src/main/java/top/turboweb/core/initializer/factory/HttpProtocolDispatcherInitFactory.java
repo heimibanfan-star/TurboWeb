@@ -5,8 +5,6 @@ import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.initializer.WebSocketHandlerInitializer;
 import top.turboweb.core.initializer.impl.DefaultWebSocketHandlerInitializer;
 import top.turboweb.core.server.TurboWebServer;
-import top.turboweb.gateway.Gateway;
-import top.turboweb.gateway.client.ReactorHttpClientFactory;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.websocket.WebSocketHandler;
 
@@ -18,8 +16,6 @@ public class HttpProtocolDispatcherInitFactory implements HttpProtocolDispatcher
     // websocket初始化器
     private final WebSocketHandlerInitializer webSocketHandlerInitializer;
     private final TurboWebServer server;
-    // 网关
-    private Gateway gateway;
 
     {
         webSocketHandlerInitializer = new DefaultWebSocketHandlerInitializer();
@@ -55,17 +51,6 @@ public class HttpProtocolDispatcherInitFactory implements HttpProtocolDispatcher
         return this;
     }
 
-    /**
-     * 设置网关
-     *
-     * @param gateway 网关
-     */
-    @Override
-    public HttpProtocolDispatcherBuilder gateway(Gateway gateway) {
-        this.gateway = gateway;
-        return this;
-    }
-
     @Override
     public TurboWebServer and() {
         return server;
@@ -78,14 +63,10 @@ public class HttpProtocolDispatcherInitFactory implements HttpProtocolDispatcher
      * @return Http协议分发器
      */
     public HttpProtocolDispatcher createDispatcher(HttpScheduler httpScheduler, EventLoopGroup group) {
-        if (gateway != null) {
-            gateway.setHttpClient(ReactorHttpClientFactory.createHttpClient(group, builder -> builder));
-        }
         return new HttpProtocolDispatcher(
                 httpScheduler,
                 webSocketHandlerInitializer.isUse()? webSocketHandlerInitializer.init() : null,
-                webSocketHandlerInitializer.isUse()? webSocketHandlerInitializer.getPath() : null,
-                gateway
+                webSocketHandlerInitializer.isUse()? webSocketHandlerInitializer.getPath() : null
         );
     }
 }

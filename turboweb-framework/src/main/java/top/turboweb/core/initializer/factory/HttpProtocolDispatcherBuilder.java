@@ -1,7 +1,6 @@
 package top.turboweb.core.initializer.factory;
 
 import top.turboweb.core.server.TurboWebServer;
-import top.turboweb.gateway.Gateway;
 import top.turboweb.websocket.WebSocketHandler;
 
 /**
@@ -25,12 +24,6 @@ public interface HttpProtocolDispatcherBuilder {
      */
     HttpProtocolDispatcherBuilder websocket(String path, WebSocketHandler webSocketHandler, int forkJoinThreadNum);
 
-    /**
-     * 设置网关
-     *
-     * @param gateway 网关
-     */
-    HttpProtocolDispatcherBuilder gateway(Gateway gateway);
 
     TurboWebServer and();
 }

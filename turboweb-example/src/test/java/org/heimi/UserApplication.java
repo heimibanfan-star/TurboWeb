@@ -1,8 +1,6 @@
 package org.heimi;
 
 import top.turboweb.core.server.BootStrapTurboWebServer;
-import top.turboweb.gateway.DefaultGateway;
-import top.turboweb.gateway.Gateway;
 import top.turboweb.gateway.GatewayChannelHandler;
 import top.turboweb.gateway.rule.ConfigRule;
 import top.turboweb.http.middleware.router.LambdaRouterGroup;
@@ -30,7 +28,7 @@ public class UserApplication {
                 .http()
                 .routerManager(routerManager)
                 .and()
-                .testGateway(gatewayChannelHandler)
+                .gatewayHandler(gatewayChannelHandler)
                 .start(8080);
     }
 }

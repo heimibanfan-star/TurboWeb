@@ -7,7 +7,6 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.http.connect.InternalConnectSession;
-import top.turboweb.gateway.Gateway;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.websocket.PathWebSocketPreInit;
 import top.turboweb.websocket.WebSocketConnectInfo;
@@ -26,18 +25,15 @@ public class HttpProtocolDispatcher extends SimpleChannelInboundHandler<FullHttp
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final WebSocketDispatcherHandler webSocketDispatcherHandler;
     private final WebSocketPreInit webSocketPreInit;
-    private final Gateway gateway;
 
     public HttpProtocolDispatcher(
         HttpScheduler httpScheduler,
         WebSocketDispatcherHandler webSocketDispatcherHandler,
-        String websocketPath,
-        Gateway gateway
+        String websocketPath
     ) {
         this.httpScheduler = httpScheduler;
         this.webSocketDispatcherHandler = webSocketDispatcherHandler;
         this.webSocketPreInit = new PathWebSocketPreInit(websocketPath, webSocketDispatcherHandler);
-        this.gateway = gateway;
     }
 
     @Override
@@ -48,16 +44,6 @@ public class HttpProtocolDispatcher extends SimpleChannelInboundHandler<FullHttp
                 handleInitWebSocket(channelHandlerContext, fullHttpRequest);
                 fullHttpRequest.retain();
                 channelHandlerContext.fireChannelRead(fullHttpRequest);
-                return;
-            }
-        }
-        // 判断是否启用网关
-        if (gateway != null) {
-            String url = gateway.matchNode(fullHttpRequest.uri());
-            if (url != null) {
-                url = url + fullHttpRequest.uri();
-                fullHttpRequest.retain();
-                gateway.forwardRequest(url, fullHttpRequest, channelHandlerContext.channel());
                 return;
             }
         }
