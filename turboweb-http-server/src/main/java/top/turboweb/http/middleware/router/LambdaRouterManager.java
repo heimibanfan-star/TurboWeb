@@ -27,9 +27,6 @@ public class LambdaRouterManager extends RouterManager {
         String prePath = group.requestPath();
         for (LambdaRouterGroup.RouterInfo router : routers) {
             String allPath = PathHelper.mergePath(prePath, router.getPath());
-            if (allPath.endsWith("/")) {
-                allPath = allPath.substring(0, allPath.length() - 1);
-            }
             // 判断是否有通配符
             if (allPath.contains("*")) {
                 throw new TurboRouterDefinitionCreateException("方法路径不能包含通配符");

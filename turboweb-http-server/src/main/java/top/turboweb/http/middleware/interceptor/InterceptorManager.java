@@ -98,6 +98,9 @@ public class InterceptorManager extends Middleware {
         if (path.endsWith("/")) {
             path = path.substring(0, path.length() - 1);
         }
+        if (path.isEmpty()) {
+            path = "/";
+        }
         // 匹配所有的拦截器
         Set<List<InterceptorHandler>> matchResult = pathTrie.patternMatch(path);
         int count = 0;
