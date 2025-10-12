@@ -1,15 +1,21 @@
 package org.heimi;
 
+import reactor.core.publisher.Mono;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.gateway.GatewayChannelHandler;
 import top.turboweb.gateway.rule.ConfigRule;
 import top.turboweb.http.middleware.router.LambdaRouterGroup;
 import top.turboweb.http.middleware.router.LambdaRouterManager;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * TODO
  */
 public class UserApplication {
+
+    AtomicInteger integer = new AtomicInteger();
     public static void main(String[] args) {
         LambdaRouterManager routerManager = new LambdaRouterManager();
         routerManager.addGroup(new LambdaRouterGroup() {
@@ -18,7 +24,33 @@ public class UserApplication {
                 register.get("/user", (ctx) -> "User");
             }
         });
-        GatewayChannelHandler gatewayChannelHandler = new GatewayChannelHandler();
+        GatewayChannelHandler<Mono<Boolean>> gatewayChannelHandler = GatewayChannelHandler.createAsync();
+        gatewayChannelHandler
+                .addFilter((request, responseHelper) -> Mono.create(sink -> {
+                    Thread.ofVirtual().start(() -> {
+                        System.out.println(request.uri());
+                        System.out.println("filter-----1");
+                        try {
+                            TimeUnit.MILLISECONDS.sleep(50);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        sink.success(true);
+                    });
+                }))
+                .addFilter((request, responseHelper) -> Mono.create(sink -> {
+                    Thread.ofVirtual().start(() -> {
+                        System.out.println(request.uri());
+                        System.out.println("filter-----2");
+                        try {
+                            TimeUnit.MILLISECONDS.sleep(50);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        sink.success(true);
+                    });
+                }))
+        ;
         gatewayChannelHandler.addService("orderService", "localhost:8081");
         ConfigRule rule = new ConfigRule();
         rule.addRule("/order/**", "http://orderService");

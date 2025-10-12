@@ -1,9 +1,6 @@
 package top.turboweb.gateway;
 
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.concurrent.Promise;
@@ -15,6 +12,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 import top.turboweb.gateway.breaker.Breaker;
 import top.turboweb.gateway.breaker.EmptyBreaker;
+import top.turboweb.gateway.filter.*;
 import top.turboweb.gateway.loadbalance.LoadBalancer;
 import top.turboweb.gateway.loadbalance.LoadBalancerFactory;
 import top.turboweb.gateway.node.Node;
@@ -31,39 +29,67 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 用于实现网关的channelHandler
  */
 @ChannelHandler.Sharable
-public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private static final String TURBOWEB_GATEWAY_HEADER = "TurboWeb-Forward";
     private static final Logger log = LoggerFactory.getLogger(GatewayChannelHandler.class);
+    private final GatewayFilterContext<FT> gatewayFilterContext;
     private final LoadBalancer loadBalancer;
     private volatile Rule rule;
     private HttpClient httpClient;
     private final Breaker breaker;
 
-    public GatewayChannelHandler(LoadBalancerFactory loadBalancerFactory) {
-        this.loadBalancer = loadBalancerFactory.createLoadBalancer();
-        this.breaker = new EmptyBreaker();
+
+
+    public static GatewayChannelHandler<Boolean> create() {
+        return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), new EmptyBreaker(), new SyncGatewayFilterContext());
     }
 
-    public GatewayChannelHandler(LoadBalancer loadBalancer) {
-        this.loadBalancer = loadBalancer;
-        this.breaker = new EmptyBreaker();
+    public static GatewayChannelHandler<Boolean> create(LoadBalancerFactory loadBalancerFactory) {
+        return new GatewayChannelHandler<>(loadBalancerFactory.createLoadBalancer(), new EmptyBreaker(), new SyncGatewayFilterContext());
     }
 
-    public GatewayChannelHandler(LoadBalancer loadBalancer, Breaker breaker) {
+    public static GatewayChannelHandler<Boolean> create(LoadBalancer loadBalancer) {
+        return new GatewayChannelHandler<>(loadBalancer, new EmptyBreaker(), new SyncGatewayFilterContext());
+    }
+
+    public static GatewayChannelHandler<Boolean> create(Breaker breaker) {
+        return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), breaker, new SyncGatewayFilterContext());
+    }
+
+    public static GatewayChannelHandler<Boolean> create(LoadBalancer loadBalancer, Breaker breaker) {
+        return new GatewayChannelHandler<>(loadBalancer, breaker, new SyncGatewayFilterContext());
+    }
+
+    public static GatewayChannelHandler<Mono<Boolean>> createAsync() {
+        return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), new EmptyBreaker(), new AsyncGatewayFilterContext());
+    }
+
+    public static GatewayChannelHandler<Mono<Boolean>> createAsync(LoadBalancerFactory loadBalancerFactory) {
+        return new GatewayChannelHandler<>(loadBalancerFactory.createLoadBalancer(), new EmptyBreaker(), new AsyncGatewayFilterContext());
+    }
+
+    public static GatewayChannelHandler<Mono<Boolean>> createAsync(LoadBalancer loadBalancer) {
+        return new GatewayChannelHandler<>(loadBalancer, new EmptyBreaker(), new AsyncGatewayFilterContext());
+    }
+
+    public static GatewayChannelHandler<Mono<Boolean>> createAsync(Breaker breaker) {
+        return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), breaker, new AsyncGatewayFilterContext());
+    }
+
+    public static GatewayChannelHandler<Mono<Boolean>> createAsync(LoadBalancer loadBalancer, Breaker breaker) {
+        return new GatewayChannelHandler<>(loadBalancer, breaker, new AsyncGatewayFilterContext());
+    }
+
+    private GatewayChannelHandler(LoadBalancer loadBalancer, Breaker breaker, GatewayFilterContext<FT> gatewayFilterContext) {
+        Objects.requireNonNull(loadBalancer, "loadBalancer can not be null");
+        Objects.requireNonNull(breaker, "breaker can not be null");
+        Objects.requireNonNull(gatewayFilterContext, "gatewayFilterContext can not be null");
         this.loadBalancer = loadBalancer;
         this.breaker = breaker;
+        this.gatewayFilterContext = gatewayFilterContext;
     }
 
-    public GatewayChannelHandler(Breaker breaker) {
-        this.loadBalancer = LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer();
-        this.breaker = breaker;
-    }
-
-    public GatewayChannelHandler() {
-        this.loadBalancer = LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer();
-        this.breaker = new EmptyBreaker();
-    }
 
     /**
      * 设置HttpClient
@@ -77,40 +103,63 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
         }
     }
 
+    /**
+     * 添加过滤器
+     *
+     * @param filter 过滤器
+     * @return 网关过滤器上下文
+     */
+    public GatewayChannelHandler<FT> addFilter(GatewayFilter<FT> filter) {
+        gatewayFilterContext.addFilter(filter);
+        return this;
+    }
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
         request.retain();
-        Rule rule = this.rule;
-        // 网关失效逻辑
-        if (rule == null) {
-            ctx.writeAndFlush(errorResponse("Gateway is not available"));
-            return;
-        }
+        ChannelPromise promise = ctx.newPromise();
+        ResponseHelper helper = new DefaultResponseHelper(ctx);
+        gatewayFilterContext.startFilter(request, helper, promise);
+        promise.addListener(future -> {
+            if (future.isSuccess()) {
+                Rule rule = this.rule;
+                // 网关失效逻辑
+                if (rule == null) {
+                    ctx.writeAndFlush(errorResponse("Gateway is not available"));
+                    return;
+                }
 
-        // 判断当前请求是否被转发
-        if (request.headers().contains(TURBOWEB_GATEWAY_HEADER)) {
-            // 判断是否允许当前节点处理
-            RuleDetail detail = rule.getLocalService(request.uri());
-            if (detail == null) {
-                ctx.writeAndFlush(errorResponse("Service not found"));
+                // 判断当前请求是否被转发
+                if (request.headers().contains(TURBOWEB_GATEWAY_HEADER)) {
+                    // 判断是否允许当前节点处理
+                    RuleDetail detail = rule.getLocalService(request.uri());
+                    if (detail == null) {
+                        ctx.writeAndFlush(errorResponse("Service not found"));
+                    } else {
+                        handleRequestLocal(ctx, request, detail);
+                    }
+                    return;
+                }
+
+                // 正常节点尝试匹配
+                RuleDetail detail = rule.getService(request.uri());
+                if (detail == null) {
+                    ctx.writeAndFlush(errorResponse("Service not found"));
+                    return;
+                }
+                // 判断节点需要本地处理还是远程处理
+                if (detail.local()) {
+                    handleRequestLocal(ctx, request, detail);
+                } else {
+                    handleRequestRemote(ctx, request, detail);
+                }
             } else {
-                handleRequestLocal(ctx, request, detail);
+                if (!helper.isResponse()) {
+                    ctx.writeAndFlush(errorResponse(future.cause().getMessage()));
+                }
             }
-            return;
-        }
+        });
 
-        // 正常节点尝试匹配
-        RuleDetail detail = rule.getService(request.uri());
-        if (detail == null) {
-            ctx.writeAndFlush(errorResponse("Service not found"));
-            return;
-        }
-        // 判断节点需要本地处理还是远程处理
-        if (detail.local()) {
-            handleRequestLocal(ctx, request, detail);
-        } else {
-            handleRequestRemote(ctx, request, detail);
-        }
     }
 
     /**
@@ -202,7 +251,8 @@ public class GatewayChannelHandler extends SimpleChannelInboundHandler<FullHttpR
                     return Mono.firstWithSignal(send, receive);
                 })
                 .subscribe(
-                        empty -> {},
+                        empty -> {
+                        },
                         closePromise::setFailure,
                         () -> closePromise.setSuccess(null)
                 );
