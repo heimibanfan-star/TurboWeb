@@ -31,6 +31,9 @@ public class JsonConverter implements Converter{
     @Override
     public <T> T convert(HttpResponse response, Class<T> type) {
         String jsonString = getJsonString(response);
+        if (type == String.class) {
+            return type.cast(jsonString);
+        }
         return jsonSerializer.jsonToBean(jsonString, type);
     }
 

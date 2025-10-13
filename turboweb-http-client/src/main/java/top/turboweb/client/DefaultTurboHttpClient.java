@@ -42,6 +42,14 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
         this(engine, new JsonConverter());
     }
 
+    public DefaultTurboHttpClient(String baseUrl) {
+        this(new HttpClientEngine(baseUrl));
+    }
+
+    public DefaultTurboHttpClient() {
+        this(new HttpClientEngine(""));
+    }
+
     @Override
     public ClientResult request(String path, HttpMethod method, Object data, Consumer<Config> consumer) {
         Config config = new Config();

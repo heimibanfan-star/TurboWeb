@@ -25,7 +25,7 @@ public class ClientResult {
      * @param <T> 数据类型
      * @return 数据
      */
-    public <T> T data(Class<T> type) {
+    public <T> T as(Class<T> type) {
         return converter.convert(response, type);
     }
 
@@ -35,7 +35,7 @@ public class ClientResult {
      * @param <T> 数据类型
      * @return 数据
      */
-    public <T> T data(T object) {
+    public <T> T as(T object) {
         return converter.convert(response, object);
     }
 
@@ -44,7 +44,7 @@ public class ClientResult {
      *
      * @return 数据
      */
-    public Map<?, ?> data() {
+    public Map<?, ?> as() {
         return converter.convert(response, Map.class);
     }
 
