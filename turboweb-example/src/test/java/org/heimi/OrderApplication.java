@@ -36,7 +36,7 @@ public class OrderApplication {
             }
         });
 
-        BootStrapTurboWebServer.create()
+        BootStrapTurboWebServer.create(3)
                 .http()
                 .routerManager(routerManager)
                 .and()
@@ -65,6 +65,9 @@ public class OrderApplication {
                     }
                 })
                 .and()
+                .configServer(config -> {
+                    config.setShowRequestLog(false);
+                })
                 .start(8081);
     }
 }

@@ -1,5 +1,6 @@
 package top.turboweb.client.result;
 
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.client.converter.Converter;
@@ -26,7 +27,11 @@ public class ClientResult {
      * @return 数据
      */
     public <T> T as(Class<T> type) {
-        return converter.convert(response, type);
+        try {
+            return converter.convert(response, type);
+        } finally {
+            release();
+        }
     }
 
     /**
@@ -36,7 +41,11 @@ public class ClientResult {
      * @return 数据
      */
     public <T> T as(T object) {
-        return converter.convert(response, object);
+        try {
+            return converter.convert(response, object);
+        } finally {
+            release();
+        }
     }
 
     /**
@@ -45,7 +54,11 @@ public class ClientResult {
      * @return 数据
      */
     public Map<?, ?> as() {
-        return converter.convert(response, Map.class);
+        try {
+            return converter.convert(response, Map.class);
+        } finally {
+            release();
+        }
     }
 
     /**
@@ -62,5 +75,14 @@ public class ClientResult {
      */
     public int status() {
         return response.status().code();
+    }
+
+    /**
+     * 释放资源
+     */
+    public void release() {
+        if (response instanceof FullHttpResponse fullHttpResponse && fullHttpResponse.refCnt() > 0) {
+            fullHttpResponse.release();
+        }
     }
 }

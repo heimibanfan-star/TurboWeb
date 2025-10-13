@@ -1,6 +1,7 @@
 package top.turboweb.client.engine;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -25,7 +26,7 @@ public class HttpClientEngine implements Closeable {
     private final HttpClient httpClient;
     private final EventLoopGroup group;
     private final String baseUrl;
-    private static final ByteBuf EMPTY_BUF = UnpooledByteBufAllocator.DEFAULT.buffer(0);
+    private static final ByteBuf EMPTY_BUF = Unpooled.EMPTY_BUFFER;
 
     public final static class Config {
         // 线程数量
@@ -186,7 +187,7 @@ public class HttpClientEngine implements Closeable {
                         // 获取请求体
                         ByteBuf buf = fullHttpRequest.content();
                         // 发送请求体
-                        return outbound.send(Mono.just(buf));
+                        return outbound.send(Mono.just(buf.retain()).doFinally(signalType -> buf.release()));
                     }
                     // 不是携带请求体的请求
                     return outbound.send(Mono.empty());
