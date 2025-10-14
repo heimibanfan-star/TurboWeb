@@ -1,4 +1,4 @@
-package top.turboweb.gateway.rule;
+package top.turboweb.loadbalance.rule;
 
 /**
  * 规则的详细信息

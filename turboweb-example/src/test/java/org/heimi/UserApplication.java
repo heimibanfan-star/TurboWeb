@@ -3,7 +3,7 @@ package org.heimi;
 import reactor.core.publisher.Mono;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.gateway.GatewayChannelHandler;
-import top.turboweb.gateway.rule.ConfigRule;
+import top.turboweb.loadbalance.rule.ConfigRule;
 import top.turboweb.http.middleware.router.LambdaRouterGroup;
 import top.turboweb.http.middleware.router.LambdaRouterManager;
 

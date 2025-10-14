@@ -27,6 +27,7 @@
         <module>turboweb-anno</module>
         <module>turboweb-http-client</module>
         <module>turboweb-http-server</module>
+        <module>turbowen-loadbalance</module>
     </modules>
 
     <properties>

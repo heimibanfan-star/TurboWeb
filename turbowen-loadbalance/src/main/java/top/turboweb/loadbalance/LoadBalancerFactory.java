@@ -1,4 +1,6 @@
-package top.turboweb.gateway.loadbalance;
+package top.turboweb.loadbalance;
+
+import top.turboweb.loadbalance.RibbonLoadBalancer;
 
 /**
  * 负载均衡器工厂

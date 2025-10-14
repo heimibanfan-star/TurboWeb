@@ -1,4 +1,4 @@
-package top.turboweb.gateway.breaker;
+package top.turboweb.loadbalance.breaker;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

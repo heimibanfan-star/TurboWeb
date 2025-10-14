@@ -1,7 +1,7 @@
-package top.turboweb.gateway.loadbalance;
+package top.turboweb.loadbalance;
 
-import top.turboweb.gateway.node.DefaultNode;
-import top.turboweb.gateway.node.Node;
+import top.turboweb.loadbalance.node.DefaultNode;
+import top.turboweb.loadbalance.node.Node;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

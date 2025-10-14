@@ -1,4 +1,4 @@
-package top.turboweb.gateway.rule;
+package top.turboweb.loadbalance.rule;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,4 +1,4 @@
-package top.turboweb.gateway.rule;
+package top.turboweb.loadbalance.rule;
 
 /**
  * 映射规则

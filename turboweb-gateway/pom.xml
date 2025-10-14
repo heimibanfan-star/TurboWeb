@@ -27,10 +27,10 @@
             <artifactId>turboweb-commons</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
-        <!-- http相关模块 -->
+        <!-- 负载均衡相关模块 -->
         <dependency>
-            <groupId>${turboweb.groupId}</groupId>
-            <artifactId>turboweb-http-server</artifactId>
+            <groupId>io.gitee.turboweb</groupId>
+            <artifactId>turbowen-loadbalance</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
     </dependencies>

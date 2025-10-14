@@ -1,4 +1,4 @@
-package top.turboweb.gateway.node;
+package top.turboweb.loadbalance.node;
 
 /**
  * 节点接口

@@ -1,6 +1,6 @@
-package top.turboweb.gateway.loadbalance;
+package top.turboweb.loadbalance;
 
-import top.turboweb.gateway.node.Node;
+import top.turboweb.loadbalance.node.Node;
 
 import java.util.Map;
 import java.util.Set;
