@@ -3,7 +3,7 @@ package org.heimi;
 import reactor.core.publisher.Mono;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.gateway.GatewayChannelHandler;
-import top.turboweb.loadbalance.rule.ConfigRule;
+import top.turboweb.loadbalance.rule.NodeRuleManager;
 import top.turboweb.http.middleware.router.LambdaRouterGroup;
 import top.turboweb.http.middleware.router.LambdaRouterManager;
 
@@ -52,7 +52,7 @@ public class UserApplication {
                 }))
         ;
         gatewayChannelHandler.addService("orderService", "localhost:8081");
-        ConfigRule rule = new ConfigRule();
+        NodeRuleManager rule = new NodeRuleManager();
         rule.addRule("/order/**", "http://orderService");
         rule.addRule("/ws/**", "ws://orderService");
         gatewayChannelHandler.setRule(rule);

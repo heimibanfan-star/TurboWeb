@@ -16,7 +16,7 @@ import top.turboweb.loadbalance.breaker.Breaker;
 import top.turboweb.loadbalance.breaker.EmptyBreaker;
 import top.turboweb.gateway.filter.*;
 import top.turboweb.loadbalance.node.Node;
-import top.turboweb.loadbalance.rule.Rule;
+import top.turboweb.loadbalance.rule.RuleManager;
 import top.turboweb.loadbalance.rule.RuleDetail;
 
 import java.time.Duration;
@@ -35,7 +35,7 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
     private static final Logger log = LoggerFactory.getLogger(GatewayChannelHandler.class);
     private final GatewayFilterContext<FT> gatewayFilterContext;
     private final LoadBalancer loadBalancer;
-    private volatile Rule rule;
+    private volatile RuleManager ruleManager;
     private HttpClient httpClient;
     private final Breaker breaker;
 
@@ -122,9 +122,9 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
         gatewayFilterContext.startFilter(request, helper, promise);
         promise.addListener(future -> {
             if (future.isSuccess()) {
-                Rule rule = this.rule;
+                RuleManager ruleManager = this.ruleManager;
                 // 网关失效逻辑
-                if (rule == null) {
+                if (ruleManager == null) {
                     ctx.writeAndFlush(errorResponse("Gateway is not available"));
                     return;
                 }
@@ -132,7 +132,7 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
                 // 判断当前请求是否被转发
                 if (request.headers().contains(TURBOWEB_GATEWAY_HEADER)) {
                     // 判断是否允许当前节点处理
-                    RuleDetail detail = rule.getLocalService(request.uri());
+                    RuleDetail detail = ruleManager.getLocalService(request.uri());
                     if (detail == null) {
                         ctx.writeAndFlush(errorResponse("Service not found"));
                     } else {
@@ -142,7 +142,7 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
                 }
 
                 // 正常节点尝试匹配
-                RuleDetail detail = rule.getService(request.uri());
+                RuleDetail detail = ruleManager.getService(request.uri());
                 if (detail == null) {
                     ctx.writeAndFlush(errorResponse("Service not found"));
                     return;
@@ -184,7 +184,7 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
             return;
         }
         String newUri = request.uri().replaceFirst(detail.rewriteRegex(), detail.rewriteTarget());
-        String fullUrl = detail.protocol() + "://" + node.url() + detail.extPath() + newUri;
+        String fullUrl = detail.protocol().getProtocol() + "://" + node.url() + detail.extPath() + newUri;
         // 判断是否需要升级为websocket
         if (Objects.equals(request.headers().get(HttpHeaderNames.UPGRADE), "websocket")) {
             forwardWebSocket(ctx, request, node, fullUrl);
@@ -374,10 +374,10 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
         loadBalancer.resetServiceNodes(servicesNodes);
     }
 
-    public void setRule(Rule rule) {
-        Objects.requireNonNull(rule, "rule can not be null");
-        if (rule.isUsed()) {
-            this.rule = rule;
+    public void setRule(RuleManager ruleManager) {
+        Objects.requireNonNull(ruleManager, "rule can not be null");
+        if (ruleManager.isUsed()) {
+            this.ruleManager = ruleManager;
         }
     }
 }

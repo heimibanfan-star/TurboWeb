@@ -11,20 +11,20 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 配置的规则
+ * 节点规则管理器
  */
-public class ConfigRule implements Rule {
+public class NodeRuleManager implements RuleManager {
 
-    private static final Logger log = LoggerFactory.getLogger(ConfigRule.class);
+    private static final Logger log = LoggerFactory.getLogger(NodeRuleManager.class);
     private final AtomicBoolean used = new AtomicBoolean(false);
     private final PathTrie<RuleDetail> pathTrie = new PatternPathTrie<>();
     private final boolean localPre;
 
-    public ConfigRule(boolean localPre) {
+    public NodeRuleManager(boolean localPre) {
         this.localPre = localPre;
     }
 
-    public ConfigRule() {
+    public NodeRuleManager() {
         this(true);
     }
 
@@ -97,7 +97,7 @@ public class ConfigRule implements Rule {
      * @param serviceName 服务名
      * @return this
      */
-    public ConfigRule addRule(String pattern, String serviceName) {
+    public NodeRuleManager addRule(String pattern, String serviceName) {
         return addRule(pattern, serviceName, null, null);
     }
 
@@ -110,7 +110,7 @@ public class ConfigRule implements Rule {
      * @param rewTar            重写目标
      * @return this
      */
-    public ConfigRule addRule(String pattern, String serviceExpression, String rewRegix, String rewTar) {
+    public NodeRuleManager addRule(String pattern, String serviceExpression, String rewRegix, String rewTar) {
         if (!used.compareAndSet(false, false)) {
             log.warn("The rules have been used and cannot be modified");
             return this;
@@ -147,7 +147,7 @@ public class ConfigRule implements Rule {
                 rewRegix,
                 rewTar,
                 "local".equals(serviceExpression),
-                protocol,
+                RuleDetail.Protocol.getProtocol(protocol),
                 extPath
         );
         pathTrie.insert(pattern, detail);

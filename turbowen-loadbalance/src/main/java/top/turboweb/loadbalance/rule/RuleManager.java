@@ -3,7 +3,7 @@ package top.turboweb.loadbalance.rule;
 /**
  * 映射规则
  */
-public interface Rule {
+public interface RuleManager {
 
     String LOCAL_SERVICE = "local";
 
