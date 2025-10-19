@@ -166,6 +166,9 @@ public abstract class AbstractTrie <T> implements Trie<T>{
 
     @Override
     public T get(String key) {
+        if (size == 0) {
+            return null;
+        }
         // 分割key
         String[] strs = splitKey(key);
         // 判断key是否能被成功分割
