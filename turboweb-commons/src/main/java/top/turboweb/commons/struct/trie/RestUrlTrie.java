@@ -8,9 +8,9 @@ import java.util.regex.Pattern;
 /**
  * 处理url的前缀树
  */
-public class RestUrlTrie<T> extends AbstractTrie<T, RestUrlTrie.MatchResult<T>> {
+public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
 
-    private static final String SPLIT_STRING = "/";
+
 
     /**
      * 默认参数匹配正则表达式
@@ -193,39 +193,7 @@ public class RestUrlTrie<T> extends AbstractTrie<T, RestUrlTrie.MatchResult<T>> 
         super.insert(key, value, overwrite);
     }
 
-    @Override
-    protected String splitString() {
-        return SPLIT_STRING;
-    }
 
-    @Override
-    public MatchResult<T> match(String key) {
-        if (key == null || !key.startsWith(SPLIT_STRING)) {
-            // 无效匹配
-            return null;
-        }
-        // 去除首尾的/
-        StringBuilder stringBuilder = new StringBuilder(key);
-        while (stringBuilder.charAt(0) == '/') {
-            stringBuilder.deleteCharAt(0);
-        }
-        while (stringBuilder.charAt(stringBuilder.length() - 1) == '/') {
-            stringBuilder.deleteCharAt(stringBuilder.length() - 1);
-        }
-        // 再次判断是否为空字符
-        String handledKey = stringBuilder.toString();
-        if (handledKey.isEmpty()) {
-            // 无效匹配
-            return null;
-        }
-        // 分割字串
-        String[] segs = handledKey.split(SPLIT_STRING);
-        if (segs.length == 0) {
-            // 无效匹配
-            return null;
-        }
-        return doMatch(segs);
-    }
 
     private class Frame {
         Node<T> node;
@@ -241,9 +209,8 @@ public class RestUrlTrie<T> extends AbstractTrie<T, RestUrlTrie.MatchResult<T>> 
         }
     }
 
-    private MatchResult<T> doMatch(String[] segs) {
-
-
+    @Override
+    protected MatchResult<T> doMatch(String[] segs) {
         Deque<Frame> stack = new ArrayDeque<>();
         Node<T> current = root;
         Map<String, String> params = new HashMap<>();
