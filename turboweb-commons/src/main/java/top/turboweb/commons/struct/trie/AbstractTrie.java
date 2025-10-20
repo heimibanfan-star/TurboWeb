@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 /**
  * 前缀树抽象类
  */
-public abstract class AbstractTrie <T> implements Trie<T>{
+public abstract class AbstractTrie <T, M> implements Trie<T, M>{
 
     protected final Node<T> root = new Node<>(null, null);
 
@@ -14,7 +14,19 @@ public abstract class AbstractTrie <T> implements Trie<T>{
      * 节点的详细信息
      */
     protected static class Details {
+        private final String newSubKey;
 
+        protected Details(String newSubKey) {
+            this.newSubKey = newSubKey;
+        }
+
+        /**
+         * 获取新的子key
+         * @return 新的子key
+         */
+        public String newSubKey() {
+            return newSubKey;
+        }
     }
 
     private int size = 0;
@@ -83,6 +95,9 @@ public abstract class AbstractTrie <T> implements Trie<T>{
          * @return 节点的详细信息
          */
         protected <D extends Details> D details(Class<D> type) {
+            if (details == null) {
+                return null;
+            }
             return type.cast(details);
         }
 
@@ -144,7 +159,11 @@ public abstract class AbstractTrie <T> implements Trie<T>{
                     throw new IllegalArgumentException("key already exists");
                 }
                 if (node == null) {
-                    node = new Node<>(str, handleSubKey(str));
+                    Details details = handleSubKey(str);
+                    if (details != null && details.newSubKey() != null && !details.newSubKey().isEmpty()) {
+                        str = details.newSubKey();
+                    }
+                    node = new Node<>(str, details);
                     size++;
                 } else {
                     if (node.value() == null) {
@@ -155,7 +174,11 @@ public abstract class AbstractTrie <T> implements Trie<T>{
                 currentNode.put(str, node);
             } else {
                 if (node == null) {
-                    node = new Node<>(str, handleSubKey(str));
+                    Details details = handleSubKey(str);
+                    if (details != null && details.newSubKey() != null && !details.newSubKey().isEmpty()) {
+                        str = details.newSubKey();
+                    }
+                    node = new Node<>(str, details);
                     currentNode.put(str, node);
                 }
                 currentNode = node;
@@ -262,7 +285,7 @@ public abstract class AbstractTrie <T> implements Trie<T>{
      * @param key key
      * @return 分割后的key
      */
-    private String[] splitKey(String key) {
+    protected String[] splitKey(String key) {
         // 字符串合法性校验
         if (key == null || key.isEmpty()) {
             throw new IllegalArgumentException("key cannot be null or empty");

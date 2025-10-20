@@ -6,7 +6,7 @@ import java.util.Set;
 /**
  * 前缀树
  */
-public interface Trie <T> extends Iterable<T> {
+public interface Trie <T, M> extends Iterable<T> {
 
     /**
      * 插入元素
@@ -35,7 +35,7 @@ public interface Trie <T> extends Iterable<T> {
      * @param key 元素的key
      * @return 匹配的元素
      */
-    T match(String key);
+    M match(String key);
 
     /**
      * 删除元素
