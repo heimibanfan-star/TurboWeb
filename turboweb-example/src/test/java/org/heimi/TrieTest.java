@@ -1,11 +1,11 @@
 package org.heimi;
 
-import top.turboweb.commons.struct.trie.UrlTrie;
+import top.turboweb.commons.struct.trie.RestUrlTrie;
 import java.util.Map;
 
 public class TrieTest {
     public static void main(String[] args) {
-        UrlTrie<String> trie = new UrlTrie<>();
+        RestUrlTrie<String> trie = new RestUrlTrie<>();
 
         // === Insert Tests ===
         trie.insert("/a/b", "ab", false);                           // 普通路径

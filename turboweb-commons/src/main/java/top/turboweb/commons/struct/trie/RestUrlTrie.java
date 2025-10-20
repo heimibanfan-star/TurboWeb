@@ -1,6 +1,5 @@
 package top.turboweb.commons.struct.trie;
 
-import java.awt.*;
 import java.util.*;
 import java.util.List;
 import java.util.function.Function;
@@ -9,7 +8,7 @@ import java.util.regex.Pattern;
 /**
  * 处理url的前缀树
  */
-public class UrlTrie <T> extends AbstractTrie<T, UrlTrie.MatchResult<T>> {
+public class RestUrlTrie<T> extends AbstractTrie<T, RestUrlTrie.MatchResult<T>> {
 
     private static final String SPLIT_STRING = "/";
 
