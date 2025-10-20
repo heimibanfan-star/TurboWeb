@@ -3,7 +3,7 @@ package org.heimi;
 import top.turboweb.commons.struct.trie.RestUrlTrie;
 import java.util.Map;
 
-public class TrieTest {
+public class RestUrlTrieTest {
     public static void main(String[] args) {
         RestUrlTrie<String> trie = new RestUrlTrie<>();
 

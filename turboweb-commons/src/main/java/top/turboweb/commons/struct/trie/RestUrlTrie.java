@@ -10,8 +10,6 @@ import java.util.regex.Pattern;
  */
 public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
 
-
-
     /**
      * 默认参数匹配正则表达式
      */
@@ -165,33 +163,54 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
 
     @Override
     public void insert(String key, T value, boolean overwrite) {
+        if (key == null || key.isEmpty()) {
+            throw new IllegalArgumentException("Key cannot be null or empty");
+        }
+
         Set<String> paramNames = new HashSet<>();
         String[] parts = splitKey(key);
-        for (String part : parts) {
-            // 跳过空段，例如开头的 "/"
-            if (part.isEmpty()) continue;
 
-            // 匹配 {param} 或 {param:regex} 形式
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                throw new IllegalArgumentException("Empty path segment is not allowed: " + key);
+            }
+
+            // 占位符片段
             if (part.startsWith("{") && part.endsWith("}")) {
                 String inner = part.substring(1, part.length() - 1).trim();
 
-                // 去掉带正则的部分，比如 {id:[0-9]+}
+                // 检测非法的双冒号或空类型
+                if (inner.contains("::") || inner.endsWith(":")) {
+                    throw new IllegalArgumentException("Invalid parameter syntax in: " + part);
+                }
+
                 int colonIndex = inner.indexOf(':');
                 String paramName = colonIndex > 0 ? inner.substring(0, colonIndex).trim() : inner;
+                String typeName = colonIndex > 0 ? inner.substring(colonIndex + 1).trim() : null;
 
-                // 检测重复参数名
+                // 检测参数名重复
                 if (!paramNames.add(paramName)) {
                     throw new IllegalArgumentException("Duplicate path variable '" + paramName + "' in path: " + key);
                 }
 
-                // 参数名合法性校验
-                if (!paramName.matches("[a-zA-Z_][a-zA-Z0-9_]*")) {
+                // 检测参数名合法性
+                if (!paramName.matches("[A-Za-z_][A-Za-z0-9_]*")) {
                     throw new IllegalArgumentException("Invalid path variable name: " + paramName);
+                }
+
+                // 检测类型是否支持
+                if (typeName != null) {
+                    try {
+                        ParamType.fromString(typeName);
+                    } catch (IllegalArgumentException ex) {
+                        throw new IllegalArgumentException("Unsupported parameter type '" + typeName + "' in path: " + key);
+                    }
                 }
             }
         }
         super.insert(key, value, overwrite);
     }
+
 
 
 

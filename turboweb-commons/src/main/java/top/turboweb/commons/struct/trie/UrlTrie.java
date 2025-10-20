@@ -25,23 +25,19 @@ public abstract class UrlTrie <T, M> extends AbstractTrie<T, M> {
         }
         // 去除首尾的/
         StringBuilder stringBuilder = new StringBuilder(key);
-        while (stringBuilder.charAt(0) == '/') {
+        while (!stringBuilder.isEmpty() && stringBuilder.charAt(0) == '/') {
             stringBuilder.deleteCharAt(0);
         }
-        while (stringBuilder.charAt(stringBuilder.length() - 1) == '/') {
+        while (!stringBuilder.isEmpty() && stringBuilder.charAt(stringBuilder.length() - 1) == '/') {
             stringBuilder.deleteCharAt(stringBuilder.length() - 1);
         }
         // 再次判断是否为空字符
         String handledKey = stringBuilder.toString();
+        String[] segs;
         if (handledKey.isEmpty()) {
-            // 无效匹配
-            return null;
-        }
-        // 分割字串
-        String[] segs = handledKey.split(SPLIT_STRING);
-        if (segs.length == 0) {
-            // 无效匹配
-            return null;
+            segs = new String[0];
+        } else {
+            segs = handledKey.split(SPLIT_STRING);
         }
         return doMatch(segs);
     }
