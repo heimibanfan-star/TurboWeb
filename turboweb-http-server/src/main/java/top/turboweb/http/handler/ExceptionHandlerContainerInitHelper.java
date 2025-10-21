@@ -16,7 +16,13 @@ import java.lang.reflect.Modifier;
 import java.util.List;
 
 /**
- * 异常处理器容器初始化工具
+ * 异常处理器容器初始化工具类。
+ * <p>
+ * 用于在框架启动时扫描所有带有 {@link ExceptionHandler} 注解的方法，
+ * 将其封装为 {@link ExceptionHandlerDefinition} 并注册到 {@link ExceptionHandlerContainer} 中。
+ * <br>
+ * 支持识别 {@link ExceptionResponseStatus} 注解以设置异常处理后的 HTTP 状态码。
+ * </p>
  */
 public class ExceptionHandlerContainerInitHelper {
 
@@ -26,10 +32,14 @@ public class ExceptionHandlerContainerInitHelper {
     }
 
     /**
-     * 初始化异常处理器容器
+     * 初始化异常处理器容器。
+     * <p>
+     * 遍历传入的异常处理器对象集合，扫描其中带有 {@link ExceptionHandler} 注解的公有方法，
+     * 并创建对应的 {@link ExceptionHandlerDefinition} 注册到容器中。
+     * </p>
      *
-     * @param exceptionHandlerClassList 异常处理器类集合
-     * @return 异常处理器容器
+     * @param exceptionHandlerClassList 异常处理器对象列表
+     * @return 构建完成的 {@link ExceptionHandlerContainer}
      */
     public static ExceptionHandlerContainer initContainer(List<Object> exceptionHandlerClassList) {
         ExceptionHandlerContainer container = new ExceptionHandlerContainer();
@@ -49,10 +59,13 @@ public class ExceptionHandlerContainerInitHelper {
     }
 
     /**
-     * 创建实例对象
+     * 通过无参构造方法创建类实例。
+     * <p>
+     * 若类中不存在无参构造方法，或实例化失败，则抛出 {@link TurboExceptionHandlerException}。
+     * </p>
      *
-     * @param clazz 类
-     * @return 实例对象
+     * @param clazz 目标类
+     * @return 类的实例对象
      */
     private static Object createInstance(Class<?> clazz) {
         try {
@@ -68,9 +81,14 @@ public class ExceptionHandlerContainerInitHelper {
     }
 
     /**
-     * 初始化异常处理器定义
+     * 初始化异常处理器定义。
+     * <p>
+     * 根据方法及其注解信息，创建对应的 {@link ExceptionHandlerDefinition}。
+     * 若方法带有 {@link ExceptionResponseStatus} 注解，则设置对应的 HTTP 状态码。
+     * </p>
      *
-     * @param method 方法
+     * @param method   异常处理方法
+     * @param instance 方法所属的实例对象
      * @return 异常处理器定义
      */
     private static ExceptionHandlerDefinition initExceptionHandlerDefinition(Method method, Object instance) {
