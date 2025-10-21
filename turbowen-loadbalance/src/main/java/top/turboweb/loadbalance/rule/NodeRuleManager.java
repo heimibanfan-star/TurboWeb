@@ -3,8 +3,7 @@ package top.turboweb.loadbalance.rule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.exception.TurboDuplicateException;
-import top.turboweb.commons.struct.trie.PathTrie;
-import top.turboweb.commons.struct.trie.PatternPathTrie;
+import top.turboweb.commons.struct.trie.PatternUrlTrie;
 
 import java.net.URI;
 import java.util.Set;
@@ -17,7 +16,7 @@ public class NodeRuleManager implements RuleManager {
 
     private static final Logger log = LoggerFactory.getLogger(NodeRuleManager.class);
     private final AtomicBoolean used = new AtomicBoolean(false);
-    private final PathTrie<RuleDetail> pathTrie = new PatternPathTrie<>();
+    private final PatternUrlTrie<RuleDetail> pathTrie = new PatternUrlTrie<>();
     private final boolean localPre;
 
     public NodeRuleManager(boolean localPre) {
@@ -41,7 +40,7 @@ public class NodeRuleManager implements RuleManager {
         if (!used.get()) {
             throw new IllegalStateException("The rules have not been used");
         }
-        Set<RuleDetail> details = pathTrie.patternMatch(path);
+        Set<RuleDetail> details = pathTrie.match(path);
         if (details.size() > 2) {
             throw new TurboDuplicateException("There are multiple rules that match the path:" + path + ", services:" + details.stream().map(RuleDetail::serviceName).toList());
         }

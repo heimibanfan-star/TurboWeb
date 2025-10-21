@@ -2,7 +2,7 @@ package top.turboweb.http.middleware.limiter;
 
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.limit.FixedIntervalTokenBucket;
-import top.turboweb.commons.struct.trie.PatternPathTrie;
+import top.turboweb.commons.struct.trie.PatternUrlTrie;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 
@@ -14,7 +14,7 @@ import java.util.Set;
  */
 public class PathLimiter extends Middleware {
 
-    private final PatternPathTrie<FixedIntervalTokenBucket> pathTrie = new PatternPathTrie<>();
+    private final PatternUrlTrie<FixedIntervalTokenBucket> pathTrie = new PatternUrlTrie<>();
 
 
     @Override
@@ -26,7 +26,7 @@ public class PathLimiter extends Middleware {
             path = path.substring(0, path.length() - 1);
         }
         // 匹配规则
-        Set<FixedIntervalTokenBucket> fixedIntervalTokenBuckets = pathTrie.patternMatch(path);
+        Set<FixedIntervalTokenBucket> fixedIntervalTokenBuckets = pathTrie.match(path);
         // 没有规则直接放行
         if (fixedIntervalTokenBuckets.isEmpty()) {
             return next(ctx);

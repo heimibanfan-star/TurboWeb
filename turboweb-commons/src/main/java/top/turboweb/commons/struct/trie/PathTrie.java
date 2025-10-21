@@ -15,6 +15,7 @@ import java.util.Set;
  *
  * @param <V> 挂载内容类型
  */
+@Deprecated
 public interface PathTrie<V> {
 
     /**

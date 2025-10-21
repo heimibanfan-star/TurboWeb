@@ -6,7 +6,22 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
- * 处理url的前缀树
+ * 基于 REST 风格 URL 的前缀树（Trie）实现。
+ *
+ * <p>支持路径参数、类型约束与回溯匹配等功能。
+ * 可用于 Web 框架的路由解析、API 映射等场景。
+ *
+ * <p>示例：
+ * <pre>{@code
+ * RestUrlTrie<String> trie = new RestUrlTrie<>();
+ * trie.insert("/user/{id:int}", "getUser", false);
+ * trie.insert("/user/{id:int}/posts/{date:date}", "getUserPosts", false);
+ *
+ * var r1 = trie.match("/user/12"); // 匹配 getUser，参数 {id=12}
+ * var r2 = trie.match("/user/12/posts/2025-10-21"); // 匹配 getUserPosts
+ * }</pre>
+ *
+ * @param <T> 节点存储的值类型
  */
 public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
 
@@ -21,7 +36,18 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
     }
 
     /**
-     * 参数类型
+     * 路径参数类型。
+     *
+     * <p>支持以下内置类型：
+     * <ul>
+     *     <li>str —— 任意字符串</li>
+     *     <li>num —— 数值（支持小数）</li>
+     *     <li>int —— 整数</li>
+     *     <li>bool —— 布尔值（true/false）</li>
+     *     <li>date —— 日期（yyyy-MM-dd）</li>
+     *     <li>ipv4 —— IPv4 地址</li>
+     *     <li>regex=xxx —— 自定义正则表达式</li>
+     * </ul>
      */
     private final static class ParamType {
         static final ParamType STR = new ParamType("str");
@@ -35,7 +61,8 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
         final String name;
 
         /**
-         * 匹配策略，用于参数值匹配
+         * 类型匹配策略。
+         * 定义每种类型对应的匹配函数。
          */
         static final Map<ParamType, Function<String, Boolean>> STRATEGY = Map.of(
                 NUM, value -> REGEX_PATTERN.NUM.matcher(value).matches(),
@@ -108,6 +135,10 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
         }
     }
 
+    /**
+     * 节点附加的参数详情。
+     * 继承自 {@link Details}，并包含参数类型信息。
+     */
     private static class ParamDetails extends Details {
 
         final ParamInfo paramInfo;
@@ -119,7 +150,9 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
     }
 
     /**
-     * 匹配的结果
+     * 匹配结果。
+     *
+     * <p>包含匹配到的值和参数映射。
      */
     public static class MatchResult<T> {
         public final T value;
@@ -145,8 +178,9 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
     }
 
     /**
-     * 解析参数片段
-     * @param seg 参数片段
+     * 解析路径参数。
+     *
+     * @param seg 参数片段（如 "{id:int}"）
      * @return 参数信息
      */
     private ParamInfo parseParam(String seg) {
@@ -161,6 +195,14 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
         return new ParamInfo(name, type);
     }
 
+    /**
+     * 插入路径时检测合法性。
+     * <ul>
+     *     <li>不允许重复的参数名</li>
+     *     <li>检测参数名是否合法</li>
+     *     <li>验证参数类型是否支持</li>
+     * </ul>
+     */
     @Override
     public void insert(String key, T value, boolean overwrite) {
         if (key == null || key.isEmpty()) {
@@ -211,9 +253,10 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
         super.insert(key, value, overwrite);
     }
 
-
-
-
+    /**
+     * 回溯帧结构。
+     * 用于存储匹配过程中的状态。
+     */
     private class Frame {
         Node<T> node;
         int index;
@@ -228,6 +271,13 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
         }
     }
 
+    /**
+     * 执行路径匹配。
+     *
+     * <p>采用深度优先 + 回溯算法。
+     * 优先匹配固定路径，再匹配参数节点；
+     * 当存在多个候选参数节点时，会将剩余分支压栈以备回溯。
+     */
     @Override
     protected MatchResult<T> doMatch(String[] segs) {
         Deque<Frame> stack = new ArrayDeque<>();
@@ -329,9 +379,10 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
 
 
     /**
-     * 判断是否是参数片段
-     * @param seg 片段
-     * @return true是参数片段
+     * 判断路径片段是否为参数。
+     *
+     * @param seg 路径片段
+     * @return 若为形如 "{id}" 的参数段则返回 {@code true}
      */
     private boolean isParamSegment(String seg) {
         return seg.startsWith("{") && seg.endsWith("}");

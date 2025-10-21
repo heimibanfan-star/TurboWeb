@@ -5,14 +5,35 @@ import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 
 /**
- * 前缀树抽象类
+ * 抽象前缀树（Trie）实现基类。
+ *
+ * <p>该类提供了通用的 Trie 结构增删查改逻辑，
+ * 包括节点的插入、删除、精确查找、遍历与批量获取等功能。
+ * <br>子类可通过 {@link #handleSubKey(String)} 与 {@link #splitString()} 方法
+ * 自定义键的处理规则与分隔符。
+ *
+ * <p>该类的实现特点：
+ * <ul>
+ *   <li>线程不安全（如需并发访问请在外层加锁或使用并发包装）。</li>
+ *   <li>节点数量通过 {@code size} 维护，包含所有具有值的节点。</li>
+ *   <li>子类可实现不同的路径语义，如 URL Trie、Pattern Trie 等。</li>
+ * </ul>
+ *
+ * @param <T> 节点存储的值类型
+ * @param <M> 匹配方法返回的结果类型（由具体实现定义）
  */
 public abstract class AbstractTrie <T, M> implements Trie<T, M>{
 
+    /** 根节点，不存储实际值。 */
     protected final Node<T> root = new Node<>(null, null);
 
+    /** 当前 Trie 中包含的节点数量（仅统计具有非空值的节点）。 */
+    private int size = 0;
+
     /**
-     * 节点的详细信息
+     * 节点的详细信息，用于保存子类自定义的键处理结果。
+     *
+     * <p>例如在 URL Trie 中，可能需要将 "{id}" 转换为 ":id" 等规范化子键。
      */
     protected static class Details {
         private final String newSubKey;
@@ -30,10 +51,11 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         }
     }
 
-    private int size = 0;
 
     /**
-     * 前缀树节点
+     * 前缀树节点。
+     *
+     * @param <T> 节点值类型
      */
     protected static class Node<T> {
         private final String key;
@@ -135,6 +157,12 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         }
     }
 
+    /**
+     * 插入键值对。
+     *
+     * <p>若 {@code overwrite = false} 且目标键已存在，将抛出异常。
+     * 分割符与子键处理由子类实现决定。
+     */
     @Override
     public void insert(String key, T value, boolean overwrite) {
         // 分割key
@@ -192,6 +220,12 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         this.insert(key, value, false);
     }
 
+    /**
+     * 精确获取键对应的值。
+     *
+     * @param key 键
+     * @return 匹配到的值；若不存在则返回 {@code null}
+     */
     @Override
     public T get(String key) {
         if (size == 0) {
@@ -236,6 +270,10 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         return size;
     }
 
+    /**
+     * 删除指定键对应的节点。
+     * <p>若目标节点存在子节点且无值，将递归清理空分支。
+     */
     @Override
     public void delete(String key) {
         // 如果节点数量为0，放弃删除
@@ -286,9 +324,12 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
     }
 
     /**
-     * 分割key
-     * @param key key
-     * @return 分割后的key
+     * 分割路径键。
+     *
+     * <p>默认去除首尾分隔符并按 {@link #splitString()} 返回的分隔符进行拆分。
+     *
+     * @param key 原始键
+     * @return 拆分后的路径段数组
      */
     protected String[] splitKey(String key) {
         // 字符串合法性校验
@@ -305,6 +346,11 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         return key.split(Pattern.quote(splitStr));
     }
 
+    /**
+     * 获取所有节点的完整键值映射。
+     *
+     * @return 所有键与值的映射表
+     */
     @Override
     public Map<String, T> all() {
         // 结果的集合
@@ -345,6 +391,10 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         return result;
     }
 
+    /**
+     * 返回值的迭代器。
+     * <p>迭代顺序不保证稳定（由内部 Map 实现决定）。</p>
+     */
     @Override
     public Iterator<T> iterator() {
         return new Iterator<T>() {
@@ -364,16 +414,22 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
     }
 
     /**
-     * 处理子key
-     * @param subKey 子key
-     * @return 处理后的详细信息，若不处理返回null
+     * 处理子键。
+     *
+     * <p>子类可根据需要转换或校验子键，
+     * 例如将路径参数 "{id}" 转换为统一标识形式。</p>
+     *
+     * @param subKey 原始子键
+     * @return 处理结果，若无需修改可返回 {@code null}
      */
     protected abstract Details handleSubKey(String subKey);
 
 
     /**
-     * 获取分隔符
-     * @return 分隔符
+     * 返回键的分隔符。
+     * <p>例如 URL Trie 中返回 "/"。</p>
+     *
+     * @return 分隔符字符串
      */
     protected abstract String splitString();
 }

@@ -4,7 +4,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 前缀树
+ * 通用前缀树接口（Trie）
+ *
+ * <p>用于存储基于字符串路径的层级数据结构。
+ * 支持插入、删除、精确查找和自定义匹配等操作。
+ *
+ * @param <T> 节点存储的值类型
+ * @param <M> 匹配结果类型（由具体实现定义）
  */
 public interface Trie <T, M> extends Iterable<T> {
 
@@ -25,23 +31,26 @@ public interface Trie <T, M> extends Iterable<T> {
     void insert(String key, T value);
 
     /**
-     * 判断元素是否存在
-     * @param key 元素的key
-     * @return 是否存在
+     * 判断指定键是否存在。
+     *
+     * @param key 要检查的键
+     * @return 若键存在返回 {@code true}，否则返回 {@code false}
      */
     boolean exists(String key);
 
     /**
-     * 根据输入的key精确匹配元素
-     * @param key 元素的key
-     * @return 元素的值
+     * 根据键进行精确匹配。
+     *
+     * @param key 要查询的键
+     * @return 匹配到的值，若不存在则返回 {@code null}
      */
     T get(String key);
 
     /**
-     * 根据具体的子类实现的规则进行元素的匹配
-     * @param key 元素的key
-     * @return 匹配的元素
+     * 按实现定义的规则进行匹配（例如通配符、路径参数等）。
+     *
+     * @param key 输入键
+     * @return 匹配结果，由具体实现定义
      */
     M match(String key);
 

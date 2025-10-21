@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
  *
  * @param <V> 挂载内容类型
  */
+@Deprecated
 public class PatternPathTrie<V> implements PathTrie<V> {
 
     private static final String WILDCARD_SINGLE = "*";

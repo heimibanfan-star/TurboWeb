@@ -2,7 +2,7 @@ package top.turboweb.http.middleware.interceptor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import top.turboweb.commons.struct.trie.PatternPathTrie;
+import top.turboweb.commons.struct.trie.PatternUrlTrie;
 import top.turboweb.commons.utils.order.QuickSortUtils;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
@@ -20,7 +20,7 @@ public class InterceptorManager extends Middleware {
     // 防止排序重复
     private final Set<Integer> orders = new HashSet<>();
     // 以前缀树的方式存储用户注册的拦截器
-    private final PatternPathTrie<List<InterceptorHandler>> pathTrie = new PatternPathTrie<>();
+    private final PatternUrlTrie<List<InterceptorHandler>> pathTrie = new PatternUrlTrie<>();
 
     @Override
     public Object invoke(HttpContext ctx) {
@@ -102,7 +102,7 @@ public class InterceptorManager extends Middleware {
             path = "/";
         }
         // 匹配所有的拦截器
-        Set<List<InterceptorHandler>> matchResult = pathTrie.patternMatch(path);
+        Set<List<InterceptorHandler>> matchResult = pathTrie.match(path);
         int count = 0;
         for (List<InterceptorHandler> handlers : matchResult) {
             count += handlers.size();
