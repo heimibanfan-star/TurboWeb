@@ -14,20 +14,49 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /**
- * json转化器
+ * JSON 数据转换器实现。
+ * <p>
+ * 基于 {@link JsonSerializer} 提供将 HTTP 响应体 JSON 转换为 Java 对象的能力，
+ * 以及将 Java 对象序列化为 JSON {@link ByteBuf} 以便发送 HTTP 请求。
+ * <p>
+ * 默认使用 {@link JacksonJsonSerializer} 作为 JSON 序列化工具。
+ * <p>
+ * 功能：
+ * <ul>
+ *     <li>将 {@link FullHttpResponse} 转换为指定类型对象</li>
+ *     <li>将已有对象更新填充响应数据</li>
+ *     <li>将对象序列化为 JSON 字节流以发送请求</li>
+ * </ul>
  */
 public class JsonConverter implements Converter{
 
     private final JsonSerializer jsonSerializer;
 
+    /**
+     * 使用自定义 JSON 序列化器构造转换器
+     *
+     * @param jsonSerializer 自定义 JSON 序列化器
+     */
     public JsonConverter(JsonSerializer jsonSerializer) {
         this.jsonSerializer = jsonSerializer;
     }
 
+    /**
+     * 默认构造方法，使用 {@link JacksonJsonSerializer} 作为 JSON 序列化工具
+     */
     public JsonConverter() {
         this.jsonSerializer = new JacksonJsonSerializer();
     }
 
+    /**
+     * 将 HTTP 响应转换为指定类型对象。
+     *
+     * @param response HTTP 响应对象
+     * @param type 目标类型
+     * @param <T> 类型泛型
+     * @return 转换后的对象
+     * @throws TurboHttpClientException 如果响应为空或 Content-Type 为空
+     */
     @Override
     public <T> T convert(HttpResponse response, Class<T> type) {
         String jsonString = getJsonString(response);
@@ -37,12 +66,28 @@ public class JsonConverter implements Converter{
         return jsonSerializer.jsonToBean(jsonString, type);
     }
 
+    /**
+     * 将 HTTP 响应更新到已有对象实例中。
+     *
+     * @param response HTTP 响应对象
+     * @param object 已存在对象实例
+     * @param <T> 对象类型泛型
+     * @return 填充后的对象
+     * @throws TurboHttpClientException 如果响应为空或 Content-Type 为空
+     */
     @Override
     public <T> T convert(HttpResponse response, T object) {
         String jsonString = getJsonString(response);
         return jsonSerializer.jsonUpdateBean(jsonString, object);
     }
 
+    /**
+     * 将对象序列化为 JSON {@link ByteBuf}。
+     *
+     * @param object 待序列化对象
+     * @param charset 编码格式
+     * @return JSON 序列化后的字节流
+     */
     @Override
     public ByteBuf beanConvertBuf(Object object, Charset charset) {
         String json;
@@ -54,6 +99,13 @@ public class JsonConverter implements Converter{
         return Unpooled.wrappedBuffer(json.getBytes(charset));
     }
 
+    /**
+     * 从 HTTP 响应中获取 JSON 字符串。
+     *
+     * @param response HTTP 响应
+     * @return 响应体的 JSON 字符串
+     * @throws TurboHttpClientException 如果响应为空或 Content-Type 为空
+     */
     private String getJsonString(HttpResponse response) {
         // 判断是否有请求体
         if (response instanceof FullHttpResponse fullHttpResponse) {

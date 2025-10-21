@@ -19,7 +19,25 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * http客户端引擎
+ * HTTP 客户端引擎。
+ * <p>
+ * 基于 Reactor Netty 实现，提供同步和异步 HTTP 请求发送能力。
+ * 支持自定义线程数、超时时间、连接池配置、HTTP 协议版本和 SSL 配置。
+ * <p>
+ * 特性：
+ * <ul>
+ *     <li>支持阻塞同步请求 {@link #send(HttpRequest)} 与异步请求 {@link #sendAsync(HttpRequest)}</li>
+ *     <li>支持自定义基础 URL</li>
+ *     <li>支持全局连接池和线程池配置</li>
+ *     <li>支持 HTTP/1.1、HTTP/2 等协议切换</li>
+ *     <li>支持 SSL/TLS 自定义配置</li>
+ * </ul>
+ * <p>
+ * 使用场景：
+ * <ul>
+ *     <li>作为 {@link top.turboweb.client.DefaultTurboHttpClient} 的底层请求引擎</li>
+ *     <li>需要高性能 HTTP 调用、连接复用和异步处理的场景</li>
+ * </ul>
  */
 public class HttpClientEngine implements Closeable {
 
@@ -148,10 +166,11 @@ public class HttpClientEngine implements Closeable {
 
 
     /**
-     * 发送请求
+     * 发送同步 HTTP 请求
      *
-     * @param request 请求
-     * @return 响应
+     * @param request 请求对象
+     * @return 响应对象
+     * @throws TurboHttpClientException 如果响应为空
      */
     public HttpResponse send(HttpRequest request) {
         Mono<HttpResponse> mono = sendAsync(request);
@@ -164,10 +183,10 @@ public class HttpClientEngine implements Closeable {
     }
 
     /**
-     * 异步发送请求
+     * 异步发送 HTTP 请求
      *
-     * @param request 请求
-     * @return 响应
+     * @param request 请求对象
+     * @return {@link Mono} 响应对象
      */
     public Mono<HttpResponse> sendAsync(HttpRequest request) {
         String uri;
@@ -213,7 +232,11 @@ public class HttpClientEngine implements Closeable {
                 });
     }
 
-
+    /**
+     * 关闭客户端，释放线程池资源。
+     * <p>
+     * 调用后不应再发送请求。
+     */
     @Override
     public void close() {
         group.shutdownGracefully();

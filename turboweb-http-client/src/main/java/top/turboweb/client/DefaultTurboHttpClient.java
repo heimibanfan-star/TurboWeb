@@ -21,7 +21,18 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * 默认的http客户端
+ * DefaultTurboHttpClient 是 TurboWeb HTTP 客户端的默认实现类。
+ * <p>
+ * 提供对 HTTP 请求的完整封装，支持 GET/POST/PUT/DELETE 方法，
+ * 自动处理 URL 参数、表单参数和请求体数据。
+ * <p>
+ * 特性：
+ * <ul>
+ *     <li>支持请求/响应拦截器</li>
+ *     <li>可自定义请求数据转换器（Converter）</li>
+ *     <li>基于 HttpClientEngine 发起网络请求</li>
+ *     <li>异常安全，拦截器返回 null 会触发异常</li>
+ * </ul>
  */
 public class DefaultTurboHttpClient implements TurboHttpClient {
 
@@ -32,24 +43,52 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
     // 响应拦截器
     private final List<ResponseInterceptor> responseInterceptors = new ArrayList<>();
 
-
+    /**
+     * 构造方法，使用自定义 HttpClientEngine 与 Converter。
+     *
+     * @param engine    HTTP 客户端引擎，负责实际网络请求
+     * @param converter 数据转换器，用于请求/响应对象与字节流的互转
+     */
     public DefaultTurboHttpClient(HttpClientEngine engine, Converter converter) {
         this.httpClientEngine = engine;
         this.converter = converter;
     }
 
+    /**
+     * 构造方法，使用自定义 HttpClientEngine，默认使用 JSON 转换器。
+     *
+     * @param engine HTTP 客户端引擎
+     */
     public DefaultTurboHttpClient(HttpClientEngine engine) {
         this(engine, new JsonConverter());
     }
 
+    /**
+     * 构造方法，使用基础 URL 初始化 HttpClientEngine，默认 JSON 转换器。
+     *
+     * @param baseUrl 基础 URL，用于请求路径拼接
+     */
     public DefaultTurboHttpClient(String baseUrl) {
         this(new HttpClientEngine(baseUrl));
     }
 
+    /**
+     * 默认构造方法，基础 URL 为空，使用默认 JSON 转换器。
+     */
     public DefaultTurboHttpClient() {
         this(new HttpClientEngine(""));
     }
 
+    /**
+     * 发起 HTTP 请求。
+     *
+     * @param path     请求路径
+     * @param method   HTTP 方法
+     * @param data     请求体数据，可为 null
+     * @param consumer 请求配置回调，可设置 headers、query、form、data
+     * @return ClientResult 封装响应结果
+     * @throws TurboHttpClientException 当拦截器返回 null 或 URL 无效时抛出
+     */
     @Override
     public ClientResult request(String path, HttpMethod method, Object data, Consumer<Config> consumer) {
         Config config = new Config();
@@ -133,6 +172,13 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
         return request(path, HttpMethod.DELETE, consumer);
     }
 
+    /**
+     * 注册请求拦截器。
+     *
+     * @param interceptor 拦截器实现，非空
+     * @return 当前客户端实例，支持链式调用
+     * @throws TurboHttpClientException 拦截器重复添加时抛出
+     */
     @Override
     public TurboHttpClient addRequestInterceptor(RequestInterceptor interceptor) {
         Objects.requireNonNull(interceptor, "interceptor can not be null");
@@ -145,6 +191,13 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
         return this;
     }
 
+    /**
+     * 注册响应拦截器。
+     *
+     * @param interceptor 拦截器实现，非空
+     * @return 当前客户端实例，支持链式调用
+     * @throws TurboHttpClientException 拦截器重复添加时抛出
+     */
     @Override
     public TurboHttpClient addResponseInterceptor(ResponseInterceptor interceptor) {
         Objects.requireNonNull(interceptor, "interceptor can not be null");
@@ -156,12 +209,14 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
     }
 
     /**
-     * 构建请求
-     * @param path 请求路径
-     * @param method 请求方式
-     * @param data 请求数据
+     * 构建 HttpRequest 对象，包括 URL 参数、请求体和请求头。
+     *
+     * @param path   请求路径
+     * @param method HTTP 方法
+     * @param data   请求体数据
      * @param config 请求配置
-     * @return HttpRequest
+     * @return 构建完成的 HttpRequest
+     * @throws TurboHttpClientException URL 无效或构建失败时抛出
      */
     private HttpRequest buildRequest(String path, HttpMethod method, Object data, Config config) {
         // 判断是否需要构造url参数
@@ -189,10 +244,12 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
     }
 
     /**
-     * 构建请求体
-     * @param data 请求数据
+     * 构建请求体 ByteBuf。
+     *
+     * @param data   请求数据
      * @param config 请求配置
-     * @return bytebuf
+     * @return 封装请求体的 ByteBuf
+     * @throws TurboHttpClientException 请求体重复或 ContentType 不支持时抛出
      */
     private ByteBuf buildHttpContent(Object data, Config config) {
         // 判断请求体是否重复设置
