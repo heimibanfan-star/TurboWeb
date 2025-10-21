@@ -1,6 +1,7 @@
 package org.heimi;
 
 import io.netty.buffer.ByteBuf;
+import reactor.core.publisher.Flux;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.http.middleware.router.LambdaRouterGroup;
 import top.turboweb.http.middleware.router.LambdaRouterManager;
@@ -33,6 +34,7 @@ public class OrderApplication {
                     });
                     return sseResponse;
                 });
+                register.get("/order/stream", crx -> Flux.just("你好", "世界"));
             }
         });
 

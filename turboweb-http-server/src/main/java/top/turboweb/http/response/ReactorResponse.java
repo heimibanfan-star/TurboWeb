@@ -52,7 +52,7 @@ public class ReactorResponse extends DefaultHttpResponse implements InternalCall
         super(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         this.bodyFlux = Flux.from(publisher);
         this.charset = contentType.getCharset() == null ? GlobalConfig.getResponseCharset() : contentType.getCharset();
-        this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType());
+        this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType() + ";" + "charset=" + charset.name());
     }
 
     /**
