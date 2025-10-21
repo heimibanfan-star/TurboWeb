@@ -4,12 +4,15 @@ import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.concurrent.Promise;
+import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
+import top.turboweb.commons.serializer.JacksonJsonSerializer;
+import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.loadbalance.LoadBalancer;
 import top.turboweb.loadbalance.LoadBalancerFactory;
 import top.turboweb.loadbalance.breaker.Breaker;
@@ -26,21 +29,48 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 用于实现网关的channelHandler
+ * TurboWeb 网关核心处理器。
+ * <p>
+ * 此类继承自 Netty 的 {@link SimpleChannelInboundHandler}，
+ * 用于处理来自客户端的 {@link FullHttpRequest}，
+ * 并根据规则转发到本地服务或远程节点。
+ *
+ * <p>功能包括：
+ * <ul>
+ *     <li>请求过滤器链执行（同步/异步）</li>
+ *     <li>负载均衡节点选择与转发</li>
+ *     <li>WebSocket 协议升级与数据中继</li>
+ *     <li>熔断与超时控制</li>
+ * </ul>
+ *
+ * @param <FT> 过滤器执行类型（同步为 Boolean，异步为 Mono&lt;Boolean&gt;）
  */
 @ChannelHandler.Sharable
 public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private static final String TURBOWEB_GATEWAY_HEADER = "TurboWeb-Forward";
     private static final Logger log = LoggerFactory.getLogger(GatewayChannelHandler.class);
+
+    /** 网关过滤器上下文，负责执行过滤链 */
     private final GatewayFilterContext<FT> gatewayFilterContext;
+
+    /** 负载均衡器，用于选择可用节点 */
     private final LoadBalancer loadBalancer;
+
+    /** 路由与规则管理器 */
     private volatile RuleManager ruleManager;
+
+    /** Reactor Netty 的 HTTP 客户端，用于远程转发 */
     private HttpClient httpClient;
+
+    /** 熔断器，用于处理超时、失败率过高的节点 */
     private final Breaker breaker;
 
+    @NotNull
+    private JsonSerializer jsonSerializer = new JacksonJsonSerializer();
 
 
+    /** 创建同步版网关处理器 */
     public static GatewayChannelHandler<Boolean> create() {
         return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), new EmptyBreaker(), new SyncGatewayFilterContext());
     }
@@ -61,6 +91,7 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
         return new GatewayChannelHandler<>(loadBalancer, breaker, new SyncGatewayFilterContext());
     }
 
+    /** 创建异步版网关处理器 */
     public static GatewayChannelHandler<Mono<Boolean>> createAsync() {
         return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), new EmptyBreaker(), new AsyncGatewayFilterContext());
     }
@@ -92,9 +123,8 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
 
 
     /**
-     * 设置HttpClient
-     *
-     * @param httpClient HttpClient
+     * 设置 Reactor Netty HttpClient。
+     * 该客户端会根据 Breaker 的超时设置配置响应超时时间。
      */
     public void setHttpClient(HttpClient httpClient) {
         Objects.requireNonNull(httpClient, "httpClient can not be null");
@@ -104,59 +134,73 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
     }
 
     /**
-     * 添加过滤器
-     *
-     * @param filter 过滤器
-     * @return 网关过滤器上下文
+     * 设置 Json 序列化器。
+     * 默认使用 JacksonJsonSerializer。
+     */
+    public void setJsonSerializer(JsonSerializer jsonSerializer) {
+        Objects.requireNonNull(jsonSerializer, "jsonSerializer can not be null");
+        this.jsonSerializer = jsonSerializer;
+    }
+
+    /**
+     * 向网关中添加过滤器。
+     * @param filter 自定义过滤器
+     * @return 当前处理器实例（链式调用）
      */
     public GatewayChannelHandler<FT> addFilter(GatewayFilter<FT> filter) {
         gatewayFilterContext.addFilter(filter);
         return this;
     }
 
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
-        request.retain();
         ChannelPromise promise = ctx.newPromise();
-        ResponseHelper helper = new DefaultResponseHelper(ctx);
+        ResponseHelper helper = new DefaultResponseHelper(ctx, jsonSerializer);
         gatewayFilterContext.startFilter(request, helper, promise);
+        // 增加引用
+        request.retain();
         promise.addListener(future -> {
-            if (future.isSuccess()) {
-                RuleManager ruleManager = this.ruleManager;
-                // 网关失效逻辑
-                if (ruleManager == null) {
-                    ctx.writeAndFlush(errorResponse("Gateway is not available"));
-                    return;
-                }
+            try {
+                if (future.isSuccess()) {
+                    RuleManager ruleManager = this.ruleManager;
+                    // 网关失效逻辑
+                    if (ruleManager == null) {
+                        ctx.writeAndFlush(errorResponse("Gateway is not available"));
+                        return;
+                    }
 
-                // 判断当前请求是否被转发
-                if (request.headers().contains(TURBOWEB_GATEWAY_HEADER)) {
-                    // 判断是否允许当前节点处理
-                    RuleDetail detail = ruleManager.getLocalService(request.uri());
+                    // 判断当前请求是否被转发
+                    if (request.headers().contains(TURBOWEB_GATEWAY_HEADER)) {
+                        // 判断是否允许当前节点处理
+                        RuleDetail detail = ruleManager.getLocalService(request.uri());
+                        if (detail == null) {
+                            ctx.writeAndFlush(errorResponse("Service not found"));
+                        } else {
+                            handleRequestLocal(ctx, request, detail);
+                        }
+                        return;
+                    }
+
+                    // 正常节点尝试匹配
+                    RuleDetail detail = ruleManager.getService(request.uri());
                     if (detail == null) {
                         ctx.writeAndFlush(errorResponse("Service not found"));
-                    } else {
-                        handleRequestLocal(ctx, request, detail);
+                        return;
                     }
-                    return;
-                }
-
-                // 正常节点尝试匹配
-                RuleDetail detail = ruleManager.getService(request.uri());
-                if (detail == null) {
-                    ctx.writeAndFlush(errorResponse("Service not found"));
-                    return;
-                }
-                // 判断节点需要本地处理还是远程处理
-                if (detail.local()) {
-                    handleRequestLocal(ctx, request, detail);
+                    // 判断节点需要本地处理还是远程处理
+                    if (detail.local()) {
+                        handleRequestLocal(ctx, request, detail);
+                    } else {
+                        handleRequestRemote(ctx, request, detail);
+                    }
                 } else {
-                    handleRequestRemote(ctx, request, detail);
+                    if (!helper.isResponse()) {
+                        ctx.writeAndFlush(errorResponse(future.cause().getMessage()));
+                    }
                 }
-            } else {
-                if (!helper.isResponse()) {
-                    ctx.writeAndFlush(errorResponse(future.cause().getMessage()));
-                }
+            } finally {
+                request.release();
             }
         });
 
@@ -170,6 +214,8 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
      * @param detail  规则详情
      */
     private void handleRequestLocal(ChannelHandlerContext ctx, FullHttpRequest request, RuleDetail detail) {
+        // 增加引用
+        request.retain();
         String newUri = request.uri().replaceFirst(detail.rewriteRegex(), detail.rewriteTarget());
         FullHttpRequest fullHttpRequest = new DefaultFullHttpRequest(request.protocolVersion(), request.method(), newUri, request.content());
         fullHttpRequest.headers().set(request.headers());
@@ -177,6 +223,8 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
     }
 
     private void handleRequestRemote(ChannelHandlerContext ctx, FullHttpRequest request, RuleDetail detail) {
+        // 增加引用
+        request.retain();
         // 匹配节点
         Node node = loadBalancer.loadBalance(detail.serviceName());
         if (node == null) {

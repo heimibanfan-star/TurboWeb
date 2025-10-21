@@ -32,22 +32,27 @@ public class SyncGatewayFilterContext implements GatewayFilterContext<Boolean> {
             promise.setSuccess();
             return;
         }
+        // 增加引用
+        request.retain();
         // 执行所有的过滤器
         Mono.<Boolean>create(sink -> {
-            Thread.ofVirtual().name("filter-execute-thread").start(() -> {
-                for (GatewayFilter<Boolean> filter : filters) {
-                    Boolean toNext = filter.filter(request, responseHelper);
-                    toNext = toNext != null && toNext;
-                    if (!toNext) {
-                        sink.error(new TurboGatewayException("filter return false, then cancel"));
-                        break;
-                    }
-                }
-                sink.success(true);
-            });
-        }).subscribe(
-                ok -> promise.setSuccess(),
-                promise::setFailure
-        );
+                    Thread.ofVirtual().name("filter-execute-thread").start(() -> {
+                        for (GatewayFilter<Boolean> filter : filters) {
+                            Boolean toNext = filter.filter(request, responseHelper);
+                            toNext = toNext != null && toNext;
+                            if (!toNext) {
+                                sink.error(new TurboGatewayException("filter return false, then cancel"));
+                                break;
+                            }
+                        }
+                        sink.success(true);
+                    });
+                })
+                // 减少引用
+                .doFinally(signalType -> request.release())
+                .subscribe(
+                        ok -> promise.setSuccess(),
+                        promise::setFailure
+                );
     }
 }
