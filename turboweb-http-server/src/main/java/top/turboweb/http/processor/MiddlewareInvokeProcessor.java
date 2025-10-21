@@ -19,15 +19,48 @@ import top.turboweb.http.session.SessionManagerHolder;
 import java.util.Objects;
 
 /**
- * 执行中间件的处理器
+ * 内核处理器：中间件执行处理器。
+ * <p>
+ * 该处理器负责在 HTTP 请求处理链中执行中间件逻辑。
+ * 它完成以下功能：
+ * <ul>
+ *     <li>初始化 {@link HttpContext}，封装请求、Session、Cookie 等信息</li>
+ *     <li>执行中间件链 {@link Middleware}</li>
+ *     <li>处理返回结果，将对象转换为 {@link HttpResponse}</li>
+ *     <li>处理响应中的 Cookie 和 Session 信息</li>
+ *     <li>释放上下文资源，确保请求结束后清理会话和内存</li>
+ * </ul>
+ * </p>
+ * <p>
+ * 内部会根据 SessionManager 类型决定是否加读锁：
+ * <ul>
+ *     <li>如果使用 {@link BackHoleSessionManager}，则无需加锁</li>
+ *     <li>否则对 Session 访问加读锁，确保并发安全</li>
+ * </ul>
+ * </p>
  */
 public class MiddlewareInvokeProcessor extends Processor{
 
+    /** 中间件链 */
     private final Middleware chain;
+
+    /** 会话管理器持有者 */
     private final SessionManagerHolder sessionManagerHolder;
+
+    /** HTTP 响应转换器 */
     private final HttpResponseConverter converter;
+
+    /** JSON 序列化器 */
     private final JsonSerializer jsonSerializer;
 
+    /**
+     * 构造方法
+     *
+     * @param chain 中间件链
+     * @param sessionManagerHolder 会话管理器持有者
+     * @param converter HTTP 响应转换器
+     * @param jsonSerializer JSON 序列化器
+     */
     public MiddlewareInvokeProcessor(
             Middleware chain,
             SessionManagerHolder sessionManagerHolder,
@@ -40,6 +73,16 @@ public class MiddlewareInvokeProcessor extends Processor{
         this.jsonSerializer = jsonSerializer;
     }
 
+    /**
+     * 执行请求。
+     * <p>
+     * 根据 SessionManager 类型判断是否需要加锁，然后执行中间件链。
+     * </p>
+     *
+     * @param fullHttpRequest HTTP 请求对象
+     * @param connectSession 连接会话对象
+     * @return HTTP 响应对象
+     */
     @Override
     public HttpResponse invoke(FullHttpRequest fullHttpRequest, ConnectSession connectSession) {
         boolean needLock = !(sessionManagerHolder.getSessionManager() instanceof BackHoleSessionManager);
@@ -56,10 +99,15 @@ public class MiddlewareInvokeProcessor extends Processor{
     }
 
     /**
-     * 执行中间件
-     * @param fullHttpRequest 请求对象
-     * @param connectSession session对象
-     * @return 响应对象
+     * 执行中间件链逻辑。
+     * <p>
+     * 初始化 HttpContext，执行中间件链，将结果转换为 HttpResponse，
+     * 并处理 Cookie 与 Session，最终释放上下文资源。
+     * </p>
+     *
+     * @param fullHttpRequest HTTP 请求对象
+     * @param connectSession 连接会话对象
+     * @return HTTP 响应对象
      */
     private HttpResponse executeMiddleware(FullHttpRequest fullHttpRequest, ConnectSession connectSession) {
         HttpContext context = null;

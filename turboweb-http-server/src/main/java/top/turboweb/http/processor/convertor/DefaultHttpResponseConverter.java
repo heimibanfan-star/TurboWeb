@@ -15,7 +15,18 @@ import top.turboweb.http.response.ReactorResponse;
 import java.nio.ByteBuffer;
 
 /**
- * 默认的HttpResponse转化器
+ * 默认的 HTTP 响应转换器实现类。
+ * <p>
+ * 负责将各种业务返回值转换为 {@link HttpResponse} 对象，包括：
+ * <ul>
+ *     <li>{@link HttpResult}：调用其 createResponse 方法生成响应</li>
+ *     <li>{@link String}：按 text/html 返回</li>
+ *     <li>{@link HttpFileResult}：按文件响应返回</li>
+ *     <li>{@link HttpResponse}：直接返回原对象</li>
+ *     <li>{@link Publisher}：返回 {@link ReactorResponse} 流式响应</li>
+ *     <li>其他任意对象：按 application/json 返回</li>
+ * </ul>
+ * </p>
  */
 public class DefaultHttpResponseConverter implements HttpResponseConverter {
 
