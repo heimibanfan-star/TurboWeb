@@ -1,137 +1,81 @@
 package top.turboweb.commons.struct.trie;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
  * 支持*和**匹配的 trie
  */
-public class PatternUrlTrie<T> extends UrlTrie<T, T> {
+public class PatternUrlTrie<T> extends UrlTrie<T, Set<T>> {
 
+    // 修改 VALID_KEY 正则，允许**后接静态段
     private static final Pattern VALID_KEY = Pattern.compile(
-            "^(/([A-Za-z]+|\\*{1,2})){1,}$"
+            "^(/([A-Za-z0-9_]+|\\*{1,2}))+$"
     );
 
     @Override
     public void insert(String key, T value, boolean overwrite) {
         if (!VALID_KEY.matcher(key).matches()) {
-            throw new IllegalArgumentException("key is invalid");
+            throw new IllegalArgumentException("key is invalid: " + key);
         }
-        // 判断是否出现多次**
-        int first = key.indexOf("**");
-        if (first != -1 && (key.indexOf("**", first + 2) != -1 || key.indexOf("*", first + 2) != -1)) {
-            throw new IllegalArgumentException("Invalid route pattern: '**' wildcard may appear only once per path: " + key);
+        // 判断**是否出现多次或之后有通配符
+        int firstMulti = key.indexOf("**");
+        if (firstMulti != -1) {
+            // 检查是否有多个**
+            if (key.indexOf("**", firstMulti + 2) != -1) {
+                throw new IllegalArgumentException("'**' can only appear once: " + key);
+            }
+            // 检查**之后是否有任何*（包括*和**）
+            String suffix = key.substring(firstMulti + 2);
+            if (suffix.contains("*")) {
+                throw new IllegalArgumentException("'**' cannot be followed by '*' or '**': " + key);
+            }
         }
         super.insert(key, value, overwrite);
     }
 
     @Override
-    protected T doMatch(String[] segs) {
-        List<MatchResult> results = new ArrayList<>();
-        // 启动回溯匹配，从根节点、第0个段开始
-        backtrack(root, segs, 0, 0, 0, results);
-
-        if (results.isEmpty()) {
-            return null;
-        }
-
-        // 选择最佳匹配结果（保持原优先级逻辑）
-        MatchResult bestMatch = results.getFirst();
-        for (MatchResult result : results) {
-            if (isBetterMatch(result, bestMatch)) {
-                bestMatch = result;
-            }
-        }
-
-        return bestMatch.value;
+    protected Set<T> doMatch(String[] segs) {
+        Set<T> result = new HashSet<>();
+        dfs(root, 0, segs, result);
+        return result;
     }
 
+
     /**
-     * 回溯算法匹配（调整通配符处理逻辑）
-     * @param currentNode 当前节点
-     * @param segs 路径段数组
-     * @param segIndex 当前处理的路径段索引
-     * @param exactMatches 精确匹配的数量
-     * @param singleStarMatches *匹配的数量
-     * @param results 匹配结果列表
+     * 深度优先搜索匹配所有符合规则的节点
+     * @param node 当前遍历的节点
+     * @param index 当前处理的路径段索引
+     * @param segs 待匹配的路径段数组
+     * @param result 收集匹配到的结果
      */
-    private void backtrack(Node<T> currentNode, String[] segs, int segIndex,
-                             int exactMatches, int singleStarMatches, List<MatchResult> results) {
-        // 如果已经匹配到所有路径段，检查当前节点是否有值
-        if (segIndex >= segs.length) {
-            if (currentNode.value() != null) {
-                results.add(new MatchResult(currentNode.value(), exactMatches, singleStarMatches));
-            }
-            // 检查当前节点是否有**子节点（处理**匹配0段的情况）
-            Node<T> doubleStarNode = currentNode.subNodes().get("**");
-            if (doubleStarNode != null && doubleStarNode.value() != null) {
-                results.add(new MatchResult(doubleStarNode.value(), exactMatches, singleStarMatches));
-            }
-            return;
+    private void dfs(Node<T> node, int index, String[] segs, Set<T> result) {
+        // 若当前节点有值且已处理完所有路径段，加入结果
+        if (node.value() != null && index == segs.length) {
+            result.add(node.value());
         }
 
-        String currentSeg = segs[segIndex];
-        Map<String, Node<T>> subNodes = currentNode.subNodes();
+        // 遍历所有子节点
+        for (Node<T> child : node.subNodes().values()) {
+            String childKey = child.key();
 
-        // 1. 精确匹配：直接匹配当前段，推进索引
-        if (subNodes.containsKey(currentSeg)) {
-            Node<T> nextNode = subNodes.get(currentSeg);
-            backtrack(nextNode, segs, segIndex + 1, exactMatches + 1, singleStarMatches, results);
-        }
-
-        // 2. * 匹配：必须匹配至少一段（当前段），因此索引必须+1
-        if (subNodes.containsKey("*")) {
-            Node<T> starNode = subNodes.get("*");
-            backtrack(starNode, segs, segIndex + 1, exactMatches, singleStarMatches + 1, results);
-        }
-
-        // 3. **匹配：支持0段或多段
-        if (subNodes.containsKey("**")) {
-            Node<T> doubleStarNode = subNodes.get("**");
-
-            // a. **匹配0段：直接使用**节点的值（如果有），不消耗当前段
-            if (doubleStarNode.value() != null) {
-                results.add(new MatchResult(doubleStarNode.value(), exactMatches, singleStarMatches));
-            }
-
-            // b. **匹配多段：继续用**匹配下一段（消耗当前段）
-            backtrack(doubleStarNode, segs, segIndex + 1, exactMatches, singleStarMatches, results);
-
-            // c. **后续可能有其他路径段，尝试匹配**之后的子节点
-            for (Node<T> child : doubleStarNode.subNodes().values()) {
-                if (child.key().equals(currentSeg) || child.key().equals("*") || child.key().equals("**")) {
-                    int newExact = exactMatches + (child.key().equals(currentSeg) ? 1 : 0);
-                    int newSingleStar = singleStarMatches + (child.key().equals("*") ? 1 : 0);
-                    int newSegIndex = child.key().equals("**") ? segIndex : segIndex + 1;
-                    backtrack(child, segs, newSegIndex, newExact, newSingleStar, results);
+            if (childKey.equals("*")) {
+                // * 匹配单段（必须有剩余段）
+                if (index < segs.length) {
+                    dfs(child, index + 1, segs, result);
+                }
+            } else if (childKey.equals("**")) {
+                // ** 匹配0到多段（从当前索引到末尾的所有可能）
+                for (int i = index; i <= segs.length; i++) {
+                    dfs(child, i, segs, result);
+                }
+            } else {
+                // 静态段精确匹配
+                if (index < segs.length && childKey.equals(segs[index])) {
+                    dfs(child, index + 1, segs, result);
                 }
             }
         }
-    }
-
-    /**
-     * 判断是否是更好的匹配
-     * @param candidate 候选匹配结果
-     * @param currentBest 当前最佳匹配结果
-     * @return 是否是更好的匹配
-     */
-    private boolean isBetterMatch(MatchResult candidate, MatchResult currentBest) {
-        // 优先级：精确匹配 > * 匹配 > ** 匹配
-        if (candidate.exactMatches > currentBest.exactMatches) {
-            return true;
-        } else if (candidate.exactMatches == currentBest.exactMatches) {
-            if (candidate.singleStarMatches > currentBest.singleStarMatches) {
-                return true;
-            } else if (candidate.singleStarMatches == currentBest.singleStarMatches) {
-                // 当其他条件条件相同时，选择路径较短的匹配
-                int candidatePathLength = candidate.exactMatches + candidate.singleStarMatches;
-                int currentBestPathLength = currentBest.exactMatches + currentBest.singleStarMatches;
-                return candidatePathLength < currentBestPathLength;
-            }
-        }
-        return false;
     }
 
     /**
