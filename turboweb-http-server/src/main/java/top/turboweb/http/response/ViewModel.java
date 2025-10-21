@@ -4,7 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 用于渲染视图模板的模型
+ * 视图模型类，用于渲染模板时传递数据。
+ * <p>
+ * 该类封装了视图名称和对应的属性集合，可在渲染模板时提供数据支持。
+ * </p>
  */
 public class ViewModel {
     // 存储数据的属性

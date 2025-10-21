@@ -5,7 +5,11 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 
 /**
- * 忽略的响应
+ * 表示被忽略的 HTTP 响应。
+ * <p>
+ * 用于内部调用场景中不需要实际响应内容的情况。
+ * 该类实现 {@link InternalCallResponse} 接口，并且使用单例模式，
+ * 避免重复创建对象。
  */
 public class IgnoredHttpResponse extends DefaultHttpResponse implements InternalCallResponse{
 

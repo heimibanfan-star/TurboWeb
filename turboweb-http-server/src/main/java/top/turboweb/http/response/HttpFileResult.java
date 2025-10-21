@@ -15,18 +15,45 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * 用于文件下载
+ * HTTP 文件下载响应封装类。
+ * <p>
+ * 支持两种模式：
+ * <ul>
+ *     <li>直接从内存字节数组生成响应</li>
+ *     <li>从磁盘文件生成响应，可自动流式处理大文件</li>
+ * </ul>
+ * <p>
+ * 提供了多种静态工厂方法，用于快速生成图片、视频或普通文件下载响应。
+ * 文件名会自动 URL 编码，保证浏览器下载兼容性。
  */
 public class HttpFileResult {
 
+    /** 文件内容缓冲区（仅在内存字节模式下使用） */
     private final ByteBuffer buffer;
+
+    /** 文件名，已经经过 URL 编码处理 */
     private final String filename;
+
+    /** MIME 类型，如 "image/png" 或 "application/octet-stream" */
     private final String contentType;
+
+    /** 磁盘文件对象（仅在文件模式下使用） */
     private final File file;
+
+    /** 是否在浏览器中直接打开文件（inline） */
     private final boolean openFile;
 
+    /** 文件大小限制，超过限制则以流方式下载，默认 32MB */
     private long maxLimitSize = 33554432;
 
+    /**
+     * 内存字节数组构造方法。
+     *
+     * @param buffer      文件内容字节缓冲区，不能为空
+     * @param filename    文件名，可为 null 或空字符串
+     * @param contentType 文件 MIME 类型，可为 null
+     * @param openFile    是否在浏览器中直接打开文件
+     */
     public HttpFileResult(ByteBuffer buffer, String filename, String contentType, boolean openFile) {
         Objects.requireNonNull(buffer, "buffer can not be null");
         this.buffer = buffer;
@@ -40,6 +67,14 @@ public class HttpFileResult {
         this.openFile = openFile;
     }
 
+    /**
+     * 磁盘文件构造方法。
+     *
+     * @param file        磁盘文件对象，不能为空，且必须存在且可读
+     * @param contentType 文件 MIME 类型，可为 null
+     * @param openFile    是否在浏览器中直接打开文件
+     * @throws IllegalArgumentException 文件不存在、不可读或是目录时抛出
+     */
     public HttpFileResult(File file, String contentType, boolean openFile) {
         Objects.requireNonNull(file, "file can not be null");
         if (!file.exists()) {
@@ -59,7 +94,7 @@ public class HttpFileResult {
     }
 
     /**
-     * 关闭文件大小限制
+     * 关闭文件大小限制，确保大文件不会以流式响应。
      */
     public void closeLimit() {
         maxLimitSize = -1;
@@ -118,9 +153,15 @@ public class HttpFileResult {
     }
 
     /**
-     * 创建文件下载响应
+     * 创建 HTTP 响应对象。
+     * <p>
+     * <ul>
+     *     <li>如果是磁盘文件且超过大小限制，则以文件流方式响应（FileStreamResponse）</li>
+     *     <li>否则，将文件或字节数组内容直接写入 FullHttpResponse</li>
+     * </ul>
      *
-     * @return 文件下载响应
+     * @return HTTP 响应对象
+     * @throws TurboFileException 文件读取异常时抛出
      */
     public HttpResponse createResponse() {
         // 如果是磁盘文件，并且超过了限制大小，那么以文件流的形式响应
@@ -162,9 +203,9 @@ public class HttpFileResult {
     }
 
     /**
-     * 设置文件名
+     * 设置响应头中的文件名。
      *
-     * @param response 响应对象
+     * @param response HTTP 响应对象
      */
     private void setFilename(HttpResponse response) {
         if (openFile) {

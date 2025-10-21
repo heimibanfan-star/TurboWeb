@@ -7,9 +7,17 @@ import top.turboweb.commons.serializer.JsonSerializer;
 import java.util.Objects;
 
 /**
- * 用于返回响应结果
- * 如果data为字符串，则返回text/html;charset=utf-8
- * 如果data为非字符串，则返回application/json;charset=utf-8
+ * HTTP 响应封装对象。
+ * <p>
+ * 根据响应内容类型自动设置 Content-Type：
+ * <ul>
+ *     <li>如果 data 为 {@link String}，则返回 "text/html;charset=utf-8"</li>
+ *     <li>如果 data 为其他对象类型，则使用 {@link JsonSerializer} 序列化为 JSON，并返回 "application/json;charset=utf-8"</li>
+ * </ul>
+ * <p>
+ * 提供构造方法和静态工厂方法快速创建不同状态码的响应对象。
+ *
+ * @param <T> 响应内容类型
  */
 public class HttpResult <T> {
 

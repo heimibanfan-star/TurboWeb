@@ -1,13 +1,26 @@
 package top.turboweb.http.response;
 
 /**
- * 进行框架内部功能的调用
- * 继承该接口的类，
+ * 内部调用响应接口。
+ * <p>
+ * 用于框架内部不同功能的调用场景。实现该接口的响应对象
+ * 可以标识自身的内部调用类型，从而让框架在处理响应时选择合适的策略。
+ * <p>
+ * 典型使用场景包括：
+ * <ul>
+ *     <li>零拷贝文件传输</li>
+ *     <li>流式文件响应</li>
+ *     <li>服务器发送事件（SSE）</li>
+ *     <li>基于 Reactor 的异步响应</li>
+ *     <li>忽略响应处理等</li>
+ * </ul>
  */
 public interface InternalCallResponse {
 
     /**
-     * 内部调用的类型
+     * 内部调用类型枚举。
+     * <p>
+     * 用于标识不同的内部调用响应策略。
      */
     enum InternalCallType {
         // 零拷贝
@@ -29,8 +42,9 @@ public interface InternalCallResponse {
     }
 
     /**
-     * 获取内部调用的类型
-     * @return 内部调用的类型
+     * 获取内部调用响应类型。
+     *
+     * @return 内部调用类型 {@link InternalCallType}
      */
     InternalCallType getType();
 }
