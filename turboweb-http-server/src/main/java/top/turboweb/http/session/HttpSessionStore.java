@@ -1,48 +1,83 @@
 package top.turboweb.http.session;
 
 /**
- * session存储操作相关接口
+ * 会话存储操作的核心接口，定义了会话属性的增删改查及过期管理等基础操作。
+ * <p>
+ * 该接口为所有会话存储实现提供了统一的规范，无论是内存存储、数据库存储还是分布式缓存存储，
+ * 均需实现此接口以保证会话操作的一致性。接口中的方法涵盖了会话属性的设置（含过期时间）、获取（含类型转换）、
+ * 删除及会话续期等核心功能。
+ * </p>
  */
 public interface HttpSessionStore {
 
     /**
-     * 设置session属性
-     * @param key 属性名
-     * @param value 属性值
+     * 向会话中设置属性（无过期时间）。
+     * <p>
+     * 该属性将一直保存在会话中，直到被主动删除或会话本身过期。
+     * 属性值需支持序列化，以保证在不同存储介质间的兼容性（如分布式缓存场景）。
+     * </p>
+     *
+     * @param key   属性的唯一标识，非空字符串
+     * @param value 属性的值，可为null（此时等同于删除该属性）
      */
     void setAttr(String key, Object value);
 
     /**
-     * 获取session属性
-     * @param key 属性名
-     * @param value 属性值
-     * @param timeout 属性过期时间
+     * 向会话中设置带过期时间的属性。
+     * <p>
+     * 当属性的存活时间超过指定的过期时间后，会被自动清理，不再可用。
+     * 若过期时间为负数或零，则属性可能被立即清理或视为永久有效（取决于具体实现）。
+     * </p>
+     *
+     * @param key     属性的唯一标识，非空字符串
+     * @param value   属性的值，可为null
+     * @param timeout 属性的过期时间（单位：毫秒），从设置时刻开始计算
      */
     void setAttr(String key, Object value, long timeout);
 
     /**
-     * 获取session属性
-     * @param key 属性名
-     * @return 属性值
+     * 从会话中获取指定属性的值。
+     * <p>
+     * 若属性不存在或已过期，则返回null。返回值为Object类型，使用时可能需要进行类型转换。
+     * 对于基本数据类型，返回其包装类实例（如int类型返回Integer）。
+     * </p>
+     *
+     * @param key 属性的唯一标识，非空字符串
+     * @return 属性的值，若不存在或已过期则返回null
      */
     Object getAttr(String key);
 
     /**
-     * 获取session属性
-     * @param key 属性名
-     * @param clazz 属性值类型
-     * @return 属性值
+     * 从会话中获取指定属性的值，并转换为指定类型。
+     * <p>
+     * 若属性不存在、已过期或类型转换失败（如将String转换为Integer），则返回null。
+     * 该方法简化了类型转换的流程。
+     * </p>
+     *
+     * @param key   属性的唯一标识，非空字符串
+     * @param clazz 目标类型的Class对象，非空
+     * @param <T>   目标类型的泛型参数
+     * @return 转换后的属性值，若无法获取则返回null。
      */
     <T> T getAttr(String key, Class<T> clazz);
 
     /**
-     * 删除session属性
-     * @param key 属性名
+     * 从会话中删除指定属性。
+     * <p>
+     * 若属性不存在，则该操作无任何效果。删除后，再次获取该属性将返回null。
+     * </p>
+     *
+     * @param key 属性的唯一标识，非空字符串
      */
     void remAttr(String key);
 
     /**
-     * 续时
+     * 延长当前会话的过期时间（续期）。
+     * <p>
+     * 该方法会将会话的过期时间重置为当前时间加上默认的会话存活时长，
+     * 通常在用户进行操作时调用，以避免活跃会话被误清理。
+     * 具体的续期逻辑由会话存储的实现类决定。
+     * </p>
      */
     void expireAt();
 }
