@@ -10,13 +10,26 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 节点规则管理器
+ * 节点规则管理器实现类。
+ *
+ * <p>用于管理请求路径与服务的映射规则，包括本地服务和远程服务。
+ * 支持路径模式匹配（使用 {@link PatternUrlTrie}），并可添加路径重写规则。
+ *
+ * <p>特点：
+ * <ul>
+ *     <li>可动态添加规则，规则启用后不可修改</li>
+ *     <li>支持本地服务优先策略（{@link #localPre}）</li>
+ *     <li>路径匹配冲突时抛出 {@link TurboDuplicateException}</li>
+ * </ul>
  */
 public class NodeRuleManager implements RuleManager {
 
     private static final Logger log = LoggerFactory.getLogger(NodeRuleManager.class);
+    /** 是否已启用规则，一旦启用后不可修改 */
     private final AtomicBoolean used = new AtomicBoolean(false);
+    /** 路径模式匹配树 */
     private final PatternUrlTrie<RuleDetail> pathTrie = new PatternUrlTrie<>();
+    /** 是否本地服务优先 */
     private final boolean localPre;
 
     public NodeRuleManager(boolean localPre) {
@@ -27,14 +40,17 @@ public class NodeRuleManager implements RuleManager {
         this(true);
     }
 
+    /** 内部记录结构，用于返回本地和远程服务 */
     private record ServiceResult(RuleDetail local, RuleDetail remote) {
     }
 
     /**
-     * 获取服务名
+     * 根据请求路径获取本地和远程服务。
      *
-     * @param path         请求路径
-     * @return 服务名
+     * @param path 请求路径
+     * @return 本地和远程服务封装的 {@link ServiceResult}
+     * @throws IllegalStateException       如果规则尚未启用
+     * @throws TurboDuplicateException     如果匹配到多个规则
      */
     private ServiceResult doGetService(String path) {
         if (!used.get()) {
@@ -85,29 +101,31 @@ public class NodeRuleManager implements RuleManager {
     }
 
     @Override
-    public boolean isUsed() {
+    public boolean used() {
         return used.compareAndSet(false, true);
     }
 
     /**
-     * 添加规则
+     * 添加规则。
      *
-     * @param pattern     路径模式
-     * @param serviceName 服务名
-     * @return this
+     * @param pattern     路径匹配模式
+     * @param serviceName 服务名或本地标识
+     * @return 当前管理器实例
      */
     public NodeRuleManager addRule(String pattern, String serviceName) {
         return addRule(pattern, serviceName, null, null);
     }
 
     /**
-     * 添加规则
+     * 添加规则。
      *
-     * @param pattern           路径模式
-     * @param serviceExpression 服务表达式
-     * @param rewRegix          重写路径模式
-     * @param rewTar            重写目标
-     * @return this
+     * @param pattern           路径匹配模式
+     * @param serviceExpression 服务表达式，支持 URI 格式
+     * @param rewRegix          重写路径模式，可为空
+     * @param rewTar            重写目标，可为空
+     * @return 当前管理器实例
+     *
+     * <p>规则启用后无法修改，如果 pattern 或 serviceExpression 无效会抛出 {@link IllegalArgumentException}。
      */
     public NodeRuleManager addRule(String pattern, String serviceExpression, String rewRegix, String rewTar) {
         if (!used.compareAndSet(false, false)) {

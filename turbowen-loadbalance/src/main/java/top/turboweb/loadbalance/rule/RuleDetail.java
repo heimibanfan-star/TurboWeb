@@ -1,7 +1,10 @@
 package top.turboweb.loadbalance.rule;
 
 /**
- * 规则的详细信息
+ * 路由规则详情。
+ *
+ * <p>用于描述某条路径匹配规则对应的服务信息，包括服务名称、是否为本地服务、
+ * 协议类型、重写规则和附加路径等。
  */
 public record RuleDetail(
         // 服务名称
@@ -18,6 +21,11 @@ public record RuleDetail(
         String extPath
 ) {
 
+    /**
+     * 协议类型枚举。
+     *
+     * <p>支持 HTTP、HTTPS、WebSocket 等协议。
+     */
     public enum Protocol {
         HTTP("http"),
         HTTPS("https"),

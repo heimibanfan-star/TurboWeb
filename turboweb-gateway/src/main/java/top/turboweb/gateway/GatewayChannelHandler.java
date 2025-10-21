@@ -424,7 +424,7 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
 
     public void setRule(RuleManager ruleManager) {
         Objects.requireNonNull(ruleManager, "rule can not be null");
-        if (ruleManager.isUsed()) {
+        if (ruleManager.used()) {
             this.ruleManager = ruleManager;
         }
     }

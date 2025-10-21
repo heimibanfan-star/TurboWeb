@@ -7,10 +7,34 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
- * 默认断路器
+ * 默认断路器实现。
+ *
+ * <p>该类基于经典的熔断器设计，维护每个请求 URI 的健康状态，
+ * 根据失败次数、恢复时间、半开比例等策略控制请求是否允许通过。
+ *
+ * <p>状态机包含三种状态：
+ * <ul>
+ *     <li>{@code OPEN}：正常状态，允许请求通过</li>
+ *     <li>{@code CLOSE}：熔断状态，拒绝请求，直到恢复时间到达</li>
+ *     <li>{@code HALF_OPEN}：半开状态，允许部分请求尝试，通过成功率判断是否恢复为 OPEN</li>
+ * </ul>
+ *
+ * <p>支持的自定义配置：
+ * <ul>
+ *     <li>failStatusCode：哪些 HTTP 状态码被视为失败</li>
+ *     <li>failWindowTTL：失败检测窗口时间</li>
+ *     <li>failThreshold：失败次数阈值，超过后切换到 CLOSE</li>
+ *     <li>recoverTime：熔断恢复时间</li>
+ *     <li>recoverWindowTTL：半开状态检测窗口</li>
+ *     <li>recoverPercent：半开状态恢复成功率阈值</li>
+ * </ul>
  */
 public class DefaultBreaker implements Breaker {
 
+    /**
+     * 构造默认断路器并指定超时时间
+     * @param timeout 超时时间（毫秒）
+     */
     public DefaultBreaker(long timeout) {
         this.timeout = timeout;
     }
@@ -158,6 +182,9 @@ public class DefaultBreaker implements Breaker {
         }
     }
 
+    /**
+     * 半开状态处理逻辑，根据成功率判断是否恢复 OPEN
+     */
     private void handleForHalfOpen(HealthStatus healthStatus, boolean isSuccess) {
         if (isSuccess) {
             healthStatus.successCount++;
@@ -175,6 +202,9 @@ public class DefaultBreaker implements Breaker {
         }
     }
 
+    /**
+     * 检查 CLOSE 状态是否达到恢复时间，切换到 HALF_OPEN
+     */
     private void testCloseToHalfOpen(HealthStatus healthStatus) {
         if (healthStatus.status != STATUS_CLOSE) {
             return;
