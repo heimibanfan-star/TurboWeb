@@ -7,7 +7,49 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 参数绑定的接口
+ * {@code ParamBinder} 定义了 TurboWeb 框架中请求参数的统一访问与封装接口，
+ * 用于在控制器层快速提取、绑定、校验 HTTP 请求参数。
+ * <p>
+ * 它是 {@link HttpContext} 的核心组成部分，负责实现：
+ * <ul>
+ *     <li>路径参数（Path Variable）的注入与读取</li>
+ *     <li>查询参数（Query Parameter）的提取与类型转换</li>
+ *     <li>表单与 JSON 参数的自动封装与可选校验</li>
+ *     <li>上传文件的访问与管理</li>
+ * </ul>
+ * <p>
+ * 该接口屏蔽了底层 Netty 与请求解析细节，使上层代码可以以统一方式访问参数，
+ * 无需关心请求的编码方式（GET/POST/JSON/Form）。
+ * </p>
+ *
+ * <h2>设计原则</h2>
+ * <ul>
+ *     <li>轻量化：不进行隐式缓存或状态持久，仅在当前请求上下文内有效。</li>
+ *     <li>显式校验：仅在调用 <code>loadValid*</code> 系列方法时执行 JSR303 校验。</li>
+ *     <li>类型安全：常用基础类型（数值、布尔、日期等）提供直接转换方法。</li>
+ *     <li>可组合：可与 {@link HttpContext} 配合，实现注解驱动的参数注入。</li>
+ * </ul>
+ *
+ * <h2>示例用法</h2>
+ * <pre>{@code
+ * public void handle(HttpContext ctx) {
+ *     // 获取查询参数
+ *     String keyword = ctx.query("keyword", "default");
+ *     int page = ctx.queryInt("page", 1);
+ *
+ *     // 绑定为对象
+ *     SearchRequest req = ctx.loadValidQuery(SearchRequest.class);
+ *
+ *     // 获取上传文件
+ *     FileUpload file = ctx.loadFile("avatar");
+ * }
+ * }</pre>
+ *
+ * <p><b>线程安全性：</b> 本接口的实现通常与请求绑定，不可跨请求或多线程共享。</p>
+ *
+ * @see HttpContext
+ * @see io.netty.handler.codec.http.multipart.FileUpload
+ * @see top.turboweb.http.context.content.HttpContent
  */
 public interface ParamBinder {
 
