@@ -187,6 +187,10 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         }
     }
 
+    @Override
+    public void insert(String key, T value) {
+        this.insert(key, value, false);
+    }
 
     @Override
     public T get(String key) {

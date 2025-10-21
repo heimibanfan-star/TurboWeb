@@ -1,8 +1,7 @@
 package top.turboweb.http.middleware.router.info;
 
 import top.turboweb.commons.exception.TurboRouterException;
-import top.turboweb.commons.struct.trie.PathTrie;
-import top.turboweb.commons.struct.trie.PatternPathTrie;
+import top.turboweb.commons.struct.trie.RestUrlTrie;
 
 import java.util.Map;
 import java.util.Optional;
@@ -12,15 +11,15 @@ import java.util.Optional;
  */
 public class TrieRouterInfo {
 
-    private final Map<String, PathTrie<RouterDefinition>> routerStrategy;
+    private final Map<String, RestUrlTrie<RouterDefinition>> routerStrategy;
 
     {
         routerStrategy = Map.of(
-            "GET", new PatternPathTrie<>(),
-            "POST", new PatternPathTrie<>(),
-            "PUT", new PatternPathTrie<>(),
-            "DELETE", new PatternPathTrie<>(),
-            "PATCH", new PatternPathTrie<>()
+            "GET", new RestUrlTrie<>(),
+            "POST", new RestUrlTrie<>(),
+            "PUT", new RestUrlTrie<>(),
+            "DELETE", new RestUrlTrie<>(),
+            "PATCH", new RestUrlTrie<>()
         );
     }
 
@@ -34,7 +33,7 @@ public class TrieRouterInfo {
     public void addRouter(String method, String path, RouterDefinition routerDefinition) {
         method = Optional.ofNullable(method).orElse("");
         // 获取路由定义
-        PathTrie<RouterDefinition> pathTrie = routerStrategy.get(method.toUpperCase());
+        RestUrlTrie<RouterDefinition> pathTrie = routerStrategy.get(method.toUpperCase());
         if (pathTrie == null) {
             throw new RuntimeException("不支持的方法:" + method);
         }
@@ -52,8 +51,8 @@ public class TrieRouterInfo {
      * @param method 请求方法
      * @return 路由定义
      */
-    public PathTrie<RouterDefinition> getPathTrie(String method) {
-        PathTrie<RouterDefinition> routerDefinitionPathTrie = routerStrategy.get(method.toUpperCase());
+    public RestUrlTrie<RouterDefinition> getPathTrie(String method) {
+        RestUrlTrie<RouterDefinition> routerDefinitionPathTrie = routerStrategy.get(method.toUpperCase());
         if (routerDefinitionPathTrie == null) {
             throw new TurboRouterException("不支持的方法:" + method, TurboRouterException.ROUTER_NOT_MATCH);
         }

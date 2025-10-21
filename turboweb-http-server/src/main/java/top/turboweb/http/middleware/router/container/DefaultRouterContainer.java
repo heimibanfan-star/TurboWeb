@@ -1,7 +1,7 @@
 package top.turboweb.http.middleware.router.container;
 
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.struct.trie.PathTrie;
+import top.turboweb.commons.struct.trie.RestUrlTrie;
 import top.turboweb.http.middleware.router.info.ExactRouterInfo;
 import top.turboweb.http.middleware.router.info.RouterDefinition;
 import top.turboweb.http.middleware.router.info.TrieRouterInfo;
@@ -48,24 +48,23 @@ public class DefaultRouterContainer implements RouterContainer {
     @Override
     public TrieMatchResult trieMatch(String method, String path) {
         // 根据请求方式获取对应的前缀树
-        PathTrie<RouterDefinition> pathTrie = trieRouterInfo.getPathTrie(method);
+        RestUrlTrie<RouterDefinition> pathTrie = trieRouterInfo.getPathTrie(method);
         // 去除路径的查询参数部分
         if (path.contains("?")) {
             path = path.substring(0, path.indexOf("?"));
         }
         // 进行前缀树的匹配
-        Optional<PathTrie.MatchResult<RouterDefinition>> optional = pathTrie.paramMatch(path);
-        return optional
-                .map(routerDefinitionMatchResult -> {
-                    Map<String, String> params = routerDefinitionMatchResult.getParams();
-                    Map<String, String> newParams = new HashMap<>(params.size(), 1);
-                    params.forEach((key, value) -> {
-                        value = decode(value);
-                        newParams.put(key, value);
-                    });
-                    return new TrieMatchResult(routerDefinitionMatchResult.getValue(), newParams);
-                })
-                .orElse(null);
+        RestUrlTrie.MatchResult<RouterDefinition> matchResult = pathTrie.match(path);
+        if (matchResult == null) {
+            return null;
+        }
+        Map<String, String> params = matchResult.params;
+        Map<String, String> newParams = new HashMap<>(params.size(), 1);
+        params.forEach((key, value) -> {
+            value = decode(value);
+            newParams.put(key, value);
+        });
+        return new TrieMatchResult(matchResult.value, newParams);
     }
 
     private String decode(String value) {

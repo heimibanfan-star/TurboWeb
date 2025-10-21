@@ -17,6 +17,14 @@ public interface Trie <T, M> extends Iterable<T> {
     void insert(String key, T value, boolean overwrite);
 
     /**
+     * 插入元素
+     *
+     * @param key 元素的key
+     * @param value 元素的值
+     */
+    void insert(String key, T value);
+
+    /**
      * 判断元素是否存在
      * @param key 元素的key
      * @return 是否存在
