@@ -21,11 +21,36 @@ import top.turboweb.http.response.FileStreamResponse;
 import java.io.IOException;
 
 /**
- * 处理文件流响应的策略
+ * 文件流响应处理策略。
+ * <p>
+ * 当 {@link ResponseStrategy} 检测到响应类型为 {@link FileStreamResponse} 时，
+ * 由该策略接管响应的发送过程。该策略基于 Reactor 背压流与 Netty 的异步通道，
+ * 实现了真正的非阻塞文件分块传输。
+ * </p>
+ *
+ * <p>
+ * 设计目标：
+ * <ul>
+ *   <li>在文件下载过程中避免阻塞 Netty 的 I/O 线程。</li>
+ *   <li>通过 Reactor 的 {@code Flux.generate()} 实现分块读取与背压控制。</li>
+ *   <li>利用 {@link DiskOpeThreadUtils} 调度磁盘 I/O 线程，实现业务线程与网络线程的分离。</li>
+ *   <li>保证文件通道在传输完成或异常时被安全关闭。</li>
+ * </ul>
+ * </p>
  */
 public class FileStreamResponseStrategy extends ResponseStrategy {
     private static final Logger log = LoggerFactory.getLogger(FileStreamResponseStrategy.class);
 
+    /**
+     * 处理 {@link FileStreamResponse} 类型的文件流响应。
+     * <p>
+     * 如果响应类型不匹配，则抛出 {@link IllegalArgumentException}。
+     * </p>
+     *
+     * @param response HTTP 响应对象
+     * @param session  内部连接会话
+     * @return 表示发送结果的 {@link ChannelFuture}
+     */
     @Override
     protected ChannelFuture doHandle(HttpResponse response, InternalConnectSession session) {
         if (response instanceof FileStreamResponse fileStreamResponse) {
@@ -46,11 +71,15 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
     }
 
     /**
-     * 带背压的分块发送文件
+     * 启动带背压控制的文件分块发送。
+     * <p>
+     * 使用 {@link Flux#generate} 创建按偏移量递增的分块读取流，
+     * 结合 {@link BaseSubscriber} 的订阅与请求节奏，实现动态背压调度。
+     * </p>
      *
-     * @param response 响应
-     * @param session  会话
-     * @param promise  结果
+     * @param response 文件响应对象
+     * @param session  当前会话
+     * @param promise  异步结果回调
      */
     private void doSendFileWithBackPress(FileStreamResponse response, InternalConnectSession session, ChannelPromise promise) {
         // 创建Reactor流进行文件的背压发送
@@ -133,13 +162,17 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
     }
 
     /**
-     * 读取文件分块
+     * 从文件中读取一个分块的数据。
+     * <p>
+     * 使用 {@link PooledByteBufAllocator#DEFAULT} 分配直接内存，
+     * 以提高文件传输性能并减少堆内存复制。
+     * </p>
      *
-     * @param position 文件的偏移量
-     * @param sink     背压流
-     * @param response 文件的响应
-     * @return 文件的偏移量
-     * @throws IOException 读取文件时发生异常
+     * @param position 当前文件读取偏移量
+     * @param sink     Reactor 同步流发射器
+     * @param response 文件响应
+     * @return 下一次读取的偏移量；返回 {@code -1} 表示文件读取完毕
+     * @throws IOException 文件读取失败时抛出
      */
     private Long doReadChunk(Long position, SynchronousSink<ByteBuf> sink, FileStreamResponse response) throws IOException {
         long remaining = response.getEnd() - position;
@@ -162,9 +195,13 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
     }
 
     /**
-     * 关闭文件通道
+     * 安全关闭文件通道。
+     * <p>
+     * 无论正常结束还是异常退出，均应保证文件通道释放，
+     * 避免资源泄漏。
+     * </p>
      *
-     * @param response 文件响应
+     * @param response 文件响应对象
      */
     private void closeFileChannel(FileStreamResponse response) {
         try {
