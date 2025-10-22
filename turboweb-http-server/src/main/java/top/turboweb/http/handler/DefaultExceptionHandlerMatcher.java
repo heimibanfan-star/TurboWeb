@@ -34,22 +34,27 @@ public class DefaultExceptionHandlerMatcher implements ExceptionHandlerMatcher {
      * @return 匹配到的异常处理器定义；若未找到则返回 {@code null}
      */
     @Override
+    @SuppressWarnings("unchecked")
     public ExceptionHandlerDefinition match(Class<? extends Throwable> exceptionClass) {
-        // 获取当前异常的处理器
-        ExceptionHandlerDefinition exceptionHandlerDefinition = exceptionHandlerContainer.getExceptionHandlerDefinition(exceptionClass);
-        if (exceptionHandlerDefinition != null) {
-            return exceptionHandlerDefinition;
+        // 当前异常的字节码对象
+        Class<? extends Throwable> currentClass = exceptionClass;
+        // 尝试匹配异常处理器
+        for (; ; ) {
+            ExceptionHandlerDefinition definition = exceptionHandlerContainer.getExceptionHandlerDefinition(currentClass);
+            if (definition != null) {
+                return definition;
+            }
+            // 如果匹配不到异常处理器，判断是否到达最顶级父类
+            if (currentClass == Throwable.class) {
+                return null;
+            }
+            // 获取父类的字节码对象
+            Class<?> superclass = currentClass.getSuperclass();
+            if (superclass != null && Throwable.class.isAssignableFrom(superclass)) {
+                currentClass = (Class<? extends Throwable>) superclass;
+            } else {
+                return null;
+            }
         }
-        // 判断是否是顶级异常父类
-        if (exceptionClass == Throwable.class) {
-            return null;
-        }
-        // 获取父类的字节码对象
-        Class<?> superclass = exceptionClass.getSuperclass();
-        // 判断是否是异常的子类
-        if (superclass != null && Throwable.class.isAssignableFrom(superclass)) {
-            return match((Class<? extends Throwable>) superclass);
-        }
-        return null;
     }
 }
