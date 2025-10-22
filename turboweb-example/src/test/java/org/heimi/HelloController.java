@@ -44,4 +44,9 @@ public class HelloController {
         session.getChannel().writeAndFlush(response);
         return IgnoredHttpResponse.ignore();
     }
+
+    @Get("/stream")
+    public Flux<String> stream() {
+        return Flux.just("你好", "世界");
+    }
 }

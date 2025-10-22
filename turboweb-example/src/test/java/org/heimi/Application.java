@@ -19,25 +19,17 @@ import java.util.concurrent.TimeUnit;
 public class Application {
 
     public static void main(String[] args) throws InterruptedException, NoSuchMethodException {
-//        AnnoRouterManager routerManager = new AnnoRouterManager(true);
-//        routerManager.addController(new HelloController());
-//        BootStrapTurboWebServer.create(1)
-//                .http().routerManager(routerManager)
-//                .and()
-//                .configServer(c -> {
-//                    c.setShowRequestLog(true);
-//                    c.setHttpSchedulerLimitCount(1);
-//                    c.setHttpSchedulerLimitTimeout(5);
-//                    c.setEnableHttpSchedulerLimit(true);
-//                }).start(8080);
-        BindController bindController = new BindController();
-        Method method = bindController.getClass().getMethod("bind04", List.class);
-        Parameter[] parameters = method.getParameters();
-        Parameter parameter = parameters[0];
-        ParameterizedType type = (ParameterizedType) parameter.getParameterizedType();
-        String typeName = type.getActualTypeArguments()[0].getTypeName();
-        System.out.println(typeName);
-        System.out.println(method);
+        AnnoRouterManager routerManager = new AnnoRouterManager(true);
+        routerManager.addController(new HelloController());
+        BootStrapTurboWebServer.create(1)
+                .http().routerManager(routerManager)
+                .and()
+                .configServer(c -> {
+                    c.setShowRequestLog(true);
+                    c.setHttpSchedulerLimitCount(1);
+                    c.setHttpSchedulerLimitTimeout(5);
+                    c.setEnableHttpSchedulerLimit(true);
+                }).start(8080);
 
     }
 }
