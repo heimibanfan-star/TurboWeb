@@ -1,6 +1,7 @@
 package org.heimi;
 
 import io.netty.buffer.ByteBuf;
+import org.apache.hc.core5.http.ContentType;
 import reactor.core.publisher.Flux;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.http.middleware.router.LambdaRouterGroup;
@@ -18,12 +19,17 @@ public class OrderApplication {
         routerManager.addGroup(new LambdaRouterGroup() {
             @Override
             protected void registerRoute(RouterRegister register) {
-                register.get("/order", (ctx) -> "order");
+                register.get("/order", (ctx) -> {
+                    ctx.responseMeta(meta -> {
+                        meta.contentType(ContentType.TEXT_HTML);
+                    });
+                    return "hello world";
+                });
                 register.get("/order/sse", ctx -> {
                     SseResponse sseResponse = ctx.createSseResponse();
                     sseResponse.setSseCallback(session -> {
                         for (int i = 0; i < 10; i++) {
-                            session.send("hello world " + i);
+                            session.send("你好世界" + i);
                             try {
                                 Thread.sleep(1000);
                             } catch (InterruptedException e) {

@@ -1,21 +1,27 @@
 package top.turboweb.http.processor;
 
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.hc.core5.http.ContentType;
 import top.turboweb.commons.lock.Locks;
 import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.context.respmeta.ResponseMetaGetter;
 import top.turboweb.http.cookie.DefaultHttpCookieManager;
 import top.turboweb.http.cookie.HttpCookieManager;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.processor.convertor.HttpResponseConverter;
+import top.turboweb.http.response.HttpResult;
 import top.turboweb.http.session.BackHoleSessionManager;
 import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.session.SessionManagerHolder;
 
+import java.nio.charset.Charset;
 import java.util.Objects;
 
 /**
@@ -121,7 +127,12 @@ public class MiddlewareInvokeProcessor extends Processor{
             context = new FullHttpContext(fullHttpRequest, httpSession, cookieManager, connectSession, jsonSerializer);
             // 执行中间件
             Object result = chain.invoke(context);
+            boolean shouldSetMeta = (!(result instanceof HttpResponse) && !(result instanceof HttpResult<?>));
             HttpResponse response = converter.convertor(result);
+            // 判断是否需要设置响应的元信息
+            if (shouldSetMeta) {
+                setRespMeta(response, context);
+            }
             // 处理Cookie
             cookieManager.setCookieForResponse(response);
             // 处理session
@@ -134,6 +145,30 @@ public class MiddlewareInvokeProcessor extends Processor{
                 context.release();
                 context.httpSession().expireAt();
             }
+        }
+    }
+
+    /**
+     * 设置响应元信息。
+     * <p>
+     * 根据 {@link ResponseMetaGetter} 的返回值，设置响应状态码和响应类型。
+     * </p>
+     *
+     * @param response HTTP 响应对象
+     * @param context HTTP 上下文对象
+     */
+    private void setRespMeta(HttpResponse response, HttpContext context) {
+        ResponseMetaGetter metaGetter = (ResponseMetaGetter) context.getResponseMeta();
+        HttpResponseStatus status = metaGetter.getStatus();
+        // 判断是否需要设置响应状态码
+        if (status != null) {
+            response.setStatus(status);
+        }
+        // 判断是否需要设置响应类型
+        if (metaGetter.getContentType() != null) {
+            ContentType contentType = metaGetter.getContentType();
+            Charset charset = contentType.getCharset() != null? contentType.getCharset() : Charset.defaultCharset();
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType() + "; charset=" + charset.name());
         }
     }
 
