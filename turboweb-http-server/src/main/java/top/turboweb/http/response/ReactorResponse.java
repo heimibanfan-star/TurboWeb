@@ -61,7 +61,8 @@ public class ReactorResponse extends DefaultHttpResponse implements InternalCall
      * @param contentType 内容类型 {@link ContentType}，会覆盖原有 Content-Type
      */
     public void setContentType(ContentType contentType) {
-        this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType());
+        Charset charset = contentType.getCharset() == null ? GlobalConfig.getResponseCharset() : contentType.getCharset();
+        this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType() + ";" + "charset=" + charset.name());
     }
 
     /**
