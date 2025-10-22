@@ -28,7 +28,7 @@ public class ReactorResponse <T> extends DefaultHttpResponse implements Internal
         super(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         this.bodyFlux = Flux.from(publisher);
         this.charset = contentType.getCharset() == null ? GlobalConfig.getResponseCharset() : contentType.getCharset();
-        this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType());
+        this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType() + "; charset=" + charset);
     }
 
     /**
@@ -37,7 +37,8 @@ public class ReactorResponse <T> extends DefaultHttpResponse implements Internal
      * @param contentType 内容类型
      */
     public void setContentType(ContentType contentType) {
-        this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType());
+        Charset charset = contentType.getCharset() == null ? GlobalConfig.getResponseCharset() : contentType.getCharset();
+        this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType() + "; charset=" + charset);
     }
 
     /**
