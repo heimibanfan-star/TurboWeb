@@ -29,7 +29,6 @@ import java.util.function.Consumer;
  *     <li>支持阻塞同步请求 {@link #send(HttpRequest)} 与异步请求 {@link #sendAsync(HttpRequest)}</li>
  *     <li>支持自定义基础 URL</li>
  *     <li>支持全局连接池和线程池配置</li>
- *     <li>支持 HTTP/1.1、HTTP/2 等协议切换</li>
  *     <li>支持 SSL/TLS 自定义配置</li>
  * </ul>
  * <p>
@@ -57,8 +56,6 @@ public class HttpClientEngine implements Closeable {
         long timeout = -1;
         // 连接配置器
         Consumer<ConnectionProvider.Builder> connectConsumer;
-        // http协议
-        HttpProtocol protocol;
         // ssl配置
         Consumer<? super SslProvider.SslContextSpec> sslConsumer;
 
@@ -87,11 +84,6 @@ public class HttpClientEngine implements Closeable {
 
         public Config connect(Consumer<ConnectionProvider.Builder> consumer) {
             this.connectConsumer = consumer;
-            return this;
-        }
-
-        public Config protocol(HttpProtocol protocol) {
-            this.protocol = protocol;
             return this;
         }
 
@@ -147,11 +139,8 @@ public class HttpClientEngine implements Closeable {
             config.connectConsumer.accept(builder);
         }
         // 创建http客户端
-        HttpClient httpClient = HttpClient.create(builder.build());
+        HttpClient httpClient = HttpClient.create(builder.build()).protocol(HttpProtocol.HTTP11);
         // 判断是否配置协议
-        if (config.protocol != null) {
-            httpClient = httpClient.protocol(config.protocol);
-        }
         // 判断是否配置ssl证书
         if (config.sslConsumer != null) {
             httpClient = httpClient.secure(config.sslConsumer);
