@@ -46,7 +46,7 @@ public class UserController {
 
     @Get("/stream")
     public Flux<String> stream(HttpContext context) {
-        return Flux.just("hello", "world");
+        return Flux.just("你好", "世界");
     }
 
     @Get("/ignore")
