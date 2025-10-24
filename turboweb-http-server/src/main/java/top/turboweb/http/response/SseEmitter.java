@@ -45,11 +45,6 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Internal
 	private final int maxMessageCache;
 
 	/**
-	 * 当前消息缓存的数量
-	 */
-	protected int messageCacheSize = 0;
-
-	/**
 	 * 缓存操作锁
 	 */
 	protected ReentrantLock cacheLock = new ReentrantLock();
@@ -106,12 +101,11 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Internal
 	private void saveMessageToCache(String message) {
 		cacheLock.lock();
 		try {
-			if (messageCacheSize >= maxMessageCache) {
+			if (messageCache.size() >= maxMessageCache) {
 				throw new TurboSseException("消息缓存已满");
 			}
 			// 放入消息
 			messageCache.add(message);
-			messageCacheSize++;
 		} finally {
 			cacheLock.unlock();
 		}
