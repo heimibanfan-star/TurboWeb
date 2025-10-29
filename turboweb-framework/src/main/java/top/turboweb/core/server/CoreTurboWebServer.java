@@ -206,7 +206,7 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 	 */
 	protected final void initPipeline(HttpProtocolDispatcher dispatcherHandler, int maxContentLen, int nCPU, int maxConnect, boolean serForPerConn) {
 		ConnectLimiter connectLimiter = new ConnectLimiter(maxConnect, ioThreadNum, nCPU);
-		coreNettyServer.childChannelInitPipeline(socketChannel -> {
+		coreNettyServer.childChannelInitPipeline(sslContext != null, socketChannel -> {
 			ChannelPipeline pipeline = socketChannel.pipeline();
 			// 添加连接限制器
 			pipeline.addFirst(connectLimiter);

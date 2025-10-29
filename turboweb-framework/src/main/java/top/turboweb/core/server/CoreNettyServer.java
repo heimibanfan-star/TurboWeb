@@ -51,11 +51,7 @@ public class CoreNettyServer {
 	 */
 	private final EventLoopGroup workers;
 
-	/**
-	 * 零拷贝任务专用线程池。
-	 * <p>专门用于处理文件传输、直接缓冲区复制等 CPU 密集型任务，避免阻塞 I/O 线程。</p>
-	 */
-	private final ThreadPoolExecutor zeroCopyExecutor;
+	private final int zeroCopyThreadNum;
 
 	/**
 	 * 自定义零拷贝线程工厂。
@@ -81,29 +77,12 @@ public class CoreNettyServer {
 	 * @param zeroCopyThreadNum  零拷贝任务线程数（建议为 CPU 核心数的 2 倍）
 	 */
 	public CoreNettyServer(int ioThreadNum, int zeroCopyThreadNum) {
-		// 创建专门用于零拷贝的线程池
-		zeroCopyExecutor = new ThreadPoolExecutor(
-				zeroCopyThreadNum,
-				zeroCopyThreadNum,
-				60,
-				TimeUnit.SECONDS,
-				new LinkedBlockingQueue<>(),
-				new ZeroCopyThreadFactory()
-		);
-		// 允许核心线程过期
-		zeroCopyExecutor.allowCoreThreadTimeOut(true);
 		workers = new NioEventLoopGroup(ioThreadNum);
 		serverBootstrap.group(
 			boss,
 			workers
 		);
-//		serverBootstrap.channel(TurboWebNioServerSocketChannel.class);
-		serverBootstrap.channelFactory(new ChannelFactory<TurboWebNioServerSocketChannel>() {
-			@Override
-			public TurboWebNioServerSocketChannel newChannel() {
-				return new TurboWebNioServerSocketChannel(zeroCopyExecutor);
-			}
-		});
+		this.zeroCopyThreadNum = zeroCopyThreadNum;
 	}
 
 	/**
@@ -131,15 +110,41 @@ public class CoreNettyServer {
 	/**
 	 * 注册子通道（每个客户端连接）的 pipeline 初始化逻辑。
 	 *
+	 * @param ssl 是否启用 ssl
 	 * @param consumer 管道初始化逻辑（用于配置业务 Handler 链）
 	 */
-	public void childChannelInitPipeline(Consumer<NioSocketChannel> consumer) {
-		serverBootstrap.childHandler(new ChannelInitializer<TurboWebNioSocketChannel>() {
-			@Override
-			protected void initChannel(TurboWebNioSocketChannel nioSocketChannel) throws Exception {
-				consumer.accept(nioSocketChannel);
-			}
-		});
+	public void childChannelInitPipeline(boolean ssl, Consumer<NioSocketChannel> consumer) {
+		if (ssl) {
+			serverBootstrap.childHandler(new ChannelInitializer<NioSocketChannel>() {
+				@Override
+				protected void initChannel(NioSocketChannel socketChannel) throws Exception {
+					consumer.accept(socketChannel);
+				}
+			});
+		}
+		else {
+			// 创建专门用于零拷贝的线程池
+			ThreadPoolExecutor zeroCopyExecutor = new ThreadPoolExecutor(
+					this.zeroCopyThreadNum,
+					this.zeroCopyThreadNum,
+					60,
+					TimeUnit.SECONDS,
+					new LinkedBlockingQueue<>(),
+					new ZeroCopyThreadFactory()
+			);
+			// 允许核心线程过期
+			zeroCopyExecutor.allowCoreThreadTimeOut(true);
+			// 设置专用的零拷贝增强通道
+			serverBootstrap.channelFactory(
+					(ChannelFactory<TurboWebNioServerSocketChannel>) () -> new TurboWebNioServerSocketChannel(zeroCopyExecutor)
+			);
+			serverBootstrap.childHandler(new ChannelInitializer<TurboWebNioSocketChannel>() {
+				@Override
+				protected void initChannel(TurboWebNioSocketChannel nioSocketChannel) throws Exception {
+					consumer.accept(nioSocketChannel);
+				}
+			});
+		}
 	}
 
 	/**

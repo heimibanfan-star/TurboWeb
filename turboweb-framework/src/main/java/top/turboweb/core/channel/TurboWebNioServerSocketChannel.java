@@ -1,5 +1,7 @@
 package top.turboweb.core.channel;
 
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.internal.SocketUtils;
 import org.slf4j.Logger;
@@ -37,5 +39,11 @@ public class TurboWebNioServerSocketChannel extends NioServerSocketChannel {
             }
         }
         return 0;
+    }
+
+    @Override
+    protected void doClose() throws Exception {
+        super.doClose();
+        zeroCopyPool.shutdown();
     }
 }
