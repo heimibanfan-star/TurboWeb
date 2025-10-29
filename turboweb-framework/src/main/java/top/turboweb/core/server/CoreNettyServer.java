@@ -16,16 +16,51 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
- * netty服务器的核心
+ * <p><b>CoreNettyServer</b> 是 TurboWeb 框架的底层核心服务器引导器，负责构建并启动基于 Netty 的高性能 HTTP 服务端。</p>
+ *
+ * <p>该类封装了 {@link ServerBootstrap} 的初始化逻辑，包括：</p>
+ * <ul>
+ *     <li>主从线程组（boss/workers）的创建与生命周期管理</li>
+ *     <li>基于零拷贝的独立线程池 {@link ThreadPoolExecutor} 管理</li>
+ *     <li>自定义 {@link ChannelFactory} 支持 TurboWeb 特有的 Channel 类型</li>
+ *     <li>统一的 pipeline 初始化入口</li>
+ * </ul>
+ *
+ * <p>通过该类，框架上层可以灵活配置 Netty 参数、注册管道初始化逻辑，并以线程安全的方式启动或关闭服务器。</p>
+ *
  */
 public class CoreNettyServer {
 
 	private static final Logger log = LoggerFactory.getLogger(CoreNettyServer.class);
+
+	/**
+	 * Netty 服务端引导核心组件。
+	 * <p>负责协调事件循环、通道工厂与管道配置。</p>
+	 */
 	private final ServerBootstrap serverBootstrap = new ServerBootstrap();
+
+	/**
+	 * Boss 线程组。
+	 * <p>用于接收客户端连接请求（默认仅一个线程即可应对高并发连接接入）。</p>
+	 */
 	private final EventLoopGroup boss = new NioEventLoopGroup(1);
+
+	/**
+	 * Worker 线程组。
+	 * <p>负责处理 I/O 读写、事件调度、业务逻辑分发。</p>
+	 */
 	private final EventLoopGroup workers;
+
+	/**
+	 * 零拷贝任务专用线程池。
+	 * <p>专门用于处理文件传输、直接缓冲区复制等 CPU 密集型任务，避免阻塞 I/O 线程。</p>
+	 */
 	private final ThreadPoolExecutor zeroCopyExecutor;
 
+	/**
+	 * 自定义零拷贝线程工厂。
+	 * <p>用于命名线程并确保后台守护进程模式。</p>
+	 */
 	private static class ZeroCopyThreadFactory implements ThreadFactory {
 
 		private final AtomicLong count = new AtomicLong();
@@ -39,6 +74,12 @@ public class CoreNettyServer {
 		}
 	}
 
+	/**
+	 * 构造方法。
+	 *
+	 * @param ioThreadNum        I/O 工作线程数（建议与 CPU 核心数接近）
+	 * @param zeroCopyThreadNum  零拷贝任务线程数（建议为 CPU 核心数的 2 倍）
+	 */
 	public CoreNettyServer(int ioThreadNum, int zeroCopyThreadNum) {
 		// 创建专门用于零拷贝的线程池
 		zeroCopyExecutor = new ThreadPoolExecutor(
@@ -66,72 +107,73 @@ public class CoreNettyServer {
 	}
 
 	/**
-	 * 设置参数
+	 * 设置服务端通道选项（适用于父通道）。
 	 *
-	 * @param option   参数
-	 * @param value    值
-	 * @param <T>      泛型
+	 * @param option 通道选项
+	 * @param value  参数值
+	 * @param <T>    参数类型
 	 */
 	public <T> void option(ChannelOption<T> option, T value) {
 		serverBootstrap.option(option, value);
 	}
 
 	/**
-	 * 设置参数
+	 * 设置子通道选项（适用于客户端连接通道）。
 	 *
-	 * @param option   参数
-	 * @param value    值
-	 * @param <T>      泛型
+	 * @param option 通道选项
+	 * @param value  参数值
+	 * @param <T>    参数类型
 	 */
 	public <T> void childOption(ChannelOption<T> option, T value) {
 		serverBootstrap.childOption(option, value);
 	}
 
 	/**
-	 * 初始化子通道的管道
+	 * 注册子通道（每个客户端连接）的 pipeline 初始化逻辑。
 	 *
-	 * @param consumer 函数式接口
+	 * @param consumer 管道初始化逻辑（用于配置业务 Handler 链）
 	 */
-	public void childChannelInitPipeline(Consumer<ChannelPipeline> consumer) {
+	public void childChannelInitPipeline(Consumer<NioSocketChannel> consumer) {
 		serverBootstrap.childHandler(new ChannelInitializer<TurboWebNioSocketChannel>() {
 			@Override
 			protected void initChannel(TurboWebNioSocketChannel nioSocketChannel) throws Exception {
-				consumer.accept(nioSocketChannel.pipeline());
+				consumer.accept(nioSocketChannel);
 			}
 		});
 	}
 
 	/**
-	 * 获取配置
+	 * 获取当前 {@link ServerBootstrap} 的运行配置。
 	 *
-	 * @return 配置
+	 * @return Netty 服务端引导配置
 	 */
 	public ServerBootstrapConfig config() {
 		return serverBootstrap.config();
 	}
 
 	/**
-	 * 暴露核心
+	 * 暴露底层的 {@link ServerBootstrap} 对象。
+	 * <p>用于高级定制（例如手动注册事件监听器、TCP 参数调整等）。</p>
 	 *
-	 * @return 核心
+	 * @return ServerBootstrap 实例
 	 */
 	public ServerBootstrap exportCore() {
 		return serverBootstrap;
 	}
 
 	/**
-	 * 启动
+	 * 启动服务器。
 	 *
-	 * @param host 主机
-	 * @param port 端口
-	 * @return 启动结果
+	 * @param host 监听主机地址
+	 * @param port 监听端口
+	 * @return 启动结果的异步 {@link ChannelFuture}
 	 */
 	public ChannelFuture start(String host, int port) {
 		return serverBootstrap.bind(host, port);
 	}
 
 	/**
-	 * 获取工作线程组
+	 * 获取 I/O 工作线程组。
 	 *
 	 * @return 工作线程组
 	 */
@@ -140,7 +182,8 @@ public class CoreNettyServer {
 	}
 
 	/**
-	 * 停止
+	 * 优雅关闭服务器。
+	 * <p>包括 boss 与 worker 线程组的优雅释放。</p>
 	 */
 	public void shutdown() {
 		// 关闭boss线程
