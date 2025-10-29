@@ -66,17 +66,6 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
         return this.httpSchedulerInitFactory;
     }
 
-    @Override
-    public TurboWebServer addNettyFrontHandler(ChannelHandlerFactory channelHandlerFactory) {
-        super.addFrontHandler(channelHandlerFactory);
-        return this;
-    }
-
-    @Override
-    public TurboWebServer addNettyBackHandler(ChannelHandlerFactory channelHandlerFactory) {
-        super.addBackHandler(channelHandlerFactory);
-        return this;
-    }
 
     @Override
     public TurboWebServer configServer(Consumer<HttpServerConfig> consumer) {
@@ -143,11 +132,6 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
         return channelFuture;
     }
 
-    @Override
-    public void shutdown() {
-        super.shutdown();
-    }
-
     /**
      * 初始化
      */
@@ -158,7 +142,7 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer implements Turbo
         HttpScheduler httpScheduler = httpSchedulerInitFactory.createHttpScheduler(serverConfig);
         // 创建http协议分发器
         HttpProtocolDispatcher httpProtocolDispatcher = httpProtocolDispatcherInitFactory.createDispatcher(httpScheduler, workers());
-        initPipeline(httpProtocolDispatcher, serverConfig.getMaxContentLength(), serverConfig.getCpuNum(), serverConfig.getMaxConnections(), serverConfig.isSerializePerConnection());
+        super.initPipeline(httpProtocolDispatcher, serverConfig.getMaxContentLength(), serverConfig.getCpuNum(), serverConfig.getMaxConnections(), serverConfig.isSerializePerConnection());
     }
 
     public static void printBanner() {

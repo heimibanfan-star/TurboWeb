@@ -18,7 +18,7 @@ import java.util.List;
 /**
  * turboWeb的核心
  */
-public class CoreTurboWebServer {
+public abstract class CoreTurboWebServer implements TurboWebServer {
 
 	private final CoreNettyServer coreNettyServer;
 	private final List<ChannelHandlerFactory> frontHandlerFactories = new ArrayList<>();
@@ -43,8 +43,10 @@ public class CoreTurboWebServer {
 	 *
 	 * @param handlerFactory 前端处理器
 	 */
-	public void addFrontHandler(ChannelHandlerFactory handlerFactory) {
+	@Override
+	public TurboWebServer addNettyFrontHandler(ChannelHandlerFactory handlerFactory) {
 		frontHandlerFactories.add(handlerFactory);
+		return this;
 	}
 
 	/**
@@ -72,8 +74,10 @@ public class CoreTurboWebServer {
 	 *
 	 * @param handlerFactory 后端处理器
 	 */
-	public void addBackHandler(ChannelHandlerFactory handlerFactory) {
+	@Override
+	public TurboWebServer addNettyBackHandler(ChannelHandlerFactory handlerFactory) {
 		backHandlerFactories.add(handlerFactory);
+		return this;
 	}
 
 	/**
@@ -135,7 +139,8 @@ public class CoreTurboWebServer {
 	/**
 	 * 关闭
 	 */
-	protected void shutdown() {
+	@Override
+	public void shutdown() {
 		coreNettyServer.shutdown();
 	}
 }
