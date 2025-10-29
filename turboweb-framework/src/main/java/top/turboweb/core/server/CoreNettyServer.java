@@ -115,6 +115,8 @@ public class CoreNettyServer {
 	 */
 	public void childChannelInitPipeline(boolean ssl, Consumer<NioSocketChannel> consumer) {
 		if (ssl) {
+			// 设置netty默认的serverSocketChannel
+			serverBootstrap.channel(NioServerSocketChannel.class);
 			serverBootstrap.childHandler(new ChannelInitializer<NioSocketChannel>() {
 				@Override
 				protected void initChannel(NioSocketChannel socketChannel) throws Exception {
