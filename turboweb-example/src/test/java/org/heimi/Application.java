@@ -28,49 +28,20 @@ import java.security.cert.CertificateException;
 
 public class Application {
     public static void main(String[] args) throws CertificateException, IOException {
-        new ServerBootstrap()
-                .channel(NioServerSocketChannel.class)
-                .group(new NioEventLoopGroup(1))
-                .childHandler(new ChannelInitializer<NioSocketChannel>() {
-                    @Override
-                    protected void initChannel(NioSocketChannel channel) throws Exception {
-                        ChannelPipeline pipeline = channel.pipeline();
-                        pipeline.addLast(new SslHandler(sslContext().newEngine(channel.alloc())));
-                        pipeline.addLast(new ApplicationProtocolNegotiationHandler("http/1.1") {
-                            @Override
-                            protected void configurePipeline(ChannelHandlerContext ctx, String protocol) throws Exception {
-                                if ("h2".equals(protocol)) {
-                                    Http2FrameCodec codec = Http2FrameCodecBuilder.forServer().build();
-                                    ctx.pipeline().addLast(codec);
-                                    ctx.pipeline().addLast(new Http2MultiplexHandler(new ChannelInitializer<Channel>() {
-                                        @Override
-                                        protected void initChannel(Channel ch) throws Exception {
-                                            ch.pipeline().addLast(new Http2FrameAdaptorHandler(1024 * 1024));
-                                            ch.pipeline().addLast(new SimpleChannelInboundHandler<FullHttpRequest>() {
-                                                @Override
-                                                protected void channelRead0(ChannelHandlerContext channelHandlerContext, FullHttpRequest request) throws Exception {
-                                                    System.out.println(request);
-                                                    FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-                                                    response.content().writeBytes(Unpooled.wrappedBuffer("hello world".getBytes()));
-                                                    channelHandlerContext.writeAndFlush(response);
-                                                }
-                                            });
-                                        }
-                                    }));
-                                    return;
-                                }
-                                throw new IllegalStateException("unknown protocol: " + protocol);
-                            }
-                        });
-                    }
-                })
-                .bind(8080);
+        AnnoRouterManager routerManager = new AnnoRouterManager(true);
+        routerManager.addController(new HelloController());
+        BootStrapTurboWebServer.create()
+                .http()
+                .routerManager(routerManager)
+                .and()
+                .ssl(sslContext())
+                .enableHttp2()
+                .start();
     }
 
     private static SslContext sslContext() throws CertificateException, SSLException {
-        File certFile = new File("/home/heimi/temp/server.crt");
-        File keyFile = new File("/home/heimi/temp/server.key");
-        return SslContextBuilder.forServer(certFile, keyFile)
+        SelfSignedCertificate cert = new SelfSignedCertificate();
+        return SslContextBuilder.forServer(cert.certificate(), cert.privateKey())
                 .protocols("TLSv1.3", "TLSv1.2")
                 .applicationProtocolConfig(new ApplicationProtocolConfig(
                         ApplicationProtocolConfig.Protocol.ALPN,

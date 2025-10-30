@@ -1,16 +1,19 @@
 package top.turboweb.core.server;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http2.Http2FrameCodec;
+import io.netty.handler.codec.http2.Http2FrameCodecBuilder;
+import io.netty.handler.codec.http2.Http2MultiplexHandler;
+import io.netty.handler.ssl.ApplicationProtocolNegotiationHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.handler.ConnectLimiter;
 import top.turboweb.core.handler.ChannelHandlerFactory;
+import top.turboweb.core.handler.Http2FrameAdaptorHandler;
 import top.turboweb.core.handler.RequestSerializerHandler;
 import top.turboweb.gateway.GatewayChannelHandler;
 import top.turboweb.gateway.client.ReactorHttpClientFactory;
@@ -87,6 +90,16 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 	 * <p>未设置时默认以 HTTP 明文方式运行。</p>
 	 */
 	private SslContext sslContext;
+
+	/**
+	 * 是否启用 HTTP/2。
+	 *
+	 * <p>默认为 false，表示使用 HTTP/1.1。</p>
+	 */
+	private boolean enableHttp2;
+
+	private static final String HTTP11 = "HTTP/1.1";
+	private static final String HTTP2 = "h2";
 
 	/**
 	 * 构造核心 TurboWeb 服务器。
@@ -186,6 +199,12 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 		return this;
 	}
 
+	@Override
+	public TurboWebServer enableHttp2() {
+		this.enableHttp2 = true;
+		return this;
+	}
+
 	/**
 	 * 初始化管线（Pipeline）。
 	 *
@@ -218,21 +237,89 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 			for (ChannelHandlerFactory frontHandlerFactory : frontHandlerFactories) {
 				pipeline.addLast(frontHandlerFactory.create());
 			}
-			pipeline.addLast(new HttpServerCodec());
-			pipeline.addLast(new HttpObjectAggregator(maxContentLen));
-			// 判断是否开启网关
-			if (gatewayChannelHandler != null) {
-				pipeline.addLast(gatewayChannelHandler);
+			// 判断是否开启http2
+			if (enableHttp2) {
+				registerHandler4Http2(pipeline, maxContentLen, serForPerConn, dispatcherHandler);
+			} else {
+				registerHandler4Http11(pipeline, maxContentLen, serForPerConn, dispatcherHandler);
 			}
-			if (serForPerConn) {
-				pipeline.addLast(new RequestSerializerHandler());
-			}
-//			pipeline.addLast(new ChunkedWriteHandler());
-			pipeline.addLast(dispatcherHandler);
 			for (ChannelHandlerFactory backHandlerFactory : backHandlerFactories) {
 				pipeline.addLast(backHandlerFactory.create());
 			}
 		});
+	}
+
+	/**
+	 * 注册 HTTP 11 处理器。
+	 *
+	 * @param pipeline           管道
+	 * @param maxContentLen      最大聚合请求体长度
+	 * @param serForPerConn      是否启用每连接序列化
+	 * @param dispatcherHandler  HTTP 请求分发器
+	 */
+	private void registerHandler4Http11(ChannelPipeline pipeline, int maxContentLen, boolean serForPerConn, HttpProtocolDispatcher dispatcherHandler) {
+		pipeline.addLast(new HttpServerCodec());
+		pipeline.addLast(new HttpObjectAggregator(maxContentLen));
+		registerDefaultHandlers(pipeline, serForPerConn, dispatcherHandler);
+	}
+
+	/**
+	 * 注册 HTTP 2 处理器。
+	 *
+	 * @param pipeline           管道
+	 * @param maxContentLen      最大聚合请求体长度
+	 * @param serForPerConn      是否启用每连接序列化
+	 * @param dispatcherHandler  HTTP 请求分发器
+	 */
+	private void registerHandler4Http2(ChannelPipeline pipeline, int maxContentLen, boolean serForPerConn, HttpProtocolDispatcher dispatcherHandler) {
+		// 判断是否支持SSL
+		if (sslContext == null) {
+			throw new TurboServerInitException("SSL is required for HTTP/2");
+		}
+		// 注册http协议协商的handler
+		pipeline.addLast(new ApplicationProtocolNegotiationHandler(HTTP11) {
+			@Override
+			protected void configurePipeline(ChannelHandlerContext ctx, String protocol) throws Exception {
+				if (HTTP2.equals(protocol)) {
+					// 注册http2相关的处理器
+					Http2FrameCodec codec = Http2FrameCodecBuilder.forServer().build();
+					ctx.pipeline().addLast(codec);
+					// 注册http2多路复用处理器
+					ctx.pipeline().addLast(new Http2MultiplexHandler(new ChannelInitializer<Channel>() {
+						@Override
+						protected void initChannel(Channel ch) throws Exception {
+							// 注册http2与http1.1适配的处理器
+							ch.pipeline().addLast(new Http2FrameAdaptorHandler());
+							// 注册通用的处理器
+							registerDefaultHandlers(ch.pipeline(), serForPerConn, dispatcherHandler);
+						}
+					}));
+				} else if (HTTP11.equals(protocol)) {
+					// 降级为http1.1
+					registerHandler4Http11(pipeline, maxContentLen, serForPerConn, dispatcherHandler);
+				} else {
+					throw new IllegalStateException("unknown protocol: " + protocol);
+				}
+			}
+		});
+	}
+
+	/**
+	 * 注册通用处理器。
+	 *
+	 * @param pipeline           管道
+	 * @param serForPerConn      是否启用每连接序列化
+	 * @param dispatcherHandler  HTTP 请求分发器
+	 */
+	private void registerDefaultHandlers(ChannelPipeline pipeline, boolean serForPerConn, HttpProtocolDispatcher dispatcherHandler) {
+		// 判断是否开启网关
+		if (gatewayChannelHandler != null) {
+			pipeline.addLast(gatewayChannelHandler);
+		}
+		if (serForPerConn) {
+			pipeline.addLast(new RequestSerializerHandler());
+		}
+		pipeline.addLast(dispatcherHandler);
 	}
 
 	/**

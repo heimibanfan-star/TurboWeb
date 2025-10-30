@@ -144,6 +144,15 @@ public interface TurboWebServer {
 	TurboWebServer ssl(SslContext sslContext);
 
 	/**
+	 * 启用 HTTP2 支持。
+	 * <p>
+	 * 启用 HTTP2 后，服务器将使用 HTTP2 协议进行通信。
+	 *
+	 * @return 当前 {@link TurboWebServer} 实例
+	 */
+	TurboWebServer enableHttp2();
+
+	/**
 	 * 启动服务器（使用默认端口 8080）。
 	 * <p>
 	 * 启动过程是异步的，返回 {@link ChannelFuture} 可用于监听结果。
