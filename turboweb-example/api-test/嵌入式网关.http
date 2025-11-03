@@ -1,11 +1,8 @@
 ###
-GET http://localhost:8080/user
+http://localhost:8080/user
 
 ###
-GET http://localhost:8080/order
+http://localhost:8080/order
 
 ###
-GET http://localhost:8081/user
-
-###
-GET http://localhost:8081/order
+http://localhost:8080/api/user

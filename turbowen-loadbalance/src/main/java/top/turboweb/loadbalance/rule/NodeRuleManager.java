@@ -109,11 +109,11 @@ public class NodeRuleManager implements RuleManager {
      * 添加规则。
      *
      * @param pattern     路径匹配模式
-     * @param serviceName 服务名或本地标识
+     * @param serviceExpression 服务名表达式
      * @return 当前管理器实例
      */
-    public NodeRuleManager addRule(String pattern, String serviceName) {
-        return addRule(pattern, serviceName, null, null);
+    public NodeRuleManager addRule(String pattern, String serviceExpression) {
+        return addRule(pattern, serviceExpression, null, null);
     }
 
     /**
@@ -163,7 +163,7 @@ public class NodeRuleManager implements RuleManager {
                 serviceName,
                 rewRegix,
                 rewTar,
-                "local".equals(serviceExpression),
+                "local".equals(serviceName),
                 RuleDetail.Protocol.getProtocol(protocol),
                 extPath
         );

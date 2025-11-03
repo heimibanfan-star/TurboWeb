@@ -59,6 +59,7 @@ public class DefaultBreaker implements Breaker {
     private final ConcurrentHashMap<String, HealthStatus> healthStatusMap = new ConcurrentHashMap<>();
     // 被判断为失败的状态码
     private Set<Integer> failStatusCode;
+    // 请求超时时间
     private final long timeout;
     // 检测失败的事件窗口
     private long failWindowTTL;
@@ -71,17 +72,32 @@ public class DefaultBreaker implements Breaker {
     // 恢复比例
     private double recoverPercent;
 
+    /**
+     * 设置多个状态码，若远程节点返回的状态码被包含，也会被判断为失败
+     *
+     * @param failStatusCode 被判断为失败的状态码
+     */
     public void setFailStatusCode(Set<Integer> failStatusCode) {
         failStatusCode.forEach(code -> Objects.requireNonNull(code, "status cannot be null"));
         // 转化为不可变集合
         this.failStatusCode = Collections.unmodifiableSet(failStatusCode);
     }
 
+    /**
+     * 添加多个状态码，若远程节点返回的状态码被包含，也会被判断为失败
+     *
+     * @param failStatusCode 被判断为失败的状态码
+     */
     public void setFailStatusCode(int... failStatusCode) {
         Set<Integer> codes = Arrays.stream(failStatusCode).boxed().collect(Collectors.toSet());
         setFailStatusCode(codes);
     }
 
+    /**
+     * 设置失败检测窗口时间，例如在该时间短内失败次数超过阈值，则切换为 CLOSE
+     *
+     * @param failWindowTTL 失败检测窗口时间（毫秒）
+     */
     public void setFailWindowTTL(long failWindowTTL) {
         if (failWindowTTL <= 0) {
             throw new IllegalArgumentException("failWindowTTL must be greater than 0");
@@ -89,6 +105,11 @@ public class DefaultBreaker implements Breaker {
         this.failWindowTTL = failWindowTTL;
     }
 
+    /**
+     * 设置失败次数阈值，在规定时间内，超过该阈值则切换为 CLOSE
+     *
+     * @param failThreshold 失败次数阈值
+     */
     public void setFailThreshold(int failThreshold) {
         if (failThreshold <= 0) {
             throw new IllegalArgumentException("failThreshold must be greater than 0");
@@ -96,6 +117,13 @@ public class DefaultBreaker implements Breaker {
         this.failThreshold = failThreshold;
     }
 
+    /**
+     * 由失败恢复到半开状态的时间，
+     * 当断路器处于CLOSE状态时，若CLOSE状态超过该事件，
+     * 则切换为 HALF_OPEN半开状态
+     *
+     * @param recoverTime 熔断恢复时间（毫秒）
+     */
     public void setRecoverTime(long recoverTime) {
         if (recoverTime <= 0) {
             throw new IllegalArgumentException("recoverTime must be greater than 0");
@@ -103,6 +131,13 @@ public class DefaultBreaker implements Breaker {
         this.recoverTime = recoverTime;
     }
 
+    /**
+     * 恢复时间窗口，
+     * 当断路器处于HALF_OPEN状态时，若HALF_OPEN状态超过该时间，
+     * 并且没有满足可以恢复的阈值，再次降级为CLOSE
+     *
+     * @param recoverWindowTTL 恢复时间窗口（毫秒）
+     */
     public void setRecoverWindowTTL(long recoverWindowTTL) {
         if (recoverWindowTTL <= 0) {
             throw new IllegalArgumentException("recoverWindowTTL must be greater than 0");
@@ -110,6 +145,14 @@ public class DefaultBreaker implements Breaker {
         this.recoverWindowTTL = recoverWindowTTL;
     }
 
+    /**
+     * 恢复比例，
+     * 当断路器处于HALF_OPEN状态时，
+     * 若在该事件窗口结束之前，成功比例达到阈值恢复为 OPEN，
+     * 反之降级为CLOSE
+     *
+     * @param recoverPercent 恢复比例
+     */
     public void setRecoverPercent(double recoverPercent) {
         if (recoverPercent < 0 || recoverPercent > 1) {
             throw new IllegalArgumentException("recoverPercent must be greater than 0 and less than 1");
