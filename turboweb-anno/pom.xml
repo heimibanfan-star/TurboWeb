@@ -11,6 +11,8 @@
 
     <artifactId>turboweb-anno</artifactId>
 
+    <name>turboweb-anno</name>
+
     <description>
         注解工具包
     </description>

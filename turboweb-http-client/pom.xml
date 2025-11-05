@@ -11,8 +11,10 @@
 
     <artifactId>turboweb-http-client</artifactId>
 
+    <name>turboweb-http-client</name>
+
     <description>
-        http client
+        turboweb中实现的http客户端，类似Axios风格
     </description>
 
     <dependencies>

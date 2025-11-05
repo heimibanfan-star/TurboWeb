@@ -11,6 +11,12 @@
 
     <artifactId>turbowen-loadbalance</artifactId>
 
+    <name>turbowen-loadbalance</name>
+
+    <description>
+        turboweb中实现负载均衡、节点选择、断路器等相关的组件
+    </description>
+
     <dependencies>
         <dependency>
             <groupId>io.gitee.turboweb</groupId>
