@@ -59,6 +59,17 @@ public class JsonConverter implements Converter{
      */
     @Override
     public <T> T convert(HttpResponse response, Class<T> type) {
+        // 如果是字节数组直接读取出来返回
+        if (type == byte[].class) {
+            if (response instanceof FullHttpResponse fullHttpResponse) {
+                ByteBuf content = fullHttpResponse.content();
+                byte[] bytes = new byte[content.readableBytes()];
+                content.readBytes(bytes);
+                return type.cast(bytes);
+            } else {
+                return type.cast(new byte[0]);
+            }
+        }
         String jsonString = getJsonString(response);
         if (type == String.class) {
             return type.cast(jsonString);

@@ -93,6 +93,10 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
     public ClientResult request(String path, HttpMethod method, Object data, Consumer<Config> consumer) {
         Config config = new Config();
         consumer.accept(config);
+        // 对特殊的请求体设置请求类型
+        if (data != null && (method == HttpMethod.POST || method == HttpMethod.PUT)) {
+            config.headers.set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
+        }
         HttpRequest request = buildRequest(path, method, data, config);
         // 执行所有的请求拦截器
         for (RequestInterceptor interceptor : requestInterceptors) {
@@ -148,6 +152,16 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
     }
 
     @Override
+    public ClientResult post(String path, Object data) {
+        return request(path, HttpMethod.POST, data, config -> {});
+    }
+
+    @Override
+    public ClientResult post(String path) {
+        return request(path, HttpMethod.POST);
+    }
+
+    @Override
     public ClientResult put(String path) {
         return request(path, HttpMethod.PUT);
     }
@@ -160,6 +174,11 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
     @Override
     public ClientResult put(String path, Object data, Consumer<Config> consumer) {
         return request(path, HttpMethod.PUT, data, consumer);
+    }
+
+    @Override
+    public ClientResult put(String path, Object data) {
+        return request(path, HttpMethod.PUT, data, config -> {});
     }
 
     @Override

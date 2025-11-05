@@ -1,8 +1,6 @@
 package top.turboweb.client;
 
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.*;
 import top.turboweb.client.interceptor.RequestInterceptor;
 import top.turboweb.client.interceptor.ResponseInterceptor;
 import top.turboweb.client.result.ClientResult;
@@ -89,6 +87,8 @@ public interface TurboHttpClient {
          */
         public Config form(Consumer<Params> consumer) {
             consumer.accept(formArgs);
+            // 设置请求格式为表单
+            headers.set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED);
             return this;
         }
 
@@ -102,6 +102,8 @@ public interface TurboHttpClient {
          */
         public Config data(Object data) {
             this.data = data;
+            // 设置请求格式为 JSON
+            headers.set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
             return this;
         }
     }
@@ -145,6 +147,10 @@ public interface TurboHttpClient {
 
     ClientResult post(String path, Object data, Consumer<Config> consumer);
 
+    ClientResult post(String path, Object data);
+
+    ClientResult post(String path);
+
     /**
      * 发起 PUT 请求。
      */
@@ -153,6 +159,8 @@ public interface TurboHttpClient {
     ClientResult put(String path, Consumer<Config> consumer);
 
     ClientResult put(String path, Object data, Consumer<Config> consumer);
+
+    ClientResult put(String path, Object data);
 
     /**
      * 发起 DELETE 请求。
