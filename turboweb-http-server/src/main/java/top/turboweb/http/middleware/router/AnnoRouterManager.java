@@ -20,7 +20,32 @@ import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * 基于注解声明式的路由管理器
+ * <p>
+ * {@code AnnoRouterManager} 是基于注解（Annotation）的声明式路由管理器，
+ * 负责自动扫描、解析并注册控制器（Controller）中的路由方法。
+ * </p>
+ *
+ * <p>
+ * 它是 {@link RouterManager} 的具体实现，通过读取控制器类和方法上的路由注解
+ * （如 {@link Get}、{@link Post}、{@link Put}、{@link Delete}、{@link Patch} 等），
+ * 构建可执行的路由映射表，并注册到 {@link RouterContainer} 中。
+ * </p>
+ *
+ * <h3>主要特性</h3>
+ * <ul>
+ *   <li>支持声明式注解路由定义。</li>
+ *   <li>支持路径前缀（{@code pathPrefix}）统一管理。</li>
+ *   <li>支持参数自动绑定（{@code autoBind = true}）。</li>
+ *   <li>线程安全初始化（基于 {@link ReentrantLock}）。</li>
+ *   <li>支持自定义参数解析器扩展。</li>
+ * </ul>
+ *
+ * <h3>生命周期说明</h3>
+ * <ul>
+ *   <li>启动阶段调用 {@link #addController(Object)} 注册控制器实例。</li>
+ *   <li>初始化阶段执行 {@link #init(Middleware)} 完成路由扫描与注册。</li>
+ *   <li>运行时由上层 {@link Middleware} 负责请求分发。</li>
+ * </ul>
  */
 public class AnnoRouterManager extends RouterManager {
 
@@ -66,13 +91,19 @@ public class AnnoRouterManager extends RouterManager {
         this(pathPrefix, false);
     }
 
+    /**
+     * 创建基于注解的路由管理器。
+     *
+     * @param pathPrefix 路由前缀（如 "/api"）
+     * @param autoBind   是否启用自动参数绑定
+     */
     public AnnoRouterManager(String pathPrefix, boolean autoBind) {
         if (pathPrefix == null || "/".equals(pathPrefix)) {
             pathPrefix = "";
         } else {
             pathPrefix = pathPrefix.trim();
         }
-        if (!pathPrefix.isEmpty()) {
+        if (pathPrefix.isEmpty()) {
             pathPrefix = "/" + pathPrefix;
         }
         if (pathPrefix.endsWith("/")) {
@@ -83,10 +114,10 @@ public class AnnoRouterManager extends RouterManager {
     }
 
     /**
-     * 添加controller
+     * 注册一个控制器实例。
      *
-     * @param controller controller对象
-     * @return this
+     * @param controller 控制器对象（包含注解的类实例）
+     * @return 当前 {@link AnnoRouterManager} 实例
      */
     public AnnoRouterManager addController(Object controller) {
         Objects.requireNonNull(controller);
@@ -100,11 +131,12 @@ public class AnnoRouterManager extends RouterManager {
     }
 
     /**
-     * 添加controller
+     * 注册控制器，并显式指定其原始类。
+     * <p>用于代理类、动态增强类等情况。</p>
      *
-     * @param controller controller对象
-     * @param originClass controller的源类
-     * @return this
+     * @param controller  控制器实例
+     * @param originClass 控制器原始类型
+     * @return 当前 {@link AnnoRouterManager} 实例
      */
     public AnnoRouterManager addController(Object controller, Class<?> originClass) {
         Objects.requireNonNull(controller);
@@ -137,9 +169,11 @@ public class AnnoRouterManager extends RouterManager {
     }
 
     /**
-     * 添加参数解析器
-     * @param parser 参数解析器
-     * @return this
+     * 在解析链末尾添加参数解析器。
+     *
+     * @param parser 参数解析器实例
+     * @return 当前 {@link RouterManager} 实例
+     * @throws IllegalStateException 当解析器类型重复时抛出
      */
     public RouterManager addParameterParserLast(ParameterInfoParser parser) {
         for (ParameterInfoParser p : parsers) {
@@ -151,6 +185,13 @@ public class AnnoRouterManager extends RouterManager {
         return this;
     }
 
+    /**
+     * 在解析链首部添加参数解析器。
+     *
+     * @param parser 参数解析器实例
+     * @return 当前 {@link RouterManager} 实例
+     * @throws IllegalStateException 当解析器类型重复时抛出
+     */
     public RouterManager addParameterParserFirst(ParameterInfoParser parser) {
         for (ParameterInfoParser p : parsers) {
             if (p.getClass() == parser.getClass()) {
@@ -161,6 +202,13 @@ public class AnnoRouterManager extends RouterManager {
         return this;
     }
 
+    /**
+     * 替换或插入指定类型位置的解析器。
+     *
+     * @param type   要替换的解析器类型
+     * @param parser 新解析器实例
+     * @return 当前 {@link RouterManager} 实例
+     */
     public RouterManager addParameterParserAt(Class<? extends ParameterInfoParser> type, ParameterInfoParser parser) {
         int index = -1;
         for (ParameterInfoParser p : parsers) {

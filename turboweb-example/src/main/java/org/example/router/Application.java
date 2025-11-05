@@ -6,15 +6,15 @@ import top.turboweb.http.middleware.router.LambdaRouterManager;
 
 public class Application {
     public static void main(String[] args) {
-//        AnnoRouterManager routerManager = new AnnoRouterManager();
-//        routerManager.addController(new UserController());
-//        BootStrapTurboWebServer.create()
-//                .http().routerManager(routerManager)
-//                .and().start();
-        LambdaRouterManager routerManager = new LambdaRouterManager();
-        routerManager.addGroup(new OrderController());
+        AnnoRouterManager routerManager = new AnnoRouterManager("/api");
+        routerManager.addController(new UserController());
         BootStrapTurboWebServer.create()
                 .http().routerManager(routerManager)
                 .and().start();
+//        LambdaRouterManager routerManager = new LambdaRouterManager();
+//        routerManager.addGroup(new OrderController());
+//        BootStrapTurboWebServer.create()
+//                .http().routerManager(routerManager)
+//                .and().start();
     }
 }

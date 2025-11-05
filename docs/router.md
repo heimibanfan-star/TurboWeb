@@ -66,6 +66,25 @@ GET http://localhost:8080/user
 
 HTTP 方法注解（`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`）: 用于标注控制器中对应 HTTP 请求方式的方法路由路径。
 
+### 公共前缀
+
+在 TurboWeb 的声明式路由体系中，`AnnoRouterManager` 支持为所有控制器统一设置一个 **公共访问前缀（path prefix）**。
+这在实际开发中非常有用，例如当你希望所有 API 接口都以 `/api` 开头时，无需修改每个 `@RequestPath` 注解，只需在创建路由管理器时指定即可。
+
+```java
+AnnoRouterManager routerManager = new AnnoRouterManager("/api");
+routerManager.addController(new UserController());
+BootStrapTurboWebServer.create()
+        .http().routerManager(routerManager)
+        .and().start();
+```
+
+则对应的完整访问路径将变为：
+
+```http
+GET http://localhost:8080/api/user
+```
+
 ## 编程式路由
 
 ### 基本使用

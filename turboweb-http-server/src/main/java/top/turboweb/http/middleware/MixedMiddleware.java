@@ -16,7 +16,7 @@ import top.turboweb.http.context.HttpContext;
  *    - 响应式对象调用 afterAsyncNext()
  * 3. 支持链条前置钩子 preNext() 和中断回调 onBreak()
  */
-public abstract class MixedMiddleware extends Middleware {
+public abstract class MixedMiddleware extends CoreTypeMiddleware {
 
     /**
      * 中间件核心方法
@@ -45,28 +45,6 @@ public abstract class MixedMiddleware extends Middleware {
         } else {
             return afterSyncNext(ctx, result);     // 同步处理
         }
-    }
-
-    /**
-     * 前置钩子方法
-     * 可在调用下一个中间件之前执行逻辑，例如权限检查或条件拦截。
-     *
-     * @param ctx 当前请求上下文
-     * @return true 继续执行下一个中间件，false 中断链条
-     */
-    protected boolean preNext(HttpContext ctx) {
-        return true;
-    }
-
-    /**
-     * 链条中断时的回调方法
-     * 当 preNext 返回 false 时执行自定义逻辑。
-     *
-     * @param ctx 当前请求上下文
-     * @return 中断后的返回值，默认 null
-     */
-    protected Object onBreak(HttpContext ctx) {
-        return null;
     }
 
     /**

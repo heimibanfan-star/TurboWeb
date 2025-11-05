@@ -20,7 +20,7 @@ import top.turboweb.http.context.HttpContext;
  *
  * @param <T> 当前中间件希望跳过的类型
  */
-public abstract class TypedSkipMiddleware<T> extends Middleware {
+public abstract class TypedSkipMiddleware<T> extends CoreTypeMiddleware {
 
     /**
      * TypeParameterMatcher 用于在运行时判断对象是否为泛型 T 类型
@@ -56,28 +56,6 @@ public abstract class TypedSkipMiddleware<T> extends Middleware {
 
         // 处理非 T 类型的对象
         return afterNext(ctx, result);
-    }
-
-    /**
-     * 前置钩子方法，在调用下一个中间件之前执行。
-     * <p>可用于条件判断、权限校验等逻辑。</p>
-     *
-     * @param ctx 当前请求上下文
-     * @return true 继续执行下一个中间件，false 中断链条
-     */
-    protected boolean preNext(HttpContext ctx) {
-        return true;
-    }
-
-    /**
-     * 链条中断时的回调方法。
-     * <p>在 {@link #preNext(HttpContext)} 返回 false 时触发。</p>
-     *
-     * @param ctx 当前请求上下文
-     * @return 中断后的返回值，默认 null
-     */
-    protected Object onBreak(HttpContext ctx) {
-        return null;
     }
 
     /**
