@@ -8,7 +8,7 @@
 <dependency>
     <groupId>io.gitee.turboweb</groupId>
     <artifactId>turboweb-framework</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 
