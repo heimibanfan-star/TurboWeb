@@ -1,0 +1,7 @@
+### 执行admin的链
+GET http://localhost:8080
+Authorization: admin
+
+### 执行user的链
+GET http://localhost:8080
+Authorization: user

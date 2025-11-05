@@ -46,7 +46,7 @@ public abstract class BranchMiddleware extends Middleware {
      * 每个分支对应的完整中间件执行链。
      * <p>key：分支标识；value：已组装完成的首个中间件实例。</p>
      */
-    private final Map<String, Middleware> middlewareChain = new HashMap<>();
+    private final Map<String, Middleware> middlewareChains = new HashMap<>();
 
     /**
      * <p>
@@ -73,10 +73,10 @@ public abstract class BranchMiddleware extends Middleware {
     @Override
     public Object invoke(HttpContext ctx) {
         String branchKey = getBranchKey(ctx);
-        if (!middlewareChain.containsKey(branchKey)) {
+        if (!middlewareChains.containsKey(branchKey)) {
             throw new TurboRouterException("The branch " + branchKey + " does not exist", TurboRouterException.ROUTER_NOT_MATCH);
         }
-        return middlewareChain.get(branchKey).invoke(ctx);
+        return middlewareChains.get(branchKey).invoke(ctx);
     }
 
     /**
@@ -132,21 +132,36 @@ public abstract class BranchMiddleware extends Middleware {
             String key = entry.getKey();
             LinkedHashSet<Middleware> middlewares = entry.getValue();
             if (middlewares.isEmpty()) {
-                middlewareChain.put(key, mergeMiddleware);
+                middlewareChains.put(key, mergeMiddleware);
             } else {
-                // 组装中间件
+                // 拼接所有的中中间件
                 Iterator<Middleware> iterator = middlewares.iterator();
-                // 获取第一个中间件
-                Middleware firstMiddleware = iterator.next();
-                Middleware lastMiddleware = firstMiddleware;
+                Middleware sentinelMiddleware = iterator.next();
+                Middleware last = sentinelMiddleware;
                 while (iterator.hasNext()) {
-                    Middleware nextMiddleware = iterator.next();
-                    lastMiddleware.setNext(nextMiddleware);
-                    lastMiddleware = nextMiddleware;
+                    Middleware middleware = iterator.next();
+                    last.setNext(middleware);
+                    last = middleware;
                 }
-                // 拼接聚合中间件
-                lastMiddleware.setNext(mergeMiddleware);
-                middlewareChain.put(key, firstMiddleware);
+                // 对中间件链初始化
+                last = sentinelMiddleware;
+                last.init(sentinelMiddleware);
+                while (last.getNext() != null) {
+                    last = last.getNext();
+                    last.init(sentinelMiddleware);
+                }
+                // 拼接合并中间件
+                last.setNext(mergeMiddleware);
+                // 锁定中间件
+                Middleware cursor = sentinelMiddleware;
+                while (cursor != null) {
+                    if (cursor != mergeMiddleware) {
+                        cursor.lockMiddleware();
+                    }
+                    cursor = cursor.getNext();
+                }
+                // 存入容器
+                middlewareChains.put(key, sentinelMiddleware);
             }
         }
     }
