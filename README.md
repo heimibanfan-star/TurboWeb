@@ -174,6 +174,8 @@ TurboWeb提供了与SpringBoot的整合包，详细教程看如下仓库:
 
 [多版本路由控制](./docs/mvrc.md)
 
+[中间件类型订阅](./docs/middlewaretype.md)
+
 
 ## 联系我们
 
