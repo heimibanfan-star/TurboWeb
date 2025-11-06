@@ -9,6 +9,7 @@ import io.netty.handler.codec.http2.Http2MultiplexHandler;
 import io.netty.handler.ssl.ApplicationProtocolNegotiationHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.EventExecutor;
 import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.handler.ConnectLimiter;
@@ -104,20 +105,41 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 	/**
 	 * 构造核心 TurboWeb 服务器。
 	 *
-	 * @param serverChannel     Netty 服务通道类型
 	 * @param ioThreadNum       I/O 线程数量（若 ≤ 0 则默认为 1）
 	 * @param zeroCopyThreadNum 零拷贝线程数量（若 ≤ 0 则使用 CPU 核心数 × 2）
 	 */
-	public CoreTurboWebServer(ServerChannel serverChannel, int ioThreadNum, int zeroCopyThreadNum) {
+	public CoreTurboWebServer(int ioThreadNum, int zeroCopyThreadNum) {
 		if (ioThreadNum <= 0) {
 			ioThreadNum = 1;
 		}
 		if (zeroCopyThreadNum <= 0) {
 			zeroCopyThreadNum = Runtime.getRuntime().availableProcessors() * 2;
 		}
-		this.coreNettyServer = new CoreNettyServer(serverChannel, ioThreadNum, zeroCopyThreadNum);
+		this.coreNettyServer = new CoreNettyServer(ioThreadNum, zeroCopyThreadNum);
 		coreNettyServer.childOption(ChannelOption.SO_KEEPALIVE, true);
 		this.ioThreadNum = ioThreadNum;
+	}
+
+	/**
+	 * 构造核心 TurboWeb 服务器，用于在Linux或者Macos中使用内核IO进行加速
+	 *
+	 * @param serverChannel     服务通道（如：NioServerSocketChannel）
+	 * @param boss              boss 线程组（用于处理 accept 事件）
+	 * @param workers           worker 线程组（用于处理 I/O 事件）
+	 */
+	public CoreTurboWebServer(ServerChannel serverChannel, EventLoopGroup boss, EventLoopGroup workers) {
+		// 如果没有boss线程，那么复用workers线程
+		if (boss == null) {
+			boss = workers;
+		}
+		// 设置工作线程的数量
+		int workerNum = 0;
+		for (EventExecutor worker : workers) {
+			workerNum++;
+		}
+		this.ioThreadNum = workerNum;
+		// 创建netty核心
+		this.coreNettyServer = new CoreNettyServer(serverChannel, boss, workers);
 	}
 
 	/**

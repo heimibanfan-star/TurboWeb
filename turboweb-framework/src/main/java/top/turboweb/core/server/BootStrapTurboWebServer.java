@@ -1,9 +1,6 @@
 package top.turboweb.core.server;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelInboundHandler;
-import io.netty.channel.ServerChannel;
+import io.netty.channel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.core.config.HttpServerConfig;
@@ -111,24 +108,24 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer {
     }
 
     /**
-     * 完整构造方法。
+     * 构造方法。
      *
      * @param ioThreadNum       I/O 线程数（Netty Worker Group）
      * @param zeroCopyThreadNum 零拷贝线程数（文件传输与高性能 I/O）
      */
     public BootStrapTurboWebServer(int ioThreadNum, int zeroCopyThreadNum) {
-        this(null, ioThreadNum, zeroCopyThreadNum);
+        super(ioThreadNum, zeroCopyThreadNum);
     }
 
     /**
-     * 完整构造方法。
+     * 构造方法。
      *
-     * @param serverChannel     Netty 服务通道
-     * @param ioThreadNum       I/O 线程数（Netty Worker Group）
-     * @param zeroCopyThreadNum 零拷贝线程数（文件传输与高性能 I/O）
+     * @param serverChannel Netty 服务通道
+     * @param boss          I/O 线程组
+     * @param workers       工作线程组
      */
-    public BootStrapTurboWebServer(ServerChannel serverChannel, int ioThreadNum, int zeroCopyThreadNum) {
-        super(serverChannel, ioThreadNum, zeroCopyThreadNum);
+    public BootStrapTurboWebServer(ServerChannel serverChannel, EventLoopGroup boss, EventLoopGroup workers) {
+        super(serverChannel, boss, workers);
     }
 
     /**
@@ -355,21 +352,23 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer {
     /**
      * 创建TurboWebServer
      *
-     * @param serverChannel        ServerChannel
+     * @param serverChannel   服务通道
+     * @param boss            boss线程组
+     * @param workers         worker线程组
      * @return TurboWebServer
      */
-    public static TurboWebServer create(ServerChannel serverChannel) {
-        return new BootStrapTurboWebServer(serverChannel, 0, 0);
+    public static TurboWebServer create(ServerChannel serverChannel, EventLoopGroup boss, EventLoopGroup workers) {
+        return new BootStrapTurboWebServer(serverChannel, boss, workers);
     }
 
     /**
      * 创建TurboWebServer
      *
-     * @param serverChannel        ServerChannel
-     * @param ioThreadNum          IO线程数
+     * @param serverChannel   服务通道
+     * @param ioLoop          io线程组
      * @return TurboWebServer
      */
-    public static TurboWebServer create(ServerChannel serverChannel, int ioThreadNum) {
-        return new BootStrapTurboWebServer(serverChannel, ioThreadNum, 0);
+    public static TurboWebServer create(ServerChannel serverChannel, EventLoopGroup ioLoop) {
+        return new BootStrapTurboWebServer(serverChannel, ioLoop, ioLoop);
     }
 }

@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import top.turboweb.core.channel.TurboWebNioServerSocketChannel;
 import top.turboweb.core.channel.TurboWebNioSocketChannel;
 
+import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -78,18 +79,25 @@ public class CoreNettyServer {
 	 * @param ioThreadNum        I/O 工作线程数（建议与 CPU 核心数接近）
 	 * @param zeroCopyThreadNum  零拷贝任务线程数（建议为 CPU 核心数的 2 倍）
 	 */
-	public CoreNettyServer(ServerChannel serverChannel, int ioThreadNum, int zeroCopyThreadNum) {
-		workers = new NioEventLoopGroup(ioThreadNum);
+	public CoreNettyServer(int ioThreadNum, int zeroCopyThreadNum) {
+		this.workers = new NioEventLoopGroup(ioThreadNum);
 		serverBootstrap.group(
 			boss,
 			workers
 		);
 		this.zeroCopyThreadNum = zeroCopyThreadNum;
-		this.serverChannel = serverChannel;
+		this.serverChannel = null;
 	}
 
-	public CoreNettyServer(int ioThreadNum, int zeroCopyThreadNum) {
-		this(null, ioThreadNum, zeroCopyThreadNum);
+	public CoreNettyServer(ServerChannel serverChannel, EventLoopGroup boss, EventLoopGroup workers) {
+		Objects.requireNonNull(serverChannel, "serverChannel cannot be null");
+		Objects.requireNonNull(boss, "boss cannot be null");
+		Objects.requireNonNull(workers, "workers cannot be null");
+		this.zeroCopyThreadNum = 0;
+		this.serverChannel = serverChannel;
+		this.workers = workers;
+		// 设置线程组
+		serverBootstrap.group(boss, workers);
 	}
 
 	/**
