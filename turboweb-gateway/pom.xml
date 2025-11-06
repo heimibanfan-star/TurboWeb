@@ -30,7 +30,7 @@
         <!-- 负载均衡相关模块 -->
         <dependency>
             <groupId>io.gitee.turboweb</groupId>
-            <artifactId>turbowen-loadbalance</artifactId>
+            <artifactId>turboweb-loadbalance</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
     </dependencies>

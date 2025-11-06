@@ -9,7 +9,7 @@
         <version>2.3.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>turbowen-loadbalance</artifactId>
+    <artifactId>turboweb-loadbalance</artifactId>
 
     <name>turbowen-loadbalance</name>
 
