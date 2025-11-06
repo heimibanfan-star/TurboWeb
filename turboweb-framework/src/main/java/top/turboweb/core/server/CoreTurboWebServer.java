@@ -104,17 +104,18 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 	/**
 	 * 构造核心 TurboWeb 服务器。
 	 *
+	 * @param serverChannel     Netty 服务通道类型
 	 * @param ioThreadNum       I/O 线程数量（若 ≤ 0 则默认为 1）
 	 * @param zeroCopyThreadNum 零拷贝线程数量（若 ≤ 0 则使用 CPU 核心数 × 2）
 	 */
-	public CoreTurboWebServer(int ioThreadNum, int zeroCopyThreadNum) {
+	public CoreTurboWebServer(ServerChannel serverChannel, int ioThreadNum, int zeroCopyThreadNum) {
 		if (ioThreadNum <= 0) {
 			ioThreadNum = 1;
 		}
 		if (zeroCopyThreadNum <= 0) {
 			zeroCopyThreadNum = Runtime.getRuntime().availableProcessors() * 2;
 		}
-		this.coreNettyServer = new CoreNettyServer(ioThreadNum, zeroCopyThreadNum);
+		this.coreNettyServer = new CoreNettyServer(serverChannel, ioThreadNum, zeroCopyThreadNum);
 		coreNettyServer.childOption(ChannelOption.SO_KEEPALIVE, true);
 		this.ioThreadNum = ioThreadNum;
 	}

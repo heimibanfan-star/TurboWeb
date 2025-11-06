@@ -30,12 +30,12 @@ public class Application {
     public static void main(String[] args) throws CertificateException, IOException {
         AnnoRouterManager routerManager = new AnnoRouterManager(true);
         routerManager.addController(new HelloController());
-        BootStrapTurboWebServer.create(4)
+        BootStrapTurboWebServer.create(1)
                 .http()
                 .routerManager(routerManager)
                 .and()
-                .ssl(sslContext())
-                .enableHttp2()
+//                .ssl(sslContext())
+//                .enableHttp2()
                 .configServer(config -> {
                     config.setShowRequestLog(false);
                 })

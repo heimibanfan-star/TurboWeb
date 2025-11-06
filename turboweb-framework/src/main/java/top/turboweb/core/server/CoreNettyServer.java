@@ -53,6 +53,8 @@ public class CoreNettyServer {
 
 	private final int zeroCopyThreadNum;
 
+	private final ServerChannel serverChannel;
+
 	/**
 	 * 自定义零拷贝线程工厂。
 	 * <p>用于命名线程并确保后台守护进程模式。</p>
@@ -76,13 +78,18 @@ public class CoreNettyServer {
 	 * @param ioThreadNum        I/O 工作线程数（建议与 CPU 核心数接近）
 	 * @param zeroCopyThreadNum  零拷贝任务线程数（建议为 CPU 核心数的 2 倍）
 	 */
-	public CoreNettyServer(int ioThreadNum, int zeroCopyThreadNum) {
+	public CoreNettyServer(ServerChannel serverChannel, int ioThreadNum, int zeroCopyThreadNum) {
 		workers = new NioEventLoopGroup(ioThreadNum);
 		serverBootstrap.group(
 			boss,
 			workers
 		);
 		this.zeroCopyThreadNum = zeroCopyThreadNum;
+		this.serverChannel = serverChannel;
+	}
+
+	public CoreNettyServer(int ioThreadNum, int zeroCopyThreadNum) {
+		this(null, ioThreadNum, zeroCopyThreadNum);
 	}
 
 	/**
@@ -113,16 +120,9 @@ public class CoreNettyServer {
 	 * @param ssl 是否启用 ssl
 	 * @param consumer 管道初始化逻辑（用于配置业务 Handler 链）
 	 */
-	public void childChannelInitPipeline(boolean ssl, Consumer<NioSocketChannel> consumer) {
+	public void childChannelInitPipeline(boolean ssl, Consumer<Channel> consumer) {
 		if (ssl) {
-			// 设置netty默认的serverSocketChannel
-			serverBootstrap.channel(NioServerSocketChannel.class);
-			serverBootstrap.childHandler(new ChannelInitializer<NioSocketChannel>() {
-				@Override
-				protected void initChannel(NioSocketChannel socketChannel) throws Exception {
-					consumer.accept(socketChannel);
-				}
-			});
+			this.initChannel(new NioServerSocketChannel(), consumer);
 		}
 		else {
 			// 创建专门用于零拷贝的线程池
@@ -134,19 +134,33 @@ public class CoreNettyServer {
 					new LinkedBlockingQueue<>(),
 					new ZeroCopyThreadFactory()
 			);
+
 			// 允许核心线程过期
 			zeroCopyExecutor.allowCoreThreadTimeOut(true);
 			// 设置专用的零拷贝增强通道
-			serverBootstrap.channelFactory(
-					(ChannelFactory<TurboWebNioServerSocketChannel>) () -> new TurboWebNioServerSocketChannel(zeroCopyExecutor)
-			);
-			serverBootstrap.childHandler(new ChannelInitializer<TurboWebNioSocketChannel>() {
-				@Override
-				protected void initChannel(TurboWebNioSocketChannel nioSocketChannel) throws Exception {
-					consumer.accept(nioSocketChannel);
-				}
-			});
+			this.initChannel(new TurboWebNioServerSocketChannel(zeroCopyExecutor), consumer);
 		}
+	}
+
+	/**
+	 * 注册子通道（每个客户端连接）的 pipeline 逻辑。
+	 *
+	 * @param serverChannel 专有通道类型
+	 * @param consumer 管道初始化逻辑（用于配置业务 Handler 链）
+	 */
+	private void initChannel(ServerChannel serverChannel, Consumer<Channel> consumer) {
+		// 判断构造时是否指定了channel类型
+		if (this.serverChannel != null) {
+			serverBootstrap.channelFactory(() -> this.serverChannel);
+		} else {
+			serverBootstrap.channelFactory(() -> serverChannel);
+		}
+		serverBootstrap.childHandler(new ChannelInitializer<Channel>() {
+			@Override
+			protected void initChannel(Channel ch) throws Exception {
+				consumer.accept(ch);
+			}
+		});
 	}
 
 	/**
