@@ -3,7 +3,7 @@ package top.turboweb.http.middleware.interceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import top.turboweb.commons.struct.trie.PatternUrlTrie;
-import top.turboweb.commons.utils.order.QuickSortUtils;
+import top.turboweb.commons.utils.order.Order;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 
@@ -117,7 +117,7 @@ public class InterceptorManager extends Middleware {
             }
         }
         // 对拦截器进行排序
-        QuickSortUtils.sort(interceptors);
+        Arrays.sort(interceptors, Comparator.comparingInt(Order::order));
         return interceptors;
     }
 }

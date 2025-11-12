@@ -28,21 +28,30 @@ import java.security.cert.CertificateException;
 
 public class Application {
     public static void main(String[] args) throws CertificateException, IOException {
-        AnnoRouterManager routerManager = new AnnoRouterManager(true);
-        routerManager.addController(new HelloController());
-        BootStrapTurboWebServer.create(1)
-                .http()
-                .routerManager(routerManager)
-                .and()
+//        AnnoRouterManager routerManager = new AnnoRouterManager(true);
+//        routerManager.addController(new HelloController());
+//        BootStrapTurboWebServer.create(1)
+//                .http()
+//                .routerManager(routerManager)
+//                .and()
 //                .ssl(sslContext())
 //                .enableHttp2()
-                .configServer(config -> {
-                    config.setShowRequestLog(false);
-                })
-                .start();
+//                .configServer(config -> {
+//                    config.setShowRequestLog(false);
+//                })
+//                .start();
+        SelfSignedCertificate selfSignedCertificate = new SelfSignedCertificate();
+        File certificate = selfSignedCertificate.certificate();
+        File privateKey = selfSignedCertificate.privateKey();
     }
 
-    private static SslContext sslContext() throws CertificateException, SSLException {
+    private static SslContext sslContext(boolean h2) throws CertificateException, SSLException {
+        String[] protocols;
+        if (h2) {
+            protocols = new String[]{ApplicationProtocolNames.HTTP_2, ApplicationProtocolNames.HTTP_1_1};
+        } else {
+            protocols = new String[]{ApplicationProtocolNames.HTTP_1_1};
+        }
         SelfSignedCertificate cert = new SelfSignedCertificate();
         return SslContextBuilder.forServer(cert.certificate(), cert.privateKey())
                 .protocols("TLSv1.3", "TLSv1.2")
@@ -50,8 +59,7 @@ public class Application {
                         ApplicationProtocolConfig.Protocol.ALPN,
                         ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
                         ApplicationProtocolConfig.SelectedListenerFailureBehavior.ACCEPT,
-                        ApplicationProtocolNames.HTTP_2,
-                        ApplicationProtocolNames.HTTP_1_1))
+                        protocols))
                 .build();
     }
 }
