@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
-import top.turboweb.anno.Param;
+import top.turboweb.anno.param.binder.Param;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Parameter;
@@ -8,7 +8,7 @@ import java.lang.reflect.Parameter;
 /**
  * 负责解析@Param注解
  */
-public class RestParameterInfoParser implements ParameterInfoParser {
+public class RestParameterInfoParser extends AbstractParamInfoParser {
 
 
     /**
@@ -27,7 +27,7 @@ public class RestParameterInfoParser implements ParameterInfoParser {
 
 
     @Override
-    public ParameterBinder parse(Parameter parameter) {
+    protected ParameterBinder doParse(Parameter parameter) {
         if (!parameter.isAnnotationPresent(Param.class)) {
             return null;
         }

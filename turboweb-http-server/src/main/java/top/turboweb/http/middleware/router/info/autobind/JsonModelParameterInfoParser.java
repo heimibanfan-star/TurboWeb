@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
-import top.turboweb.anno.JsonModel;
+import top.turboweb.anno.param.binder.JsonModel;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Parameter;
@@ -8,7 +8,7 @@ import java.lang.reflect.Parameter;
 /**
  * json映射为实体的参数解析器
  */
-public class JsonModelParameterInfoParser implements ParameterInfoParser{
+public class JsonModelParameterInfoParser extends AbstractParamInfoParser{
 
     /**
      * json模型参数绑定器
@@ -34,7 +34,7 @@ public class JsonModelParameterInfoParser implements ParameterInfoParser{
     }
 
     @Override
-    public ParameterBinder parse(Parameter parameter) {
+    protected ParameterBinder doParse(Parameter parameter) {
         if (!parameter.isAnnotationPresent(JsonModel.class)) {
             return null;
         }

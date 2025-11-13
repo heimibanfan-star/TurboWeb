@@ -1,4 +1,4 @@
-package top.turboweb.anno;
+package top.turboweb.anno.param.binder;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,10 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * put请求方式
+ * 封装查询参数的注解
  */
-@Target(ElementType.METHOD)
+@Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Patch {
-    String value() default "/";
+public @interface Query {
+    // 参数名
+    String value();
 }

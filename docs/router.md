@@ -16,7 +16,7 @@ TurboWeb 的路由由路由管理器负责管理，所有的路由管理器均�
 **1.创建Controller**
 
 ```java
-import top.turboweb.anno.Get;
+import top.turboweb.anno.method.Get;
 import top.turboweb.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
 

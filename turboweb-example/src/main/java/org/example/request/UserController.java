@@ -1,9 +1,8 @@
 package org.example.request;
 
-import top.turboweb.anno.Get;
-import top.turboweb.anno.Post;
+import top.turboweb.anno.method.Get;
+import top.turboweb.anno.method.Post;
 import top.turboweb.anno.RequestPath;
-import top.turboweb.commons.exception.TurboArgsValidationException;
 import top.turboweb.http.context.HttpContext;
 
 import java.util.List;

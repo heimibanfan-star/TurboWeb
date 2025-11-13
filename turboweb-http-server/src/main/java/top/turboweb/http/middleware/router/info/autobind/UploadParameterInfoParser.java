@@ -1,7 +1,7 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
 import io.netty.handler.codec.http.multipart.FileUpload;
-import top.turboweb.anno.Upload;
+import top.turboweb.anno.param.binder.Upload;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.context.HttpContext;
 
@@ -14,7 +14,7 @@ import java.util.Set;
 /**
  * 文件上传的参数解析器
  */
-public class UploadParameterInfoParser implements ParameterInfoParser {
+public class UploadParameterInfoParser extends AbstractParamInfoParser {
 
     /**
      * 绑定上传文件参数
@@ -40,7 +40,7 @@ public class UploadParameterInfoParser implements ParameterInfoParser {
 
 
     @Override
-    public ParameterBinder parse(Parameter parameter) {
+    protected ParameterBinder doParse(Parameter parameter) {
         if (!parameter.getType().isAssignableFrom(FileUpload.class)) {
             return null;
         }

@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
-import top.turboweb.anno.Query;
+import top.turboweb.anno.param.binder.Query;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.context.HttpContext;
 
@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 /**
  * 查询参数解析器
  */
-public class QueryParameterInfoParser implements ParameterInfoParser {
+public class QueryParameterInfoParser extends AbstractParamInfoParser {
 
     /**
      * 查询参数绑定器
@@ -48,7 +48,7 @@ public class QueryParameterInfoParser implements ParameterInfoParser {
 
 
     @Override
-    public ParameterBinder parse(Parameter parameter) {
+    protected ParameterBinder doParse(Parameter parameter) {
         if (!parameter.isAnnotationPresent(Query.class)) {
             return null;
         }

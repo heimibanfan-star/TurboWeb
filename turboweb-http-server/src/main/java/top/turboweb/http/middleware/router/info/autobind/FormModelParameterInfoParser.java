@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
-import top.turboweb.anno.FormModel;
+import top.turboweb.anno.param.binder.FormModel;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Parameter;
@@ -8,7 +8,7 @@ import java.lang.reflect.Parameter;
 /**
  * 表单参数映射为实体的参数解析器
  */
-public class FormModelParameterInfoParser implements ParameterInfoParser{
+public class FormModelParameterInfoParser extends AbstractParamInfoParser{
 
     /**
      * 绑定表单模型参数
@@ -35,7 +35,7 @@ public class FormModelParameterInfoParser implements ParameterInfoParser{
 
 
     @Override
-    public ParameterBinder parse(Parameter parameter) {
+    protected ParameterBinder doParse(Parameter parameter) {
         if (!parameter.isAnnotationPresent(FormModel.class)) {
             return null;
         }

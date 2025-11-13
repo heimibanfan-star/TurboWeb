@@ -14,7 +14,7 @@ import java.nio.channels.Channel;
 /**
  * 内部属性参数解析器
  */
-public class InternTypeParamInfoParser implements ParameterInfoParser{
+public class InternTypeParamInfoParser extends AbstractParamInfoParser{
 
     // HttpContext自动绑定
     private static final ParameterBinder HTTP_CONTEXT_BINDER = ctx -> ctx;
@@ -32,7 +32,7 @@ public class InternTypeParamInfoParser implements ParameterInfoParser{
     private static final ParameterBinder CHANNEL_BINDER = ctx -> ((InternalConnectSession) ctx.getConnectSession()).getChannel() ;
 
     @Override
-    public ParameterBinder parse(Parameter parameter) {
+    protected ParameterBinder doParse(Parameter parameter) {
         // 获取参数类型
         Class<?> type = parameter.getType();
         if (HttpContext.class == type) {

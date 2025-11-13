@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
-import top.turboweb.anno.QueryModel;
+import top.turboweb.anno.param.binder.QueryModel;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Parameter;
@@ -8,7 +8,7 @@ import java.lang.reflect.Parameter;
 /**
  * 查询模型映射为实体的参数解析器
  */
-public class QueryModelParameterInfoParser implements ParameterInfoParser{
+public class QueryModelParameterInfoParser extends AbstractParamInfoParser{
 
 
     /**
@@ -36,7 +36,7 @@ public class QueryModelParameterInfoParser implements ParameterInfoParser{
 
 
     @Override
-    public ParameterBinder parse(Parameter parameter) {
+    protected ParameterBinder doParse(Parameter parameter) {
         if (!parameter.isAnnotationPresent(QueryModel.class)) {
             return null;
         }
