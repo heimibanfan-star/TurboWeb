@@ -1,7 +1,7 @@
 package top.turboweb.core.initializer.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.handler.DefaultExceptionHandlerMatcher;
 import top.turboweb.http.handler.ExceptionHandlerContainer;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
@@ -16,7 +16,7 @@ import java.util.List;
  */
 public class DefaultExceptionHandlerInitializer implements ExceptionHandlerInitializer {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultExceptionHandlerInitializer.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(DefaultExceptionHandlerInitializer.class);
 
     // 存储异常处理器
     private final List<Object> exceptionHandlerList = new ArrayList<>();

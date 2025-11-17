@@ -1,7 +1,7 @@
 package top.turboweb.loadbalance.rule;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboDuplicateException;
 import top.turboweb.commons.struct.trie.PatternUrlTrie;
 
@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class NodeRuleManager implements RuleManager {
 
-    private static final Logger log = LoggerFactory.getLogger(NodeRuleManager.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(NodeRuleManager.class);
     /** 是否已启用规则，一旦启用后不可修改 */
     private final AtomicBoolean used = new AtomicBoolean(false);
     /** 路径模式匹配树 */

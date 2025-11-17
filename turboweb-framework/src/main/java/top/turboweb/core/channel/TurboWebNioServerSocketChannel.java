@@ -1,11 +1,9 @@
 package top.turboweb.core.channel;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelPromise;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.internal.SocketUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.nio.channels.SocketChannel;
 import java.util.List;
@@ -19,7 +17,7 @@ public class TurboWebNioServerSocketChannel extends NioServerSocketChannel {
         this.zeroCopyPool = zeroCopyPool;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(TurboWebNioServerSocketChannel.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(TurboWebNioServerSocketChannel.class);
 
     @Override
     protected int doReadMessages(List<Object> buf) throws Exception {

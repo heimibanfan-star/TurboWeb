@@ -1,7 +1,7 @@
 package top.turboweb.core.initializer.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.core.initializer.CommonSourceInitializer;
@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 public class DefaultCommonSourceInitializer implements CommonSourceInitializer {
 
     private final static List<Consumer<HttpServerConfig>> COMMON_SOURCE_INITIALIZERS = new ArrayList<>();
-    private static final Logger log = LoggerFactory.getLogger(DefaultCommonSourceInitializer.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(DefaultCommonSourceInitializer.class);
 
     static {
         COMMON_SOURCE_INITIALIZERS.add(

@@ -1,7 +1,7 @@
 package top.turboweb.core.initializer.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.serializer.JacksonJsonSerializer;
 import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.core.initializer.ProcessorInitializer;
@@ -22,7 +22,7 @@ import java.util.Objects;
  */
 public class DefaultProcessorInitializer implements ProcessorInitializer {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultProcessorInitializer.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(DefaultProcessorInitializer.class);
     private final CorsProcessor corsProcessor = new CorsProcessor();
     private JsonSerializer jsonSerializer = new JacksonJsonSerializer();
     private HttpResponseConverter converter;

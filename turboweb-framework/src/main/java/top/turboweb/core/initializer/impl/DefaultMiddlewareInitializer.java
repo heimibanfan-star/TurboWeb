@@ -1,7 +1,7 @@
 package top.turboweb.core.initializer.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
@@ -15,7 +15,7 @@ import java.util.*;
  */
 public class DefaultMiddlewareInitializer implements MiddlewareInitializer {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultMiddlewareInitializer.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(DefaultMiddlewareInitializer.class);
     // 路由管理器
     private RouterManager routerManager;
     // 存储中间件对象

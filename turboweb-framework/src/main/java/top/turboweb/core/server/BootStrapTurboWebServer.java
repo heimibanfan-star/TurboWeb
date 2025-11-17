@@ -1,10 +1,9 @@
 package top.turboweb.core.server;
 
 import io.netty.channel.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.core.config.HttpServerConfig;
-import top.turboweb.core.handler.ChannelHandlerFactory;
 import top.turboweb.core.initializer.CommonSourceInitializer;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory;
@@ -40,7 +39,7 @@ import java.util.function.Consumer;
 public class BootStrapTurboWebServer extends CoreTurboWebServer {
 
 
-    private static final Logger log = LoggerFactory.getLogger(BootStrapTurboWebServer.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(BootStrapTurboWebServer.class);
 
     /**
      * HTTP 服务器配置对象。

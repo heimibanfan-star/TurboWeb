@@ -1,8 +1,8 @@
 package top.turboweb.http.middleware;
 
 import io.netty.handler.codec.http.HttpMethod;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.context.HttpContext;
 
 import java.util.HashMap;
@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class AbstractConcurrentLimitMiddleware extends Middleware{
 
-    private static final Logger log = LoggerFactory.getLogger(AbstractConcurrentLimitMiddleware.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(AbstractConcurrentLimitMiddleware.class);
     protected final Map<String, Map<String, ConcurrentLimit>> concurrentLimitMap;
 
     {

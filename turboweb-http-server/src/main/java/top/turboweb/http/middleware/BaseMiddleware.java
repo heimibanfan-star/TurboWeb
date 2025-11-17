@@ -1,14 +1,15 @@
 package top.turboweb.http.middleware;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 /**
  * 抽象的中间件
  */
 public class BaseMiddleware {
 
-	private static final Logger log = LoggerFactory.getLogger(BaseMiddleware.class);
+	private static final InternalLogger log = InternalLoggerFactory.getInstance(BaseMiddleware.class);
 	private Middleware next;
 	private boolean isLock = false;
 

@@ -1,10 +1,10 @@
 package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.net.URIBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.cookie.HttpCookieManager;
@@ -38,7 +38,7 @@ import java.util.Map;
  */
 public class FullHttpContext extends FileHttpContext implements HttpContext{
 
-	private static final Logger log = LoggerFactory.getLogger(FullHttpContext.class);
+	private static final InternalLogger log = InternalLoggerFactory.getInstance(FullHttpContext.class);
 
 	/**
 	 * 路径参数映射（如 /user/{id} -> id）

@@ -4,8 +4,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.multipart.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboHttpParseException;
 import top.turboweb.commons.utils.base.HttpRequestUtils;
 
@@ -27,7 +27,7 @@ import java.util.*;
  */
 public class HttpContent {
 
-    private static final Logger log = LoggerFactory.getLogger(HttpContent.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(HttpContent.class);
     private final FullHttpRequest request;
     private final String contentType;
 

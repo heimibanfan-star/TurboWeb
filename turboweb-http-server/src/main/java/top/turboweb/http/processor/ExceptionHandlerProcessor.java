@@ -1,8 +1,8 @@
 package top.turboweb.http.processor;
 
 import io.netty.handler.codec.http.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.commons.utils.base.ErrorStrGenerator;
@@ -33,7 +33,7 @@ import java.util.function.Function;
  */
 public class ExceptionHandlerProcessor extends Processor {
 
-    private static final Logger log = LoggerFactory.getLogger(ExceptionHandlerProcessor.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(ExceptionHandlerProcessor.class);
 
     /** 异常处理器匹配器，用于根据异常类型获取处理器定义 */
     private final ExceptionHandlerMatcher exceptionHandlerMatcher;

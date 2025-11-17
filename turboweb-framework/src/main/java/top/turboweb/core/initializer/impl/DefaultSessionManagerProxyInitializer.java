@@ -1,7 +1,7 @@
 package top.turboweb.core.initializer.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.session.*;
 import top.turboweb.http.session.DefaultSessionManagerHolder;
@@ -13,7 +13,7 @@ import top.turboweb.core.initializer.SessionManagerProxyInitializer;
  */
 public class DefaultSessionManagerProxyInitializer implements SessionManagerProxyInitializer {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultSessionManagerProxyInitializer.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(DefaultSessionManagerProxyInitializer.class);
     private SessionManager sessionManager = new MemorySessionManager();
 
     @Override

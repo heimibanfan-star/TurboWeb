@@ -1,8 +1,8 @@
 package top.turboweb.http.handler;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.anno.ExceptionHandler;
 import top.turboweb.anno.ExceptionResponseStatus;
 import top.turboweb.commons.exception.TurboExceptionHandlerException;
@@ -26,7 +26,7 @@ import java.util.List;
  */
 public class ExceptionHandlerContainerInitHelper {
 
-    private static final Logger log = LoggerFactory.getLogger(ExceptionHandlerContainerInitHelper.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(ExceptionHandlerContainerInitHelper.class);
 
     private ExceptionHandlerContainerInitHelper() {
     }

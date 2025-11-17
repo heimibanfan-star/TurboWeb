@@ -1,7 +1,9 @@
 package top.turboweb.commons.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -12,7 +14,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class GlobalConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalConfig.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(GlobalConfig.class);
     private static boolean isLock = false;
     private static final ReentrantLock lock = new ReentrantLock();
 

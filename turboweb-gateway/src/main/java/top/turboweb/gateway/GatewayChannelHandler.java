@@ -4,9 +4,9 @@ import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.concurrent.Promise;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import jakarta.validation.constraints.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private static final String TURBOWEB_GATEWAY_HEADER = "TurboWeb-Forward";
-    private static final Logger log = LoggerFactory.getLogger(GatewayChannelHandler.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(GatewayChannelHandler.class);
 
     /** 网关过滤器上下文，负责执行过滤链 */
     private final GatewayFilterContext<FT> gatewayFilterContext;

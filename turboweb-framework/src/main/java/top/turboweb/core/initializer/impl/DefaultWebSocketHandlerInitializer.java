@@ -1,8 +1,8 @@
 package top.turboweb.core.initializer.impl;
 
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
 import top.turboweb.websocket.WebSocketHandler;
 import top.turboweb.core.initializer.WebSocketHandlerInitializer;
@@ -13,7 +13,7 @@ import top.turboweb.commons.exception.TurboWebSocketException;
  */
 public class DefaultWebSocketHandlerInitializer implements WebSocketHandlerInitializer {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultWebSocketHandlerInitializer.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(DefaultWebSocketHandlerInitializer.class);
     // 是否使用websocket
     private boolean useWebSocket = false;
     // websocket的处理器

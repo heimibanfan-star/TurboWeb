@@ -1,7 +1,7 @@
 package top.turboweb.http.middleware.router;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboRequestException;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.context.HttpContext;
@@ -9,7 +9,6 @@ import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.router.container.RouterContainer;
 import top.turboweb.http.middleware.router.info.RouterDefinition;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -17,7 +16,7 @@ import java.util.Map;
  */
 public abstract class RouterManager extends Middleware {
 
-    private static final Logger log = LoggerFactory.getLogger(RouterManager.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(RouterManager.class);
 
     @Override
     public Object invoke(HttpContext ctx) {

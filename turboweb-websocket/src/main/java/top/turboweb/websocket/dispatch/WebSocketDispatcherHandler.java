@@ -2,8 +2,8 @@ package top.turboweb.websocket.dispatch;
 
 import io.netty.channel.*;
 import io.netty.handler.codec.http.websocketx.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboWebSocketException;
 import top.turboweb.commons.utils.thread.VirtualThreads;
 import top.turboweb.websocket.*;
@@ -19,7 +19,7 @@ import java.util.concurrent.ForkJoinPool;
 @ChannelHandler.Sharable
 public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
-    private static final Logger log = LoggerFactory.getLogger(WebSocketDispatcherHandler.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(WebSocketDispatcherHandler.class);
     private final Map<String, WebSocketSession> sessionMap = new ConcurrentHashMap<>(1024);
     private final WebSocketHandler webSocketHandler;
     private final ExecutorService POOL;

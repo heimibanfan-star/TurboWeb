@@ -1,7 +1,8 @@
 package top.turboweb.http.session;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 /**
  * 会话管理器持有者的默认实现，负责管理会话管理器的生命周期及访问入口。
@@ -12,7 +13,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DefaultSessionManagerHolder implements SessionManagerHolder {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultSessionManagerHolder.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(DefaultSessionManagerHolder.class);
 
     /**
      * 实际的会话管理器实例，由外部注入，负责处理具体的会话操作

@@ -1,8 +1,6 @@
 package top.turboweb.http.response;
 
 import io.netty.handler.codec.http.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
 
@@ -19,8 +17,6 @@ import java.nio.charset.Charset;
  * </p>
  */
 public class FileStreamResponse extends AbstractFileResponse implements InternalCallResponse {
-
-	private static final Logger log = LoggerFactory.getLogger(FileStreamResponse.class);
 
 	/** 文件通道，用于流式读取文件 */
 	private final FileChannel fileChannel;

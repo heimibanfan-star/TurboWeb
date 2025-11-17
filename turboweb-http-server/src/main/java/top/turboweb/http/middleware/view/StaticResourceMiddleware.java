@@ -4,10 +4,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.hc.core5.http.ContentType;
-import org.apache.tika.Tika;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.commons.exception.TurboStaticResourceException;
@@ -23,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
@@ -35,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class StaticResourceMiddleware extends Middleware {
 
 
-    private static final Logger log = LoggerFactory.getLogger(StaticResourceMiddleware.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(StaticResourceMiddleware.class);
 
 
     private static class ResourceCache {
@@ -57,7 +57,6 @@ public class StaticResourceMiddleware extends Middleware {
     private int cacheFileSize = 1024 * 1024;
     // 用于缓存静态文件的缓存
     private final Map<String, ResourceCache> caches = new ConcurrentHashMap<>();
-    private final Tika tika = new Tika();
     private final ClassLoader classLoader;
 
     private final Set<String> rangeTypes;
@@ -169,8 +168,11 @@ public class StaticResourceMiddleware extends Middleware {
             });
             try {
                 byte[] bytes = future.get();
-                // 判断文件的类型
-                String mimeType = tika.detect(bytes, path.toString());
+                // TODO 文件类型获取待测试
+                String mimeType = Files.probeContentType(file.toPath());
+                if (mimeType == null) {
+                    mimeType = "application/octet-stream";
+                }
                 // 缓存文件
                 ResourceCache resourceCache = new ResourceCache();
                 resourceCache.bytes = bytes;
@@ -183,7 +185,11 @@ public class StaticResourceMiddleware extends Middleware {
         } else {
             // 获取文件类型
             try {
-                String mimeType = tika.detect(file);
+                // TODO 文件类型获取待测试
+                String mimeType = Files.probeContentType(file.toPath());
+                if (mimeType == null) {
+                    mimeType = "application/octet-stream";
+                }
                 HttpResponse response;
                 // 获取范围
                 boolean enableRange = false;

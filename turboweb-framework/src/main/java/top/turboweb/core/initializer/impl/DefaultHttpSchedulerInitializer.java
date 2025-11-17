@@ -1,7 +1,7 @@
 package top.turboweb.core.initializer.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.processor.Processor;
@@ -14,7 +14,7 @@ import top.turboweb.core.initializer.HttpSchedulerInitializer;
  */
 public class DefaultHttpSchedulerInitializer implements HttpSchedulerInitializer {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultHttpSchedulerInitializer.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(DefaultHttpSchedulerInitializer.class);
 
     @Override
     public HttpScheduler init(Processor processorChain, HttpServerConfig config) {

@@ -7,9 +7,9 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.reactivestreams.Subscription;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.SynchronousSink;
@@ -39,7 +39,7 @@ import java.io.IOException;
  * </p>
  */
 public class FileStreamResponseStrategy extends ResponseStrategy {
-    private static final Logger log = LoggerFactory.getLogger(FileStreamResponseStrategy.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(FileStreamResponseStrategy.class);
 
     /**
      * 处理 {@link FileStreamResponse} 类型的文件流响应。

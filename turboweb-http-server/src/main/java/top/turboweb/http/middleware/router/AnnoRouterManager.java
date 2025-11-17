@@ -1,7 +1,5 @@
 package top.turboweb.http.middleware.router;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import top.turboweb.anno.*;
 import top.turboweb.anno.method.*;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
@@ -50,7 +48,6 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class AnnoRouterManager extends RouterManager {
 
-    private static final Logger log = LoggerFactory.getLogger(AnnoRouterManager.class);
     // 存储controller的信息
     private final Set<ControllerAttribute> controllers = new HashSet<>();
     private final RouterContainer routerContainer = new DefaultRouterContainer();

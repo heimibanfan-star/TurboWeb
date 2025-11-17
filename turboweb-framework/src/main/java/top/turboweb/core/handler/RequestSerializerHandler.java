@@ -5,8 +5,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.utils.thread.ThreadAssert;
 
 import java.util.LinkedList;
@@ -17,7 +17,7 @@ import java.util.Queue;
  */
 public class RequestSerializerHandler extends ChannelDuplexHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(RequestSerializerHandler.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(RequestSerializerHandler.class);
     private final Queue<FullHttpRequest> cacheRequest = new LinkedList<>();
     private boolean isProcessing = false;
 

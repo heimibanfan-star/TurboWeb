@@ -1,7 +1,7 @@
 package top.turboweb.http.middleware.interceptor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.struct.trie.PatternUrlTrie;
 import top.turboweb.commons.utils.order.Order;
 import top.turboweb.http.context.HttpContext;
@@ -14,7 +14,7 @@ import java.util.*;
  */
 public class InterceptorManager extends Middleware {
 
-    private static final Logger log = LoggerFactory.getLogger(InterceptorManager.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(InterceptorManager.class);
     // 用于存储用户注册的拦截器
     private final Map<String, List<InterceptorHandler>> interceptorHandlers = new HashMap<>();
     // 防止排序重复

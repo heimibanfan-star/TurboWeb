@@ -1,14 +1,13 @@
 package top.turboweb.http.session;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.lock.Locks;
 import top.turboweb.commons.lock.SegmentLock;
 
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -23,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class MemorySessionManager implements SessionManager {
 
-    private static final Logger log = LoggerFactory.getLogger(MemorySessionManager.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(MemorySessionManager.class);
 
     /**
      * 会话容器，键为sessionId，值为会话属性的映射对象（{@link MemorySessionMap}）。

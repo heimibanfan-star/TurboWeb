@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.websocket.PathWebSocketPreInit;
@@ -19,10 +17,7 @@ import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
  */
 @ChannelHandler.Sharable
 public class HttpProtocolDispatcher extends SimpleChannelInboundHandler<FullHttpRequest> {
-
-    private static final Logger log = LoggerFactory.getLogger(HttpProtocolDispatcher.class);
     private final HttpScheduler httpScheduler;
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private final WebSocketDispatcherHandler webSocketDispatcherHandler;
     private final WebSocketPreInit webSocketPreInit;
 

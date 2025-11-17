@@ -1,14 +1,13 @@
 package top.turboweb.http.scheduler.strategy;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.utils.thread.WorkStealThreadUtils;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.response.AsyncFileResponse;
@@ -45,7 +44,7 @@ import java.nio.channels.CompletionHandler;
  * @see ResponseStrategy
  */
 public class AsyncFileResponseStrategy extends ResponseStrategy {
-    private static final Logger log = LoggerFactory.getLogger(AsyncFileResponseStrategy.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(AsyncFileResponseStrategy.class);
 
     /**
      * 执行 AIO 文件响应的处理。

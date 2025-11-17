@@ -1,10 +1,9 @@
 package top.turboweb.commons.senntinels;
 
 import io.netty.channel.EventLoop;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -15,7 +14,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class AutoDestructSentinel implements SchedulerSentinel {
 
-    private static final Logger log = LoggerFactory.getLogger(AutoDestructSentinel.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(AutoDestructSentinel.class);
     private Runnable[] tasks;
     private final ReentrantLock takeLock = new ReentrantLock();
     private final Condition takeCondition = takeLock.newCondition();

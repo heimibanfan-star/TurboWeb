@@ -1,18 +1,11 @@
 package top.turboweb.http.middleware;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.commons.exception.TurboReactiveException;
-import reactor.core.publisher.Mono;
 
 /**
  * 中间件接口
  */
 public abstract class Middleware extends BaseMiddleware {
-
-    private static final Logger log = LoggerFactory.getLogger(Middleware.class);
-
 
     /**
      * 中间件执行方法

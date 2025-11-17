@@ -1,7 +1,8 @@
 package top.turboweb.commons.utils.thread;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -13,7 +14,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class DiskOpeThreadUtils {
 
-    private static final Logger log = LoggerFactory.getLogger(DiskOpeThreadUtils.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(DiskOpeThreadUtils.class);
     private static volatile ThreadPoolExecutor EXECUTOR;
     private static final ReentrantLock LOCK = new ReentrantLock();
     private static volatile BlockingQueue<Runnable> TASKS;
