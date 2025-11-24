@@ -9,7 +9,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 
 @Route("/hello")
-public class HelloController {
+public class    HelloController {
 
     @Get("/1")
     public String hello() {

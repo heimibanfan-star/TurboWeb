@@ -15,10 +15,14 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import top.turboweb.core.handler.Http2FrameAdaptorHandler;
 import top.turboweb.core.server.BootStrapTurboWebServer;
+import top.turboweb.gateway.GatewayChannelHandler;
+import top.turboweb.gateway.fail.NodeMatchFailStrategy;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.MixedMiddleware;
 import top.turboweb.http.middleware.TypedSkipMiddleware;
 import top.turboweb.http.middleware.router.AnnoRouterManager;
+import top.turboweb.loadbalance.breaker.DefaultBreaker;
+import top.turboweb.loadbalance.rule.NodeRuleManager;
 
 import javax.net.ssl.SSLException;
 import java.io.File;
@@ -28,21 +32,22 @@ import java.security.cert.CertificateException;
 
 public class Application {
     public static void main(String[] args) throws CertificateException, IOException {
-//        AnnoRouterManager routerManager = new AnnoRouterManager(true);
-//        routerManager.addController(new HelloController());
-//        BootStrapTurboWebServer.create(1)
-//                .http()
-//                .routerManager(routerManager)
-//                .and()
-//                .ssl(sslContext())
-//                .enableHttp2()
-//                .configServer(config -> {
-//                    config.setShowRequestLog(false);
-//                })
-//                .start();
-        SelfSignedCertificate selfSignedCertificate = new SelfSignedCertificate();
-        File certificate = selfSignedCertificate.certificate();
-        File privateKey = selfSignedCertificate.privateKey();
+
+        GatewayChannelHandler<Boolean> gatewayChannelHandler = GatewayChannelHandler.create(new DefaultBreaker(), NodeMatchFailStrategy.REJECT);
+        gatewayChannelHandler.setRule(new NodeRuleManager());
+        AnnoRouterManager routerManager = new AnnoRouterManager(true);
+        routerManager.addController(new HelloController());
+        BootStrapTurboWebServer.create(1)
+                .http()
+                .routerManager(routerManager)
+                .and()
+                .gatewayHandler(gatewayChannelHandler)
+                .start();
+//        SelfSignedCertificate selfSignedCertificate = new SelfSignedCertificate();
+//        File certificate = selfSignedCertificate.certificate();
+//        File privateKey = selfSignedCertificate.privateKey();
+
+
     }
 
     private static SslContext sslContext(boolean h2) throws CertificateException, SSLException {

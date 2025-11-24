@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 import top.turboweb.commons.serializer.JacksonJsonSerializer;
 import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.gateway.fail.NodeMatchFailStrategy;
 import top.turboweb.loadbalance.LoadBalancer;
 import top.turboweb.loadbalance.LoadBalancerFactory;
 import top.turboweb.loadbalance.breaker.Breaker;
@@ -66,59 +67,136 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
     /** 熔断器，用于处理超时、失败率过高的节点 */
     private final Breaker breaker;
 
+    private final NodeMatchFailStrategy nodeMatchFailStrategy;
+
     @NotNull
     private JsonSerializer jsonSerializer = new JacksonJsonSerializer();
 
 
     /** 创建同步版网关处理器 */
     public static GatewayChannelHandler<Boolean> create() {
-        return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), new EmptyBreaker(), new SyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(),
+                new EmptyBreaker(),
+                new SyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
     }
 
     public static GatewayChannelHandler<Boolean> create(LoadBalancerFactory loadBalancerFactory) {
-        return new GatewayChannelHandler<>(loadBalancerFactory.createLoadBalancer(), new EmptyBreaker(), new SyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                loadBalancerFactory.createLoadBalancer(),
+                new EmptyBreaker(),
+                new SyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
     }
 
     public static GatewayChannelHandler<Boolean> create(LoadBalancer loadBalancer) {
-        return new GatewayChannelHandler<>(loadBalancer, new EmptyBreaker(), new SyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                loadBalancer,
+                new EmptyBreaker(),
+                new SyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
     }
 
     public static GatewayChannelHandler<Boolean> create(Breaker breaker) {
-        return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), breaker, new SyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(),
+                breaker,
+                new SyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
     }
 
     public static GatewayChannelHandler<Boolean> create(LoadBalancer loadBalancer, Breaker breaker) {
-        return new GatewayChannelHandler<>(loadBalancer, breaker, new SyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                loadBalancer,
+                breaker,
+                new SyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
+    }
+
+    public static GatewayChannelHandler<Boolean> create(Breaker breaker, NodeMatchFailStrategy nodeMatchFailStrategy) {
+        return new GatewayChannelHandler<>(
+                LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(),
+                breaker,
+                new SyncGatewayFilterContext(),
+                nodeMatchFailStrategy
+        );
     }
 
     /** 创建异步版网关处理器 */
     public static GatewayChannelHandler<Mono<Boolean>> createAsync() {
-        return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), new EmptyBreaker(), new AsyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(),
+                new EmptyBreaker(),
+                new AsyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
     }
 
     public static GatewayChannelHandler<Mono<Boolean>> createAsync(LoadBalancerFactory loadBalancerFactory) {
-        return new GatewayChannelHandler<>(loadBalancerFactory.createLoadBalancer(), new EmptyBreaker(), new AsyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                loadBalancerFactory.createLoadBalancer(),
+                new EmptyBreaker(),
+                new AsyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
     }
 
     public static GatewayChannelHandler<Mono<Boolean>> createAsync(LoadBalancer loadBalancer) {
-        return new GatewayChannelHandler<>(loadBalancer, new EmptyBreaker(), new AsyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                loadBalancer,
+                new EmptyBreaker(),
+                new AsyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
     }
 
     public static GatewayChannelHandler<Mono<Boolean>> createAsync(Breaker breaker) {
-        return new GatewayChannelHandler<>(LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(), breaker, new AsyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(),
+                breaker,
+                new AsyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
     }
 
     public static GatewayChannelHandler<Mono<Boolean>> createAsync(LoadBalancer loadBalancer, Breaker breaker) {
-        return new GatewayChannelHandler<>(loadBalancer, breaker, new AsyncGatewayFilterContext());
+        return new GatewayChannelHandler<>(
+                loadBalancer,
+                breaker,
+                new AsyncGatewayFilterContext(),
+                NodeMatchFailStrategy.REJECT
+        );
     }
 
-    private GatewayChannelHandler(LoadBalancer loadBalancer, Breaker breaker, GatewayFilterContext<FT> gatewayFilterContext) {
+    public static GatewayChannelHandler<Mono<Boolean>> createAsync(Breaker breaker, NodeMatchFailStrategy nodeMatchFailStrategy) {
+        return new GatewayChannelHandler<>(
+                LoadBalancerFactory.RIBBON_LOAD_BALANCER.createLoadBalancer(),
+                breaker,
+                new AsyncGatewayFilterContext(),
+                nodeMatchFailStrategy
+        );
+    }
+
+    private GatewayChannelHandler(
+            LoadBalancer loadBalancer,
+            Breaker breaker,
+            GatewayFilterContext<FT> gatewayFilterContext,
+            NodeMatchFailStrategy nodeMatchFailStrategy
+    ) {
         Objects.requireNonNull(loadBalancer, "loadBalancer can not be null");
         Objects.requireNonNull(breaker, "breaker can not be null");
         Objects.requireNonNull(gatewayFilterContext, "gatewayFilterContext can not be null");
+        Objects.requireNonNull(nodeMatchFailStrategy, "nodeMatchFailStrategy can not be null");
         this.loadBalancer = loadBalancer;
         this.breaker = breaker;
         this.gatewayFilterContext = gatewayFilterContext;
+        this.nodeMatchFailStrategy = nodeMatchFailStrategy;
     }
 
 
@@ -163,37 +241,8 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
         promise.addListener(future -> {
             try {
                 if (future.isSuccess()) {
-                    RuleManager ruleManager = this.ruleManager;
-                    // 网关失效逻辑
-                    if (ruleManager == null) {
-                        ctx.writeAndFlush(errorResponse("Gateway is not available"));
-                        return;
-                    }
-
-                    // 判断当前请求是否被转发
-                    if (request.headers().contains(TURBOWEB_GATEWAY_HEADER)) {
-                        // 判断是否允许当前节点处理
-                        RuleDetail detail = ruleManager.getLocalService(request.uri());
-                        if (detail == null) {
-                            ctx.writeAndFlush(errorResponse("Service not found"));
-                        } else {
-                            handleRequestLocal(ctx, request, detail);
-                        }
-                        return;
-                    }
-
-                    // 正常节点尝试匹配
-                    RuleDetail detail = ruleManager.getService(request.uri());
-                    if (detail == null) {
-                        ctx.writeAndFlush(errorResponse("Service not found"));
-                        return;
-                    }
-                    // 判断节点需要本地处理还是远程处理
-                    if (detail.local()) {
-                        handleRequestLocal(ctx, request, detail);
-                    } else {
-                        handleRequestRemote(ctx, request, detail);
-                    }
+                    // 执行节点的匹配逻辑
+                    this.doMatch(ctx, request);
                 } else {
                     if (!helper.isResponse()) {
                         ctx.writeAndFlush(errorResponse(future.cause().getMessage()));
@@ -204,6 +253,89 @@ public class GatewayChannelHandler<FT> extends SimpleChannelInboundHandler<FullH
             }
         });
 
+    }
+
+
+    /**
+     * 网关核心的服务匹配逻辑。
+     *
+     * <p>步骤说明：</p>
+     * <ol>
+     *     <li><b>获取规则快照：</b> 从当前 RuleManager 获取路由规则；若规则未初始化则网关不可用。</li>
+     *
+     *     <li><b>判断是否为二次转发（内部调用）：</b><br>
+     *         若请求头中包含 {@code TurboWeb-Forward}，表示该请求已经从其他节点转发过来，
+     *         此时仅允许本节点匹配本地服务：
+     *         <ul>
+     *             <li>尝试通过 {@code ruleManager.getLocalService()}</li>
+     *             <li>若匹配失败，则进入 {@code nodeMatchFailStrategy} 降级逻辑</li>
+     *             <li>最终若仍不能匹配，则直接返回 502 错误</li>
+     *         </ul>
+     *     </li>
+     *
+     *     <li><b>普通请求匹配：</b><br>
+     *         非二次转发的请求会进入标准路由流程：
+     *         <ul>
+     *             <li>优先使用 {@code ruleManager.getService(uri)} 根据完整路由规则匹配服务</li>
+     *             <li>若匹配失败，则使用降级策略尝试提供备用规则</li>
+     *         </ul>
+     *     </li>
+     *
+     *     <li><b>决定请求的处理方式：</b>
+     *         <ul>
+     *             <li>若匹配的规则为 local=true → 执行本地转发 {@link #handleRequestLocal}</li>
+     *             <li>否则 → 执行远程节点转发 {@link #handleRequestRemote}</li>
+     *         </ul>
+     *     </li>
+     * </ol>
+     *
+     * <p>整体而言，该方法承担了网关的核心决策功能：判断当前请求应该由本节点处理还是由其他节点处理，
+     * 并结合降级策略保障在规则缺失或路由失败时仍尽可能提供 fallback 能力。</p>
+     *
+     * @param ctx     ChannelHandlerContext
+     * @param request FullHttpRequest 当前客户端请求
+     */
+    private void doMatch(ChannelHandlerContext ctx, FullHttpRequest request) {
+        // 拿到规则管理器的快照
+        RuleManager ruleManager = this.ruleManager;
+        // 网关失效逻辑
+        if (ruleManager == null) {
+            ctx.writeAndFlush(errorResponse("Gateway is not available"));
+            return;
+        }
+        // 判断当前请求是否被转发
+        if (request.headers().contains(TURBOWEB_GATEWAY_HEADER)) {
+            // 判断是否允许当前节点处理
+            RuleDetail detail = ruleManager.getLocalService(request.uri());
+            // 降级再次尝试获取规则
+            if (detail == null) {
+                detail = this.nodeMatchFailStrategy.onMatchFail();
+            }
+            // 判断是否能拿到对应的规则
+            if (detail == null) {
+                ctx.writeAndFlush(errorResponse("Service not found"));
+            } else {
+                handleRequestLocal(ctx, request, detail);
+            }
+            return;
+        }
+
+        // 正常节点尝试匹配
+        RuleDetail detail = ruleManager.getService(request.uri());
+        // 降级再次尝试获取规则
+        if (detail == null) {
+            detail = this.nodeMatchFailStrategy.onMatchFail();
+        }
+        if (detail == null) {
+            ctx.writeAndFlush(errorResponse("Service not found"));
+            return;
+        }
+        // 判断节点需要本地处理还是远程处理
+        if (detail.local()) {
+            handleRequestLocal(ctx, request, detail);
+        } else {
+            handleRequestRemote(ctx, request, detail);
+        }
     }
 
     /**
