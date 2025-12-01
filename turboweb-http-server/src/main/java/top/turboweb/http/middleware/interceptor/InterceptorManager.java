@@ -18,7 +18,7 @@ public class InterceptorManager extends Middleware {
     // 用于存储用户注册的拦截器
     private final Map<String, List<InterceptorHandler>> interceptorHandlers = new HashMap<>();
     // 防止排序重复
-    private final Set<Integer> orders = new HashSet<>();
+    private final Map<Integer, InterceptorHandler> orders = new HashMap<>();
     // 以前缀树的方式存储用户注册的拦截器
     private final PatternUrlTrie<List<InterceptorHandler>> pathTrie = new PatternUrlTrie<>();
 
@@ -70,10 +70,10 @@ public class InterceptorManager extends Middleware {
         if (pathPattern == null || interceptor == null) {
             throw new NullPointerException("pathPattern and interceptor must not null");
         }
-        if (orders.contains(interceptor.order())) {
+        if (orders.containsKey(interceptor.order()) && orders.get(interceptor.order()) != interceptor) {
             throw new IllegalArgumentException("order must be unique");
         }
-        orders.add(interceptor.order());
+        orders.put(interceptor.order(), interceptor);
         interceptorHandlers.computeIfAbsent(pathPattern, k -> new ArrayList<>());
         interceptorHandlers.get(pathPattern).add(interceptor);
     }
