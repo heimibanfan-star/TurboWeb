@@ -1,6 +1,7 @@
 package top.turboweb.commons.serializer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -21,6 +22,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * 基于jackson的json序列化器
@@ -32,15 +34,26 @@ public class JacksonJsonSerializer implements JsonSerializer {
     /**
      * 创建一个基于jackson的json序列化器
      *
+     * @param objectMapper jackson的ObjectMapper
+     */
+    public JacksonJsonSerializer(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    /**
+     * 创建一个基于jackson的json序列化器
+     *
      * @param modules jackson的模块
      */
     public JacksonJsonSerializer(Module... modules) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModules(modules);
         this.objectMapper = objectMapper;
+        // 忽略未知字段
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    public JacksonJsonSerializer() {
+    public JacksonJsonSerializer(Consumer<ObjectMapper> config) {
         ObjectMapper objectMapper = new ObjectMapper();
 
         JavaTimeModule javaTimeModule = new JavaTimeModule();
@@ -66,6 +79,18 @@ public class JacksonJsonSerializer implements JsonSerializer {
         objectMapper.registerModule(javaTimeModule);
 
         this.objectMapper = objectMapper;
+
+        config.accept(objectMapper);
+
+        // 忽略未知字段
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
+
+    /**
+     * 创建一个基于jackson的json序列化器
+     */
+    public JacksonJsonSerializer() {
+        this(objMap -> {});
     }
 
     @Override
