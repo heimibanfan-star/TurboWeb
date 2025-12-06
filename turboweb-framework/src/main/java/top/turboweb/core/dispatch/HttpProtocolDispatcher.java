@@ -60,7 +60,7 @@ public class HttpProtocolDispatcher extends SimpleChannelInboundHandler<FullHttp
         webSocketPreInit.handle(ctx, request);
         String channelId = ctx.channel().id().asLongText();
         String uri = request.uri();
-        WebSocketConnectInfo connectInfo = new WebSocketConnectInfo(uri);
+        WebSocketConnectInfo connectInfo = new WebSocketConnectInfo(uri, request.headers());
         WebSocketConnectInfoContainer.putWebSocketConnectInfo(channelId, connectInfo);
     }
 }

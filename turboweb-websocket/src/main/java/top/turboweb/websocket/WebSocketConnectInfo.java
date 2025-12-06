@@ -1,18 +1,10 @@
 package top.turboweb.websocket;
 
+import io.netty.handler.codec.http.HttpHeaders;
+
 /**
  * websocket的连接信息
  */
-public class WebSocketConnectInfo {
+public record WebSocketConnectInfo(String websocketPath, HttpHeaders headers) {
 
-    private final String websocketPath;
-
-    public WebSocketConnectInfo(String websocketPath) {
-        this.websocketPath = websocketPath;
-    }
-
-
-    public String getWebsocketPath() {
-        return websocketPath;
-    }
 }
