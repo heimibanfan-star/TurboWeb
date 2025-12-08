@@ -23,8 +23,7 @@ public class ConnectSession {
      * @param message 消息
      */
     public ChannelFuture send(String message) {
-        String msg = "data: " + message + "\n\n";
-        ByteBuf buf = Unpooled.copiedBuffer(msg, CharsetUtil.UTF_8);
+        ByteBuf buf = Unpooled.copiedBuffer(message, CharsetUtil.UTF_8);
         DefaultHttpContent content = new DefaultHttpContent(buf); // 发送 chunked 数据
         return channel.writeAndFlush(content);
     }

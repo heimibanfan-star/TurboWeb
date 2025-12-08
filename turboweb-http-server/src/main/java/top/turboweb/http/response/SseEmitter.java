@@ -93,6 +93,61 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Internal
 	}
 
 	/**
+	 * 发送数据到客户端。
+	 * <p>
+	 * 等同于调用 {@link #send(String)} 方法，将数据封装成 "data:" + data + "\n\n" 格式发送。
+	 *
+	 * @param data 数据内容
+	 */
+	public void sendData(String data) {
+		send("data:" + data + "\n\n");
+	}
+
+	/**
+	 * 发送事件到客户端。
+	 * <p>
+	 * 等同于调用 {@link #send(String)} 方法，将事件封装成 "event:" + event + "\n\n" 格式发送。
+	 *
+	 * @param event 事件内容
+	 */
+	public void sendEvent(String event) {
+		send("event:" + event + "\n\n");
+	}
+
+	/**
+	 * 发送 ID 到客户端。
+	 * <p>
+	 * 等同于调用 {@link #send(String)} 方法，将 ID 封装成 "id:" + id + "\n\n" 格式发送。
+	 *
+	 * @param id ID 内容
+	 */
+	public void sendId(String id) {
+		send("id:" + id + "\n\n");
+	}
+
+	/**
+	 * 发送重试间隔到客户端。
+	 * <p>
+	 * 等同于调用 {@link #send(String)} 方法，将重试间隔封装成 "retry:" + retry + "\n\n" 格式发送。
+	 *
+	 * @param retry 重试间隔（毫秒）
+	 */
+	public void sendRetry(int retry) {
+		send("retry:" + retry + "\n\n");
+	}
+
+	/**
+	 * 发送注释到客户端。
+	 * <p>
+	 * 等同于调用 {@link #send(String)} 方法，将注释封装成 ":" + comment + "\n\n" 格式发送。
+	 *
+	 * @param comment 注释内容
+	 */
+	public void sendComment(String comment) {
+		send(":" + comment + "\n\n");
+	}
+
+	/**
 	 * 保存消息到缓存。
 	 *
 	 * @param message 消息内容

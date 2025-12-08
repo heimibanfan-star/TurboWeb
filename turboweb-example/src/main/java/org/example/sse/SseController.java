@@ -26,7 +26,7 @@ public class SseController {
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-                    session.send("hello:" + i);
+                    session.send("data:hello:" + i + "\n\n");
                 }
                 session.close();
             });
@@ -38,7 +38,7 @@ public class SseController {
     public SseResponse sse2(HttpContext context) {
         SseResponse sseResponse = context.createSseResponse();
         Flux<String> flux = Flux.just("hello1", "hello2", "hello3").delayElements(Duration.ofSeconds(1));
-        sseResponse.setSseCallback(flux);
+        sseResponse.setSseCallback(flux.map(i -> "data:" + i + "\n\n"));
         return sseResponse;
     }
 
@@ -54,7 +54,7 @@ public class SseController {
                     }
                     return Mono.just(i);
                 });
-        sseResponse.setSseCallback(flux, err -> "errMsg:" + err.getMessage(), ConnectSession::close);
+        sseResponse.setSseCallback(flux.map(String::valueOf).map(i -> "data:" + i + "\n\n"), err -> "errMsg:" + err.getMessage(), ConnectSession::close);
         return sseResponse;
     }
 
@@ -70,7 +70,7 @@ public class SseController {
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                sseEmitter.send("hello:" + i);
+                sseEmitter.sendData("hello:" + i);
             }
         });
         return sseEmitter;
@@ -86,7 +86,7 @@ public class SseController {
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                sseEmitter.send("hello:" + i);
+                sseEmitter.sendData("hello:" + i);
             }
             sseEmitter.close();
         });
@@ -99,7 +99,6 @@ public class SseController {
     @Get("/sse6")
     public SseEmitter sse6(HttpContext context) throws InterruptedException {
         TimeUnit.SECONDS.sleep(5);
-        SseEmitter sseEmitter = context.createSseEmitter();
-        return sseEmitter;
+        return context.createSseEmitter();
     }
 }
