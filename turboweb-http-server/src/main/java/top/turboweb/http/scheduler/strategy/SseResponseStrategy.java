@@ -2,10 +2,10 @@ package top.turboweb.http.scheduler.strategy;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.base.connect.InternalConnectSession;
-import top.turboweb.http.base.response.InternalSseEmitter;
-import top.turboweb.http.base.response.SseEmitter;
-import top.turboweb.http.base.response.SseResponse;
+import top.turboweb.http.connect.InternalConnectSession;
+import top.turboweb.http.response.InternalSseEmitter;
+import top.turboweb.http.response.SseEmitter;
+import top.turboweb.http.response.SseResponse;
 
 /**
  * <p><b>SSE（Server-Sent Events）响应策略实现类。</b></p>

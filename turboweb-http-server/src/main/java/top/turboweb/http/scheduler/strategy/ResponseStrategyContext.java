@@ -1,7 +1,7 @@
 package top.turboweb.http.scheduler.strategy;
 
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.base.response.InternalCallResponse;
+import top.turboweb.http.response.InternalCallResponse;
 
 import java.util.Map;
 

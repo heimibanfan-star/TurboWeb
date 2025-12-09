@@ -6,11 +6,11 @@ import top.turboweb.anno.method.Get;
 import top.turboweb.anno.method.Post;
 import top.turboweb.anno.RequestPath;
 import top.turboweb.anno.param.binder.Upload;
-import top.turboweb.http.base.context.HttpContext;
-import top.turboweb.http.base.response.AsyncFileResponse;
-import top.turboweb.http.base.response.FileStreamResponse;
-import top.turboweb.http.base.response.HttpFileResult;
-import top.turboweb.http.base.response.ZeroCopyResponse;
+import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.response.AsyncFileResponse;
+import top.turboweb.http.response.FileStreamResponse;
+import top.turboweb.http.response.HttpFileResult;
+import top.turboweb.http.response.ZeroCopyResponse;
 
 import java.io.*;
 import java.util.List;

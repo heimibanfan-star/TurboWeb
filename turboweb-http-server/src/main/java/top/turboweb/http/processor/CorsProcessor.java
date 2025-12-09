@@ -1,7 +1,7 @@
 package top.turboweb.http.processor;
 
 import io.netty.handler.codec.http.*;
-import top.turboweb.http.base.connect.ConnectSession;
+import top.turboweb.http.connect.ConnectSession;
 
 import java.util.Arrays;
 import java.util.List;

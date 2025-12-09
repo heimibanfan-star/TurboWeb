@@ -8,9 +8,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.serializer.JsonSerializer;
-import top.turboweb.http.base.response.HttpFileResult;
-import top.turboweb.http.base.response.HttpResult;
-import top.turboweb.http.base.response.ReactorResponse;
+import top.turboweb.http.response.HttpFileResult;
+import top.turboweb.http.response.HttpResult;
+import top.turboweb.http.response.ReactorResponse;
 
 import java.nio.ByteBuffer;
 

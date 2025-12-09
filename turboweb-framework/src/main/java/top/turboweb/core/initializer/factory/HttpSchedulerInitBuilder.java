@@ -5,7 +5,7 @@ import top.turboweb.core.server.TurboWebServer;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.router.RouterManager;
 import top.turboweb.http.processor.CorsProcessor;
-import top.turboweb.http.base.session.SessionManager;
+import top.turboweb.http.session.SessionManager;
 
 import java.util.function.Consumer;
 

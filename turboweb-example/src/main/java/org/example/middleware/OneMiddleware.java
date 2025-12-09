@@ -1,6 +1,6 @@
 package org.example.middleware;
 
-import top.turboweb.http.base.context.HttpContext;
+import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 
 public class OneMiddleware extends Middleware {

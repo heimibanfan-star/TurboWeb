@@ -9,8 +9,8 @@ import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import top.turboweb.commons.exception.TurboReactiveException;
 import top.turboweb.commons.utils.thread.ThreadAssert;
-import top.turboweb.http.base.connect.InternalConnectSession;
-import top.turboweb.http.base.response.ReactorResponse;
+import top.turboweb.http.connect.InternalConnectSession;
+import top.turboweb.http.response.ReactorResponse;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 

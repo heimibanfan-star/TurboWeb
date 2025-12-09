@@ -7,7 +7,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import top.turboweb.core.server.BootStrapTurboWebServer;
-import top.turboweb.http.base.context.HttpContext;
+import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 
 import javax.net.ssl.SSLException;

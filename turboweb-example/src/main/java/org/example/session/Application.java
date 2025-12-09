@@ -3,6 +3,7 @@ package org.example.session;
 
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.http.middleware.router.AnnoRouterManager;
+import top.turboweb.http.session.BackHoleSessionManager;
 
 public class Application {
     public static void main(String[] args) {

@@ -21,15 +21,22 @@
     </properties>
 
     <dependencies>
-        <!-- turboweb http模块基础设施包 -->
+        <!-- 通用工具包 -->
         <dependency>
-            <groupId>io.gitee.turboweb</groupId>
-            <artifactId>turboweb-http-server-base</artifactId>
+            <groupId>${turboweb.groupId}</groupId>
+            <artifactId>turboweb-commons</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
+        <!-- freemarker -->
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>${freemarker.version}</version>
+        </dependency>
+        <!-- 注解包 -->
         <dependency>
             <groupId>io.gitee.turboweb</groupId>
-            <artifactId>turboweb-http-server-middleware</artifactId>
+            <artifactId>turboweb-anno</artifactId>
             <version>${turboweb.version}</version>
         </dependency>
     </dependencies>

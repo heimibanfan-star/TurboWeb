@@ -1,7 +1,7 @@
 package org.example.session;
 
 import top.turboweb.commons.lock.Locks;
-import top.turboweb.http.base.session.SessionManager;
+import top.turboweb.http.session.SessionManager;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;

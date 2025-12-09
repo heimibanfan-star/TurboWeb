@@ -4,7 +4,7 @@ package org.example.exception;
 import top.turboweb.anno.method.Get;
 import top.turboweb.anno.method.Post;
 import top.turboweb.anno.RequestPath;
-import top.turboweb.http.base.context.HttpContext;
+import top.turboweb.http.context.HttpContext;
 
 @RequestPath("/excep")
 public class ExcepController {

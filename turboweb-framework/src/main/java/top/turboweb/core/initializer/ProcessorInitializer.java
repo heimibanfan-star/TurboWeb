@@ -5,7 +5,7 @@ import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.processor.CorsProcessor;
 import top.turboweb.http.processor.Processor;
-import top.turboweb.http.base.session.SessionManagerHolder;
+import top.turboweb.http.session.SessionManagerHolder;
 
 /**
  * 内核处理器的初始化器

@@ -4,7 +4,7 @@ package org.example.gateway;
 import reactor.core.publisher.Mono;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.gateway.GatewayChannelHandler;
-import top.turboweb.http.base.context.HttpContext;
+import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.loadbalance.rule.NodeRuleManager;
 

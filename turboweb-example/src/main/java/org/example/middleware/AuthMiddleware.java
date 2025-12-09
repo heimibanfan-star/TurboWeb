@@ -3,7 +3,7 @@ package org.example.middleware;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import top.turboweb.http.base.context.HttpContext;
+import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 
 public class AuthMiddleware extends Middleware {

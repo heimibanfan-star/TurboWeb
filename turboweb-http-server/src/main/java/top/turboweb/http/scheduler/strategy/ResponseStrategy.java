@@ -4,7 +4,9 @@ import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.utils.base.ErrorStrGenerator;
-import top.turboweb.http.base.connect.InternalConnectSession;
+import top.turboweb.http.connect.InternalConnectSession;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * <p><b>响应策略抽象类。</b></p>
