@@ -13,7 +13,7 @@ import top.turboweb.http.processor.MiddlewareInvokeProcessor;
 import top.turboweb.http.processor.Processor;
 import top.turboweb.http.processor.convertor.DefaultHttpResponseConverter;
 import top.turboweb.http.processor.convertor.HttpResponseConverter;
-import top.turboweb.http.session.SessionManagerHolder;
+import top.turboweb.http.base.session.SessionManagerHolder;
 
 import java.util.Objects;
 

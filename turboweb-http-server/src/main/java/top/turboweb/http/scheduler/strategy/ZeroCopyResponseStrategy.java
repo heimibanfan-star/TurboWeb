@@ -5,8 +5,8 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import top.turboweb.commons.utils.thread.ThreadAssert;
-import top.turboweb.http.connect.InternalConnectSession;
-import top.turboweb.http.response.ZeroCopyResponse;
+import top.turboweb.http.base.connect.InternalConnectSession;
+import top.turboweb.http.base.response.ZeroCopyResponse;
 
 import java.util.concurrent.ExecutionException;
 

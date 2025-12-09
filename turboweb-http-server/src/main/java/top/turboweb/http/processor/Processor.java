@@ -2,7 +2,7 @@ package top.turboweb.http.processor;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.connect.ConnectSession;
+import top.turboweb.http.base.connect.ConnectSession;
 
 /**
  * TurboWeb 内部核心处理器抽象类。

@@ -4,7 +4,6 @@ package org.example.template;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.http.middleware.router.AnnoRouterManager;
 import top.turboweb.http.middleware.view.FreemarkerTemplateMiddleware;
-import top.turboweb.http.middleware.view.TemplateMiddleware;
 
 public class Application {
     public static void main(String[] args) {

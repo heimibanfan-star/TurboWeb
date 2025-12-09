@@ -2,8 +2,8 @@ package org.example.template;
 
 import top.turboweb.anno.method.Get;
 import top.turboweb.anno.RequestPath;
-import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.response.ViewModel;
+import top.turboweb.http.base.context.HttpContext;
+import top.turboweb.http.base.response.ViewModel;
 
 import java.time.LocalDate;
 import java.util.ArrayList;

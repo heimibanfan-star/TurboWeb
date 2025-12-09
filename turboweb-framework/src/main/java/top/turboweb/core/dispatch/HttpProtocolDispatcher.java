@@ -1,10 +1,9 @@
 package top.turboweb.core.dispatch;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import top.turboweb.http.connect.InternalConnectSession;
+import top.turboweb.http.base.connect.InternalConnectSession;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.websocket.PathWebSocketPreInit;
 import top.turboweb.websocket.WebSocketConnectInfo;

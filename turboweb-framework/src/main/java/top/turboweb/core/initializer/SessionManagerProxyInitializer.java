@@ -1,8 +1,8 @@
 package top.turboweb.core.initializer;
 
 import top.turboweb.core.config.HttpServerConfig;
-import top.turboweb.http.session.SessionManager;
-import top.turboweb.http.session.SessionManagerHolder;
+import top.turboweb.http.base.session.SessionManager;
+import top.turboweb.http.base.session.SessionManagerHolder;
 
 /**
  * session管理器初始化器

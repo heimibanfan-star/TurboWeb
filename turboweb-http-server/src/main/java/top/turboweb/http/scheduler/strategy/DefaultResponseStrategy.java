@@ -3,7 +3,7 @@ package top.turboweb.http.scheduler.strategy;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.connect.InternalConnectSession;
+import top.turboweb.http.base.connect.InternalConnectSession;
 
 /**
  * 默认的响应策略。

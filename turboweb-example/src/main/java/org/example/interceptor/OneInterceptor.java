@@ -1,6 +1,6 @@
 package org.example.interceptor;
 
-import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.base.context.HttpContext;
 import top.turboweb.http.middleware.interceptor.InterceptorHandler;
 
 

@@ -3,9 +3,10 @@ package top.turboweb.core.initializer.impl;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.core.config.HttpServerConfig;
-import top.turboweb.http.session.*;
-import top.turboweb.http.session.DefaultSessionManagerHolder;
-import top.turboweb.http.session.SessionManagerHolder;
+import top.turboweb.http.base.session.MemorySessionManager;
+import top.turboweb.http.base.session.SessionManager;
+import top.turboweb.http.base.session.DefaultSessionManagerHolder;
+import top.turboweb.http.base.session.SessionManagerHolder;
 import top.turboweb.core.initializer.SessionManagerProxyInitializer;
 
 /**

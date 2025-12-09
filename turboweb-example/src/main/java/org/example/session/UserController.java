@@ -2,8 +2,8 @@ package org.example.session;
 
 import top.turboweb.anno.method.Get;
 import top.turboweb.anno.RequestPath;
-import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.session.HttpSession;
+import top.turboweb.http.base.context.HttpContext;
+import top.turboweb.http.base.session.HttpSession;
 
 @RequestPath("/user")
 public class UserController {

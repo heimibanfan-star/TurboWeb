@@ -15,8 +15,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.SynchronousSink;
 import top.turboweb.commons.exception.TurboFileException;
 import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
-import top.turboweb.http.connect.InternalConnectSession;
-import top.turboweb.http.response.FileStreamResponse;
+import top.turboweb.http.base.connect.InternalConnectSession;
+import top.turboweb.http.base.response.FileStreamResponse;
 
 import java.io.IOException;
 

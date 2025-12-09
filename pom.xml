@@ -28,6 +28,8 @@
         <module>turboweb-http-client</module>
         <module>turboweb-http-server</module>
         <module>turboweb-loadbalance</module>
+        <module>turboweb-http-server-base</module>
+        <module>turboweb-http-server-middleware</module>
     </modules>
 
     <properties>

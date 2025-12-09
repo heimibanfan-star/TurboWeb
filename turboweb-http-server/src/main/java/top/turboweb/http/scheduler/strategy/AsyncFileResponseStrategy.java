@@ -9,8 +9,8 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.utils.thread.WorkStealThreadUtils;
-import top.turboweb.http.connect.InternalConnectSession;
-import top.turboweb.http.response.AsyncFileResponse;
+import top.turboweb.http.base.connect.InternalConnectSession;
+import top.turboweb.http.base.response.AsyncFileResponse;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

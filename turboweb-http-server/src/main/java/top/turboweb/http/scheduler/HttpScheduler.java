@@ -1,7 +1,7 @@
 package top.turboweb.http.scheduler;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.http.connect.ConnectSession;
+import top.turboweb.http.base.connect.ConnectSession;
 
 /**
  * HTTP 调度器接口。
