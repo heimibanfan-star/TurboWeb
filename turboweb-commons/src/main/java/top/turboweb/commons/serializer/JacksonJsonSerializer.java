@@ -1,7 +1,9 @@
 package top.turboweb.commons.serializer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -153,5 +155,44 @@ public class JacksonJsonSerializer implements JsonSerializer {
         } catch (JsonProcessingException e) {
             throw new TurboSerializableException(e);
         }
+    }
+
+    /**
+     * 将 JSON 字符串转换为 JavaBean。
+     *
+     * @param json         要转换的 JSON 字符串
+     * @param typeReference  JavaBean 的 TypeReference 对象
+     * @return             转换后的 JavaBean 对象
+     */
+    public <T> T jsonToBean(String json, TypeReference<T> typeReference) {
+        try {
+            return objectMapper.readValue(json, typeReference);
+        } catch (JsonProcessingException e) {
+            throw new TurboSerializableException(e);
+        }
+    }
+
+    /**
+     * 将 JSON 字符串转换为 JavaBean。
+     *
+     * @param json         要转换的 JSON 字符串
+     * @param javaType     JavaBean 的 JavaType 对象
+     * @return             转换后的 JavaBean 对象
+     */
+    public <T> T jsonToBean(String json, JavaType javaType) {
+        try {
+            return objectMapper.readValue(json, javaType);
+        } catch (JsonProcessingException e) {
+            throw new TurboSerializableException(e);
+        }
+    }
+
+    /**
+     * 获取 ObjectMapper 对象
+     *
+     * @return ObjectMapper 对象
+     */
+    public ObjectMapper objectMapper() {
+        return this.objectMapper;
     }
 }
