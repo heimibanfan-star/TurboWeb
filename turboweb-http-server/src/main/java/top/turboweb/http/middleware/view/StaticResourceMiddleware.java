@@ -185,7 +185,6 @@ public class StaticResourceMiddleware extends Middleware {
         } else {
             // 获取文件类型
             try {
-                // TODO 文件类型获取待测试
                 String mimeType = Files.probeContentType(file.toPath());
                 if (mimeType == null) {
                     mimeType = "application/octet-stream";
