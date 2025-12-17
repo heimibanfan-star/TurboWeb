@@ -17,16 +17,12 @@ public class SseController {
 
     @Get("/sse1")
     public SseResponse sse1(HttpContext context) {
+
         SseResponse sseResponse = context.createSseResponse();
         sseResponse.setSseCallback(session -> {
             Thread.ofVirtual().start(() -> {
                 for (int i = 0; i < 10; i++) {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                    session.send("data:hello:" + i + "\n\n");
+                    session.send("data:" + i + "\n\n");
                 }
                 session.close();
             });
@@ -37,68 +33,66 @@ public class SseController {
     @Get("/sse2")
     public SseResponse sse2(HttpContext context) {
         SseResponse sseResponse = context.createSseResponse();
-        Flux<String> flux = Flux.just("hello1", "hello2", "hello3").delayElements(Duration.ofSeconds(1));
-        sseResponse.setSseCallback(flux.map(i -> "data:" + i + "\n\n"));
+
+        // 创建一个Flux流
+        Flux<String> flux = Flux.just("hello1", "hello2", "hello3")
+                .map(item -> "data:" + item + "\n\n");
+
+        sseResponse.setSseCallback(flux);
         return sseResponse;
     }
 
     @Get("/sse3")
     public SseResponse sse3(HttpContext context) {
         SseResponse sseResponse = context.createSseResponse();
-        // 创建一个Flux流，抛出异常
-        Flux<Integer> flux = Flux.just(1, 2, 3)
-                .delayElements(Duration.ofSeconds(1))
-                .flatMap(i -> {
-                    if (i == 3) {
-                        return Mono.error(new RuntimeException("error"));
-                    }
-                    return Mono.just(i);
-                });
-        sseResponse.setSseCallback(flux.map(String::valueOf).map(i -> "data:" + i + "\n\n"), err -> "errMsg:" + err.getMessage(), ConnectSession::close);
+        // 创建一个Flux流
+        Flux<String> flux = Flux.just(1, 2, 3)
+                .doOnNext(item -> {
+                    if (item == 2) throw new RuntimeException("测试异常");
+                })
+                .map(item -> "data:" + item + "\n\n");
+
+        sseResponse.setSseCallback(flux, err -> "error:" + err.getMessage(), ConnectSession::close);
         return sseResponse;
     }
 
     @Get("/sse4")
-    public SseEmitter sse4(HttpContext context) {
-        // sseEmitter可存储起来共享使用
-        SseEmitter sseEmitter = context.createSseEmitter(32);
-        // 发送数据
-        Thread.ofVirtual().start(() -> {
-            for (int i = 0; i < 10; i++) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                sseEmitter.sendData("hello:" + i);
-            }
-        });
-        return sseEmitter;
+    public SseResponse sse4(HttpContext context) {
+        SseResponse sseResponse = context.createSseResponse();
+        sseResponse.setFlux(Flux.just("Hello", "World"));
+        return sseResponse;
     }
 
     @Get("/sse5")
     public SseEmitter sse5(HttpContext context) {
+        // 创建sse发射器
         SseEmitter sseEmitter = context.createSseEmitter();
+        // 创建线程发送信息
         Thread.ofVirtual().start(() -> {
             for (int i = 0; i < 10; i++) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                sseEmitter.sendData("hello:" + i);
+                sseEmitter.sendData(i + "");
             }
             sseEmitter.close();
-        });
-        sseEmitter.onClose(emitter -> {
-            System.out.println("close:" + emitter);
         });
         return sseEmitter;
     }
 
     @Get("/sse6")
-    public SseEmitter sse6(HttpContext context) throws InterruptedException {
-        TimeUnit.SECONDS.sleep(5);
-        return context.createSseEmitter();
+    public SseEmitter sse6(HttpContext context) {
+        SseEmitter sseEmitter = context.createSseEmitter();
+        Thread.ofVirtual().start(() -> {
+            for (int i = 0; i < 10; i++) {
+                sseEmitter.sendData(i + "");
+            }
+            sseEmitter.close();
+        });
+
+        // 监听sse的关闭
+        sseEmitter.onClose(emitter -> {
+            System.out.println("SSE已关闭:" + emitter);
+        });
+
+        return sseEmitter;
     }
+
 }

@@ -1,35 +1,48 @@
 # Server-Sent Events
 
-在现代 Web 应用中，服务器主动向客户端推送实时消息已成为提升用户体验的重要手段。TurboWeb 原生支持 **SSE（Server-Sent Events）**，使开发者无需引入复杂协议，即可轻松实现基于 HTTP 的实时单向数据推送。
+在现代 Web 应用中，**服务器向客户端主动推送实时消息**已成为提升交互体验的重要能力。
+ TurboWeb 原生支持 **Server-Sent Events（SSE）**，开发者无需引入复杂的通信协议，即可基于标准 HTTP 实现高效、稳定的单向实时数据推送。
 
-SSE 是一种基于 HTTP 协议的 **单向长连接机制**，允许服务器持续不断地向客户端推送事件。相比于 WebSocket，SSE 具有协议简单、实现轻量、对客户端友好等优势，尤其适用于日志输出、进度更新、实时通知等场景。
+SSE 是一种基于 HTTP 的 **单向长连接机制**，允许服务器持续向客户端发送事件流。
+ 相较于 WebSocket，SSE 具有以下优势：
 
-TurboWeb 的 SSE 支持底层基于 Netty 实现，**不依赖中间件且不受线程调度器限制**，充分利用框架的非阻塞特性，能够稳定支持高并发、大规模的实时推送连接。
+- 协议简单，基于标准 HTTP
+- 浏览器原生支持，客户端实现成本低
+- 天然支持断线重连（`Last-Event-ID`）
+- 非常适合日志流、进度通知、实时输出等场景
 
-在TurboWeb中SSE的使用主要有两种方式：
+TurboWeb 的 SSE 能力底层基于 **Netty** 实现，**不依赖外部中间件，也不受线程调度模型限制**，充分发挥框架的非阻塞特性，可稳定支撑**高并发、长连接、持续推送**的业务场景。
 
-- SseResponse
-- SseEmitter
+**_SSE 使用方式概览_**
+
+TurboWeb 提供两种 SSE 使用模型，分别适配不同的开发风格与业务需求：
+
+- **`SseResponse`**：偏底层、响应驱动式，适合响应式流或精细控制推送逻辑
+- **`SseEmitter`**：偏命令式、线程安全，适合跨线程、非响应式推送场景
 
 ## SseResponse
 
-**_基本使用_**
+`SseResponse` 是一种 **基于回调模型** 的 SSE 响应方式，适合在 **HTTP 请求生命周期内** 精确控制 SSE 的初始化、订阅与推送逻辑。
 
-通过 `HttpContext` 的 `createSseResponse()` 方法创建 `SseResponse` 实例，并通过回调定义推送逻辑：
+它强调：
+
+- SSE 与请求强绑定
+- 生命周期清晰
+- 不鼓励跨线程、跨上下文使用
+
+### 基本使用
+
+**_代码示例_**
 
 ```java
 @Get("/sse1")
 public SseResponse sse1(HttpContext context) {
+
     SseResponse sseResponse = context.createSseResponse();
     sseResponse.setSseCallback(session -> {
         Thread.ofVirtual().start(() -> {
             for (int i = 0; i < 10; i++) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                session.send("hello:" + i);
+                session.send("data:" + i + "\n\n");
             }
             session.close();
         });
@@ -38,157 +51,238 @@ public SseResponse sse1(HttpContext context) {
 }
 ```
 
-> **注意：**
->  不要将回调中的 `session` 对象提取到回调外部作用域使用，否则可能导致消息丢失。
+通过 `HttpContext#createSseResponse()` 创建 `SseResponse`
 
-**_接收Flux流_**
+使用 `setSseCallback(...)` 注册 SSE 初始化完成后的回调
 
-`SseResponse` 支持接收 Reactor 的 `Flux` 流，实现响应式推送：
+回调参数 `ConnectSession` 用于向客户端发送数据
+
+SSE 消息必须符合标准格式（字段 + 换行结束符 `\n\n`）
+
+数据推送完成后需主动调用 `session.close()` 关闭连接
+
+> 注意：
+>
+> `ConnectSession` **仅允许在回调作用域内使用**，切勿保存到成员变量或外部上下文中，否则可能引发不可预期的并发与生命周期问题。
+
+**_为什么通过SseResponse就可以实现SSE的推送？_**
+
+`SseResponse` 实现了 `InternalCallResponse` 接口，该接口用于标识：
+
+> **该响应由 TurboWeb 内部调度器接管执行**
+
+当调度器检测到返回值类型为 `SseResponse` 时，会执行以下流程：
+
+1. 写入 SSE 必要的 HTTP 响应头（`Content-Type: text/event-stream` 等）
+2. 切换连接为长连接模式
+3. 调用内部 `startSse()` 方法来执行回调。
+
+### 对Reactor Flux的原生支持
+
+`SseResponse` 原生支持 **Reactor `Flux`**，适用于响应式、流式数据推送场景。
+
+**_代码示例_**
 
 ```java
 @Get("/sse2")
 public SseResponse sse2(HttpContext context) {
     SseResponse sseResponse = context.createSseResponse();
-    Flux<String> flux = Flux.just("hello1", "hello2", "hello3").delayElements(Duration.ofSeconds(1));
+
+    // 创建一个Flux流
+    Flux<String> flux = Flux.just("hello1", "hello2", "hello3")
+            .map(item -> "data:" + item + "\n\n");
+
     sseResponse.setSseCallback(flux);
     return sseResponse;
 }
 ```
 
-**_异常处理与结束回调_**
+TurboWeb 会在 SSE 初始化完成后自动订阅该 `Flux` 并将数据逐条推送给客户端。
 
-支持捕获 `Flux` 流中的异常，发送错误消息，并执行结束回调：
+**_更加详细的调用_**
+
+TurboWeb针对Flux流的支持还提供了一个重载方法，如下使用：
 
 ```java
 @Get("/sse3")
 public SseResponse sse3(HttpContext context) {
     SseResponse sseResponse = context.createSseResponse();
-    // 创建一个Flux流，抛出异常
-    Flux<Integer> flux = Flux.just(1, 2, 3)
-            .delayElements(Duration.ofSeconds(1))
-            .flatMap(i -> {
-                if (i == 3) {
-                    return Mono.error(new RuntimeException("error"));
-                }
-                return Mono.just(i);
-            });
-    sseResponse.setSseCallback(flux, err -> "errMsg:" + err.getMessage(), ConnectSession::close);
+    // 创建一个Flux流
+    Flux<String> flux = Flux.just(1, 2, 3)
+            .doOnNext(item -> {
+                if (item == 2) throw new RuntimeException("测试异常");
+            })
+            .map(item -> "data:" + item + "\n\n");
+
+    sseResponse.setSseCallback(flux, err -> "error:" + err.getMessage(), ConnectSession::close);
     return sseResponse;
 }
 ```
 
-## SseEmitter
+第一个参数：数据流
 
-当需要将 SSE 连接会话存储、共享，或跨线程/跨组件发送事件时，`SseEmitter` 提供了更灵活的方案。
+第二个参数：异常发生时的推送内容（可选）
 
-**_设计原理_**
+第三个参数：流完成后的回调（默认关闭连接）
 
-`SseEmitter` 通过内部缓冲区机制解决了初始化时间窗口导致的数据丢失问题：
+**_每次都要拼接SSE的格式会不会太繁琐了？_**
 
-- 创建时分配缓冲区，缓存发送的消息。
-- 当连接初始化完成后，TurboWeb 进行管道重构，将缓冲区内容发送至客户端，销毁缓冲区。
-- 后续发送操作直接写入连接，不再缓存。
-
-**_基本使用_**
+有的时候我们可能传入一个Flux流，例如大模型的一个流式响应，而我们不需要特殊的格式的字段，直接data即可，这个时候可以使用TurboWeb提供的简化方法 `setFlux(..)`
 
 ```java
 @Get("/sse4")
-public SseEmitter sse4(HttpContext context) {
-    // sseEmitter可存储起来共享使用
-    SseEmitter sseEmitter = context.createSseEmitter();
-    // 发送数据
-    Thread.ofVirtual().start(() -> {
-        for (int i = 0; i < 10; i++) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            sseEmitter.send("hello:" + i);
-        }
-    });
-    return sseEmitter;
+public SseResponse sse4(HttpContext context) {
+    SseResponse sseResponse = context.createSseResponse();
+    sseResponse.setFlux(Flux.just("Hello", "World"));
+    return sseResponse;
 }
 ```
 
-可指定缓冲区大小（默认 32 条）：
+该方法TurboWeb会自动拼接data和换行符。
 
-```java
-SseEmitter sseEmitter = context.createSseEmitter(32);
-```
+## SseEmitter
 
-**_连接关闭监听_**
+`SseEmitter` 是一种 **线程安全、命令式** 的 SSE 推送模型，适合以下场景：
 
-支持注册关闭事件回调，便于资源清理或业务处理：
+- 跨线程发送 SSE 消息
+- 非响应式编程模型
+- 连接生命周期明显长于请求生命周期
+
+**_代码示例_**
 
 ```java
 @Get("/sse5")
 public SseEmitter sse5(HttpContext context) {
+    // 创建sse发射器
     SseEmitter sseEmitter = context.createSseEmitter();
+    // 创建线程发送信息
     Thread.ofVirtual().start(() -> {
         for (int i = 0; i < 10; i++) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            sseEmitter.send("hello:" + i);
+            sseEmitter.sendData(i + "");
         }
         sseEmitter.close();
     });
-    sseEmitter.onClose(emitter -> {
-        System.out.println("close:" + emitter);
+    return sseEmitter;
+}
+```
+
+创建 `SseEmitter`
+
+方法返回后，TurboWeb 完成 SSE 初始化
+
+任意线程可安全调用 `sendData(...)`
+
+推送完成后调用 `close()`
+
+**_SseEmitter是如何实现发送SSE的？_**
+
+`SseEmitter` 同样实现了 `InternalCallResponse`，但其核心目标是：
+
+> **解决 SSE 初始化前后消息发送的时间窗口问题**
+
+**_什么是时间窗口问题？_**
+
+- SSE 尚未初始化（响应头未发送）
+- 业务线程已经开始发送消息
+- 可能导致 HTTP 协议破坏或客户端无法解析
+
+**_SseEmitter 的解决方案_**
+
+`SseEmitter` 内部采用 **双管道模型**：
+
+初始化前：
+
+- 所有消息写入内存缓冲管道
+
+初始化阶段：
+
+- 阻塞所有发送线程
+- 发送 HTTP 响应头并建立 SSE 通道
+- 将缓冲消息依次刷出
+
+初始化完成后：
+
+- 切换为直写连接管道
+- 放行所有发送线程
+
+该设计确保：
+
+- 消息绝不丢失
+- 顺序严格一致
+- 对并发发送完全安全
+
+**_消息类型有哪些？_**
+
+`SseEmitter` 支持常见的消息类型格式，也可以自定义消息格式，方法如下:
+
+```java
+// "data:" + data + "\n\n"
+public void sendData(String data){
+    ...
+}
+
+// "event:" + event + "\n\n"
+public void sendEvent(String event){
+    ...
+}
+
+// "id:" + id + "\n\n"
+public void sendId(String id){
+    ...
+}
+
+// "retry:" + retry + "\n\n"
+public void sendRetry(int retry){
+    ...
+}
+
+// ":" + comment + "\n\n"
+public void sendComment(String comment){
+    ...
+}
+```
+
+如果不想让TurboWeb自动拼接消息可以直接调用`send(..)` 方法。
+
+**_监听SseEmitter的关闭_**
+
+有的时候我们需要监听 `SseEmitter` 的关闭来进行一些清理操作，参考代码如下:
+
+```java
+@Get("/sse6")
+public SseEmitter sse6(HttpContext context) {
+    SseEmitter sseEmitter = context.createSseEmitter();
+    Thread.ofVirtual().start(() -> {
+        for (int i = 0; i < 10; i++) {
+            sseEmitter.sendData(i + "");
+        }
+        sseEmitter.close();
     });
+
+    // 监听sse的关闭
+    sseEmitter.onClose(emitter -> {
+        System.out.println("SSE已关闭:" + emitter);
+    });
+
     return sseEmitter;
 }
 ```
 
-**_注意事项_**
+**_SseEmitter的配置_**
 
-避免在返回 `SseEmitter` 之前执行耗时操作，否则会导致初始化时间窗口过长，缓冲区容易溢出从而造成数据丢失。
-
-错误示范：
+由于SseEmitter解决了时间窗口消息发送的问题，因此也有一个缓存容量，在创建SseEmitter的时候可以指定:
 
 ```java
-@Get("/sse6")
-public SseEmitter sse6(HttpContext context) throws InterruptedException {
-    SseEmitter sseEmitter = context.createSseEmitter();
-    TimeUnit.SECONDS.sleep(5); // 不推荐
-    return sseEmitter;
-}
+/**
+ * 创建指定缓存大小的 SSE 事件发射器。
+ *
+ * @param maxMessageCache SSE 消息缓存的最大容量
+ * @return {@link SseEmitter} 对象，用于服务端事件推送。
+ */
+SseEmitter createSseEmitter(int maxMessageCache);
 ```
 
-推荐做法：
-
-```java
-@Get("/sse6")
-public SseEmitter sse6(HttpContext context) throws InterruptedException {
-    TimeUnit.SECONDS.sleep(5); // 耗时操作提前
-    SseEmitter sseEmitter = context.createSseEmitter();
-    return sseEmitter;
-}
-```
-
-## SseResponse 与 SseEmitter 使用场景比较
-
-| 特性/场景            | SseResponse                                                  | SseEmitter                                                   |
-| -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| **适用场景**         | - 适合一次请求响应周期内，完成短时、连续推送任务- 适合“打字机”效果，逐字或逐句推送文本数据，模拟实时输出- 适合基于响应式流（Flux）构建的推送逻辑 | - 适合保持长连接的实时推送场景- 适合跨多个业务组件、线程共享和动态推送消息- 适合需要会话管理、连接生命周期控制的复杂场景 |
-| **连接生命周期**     | 连接周期与请求相同，请求结束即关闭                           | 连接可长期存在，支持主动关闭和连接断开监听                   |
-| **消息发送时机**     | 发送操作集中在回调内，响应建立后自动触发                     | 消息发送与响应建立解耦，支持任意时刻异步发送                 |
-| **适合业务示例**     | - 服务器逐字返回生成的文字内容- 进度条或步骤状态按时间间隔推送- 短时会话的通知推送 | - 实时聊天消息推送- 股票行情、竞价报价实时推送- 服务器事件广播，推送系统状态变更等 |
-| **资源管理和复杂度** | 轻量简单，适合快速开发和短流程                               | 功能更丰富，需管理缓冲区、连接状态和多线程并发               |
-| **响应式支持**       | 原生支持 Reactor Flux，异常和结束状态易管理                  | 不直接支持 Flux，需自行实现事件驱动或异步机制                |
-
-**_典型示例补充说明_**
-
-**SseResponse — 模拟“打字机”效果**
-
-服务器可通过循环定时推送一段文字的每个字符或词组，实现类似打字机的动态文本输出，适用于消息播报、实时日志输出、对话式交互等短时推送。
-
-**SseEmitter — 长连接实时推送**
-
-适用于实时性要求高的长连接推送场景，比如股票行情推送、多人聊天、在线协作系统等，允许不同业务模块异步发送消息给客户端，且支持连接状态监控和管理。
+默认情况下缓存32条信息。
 
 
 

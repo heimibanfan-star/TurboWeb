@@ -1,6 +1,7 @@
 package top.turboweb.http.response;
 
 import io.netty.handler.codec.http.*;
+import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.connect.ConnectSession;
 import reactor.core.publisher.Flux;
@@ -48,7 +49,7 @@ public class SseResponse extends DefaultHttpResponse implements InternalCallResp
      * </ul>
      */
     private void setSseHeaders() {
-        this.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream");
+        this.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream;charset=" + GlobalConfig.getResponseCharset().name());
         this.headers().set(HttpHeaderNames.CACHE_CONTROL, "no-cache");
         this.headers().set(HttpHeaderNames.CONNECTION, "keep-alive");
         this.headers().set(HttpHeaderNames.TRANSFER_ENCODING, "chunked");
