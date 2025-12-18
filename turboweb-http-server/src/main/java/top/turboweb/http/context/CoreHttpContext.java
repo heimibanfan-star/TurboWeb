@@ -6,16 +6,15 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.connect.ConnectSession;
-import top.turboweb.http.context.respmeta.DefaultResponseMeta;
+import top.turboweb.http.context.attchment.Attachment;
+import top.turboweb.http.context.attchment.DefaultAttachment;
+import top.turboweb.http.context.content.HttpContent;
 import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.cookie.HttpCookieManager;
-import top.turboweb.http.context.content.HttpContent;
-import top.turboweb.http.response.SseResponse;
 import top.turboweb.http.response.InternalSseEmitter;
 import top.turboweb.http.response.SseEmitter;
+import top.turboweb.http.response.SseResponse;
 import top.turboweb.http.session.HttpSession;
-
-import java.util.function.Consumer;
 
 
 /**
@@ -65,8 +64,8 @@ public abstract class CoreHttpContext implements HttpContext{
 	/** JSON 序列化器 */
 	protected final JsonSerializer jsonSerializer;
 
-	/** 响应元信息对象（状态码与内容类型） */
-	private final ResponseMeta responseMeta = new DefaultResponseMeta();
+	/** 请求上下文的挂载对象 */
+	private final Attachment attachment = new DefaultAttachment();
 
 	/**
 	 * 构造方法，用于初始化请求上下文的核心依赖。
@@ -154,19 +153,8 @@ public abstract class CoreHttpContext implements HttpContext{
 		return this.httpCookieManager;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
-	public ResponseMeta getResponseMeta() {
-		return responseMeta;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void responseMeta(Consumer<ResponseMeta> consumer) {
-		consumer.accept(responseMeta);
+	public Attachment attachment() {
+		return this.attachment;
 	}
 }

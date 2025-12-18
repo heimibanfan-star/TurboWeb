@@ -25,6 +25,8 @@ import org.apache.hc.core5.http.ContentType;
  */
 public interface ResponseMeta {
 
+    String ATTACH_KEY = "ResponseMeta";
+
     /**
      * 设置响应状态码。
      *

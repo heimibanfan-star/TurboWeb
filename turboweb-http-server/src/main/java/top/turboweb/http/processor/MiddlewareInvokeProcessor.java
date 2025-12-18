@@ -10,6 +10,7 @@ import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.context.respmeta.ResponseMetaGetter;
 import top.turboweb.http.cookie.DefaultHttpCookieManager;
 import top.turboweb.http.cookie.HttpCookieManager;
@@ -158,7 +159,14 @@ public class MiddlewareInvokeProcessor extends Processor{
      * @param context HTTP 上下文对象
      */
     private void setRespMeta(HttpResponse response, HttpContext context) {
-        ResponseMetaGetter metaGetter = (ResponseMetaGetter) context.getResponseMeta();
+        // 获取挂载对象中的响应信息
+        ResponseMeta responseMeta = context.attachment().getAttachment(ResponseMeta.ATTACH_KEY, ResponseMeta.class);
+        if (responseMeta == null) {
+            return;
+        }
+
+        // 设置响应的元信息
+        ResponseMetaGetter metaGetter = (ResponseMetaGetter) responseMeta;
         HttpResponseStatus status = metaGetter.getStatus();
         // 判断是否需要设置响应状态码
         if (status != null) {

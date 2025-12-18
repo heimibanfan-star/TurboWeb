@@ -2,13 +2,12 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import top.turboweb.http.connect.ConnectSession;
+import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.cookie.HttpCookieManager;
-import top.turboweb.http.response.SseResponse;
 import top.turboweb.http.response.SseEmitter;
+import top.turboweb.http.response.SseResponse;
 import top.turboweb.http.session.HttpSession;
-
-import java.util.function.Consumer;
 
 /**
  * {@code HttpContext} 表示 TurboWeb 框架中一次 HTTP 请求的上下文环境。
@@ -36,12 +35,6 @@ import java.util.function.Consumer;
  *     HttpSession session = ctx.httpSession();
  *     session.setAttr("user", "Alice");
  *
- *     // 自定义响应元信息
- *     ctx.responseMeta(meta -> {
- *         meta.status(200);
- *         meta.contentType(ContentType.APPLICATION_JSON);
- *     });
- *
  *     // 释放上下文资源
  *     ctx.release();
  * }
@@ -51,7 +44,6 @@ import java.util.function.Consumer;
  * 每个 HTTP 请求应独立持有上下文实例。</p>
  *
  * @see CoreHttpContext
- * @see ResponseMeta
  * @see SseResponse
  * @see SseEmitter
  */
@@ -114,18 +106,10 @@ public interface HttpContext extends ParamBinder {
 	void release();
 
 	/**
-	 * 获取响应元信息。
-	 * <p>用于读取或修改当前响应的状态码与内容类型。</p>
+	 * 获取上下文中的挂载对象。
+	 * <p>允许用户在控制器方法中挂载对象，并在后续处理中访问。</p>
 	 *
-	 * @return {@link ResponseMeta} 对象。
+	 * @return {@link Attachment} 对象，用于挂载对象。
 	 */
-	ResponseMeta getResponseMeta();
-
-	/**
-	 * 设置响应元信息。
-	 * <p>允许通过函数式接口动态配置响应状态码与内容类型。</p>
-	 *
-	 * @param consumer 响应元信息消费者，用于配置 {@link ResponseMeta}
-	 */
-	void responseMeta(Consumer<ResponseMeta> consumer);
+	Attachment attachment();
 }
