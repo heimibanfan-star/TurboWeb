@@ -1,7 +1,7 @@
 package top.turboweb.core.initializer.factory;
 
 import top.turboweb.core.server.TurboWebServer;
-import top.turboweb.websocket.WebSocketHandler;
+import top.turboweb.websocket.handler.WebSocketHandler;
 
 /**
  * http协议分发器的构造器接口

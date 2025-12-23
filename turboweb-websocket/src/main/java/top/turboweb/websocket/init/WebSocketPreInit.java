@@ -1,4 +1,4 @@
-package top.turboweb.websocket;
+package top.turboweb.websocket.init;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;

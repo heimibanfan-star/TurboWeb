@@ -1,4 +1,4 @@
-package top.turboweb.websocket;
+package top.turboweb.websocket.info;
 
 import io.netty.handler.codec.http.HttpHeaders;
 

@@ -1,7 +1,8 @@
-package top.turboweb.websocket;
+package top.turboweb.websocket.handler;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.websocketx.*;
+import top.turboweb.websocket.session.WebSocketSession;
 
 /**
  * 简单的websocket处理器抽象类

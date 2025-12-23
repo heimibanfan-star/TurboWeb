@@ -1,16 +1,17 @@
 package top.turboweb.core.dispatch;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.netty.channel.*;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.scheduler.HttpScheduler;
-import top.turboweb.websocket.PathWebSocketPreInit;
-import top.turboweb.websocket.WebSocketConnectInfo;
-import top.turboweb.websocket.WebSocketConnectInfoContainer;
-import top.turboweb.websocket.WebSocketPreInit;
 import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
+import top.turboweb.websocket.info.WebSocketConnectInfo;
+import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
+import top.turboweb.websocket.init.PathWebSocketPreInit;
+import top.turboweb.websocket.init.WebSocketPreInit;
 
 /**
  * 转交http请求

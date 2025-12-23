@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<script>
+  const source = new EventSource("http://localhost:8080/sse1")
+  source.addEventListener('open', () => {
+    console.log('open')
+  })
+
+  source.addEventListener('message', event => {
+    console.log(event.data)
+  })
+
+  source.addEventListener('error', () => {
+    source.close()
+  })
+
+</script>
+</body>
+</html>

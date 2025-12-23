@@ -1,4 +1,4 @@
-package top.turboweb.websocket;
+package top.turboweb.websocket.info;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

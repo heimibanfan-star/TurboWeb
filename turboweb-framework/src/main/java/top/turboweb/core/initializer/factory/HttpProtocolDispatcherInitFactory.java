@@ -6,7 +6,7 @@ import top.turboweb.core.initializer.WebSocketHandlerInitializer;
 import top.turboweb.core.initializer.impl.DefaultWebSocketHandlerInitializer;
 import top.turboweb.core.server.TurboWebServer;
 import top.turboweb.http.scheduler.HttpScheduler;
-import top.turboweb.websocket.WebSocketHandler;
+import top.turboweb.websocket.handler.WebSocketHandler;
 
 /**
  * HTTP协议分发器工厂

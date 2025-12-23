@@ -3,10 +3,10 @@ package top.turboweb.core.initializer.impl;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.apache.commons.lang3.StringUtils;
-import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
-import top.turboweb.websocket.WebSocketHandler;
-import top.turboweb.core.initializer.WebSocketHandlerInitializer;
 import top.turboweb.commons.exception.TurboWebSocketException;
+import top.turboweb.core.initializer.WebSocketHandlerInitializer;
+import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
+import top.turboweb.websocket.handler.WebSocketHandler;
 
 /**
  * 默认的websocket初始化器

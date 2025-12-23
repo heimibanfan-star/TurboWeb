@@ -1,8 +1,8 @@
 package org.example.websocket;
 
 import io.netty.buffer.ByteBuf;
-import top.turboweb.websocket.AbstractWebSocketHandler;
-import top.turboweb.websocket.WebSocketSession;
+import top.turboweb.websocket.handler.AbstractWebSocketHandler;
+import top.turboweb.websocket.session.WebSocketSession;
 
 public class MyWebSocketHandler extends AbstractWebSocketHandler {
 
@@ -20,7 +20,7 @@ public class MyWebSocketHandler extends AbstractWebSocketHandler {
 
     @Override
     public void onOpen(WebSocketSession session) {
-        String path = session.getWebSocketConnectInfo().websocketPath();
+        String path = session.connectInfo().websocketPath();
         System.out.println("path: " + path);
     }
 

@@ -3,8 +3,8 @@ package org.example.gateway;
 
 import io.netty.buffer.ByteBuf;
 import top.turboweb.core.server.BootStrapTurboWebServer;
-import top.turboweb.websocket.AbstractWebSocketHandler;
-import top.turboweb.websocket.WebSocketSession;
+import top.turboweb.websocket.handler.AbstractWebSocketHandler;
+import top.turboweb.websocket.session.WebSocketSession;
 
 public class WsApplication {
     public static void main(String[] args) {
