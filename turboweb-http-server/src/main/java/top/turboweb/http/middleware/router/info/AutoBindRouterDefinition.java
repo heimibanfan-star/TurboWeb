@@ -1,23 +1,15 @@
 package top.turboweb.http.middleware.router.info;
 
-import top.turboweb.anno.*;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.cookie.HttpCookieManager;
 import top.turboweb.http.middleware.router.info.autobind.ParameterBinder;
 import top.turboweb.http.middleware.router.info.autobind.ParameterInfoParser;
-import top.turboweb.http.response.SseEmitter;
-import top.turboweb.http.response.SseResponse;
-import top.turboweb.http.session.HttpSession;
 
-import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.*;
+import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
