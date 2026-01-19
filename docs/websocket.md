@@ -122,6 +122,107 @@ public void onPing(WebSocketSession session) { ... }
 public void onPong(WebSocketSession session) { ... }
 ```
 
+## API详解
+
+**_获取当前连接的路径_**
+
+```java
+String path();
+```
+
+**_获取当前连接的请求头部信息_**
+
+```java
+HttpHeaders headers();
+```
+
+**_发送文本帧_**
+
+```java
+ChannelFuture sendText(String message);
+```
+
+**_发送二进制帧_**
+
+```java
+ChannelFuture sendBinary(byte[] message);
+```
+
+```java
+ChannelFuture sendBinary(ByteBuf byteBuf);
+```
+
+**_发送自定义帧_**
+
+```java
+ChannelFuture send(WebSocketFrame webSocketFrame);
+```
+
+**_获取远程客户端的地址_**
+
+```java
+SocketAddress remoteAddress();
+```
+
+**_获取本地服务器的地址_**
+
+```java
+SocketAddress localAddress();
+```
+
+**_连接域对象存储_**
+
+有的时候我们可能需要在某个WebSocket连接的周期中存储一些数据或者状态，在TurboWeb中提供了如下的API：
+
+```java
+/**
+ * 向会话中存储一个自定义属性。
+ *
+ * @param key   属性键
+ * @param value 属性值
+ */
+void putAttr(String key, Object value);
+
+/**
+ * 如果当前值与期望值相等，则更新会话属性。
+ *
+ * @param key      属性键
+ * @param oldValue 期望的旧值
+ * @param newValue 新值
+ * @return 是否更新成功
+ */
+boolean compareAndPutAttr(String key, Object oldValue, Object newValue);
+
+/**
+ * 当属性不存在时存储新值，若属性已存在，则返回旧值且不修改。
+ *
+ * @param key   属性键
+ * @param value 属性值
+ * @return 若属性已存在返回旧值，否则返回 {@code null}
+ */
+Object putAttrIfAbsent(String key, Object value);
+
+/**
+ * 获取指定键的会话属性。
+ *
+ * @param key 属性键
+ * @return 属性值，如果不存在则返回 {@code null}
+ */
+Object getAttr(String key);
+
+/**
+ * 获取指定键的会话属性，并转换为指定类型。
+ *
+ * @param key  属性键
+ * @param type 属性值类型
+ * @param <T>  属性值泛型
+ * @return 属性值，如果不存在或类型不匹配返回 {@code null}
+ */
+<T> T getAttr(String key, Class<T> type);
+```
+
+
+
 ## 高级特性
 
 **_动态路径支持_**
