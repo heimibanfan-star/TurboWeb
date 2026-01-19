@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.AttributeKey;
 import top.turboweb.websocket.info.WebSocketConnectInfo;
@@ -35,11 +36,6 @@ public class StandardWebSocketSession implements WebSocketSession{
     public StandardWebSocketSession(Channel channel, WebSocketConnectInfo connectInfo) {
         this.channel = channel;
         this.webSocketConnectInfo = connectInfo;
-    }
-
-    @Override
-    public WebSocketConnectInfo connectInfo() {
-        return this.webSocketConnectInfo;
     }
 
     /**
@@ -202,5 +198,25 @@ public class StandardWebSocketSession implements WebSocketSession{
     @Override
     public ChannelFuture send(WebSocketFrame webSocketFrame) {
         return channel.writeAndFlush(webSocketFrame);
+    }
+
+    /**
+     * 获取当前会话的连接信息。
+     *
+     * @return {@link WebSocketConnectInfo} 当前会话的连接信息
+     */
+    @Override
+    public String path() {
+        return webSocketConnectInfo.websocketPath();
+    }
+
+    /**
+     * 获取当前会话的请求头信息。
+     *
+     * @return {@link HttpHeaders} 当前会话的请求头信息
+     */
+    @Override
+    public HttpHeaders headers() {
+        return webSocketConnectInfo.headers();
     }
 }

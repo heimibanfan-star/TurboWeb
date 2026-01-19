@@ -2,8 +2,8 @@ package top.turboweb.websocket.session;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
-import top.turboweb.websocket.info.WebSocketConnectInfo;
 
 import java.net.SocketAddress;
 
@@ -48,11 +48,18 @@ public interface WebSocketSession {
     ChannelFuture send(WebSocketFrame webSocketFrame);
 
     /**
-     * 获取当前会话的连接信息。
+     * 获取当前会话的连接路径。
      *
-     * @return {@link WebSocketConnectInfo} 当前会话的连接元数据
+     * @return 当前会话的连接路径
      */
-    WebSocketConnectInfo connectInfo();
+    String path();
+
+    /**
+     * 获取当前会话的 HTTP 请求头。
+     *
+     * @return 当前会话的 HTTP 请求头
+     */
+    HttpHeaders headers();
 
     /**
      * 发送 WebSocket Ping 帧，用于心跳检测。

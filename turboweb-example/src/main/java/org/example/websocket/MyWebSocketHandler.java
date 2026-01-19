@@ -20,7 +20,7 @@ public class MyWebSocketHandler extends AbstractWebSocketHandler {
 
     @Override
     public void onOpen(WebSocketSession session) {
-        String path = session.connectInfo().websocketPath();
+        String path = session.path();
         System.out.println("path: " + path);
     }
 
