@@ -1,11 +1,12 @@
 package top.turboweb.client.engine;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.HttpProtocol;
 import reactor.netty.http.client.HttpClient;
@@ -16,6 +17,7 @@ import top.turboweb.commons.exception.TurboHttpClientException;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -178,6 +180,35 @@ public class HttpClientEngine implements Closeable {
      * @return {@link Mono} 响应对象
      */
     public Mono<HttpResponse> sendAsync(HttpRequest request) {
+        return doSendAsync(request)
+                // 接受完整的流
+                .collectList()
+                .map(bufList -> {
+                    CompositeByteBuf buf = Unpooled.compositeBuffer();
+                    AtomicReference<ResponseChunk> lastChunk = new AtomicReference<>();
+                    for (ResponseChunk chunk : bufList) {
+                        buf.addComponents(true, chunk.chunk());
+                        lastChunk.set(chunk);
+                    }
+                    // 创建http响应对象
+                    DefaultFullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(
+                            HttpVersion.HTTP_1_1,
+                            lastChunk.get().status(),
+                            buf
+                    );
+                    // 设置响应头
+                    fullHttpResponse.headers().set(lastChunk.get().headers());
+                    return fullHttpResponse;
+                });
+    }
+
+    /**
+     * 异步发送 HTTP 请求
+     *
+     * @param request 请求对象
+     * @return {@link Flux} 响应对象
+     */
+    private Flux<ResponseChunk> doSendAsync(HttpRequest request) {
         String uri;
         if (request.uri().startsWith("http://") || request.uri().startsWith("https://")) {
             uri = request.uri();
@@ -200,24 +231,15 @@ public class HttpClientEngine implements Closeable {
                     // 不是携带请求体的请求
                     return outbound.send(Mono.empty());
                 })
-                .responseSingle((response, content) -> {
-                    // 获取响应头
-                    HttpHeaders headers = response.responseHeaders();
-                    // 获取请求体
-                    return content
-                            .switchIfEmpty(Mono.just(EMPTY_BUF))
-                            .map(buf -> {
-                                if (buf == EMPTY_BUF) {
-                                    return new DefaultHttpResponse(HttpVersion.HTTP_1_1, response.status(), headers);
-                                } else {
-                                    // 增加引用计数
-                                    buf.retain();
-                                    // 创建响应对象
-                                    DefaultFullHttpResponse httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, response.status(), buf);
-                                    httpResponse.headers().set(headers);
-                                    return httpResponse;
-                                }
-                            });
+                .response((response, content) -> {
+                    // 数据流
+                    Flux<ByteBuf> contentFlux = content.switchIfEmpty(Mono.just(Unpooled.EMPTY_BUFFER));
+                    // 转化流
+                    return contentFlux.map(buf -> {
+                        // 增加引用
+                        buf.retain();
+                        return new ResponseChunk(response.status(), response.responseHeaders(), buf);
+                    });
                 });
     }
 
