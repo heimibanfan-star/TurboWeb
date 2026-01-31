@@ -10,6 +10,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.HttpProtocol;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.http.client.HttpClientResponse;
 import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.tcp.SslProvider;
 import top.turboweb.commons.exception.TurboHttpClientException;
@@ -17,7 +18,6 @@ import top.turboweb.commons.exception.TurboHttpClientException;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -46,6 +46,15 @@ public class HttpClientEngine implements Closeable {
     private final EventLoopGroup group;
     private final String baseUrl;
     private static final ByteBuf EMPTY_BUF = Unpooled.EMPTY_BUFFER;
+
+    /**
+     * 响应数据块
+     */
+    private record ResponseChunk(
+            HttpClientResponse response,
+            ByteBuf chunk
+    ) {
+    }
 
     public final static class Config {
         // 线程数量
@@ -107,10 +116,10 @@ public class HttpClientEngine implements Closeable {
 
     public HttpClientEngine(int threadNum, String baseUrl) {
         this(config -> {
-           config
-                   .ioThread(threadNum)
-                   .baseUrl(baseUrl)
-                   .name("TurboWebHttpClient");
+            config
+                    .ioThread(threadNum)
+                    .baseUrl(baseUrl)
+                    .name("TurboWebHttpClient");
         });
     }
 
@@ -183,22 +192,37 @@ public class HttpClientEngine implements Closeable {
         return doSendAsync(request)
                 // 接受完整的流
                 .collectList()
-                .map(bufList -> {
+                .flatMap(bufList -> {
+                    // 非空判断
+                    if (bufList.isEmpty()) {
+                        return Mono.error(new TurboHttpClientException("HttpClientEngine sendAsync return null"));
+                    }
+
+                    // 拼接缓冲区
                     CompositeByteBuf buf = Unpooled.compositeBuffer();
-                    AtomicReference<ResponseChunk> lastChunk = new AtomicReference<>();
                     for (ResponseChunk chunk : bufList) {
                         buf.addComponents(true, chunk.chunk());
-                        lastChunk.set(chunk);
                     }
-                    // 创建http响应对象
-                    DefaultFullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(
-                            HttpVersion.HTTP_1_1,
-                            lastChunk.get().status(),
-                            buf
-                    );
-                    // 设置响应头
-                    fullHttpResponse.headers().set(lastChunk.get().headers());
-                    return fullHttpResponse;
+                    // 获取最后一个响应块
+                    ResponseChunk lastChunk = bufList.getLast();
+                    // 获取响应对象
+                    HttpClientResponse response = lastChunk.response();
+
+                    // 订阅缀追加的响应头
+                    return lastChunk.response().trailerHeaders()
+                            .map(trailerHeaders -> {
+                                // 创建http响应对象
+                                DefaultFullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(
+                                        HttpVersion.HTTP_1_1,
+                                        response.status(),
+                                        buf
+                                );
+                                // 设置响应头
+                                fullHttpResponse.headers().set(response.responseHeaders());
+                                // 添加trailer头
+                                fullHttpResponse.trailingHeaders().set(trailerHeaders);
+                                return fullHttpResponse;
+                            });
                 });
     }
 
@@ -238,7 +262,7 @@ public class HttpClientEngine implements Closeable {
                     return contentFlux.map(buf -> {
                         // 增加引用
                         buf.retain();
-                        return new ResponseChunk(response.status(), response.responseHeaders(), buf);
+                        return new ResponseChunk(response, buf);
                     });
                 });
     }
