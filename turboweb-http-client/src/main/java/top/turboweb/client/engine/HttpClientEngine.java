@@ -18,6 +18,8 @@ import top.turboweb.commons.exception.TurboHttpClientException;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 /**
@@ -189,40 +191,64 @@ public class HttpClientEngine implements Closeable {
      * @return {@link Mono} 响应对象
      */
     public Mono<HttpResponse> sendAsync(HttpRequest request) {
+
+        // 创建一个队列，用于在失败时释放元素
+        final Queue<ByteBuf> awaitReleaseBuf = new ConcurrentLinkedQueue<>();
+
         return doSendAsync(request)
+                // 维护引用计数，防止收集的时候提前释放元素
+                .doOnNext(chunk -> {
+                    awaitReleaseBuf.add(chunk.chunk());
+                    chunk.chunk().retain();
+                })
                 // 接受完整的流
                 .collectList()
+                // 如果出现错误，将所有的bytebuf释放掉
+                .doOnError(err -> {
+                    while (!awaitReleaseBuf.isEmpty()) {
+                        ByteBuf buf = awaitReleaseBuf.poll();
+                        if (buf.refCnt() > 0) {
+                            buf.release();
+                        }
+                    }
+                })
                 .flatMap(bufList -> {
-                    // 非空判断
-                    if (bufList.isEmpty()) {
-                        return Mono.error(new TurboHttpClientException("HttpClientEngine sendAsync return null"));
-                    }
+                    try {
+                        // 非空判断
+                        if (bufList.isEmpty()) {
+                            return Mono.error(new TurboHttpClientException("HttpClientEngine sendAsync return null"));
+                        }
 
-                    // 拼接缓冲区
-                    CompositeByteBuf buf = Unpooled.compositeBuffer();
-                    for (ResponseChunk chunk : bufList) {
-                        buf.addComponents(true, chunk.chunk());
-                    }
-                    // 获取最后一个响应块
-                    ResponseChunk lastChunk = bufList.getLast();
-                    // 获取响应对象
-                    HttpClientResponse response = lastChunk.response();
+                        // 拼接缓冲区
+                        CompositeByteBuf buf = Unpooled.compositeBuffer();
+                        for (ResponseChunk chunk : bufList) {
+                            buf.addComponents(true, chunk.chunk());
+                        }
+                        // 获取最后一个响应块
+                        ResponseChunk lastChunk = bufList.getLast();
+                        // 获取响应对象
+                        HttpClientResponse response = lastChunk.response();
 
-                    // 订阅缀追加的响应头
-                    return lastChunk.response().trailerHeaders()
-                            .map(trailerHeaders -> {
-                                // 创建http响应对象
-                                DefaultFullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(
-                                        HttpVersion.HTTP_1_1,
-                                        response.status(),
-                                        buf
-                                );
-                                // 设置响应头
-                                fullHttpResponse.headers().set(response.responseHeaders());
-                                // 添加trailer头
-                                fullHttpResponse.trailingHeaders().set(trailerHeaders);
-                                return fullHttpResponse;
-                            });
+                        // 订阅缀追加的响应头
+                        return lastChunk.response().trailerHeaders()
+                                .map(trailerHeaders -> {
+                                    // 创建http响应对象
+                                    DefaultFullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(
+                                            HttpVersion.HTTP_1_1,
+                                            response.status(),
+                                            buf
+                                    );
+                                    // 设置响应头
+                                    fullHttpResponse.headers().set(response.responseHeaders());
+                                    // 添加trailer头
+                                    fullHttpResponse.trailingHeaders().set(trailerHeaders);
+                                    return fullHttpResponse;
+                                });
+                    } catch (Exception e) {
+                        // 释放元素
+                        bufList.forEach(chunk -> chunk.chunk().release());
+                        return Mono.error(e);
+                    }
                 });
     }
 
@@ -257,13 +283,9 @@ public class HttpClientEngine implements Closeable {
                 })
                 .response((response, content) -> {
                     // 数据流
-                    Flux<ByteBuf> contentFlux = content.switchIfEmpty(Mono.just(Unpooled.EMPTY_BUFFER));
+                    Flux<ByteBuf> contentFlux = content.switchIfEmpty(Mono.just(Unpooled.buffer(0)));
                     // 转化流
-                    return contentFlux.map(buf -> {
-                        // 增加引用
-                        buf.retain();
-                        return new ResponseChunk(response, buf);
-                    });
+                    return contentFlux.map(buf -> new ResponseChunk(response, buf));
                 });
     }
 
