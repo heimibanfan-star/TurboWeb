@@ -1,6 +1,5 @@
 package top.turboweb.client;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.*;
@@ -12,12 +11,15 @@ import top.turboweb.client.engine.HttpClientEngine;
 import top.turboweb.client.interceptor.RequestInterceptor;
 import top.turboweb.client.interceptor.ResponseInterceptor;
 import top.turboweb.client.result.ClientResult;
+import top.turboweb.client.result.Stream;
 import top.turboweb.commons.exception.TurboHttpClientException;
 
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -91,20 +93,7 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
      */
     @Override
     public ClientResult request(String path, HttpMethod method, Object data, Consumer<Config> consumer) {
-        Config config = new Config();
-        consumer.accept(config);
-        // 对特殊的请求体设置请求类型
-        if (data != null && (method == HttpMethod.POST || method == HttpMethod.PUT)) {
-            config.headers.set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
-        }
-        HttpRequest request = buildRequest(path, method, data, config);
-        // 执行所有的请求拦截器
-        for (RequestInterceptor interceptor : requestInterceptors) {
-            request = interceptor.intercept(request);
-            if (request == null) {
-                throw new TurboHttpClientException("Request interceptor return null");
-            }
-        }
+        HttpRequest request = beforeRequest(path, method, data, consumer);
         // 发送请求
         HttpResponse response = httpClientEngine.send(request);
         for (ResponseInterceptor interceptor : responseInterceptors) {
@@ -117,8 +106,19 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
     }
 
     @Override
+    public Stream requestStream(String path, HttpMethod method, Object data, Consumer<Config> consumer) {
+        HttpRequest request = beforeRequest(path, method, data, consumer);
+        return httpClientEngine.sendStream(request);
+    }
+
+    @Override
     public ClientResult request(String path, HttpMethod method, Consumer<Config> consumer) {
         return request(path, method, null, consumer);
+    }
+
+    @Override
+    public Stream requestStream(String path, HttpMethod method, Consumer<Config> consumer) {
+        return requestStream(path, method, null, consumer);
     }
 
     @Override
@@ -127,8 +127,18 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
     }
 
     @Override
+    public Stream requestStream(String path, HttpMethod method) {
+        return requestStream(path, method, null, config -> {});
+    }
+
+    @Override
     public ClientResult request(String path) {
         return request(path, HttpMethod.GET, null, config -> {});
+    }
+
+    @Override
+    public Stream requestStream(String path) {
+        return requestStream(path, HttpMethod.GET, null, config -> {});
     }
 
     @Override
@@ -225,6 +235,33 @@ public class DefaultTurboHttpClient implements TurboHttpClient {
         }
         responseInterceptors.add(interceptor);
         return this;
+    }
+
+    /**
+     * 构造 HTTP 请求。
+     *
+     * @param path     请求路径
+     * @param method   HTTP 方法
+     * @param data     请求体数据，可为 null
+     * @return HttpRequest 封装的请求对象
+     * @throws TurboHttpClientException 当 URL 无效时抛出
+     */
+    private HttpRequest beforeRequest(String path, HttpMethod method, Object data, Consumer<Config> consumer) {
+        Config config = new Config();
+        consumer.accept(config);
+        // 对特殊的请求体设置请求类型
+        if (data != null && (method == HttpMethod.POST || method == HttpMethod.PUT)) {
+            config.headers.set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
+        }
+        HttpRequest request = buildRequest(path, method, data, config);
+        // 执行所有的请求拦截器
+        for (RequestInterceptor interceptor : requestInterceptors) {
+            request = interceptor.intercept(request);
+            if (request == null) {
+                throw new TurboHttpClientException("Request interceptor return null");
+            }
+        }
+        return request;
     }
 
     /**

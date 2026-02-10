@@ -13,13 +13,18 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.HttpClientResponse;
 import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.tcp.SslProvider;
+import top.turboweb.client.result.DefaultStream;
+import top.turboweb.client.result.InternStream;
+import top.turboweb.client.result.Stream;
 import top.turboweb.commons.exception.TurboHttpClientException;
 
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
 /**
@@ -185,6 +190,48 @@ public class HttpClientEngine implements Closeable {
     }
 
     /**
+     * 发送异步 HTTP 请求
+     *
+     * @param request 请求对象
+     * @return 响应对象
+     */
+    public Stream sendStream(HttpRequest request) {
+        // 阻塞队列用于接收数据
+        LinkedBlockingQueue<ByteBuf> awaitBufQueue = new LinkedBlockingQueue<>();
+        // 等待异步流封装数据
+        CompletableFuture<Stream> awaitStream = new CompletableFuture<>();
+        doSendRequest(request)
+                .response((response, bufFlux) -> {
+                    // 创建追加对象
+                    CompletableFuture<HttpHeaders> trailerHeaders = new CompletableFuture<>();
+                    // 创建异步流
+                    InternStream internStream = new DefaultStream(
+                            awaitBufQueue,
+                            response.responseHeaders(),
+                            response.status(),
+                            trailerHeaders
+                    );
+                    // 响应头和基础数据设置完毕可以返回
+                    awaitStream.complete(internStream);
+                    // 订阅异步数据流
+                    return bufFlux.doOnNext(buf -> {
+                                // 增加引用
+                                buf.retain();
+                                awaitBufQueue.offer(buf);
+                            })
+                            // 返回追加头
+                            .then(response.trailerHeaders())
+                            .doOnNext(trailerHeaders::complete)
+                            .then()
+                            // 处理信号;
+                            .doOnSuccess(empty -> internStream.completed(null))
+                            .doOnError(internStream::completed);
+                })
+                .subscribe();
+        return awaitStream.join();
+    }
+
+    /**
      * 异步发送 HTTP 请求
      *
      * @param request 请求对象
@@ -259,6 +306,22 @@ public class HttpClientEngine implements Closeable {
      * @return {@link Flux} 响应对象
      */
     private Flux<ResponseChunk> doSendAsync(HttpRequest request) {
+        return this.doSendRequest(request)
+                .response((response, content) -> {
+                    // 数据流
+                    Flux<ByteBuf> contentFlux = content.switchIfEmpty(Mono.just(Unpooled.buffer(0)));
+                    // 转化流
+                    return contentFlux.map(buf -> new ResponseChunk(response, buf));
+                });
+    }
+
+    /**
+     * 发送 HTTP 请求
+     *
+     * @param request 待发送的请求
+     * @return 响应对象
+     */
+    private HttpClient.ResponseReceiver<?> doSendRequest(HttpRequest request) {
         String uri;
         if (request.uri().startsWith("http://") || request.uri().startsWith("https://")) {
             uri = request.uri();
@@ -280,12 +343,6 @@ public class HttpClientEngine implements Closeable {
                     }
                     // 不是携带请求体的请求
                     return outbound.send(Mono.empty());
-                })
-                .response((response, content) -> {
-                    // 数据流
-                    Flux<ByteBuf> contentFlux = content.switchIfEmpty(Mono.just(Unpooled.buffer(0)));
-                    // 转化流
-                    return contentFlux.map(buf -> new ResponseChunk(response, buf));
                 });
     }
 

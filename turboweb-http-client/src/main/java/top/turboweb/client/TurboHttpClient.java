@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.*;
 import top.turboweb.client.interceptor.RequestInterceptor;
 import top.turboweb.client.interceptor.ResponseInterceptor;
 import top.turboweb.client.result.ClientResult;
+import top.turboweb.client.result.Stream;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -12,9 +13,17 @@ import java.util.function.Consumer;
 /**
  * TurboWeb HTTP 客户端核心接口。
  * <p>
- * 提供统一的 HTTP 请求发起能力，支持 GET/POST/PUT/DELETE 等标准方法，
- * 并允许对请求和响应进行全局或局部拦截处理。
- * 适用于高并发、微服务调用场景下的客户端封装。
+ * 提供统一的 HTTP 请求发起能力，支持 GET / POST / PUT / DELETE 等标准方法，
+ * 并允许通过拦截器机制对请求与响应进行统一处理。
+ * <p>
+ * 拦截器模型说明：
+ * <ul>
+ *     <li>普通请求（request / get / post 等）支持请求拦截器与响应拦截器</li>
+ *     <li><b>流式请求（requestStream）仅支持请求拦截器，不支持响应拦截器</b></li>
+ * </ul>
+ * <p>
+ * 流式请求通常用于 SSE;文件下载、Chunked 待研究，
+ * 响应数据的消费与生命周期由调用方自行控制。
  */
 public interface TurboHttpClient {
 
@@ -109,21 +118,73 @@ public interface TurboHttpClient {
     }
 
     /**
-     * 发起 HTTP 请求。
+     * 发起普通 HTTP 请求（非流式）。
+     * <p>
+     * 执行流程：
+     * <ol>
+     *     <li>构建请求并执行请求拦截器</li>
+     *     <li>发送请求并获取完整响应</li>
+     *     <li>依次执行所有响应拦截器</li>
+     * </ol>
      *
      * @param path     请求路径（相对或绝对 URL）
      * @param method   HTTP 方法
      * @param data     请求体对象，可为 null
      * @param consumer 请求配置回调
-     * @return ClientResult 封装响应结果及状态信息
+     * @return ClientResult 封装完整响应结果
      */
     ClientResult request(String path, HttpMethod method, Object data, Consumer<Config> consumer);
 
+    /**
+     * 发起 HTTP 流式请求。
+     * <p>
+     * 特性说明：
+     * <ul>
+     *     <li>仅执行请求拦截器（{@link RequestInterceptor}）</li>
+     *     <li>不会执行响应拦截器（{@link ResponseInterceptor}）</li>
+     *     <li>响应体以流的形式返回，不保证一次性读取完整内容</li>
+     * </ul>
+     *
+     * @param path     请求路径
+     * @param method   HTTP 方法
+     * @param data     请求体对象，可为 null
+     * @param consumer 请求配置回调
+     * @return Stream 流式响应封装
+     */
+    Stream requestStream(String path, HttpMethod method, Object data, Consumer<Config> consumer);
+
     ClientResult request(String path, HttpMethod method, Consumer<Config> consumer);
+
+    /**
+     * 发起 HTTP 请求，返回流式结果。
+     *
+     * @param path     请求路径
+     * @param method   HTTP 方法
+     * @param consumer 配置回调
+     * @return Stream 流式结果封装
+     */
+    Stream requestStream(String path, HttpMethod method, Consumer<Config> consumer);
 
     ClientResult request(String path, HttpMethod method);
 
+    /**
+     * 发起 HTTP 请求，返回流式结果。
+     *
+     * @param path     请求路径
+     * @param method   HTTP 方法
+     * @return Stream 流式结果封装
+     */
+    Stream requestStream(String path, HttpMethod method);
+
     ClientResult request(String path);
+
+    /**
+     * 发起 HTTP 请求，返回流式结果。
+     *
+     * @param path     请求路径
+     * @return Stream 流式结果封装
+     */
+    Stream requestStream(String path);
 
     /**
      * 发起 GET 请求。
