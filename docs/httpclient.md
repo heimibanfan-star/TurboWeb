@@ -163,6 +163,135 @@ System.out.println(token);
 
 ------
 
+## 流式响应
+
+TurboWeb 客户端提供了对 **流式响应（Streaming Response）** 的支持，目前主要面向 **SSE（Server-Sent Events）** 等持续输出数据的场景。
+
+```java
+@Route("/hello")
+public class HelloController {
+
+    @Get
+    public SseEmitter sse(HttpContext context) {
+        SseEmitter sseEmitter = context.createSseEmitter();
+        Thread.ofVirtual().start(() -> {
+            for (int i = 0; i < 10; i++) {
+                sseEmitter.send(i + "");
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignore) {
+                }
+            }
+            sseEmitter.close();
+        });
+        return sseEmitter;
+    }
+
+}
+```
+
+客户端的创建方式与普通请求保持一致，只需使用 `requestStream(...)` 方法即可获取流式响应：
+
+```java
+import io.netty.handler.codec.http.HttpMethod;
+import top.turboweb.client.DefaultTurboHttpClient;
+import top.turboweb.client.TurboHttpClient;
+import top.turboweb.client.result.Stream;
+
+import java.util.concurrent.ExecutionException;
+
+public class ClientTest {
+
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
+        TurboHttpClient httpClient = new DefaultTurboHttpClient();
+        // 发送请求，以流式的形式返回
+        Stream stream = httpClient.requestStream("http://localhost:8080/hello", HttpMethod.GET);
+        // 循环读取数据
+        String str;
+        while ((str = stream.nextString()) != null) {
+            System.out.println(str);
+        }
+        // 状态码
+        System.out.println(stream.status());
+        // 响应头
+        System.out.println(stream.headers());
+        // 追加响应头
+        System.out.println(stream.trailerHeaders().get());
+    }
+}
+```
+
+### Stream 接口说明
+
+`Stream` 是 TurboWeb 客户端流式响应的核心抽象，提供了一组 `nextXXX(...)` 方法用于**按需拉取响应体数据**：
+
+- 每次调用返回一段已就绪的数据
+- 当返回 `null` 时，表示响应流已结束
+
+其中需要注意：
+
+- `nextContent(...)` 系列方法返回 **原生 Netty `ByteBuf`**
+   👉 **需要调用者自行释放内存**
+- 其余 `nextXXX(...)` 方法（如 `nextBytes`、`nextString`）
+   👉 **TurboWeb 会自动处理内存释放**
+
+## 
+
+### **注意事项**
+
+流式响应更适合 **SSE、日志推送、模型推理输出** 等持续输出的场景。
+在普通 HTTP 请求中，并不推荐使用流式响应，主要原因如下。
+
+------
+
+**1.基础响应信息的同步等待**
+
+为了保证 API 使用的简洁性，`requestStream(...)` 在返回 `Stream` 对象前，会等待：HTTP 状态码、HTTP 响应头。
+
+这一步是同步完成的，会带来**极小的同步开销**。
+但需要注意的是：
+
+> **响应体的接收仍然是完全异步的**
+
+因此该开销只发生在请求初始化阶段。
+
+------
+
+**2.中间队列带来的额外开销**
+
+为了支持「通过循环顺序读取流数据」这一使用方式，TurboWeb 在客户端内部引入了一个 **中间缓冲队列**：
+
+- Netty IO 线程将接收到的响应体写入队列
+- 消费者通过 `nextXXX(...)` 方法从队列中读取
+- 当暂时没有数据时，消费者线程会阻塞等待
+
+这种设计带来的影响是：
+
+- **消费者侧**：存在一定的等待与调度开销
+- **生产者侧（Netty IO 线程）**：几乎无额外负担
+
+为了保证 IO 线程的高吞吐，TurboWeb 在这里采用了 **弱同步（Weak Synchronization）** 的策略。
+
+------
+
+**3.弱同步下的边界条件说明**
+
+弱同步的设计目标是：
+
+> **尽可能减少 IO 线程的同步成本，而非追求严格的瞬时一致性**
+
+因此，在响应流**收尾阶段**，允许极小概率出现如下情况：
+
+消费者暂时读不到数据、但响应尚未完全结束。
+
+在这种极端时序下，TurboWeb 会通过 **短暂延迟 + 重试** 的方式进行补救：
+
+不会丢数据、不会无限等待。
+
+这种延迟补救行为：
+
+发生概率极低、只可能出现在流结束的临界阶段、对整体性能与语义无实际影响，可忽略不计。
+
 ## 构造器与客户端配置
 
 ### 基础 URL
