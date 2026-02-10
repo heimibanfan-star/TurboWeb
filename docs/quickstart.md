@@ -8,7 +8,7 @@
 <dependency>
     <groupId>io.gitee.turboweb</groupId>
     <artifactId>turboweb-framework</artifactId>
-    <version>2.2.0</version>
+    <version>2.3.0</version>
 </dependency>
 ```
 
@@ -19,7 +19,7 @@ import top.turboweb.anno.method.Get;
 import top.turboweb.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
 
-@RequestPath("/hello")
+@Route("/hello")
 public class HelloController {
     
     @Get
