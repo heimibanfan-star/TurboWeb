@@ -157,7 +157,7 @@ public class HttpClientEngine implements Closeable {
             config.connectConsumer.accept(builder);
         }
         // 创建http客户端
-        HttpClient httpClient = HttpClient.create(builder.build()).protocol(HttpProtocol.HTTP11);
+        HttpClient httpClient = HttpClient.create(builder.build()).protocol(HttpProtocol.HTTP11).runOn(group);
         // 判断是否配置协议
         // 判断是否配置ssl证书
         if (config.sslConsumer != null) {
