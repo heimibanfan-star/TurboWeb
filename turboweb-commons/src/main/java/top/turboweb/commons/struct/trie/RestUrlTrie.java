@@ -1,7 +1,6 @@
 package top.turboweb.commons.struct.trie;
 
 import java.util.*;
-import java.util.List;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -56,6 +55,7 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
         static final ParamType BOOL = new ParamType("bool");
         static final ParamType DATE = new ParamType("date");
         static final ParamType IPV4 = new ParamType("ipv4");
+        static final ParamType PATH = new ParamType("path");
 
         final String regex;
         final String name;
@@ -70,7 +70,8 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
                 BOOL, value -> "true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value),
                 DATE, value -> REGEX_PATTERN.DATE.matcher(value).matches(),
                 IPV4, value -> REGEX_PATTERN.IPV4.matcher(value).matches(),
-                STR, value -> true
+                STR, value -> true,
+                PATH, value -> true
         );
 
         ParamType(String name) {
@@ -93,6 +94,7 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
                 case "int" -> INT;
                 case "date" -> DATE;
                 case "ipv4" -> IPV4;
+                case "path" -> PATH;
                 default -> {
                     if (s.startsWith("regex=")) {
                         s = s.substring(6);
@@ -370,6 +372,17 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
 
             // 应用第一个匹配
             ParamDetails details = first.details(ParamDetails.class);
+            if (details.paramInfo.type == ParamType.PATH) {
+                StringBuilder path = new StringBuilder();
+                for (int i = index; i < segs.length; i++) {
+                    if (i > index) path.append("/");
+                    path.append(segs[i]);
+                }
+                params.put(details.paramInfo.name, path.toString());
+                index = segs.length;
+                current = first;
+                continue;
+            }
             params.put(details.paramInfo.name, seg);
             current = first;
             index++;
