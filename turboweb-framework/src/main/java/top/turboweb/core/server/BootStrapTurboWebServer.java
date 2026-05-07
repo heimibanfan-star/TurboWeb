@@ -1,19 +1,21 @@
 package top.turboweb.core.server;
 
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.core.config.HttpServerConfig;
+import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.initializer.CommonSourceInitializer;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherBuilder;
 import top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitBuilder;
 import top.turboweb.core.initializer.factory.HttpSchedulerInitFactory;
-import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.initializer.impl.DefaultCommonSourceInitializer;
+import top.turboweb.core.listener.TurboWebListener;
 import top.turboweb.gateway.GatewayChannelHandler;
 import top.turboweb.http.scheduler.HttpScheduler;
-import top.turboweb.core.listener.TurboWebListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -270,7 +272,14 @@ public class BootStrapTurboWebServer extends CoreTurboWebServer {
         HttpScheduler httpScheduler = httpSchedulerInitFactory.createHttpScheduler(serverConfig);
         // 创建http协议分发器
         HttpProtocolDispatcher httpProtocolDispatcher = httpProtocolDispatcherInitFactory.createDispatcher(httpScheduler, workers());
-        super.initPipeline(httpProtocolDispatcher, serverConfig.getMaxContentLength(), serverConfig.getCpuNum(), serverConfig.getMaxConnections(), serverConfig.isSerializePerConnection());
+        super.initPipeline(
+                httpProtocolDispatcher,
+                serverConfig.getMaxContentLength(),
+                serverConfig.getCpuNum(),
+                serverConfig.getMaxConnections(),
+                serverConfig.isSerializePerConnection(),
+                serverConfig.getHttp2Settings()
+        );
     }
 
     public static void printBanner() {

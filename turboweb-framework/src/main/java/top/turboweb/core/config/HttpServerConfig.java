@@ -1,5 +1,9 @@
 package top.turboweb.core.config;
 
+import io.netty.handler.codec.http2.Http2Settings;
+
+import java.util.function.Supplier;
+
 /**
  * 服务器初始化配置类
  */
@@ -79,6 +83,12 @@ public class HttpServerConfig {
      * 是否每个连接都进串行化处理
      */
     private boolean serializePerConnection = true;
+
+    private Http2Settings http2Settings = new Http2Settings()
+            .maxConcurrentStreams(256)
+            .initialWindowSize(1 << 20)
+            .maxFrameSize(1 << 14)
+            .maxHeaderListSize(8192);;
 
     public long getSessionCheckThreshold() {
         return sessionCheckThreshold;
@@ -267,5 +277,21 @@ public class HttpServerConfig {
 
     public void setSerializePerConnection(boolean serializePerConnection) {
         this.serializePerConnection = serializePerConnection;
+    }
+
+    /**
+     * 设置http2的设置
+     * @param provider 提供http2的设置
+     */
+    public void h2Setting(Supplier<Http2Settings> provider) {
+        if (provider != null) {
+            this.http2Settings = provider.get();
+        } else {
+            throw new IllegalArgumentException("provider can not be null");
+        }
+    }
+
+    public Http2Settings getHttp2Settings() {
+        return http2Settings;
     }
 }

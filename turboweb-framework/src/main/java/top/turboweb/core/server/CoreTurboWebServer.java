@@ -3,10 +3,7 @@ package top.turboweb.core.server;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http2.Http2FrameCodec;
-import io.netty.handler.codec.http2.Http2FrameCodecBuilder;
-import io.netty.handler.codec.http2.Http2MultiplexHandler;
-import io.netty.handler.codec.http2.Http2StreamFrameToHttpObjectCodec;
+import io.netty.handler.codec.http2.*;
 import io.netty.handler.ssl.ApplicationProtocolNegotiationHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
@@ -245,8 +242,16 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 	 * @param nCPU              CPU 核心数
 	 * @param maxConnect        最大并发连接数
 	 * @param serForPerConn     是否启用每连接序列化
+	 * @param http2Settings     HTTP/2 配置
 	 */
-	protected final void initPipeline(HttpProtocolDispatcher dispatcherHandler, int maxContentLen, int nCPU, int maxConnect, boolean serForPerConn) {
+	protected final void initPipeline(
+			HttpProtocolDispatcher dispatcherHandler,
+			int maxContentLen,
+			int nCPU,
+			int maxConnect,
+			boolean serForPerConn,
+			Http2Settings http2Settings
+	) {
 		ConnectLimiter connectLimiter = new ConnectLimiter(maxConnect, ioThreadNum, nCPU);
 		coreNettyServer.childChannelInitPipeline(sslContext != null, socketChannel -> {
 			ChannelPipeline pipeline = socketChannel.pipeline();
@@ -262,7 +267,7 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 			}
 			// 判断是否开启http2
 			if (enableHttp2) {
-				registerHandler4Http2(pipeline, maxContentLen, serForPerConn, dispatcherHandler);
+				registerHandler4Http2(pipeline, maxContentLen, serForPerConn, dispatcherHandler, http2Settings);
 			} else {
 				registerHandler4Http11(pipeline, maxContentLen, serForPerConn, dispatcherHandler);
 			}
@@ -289,12 +294,19 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 	/**
 	 * 注册 HTTP 2 处理器。
 	 *
-	 * @param pipeline           管道
-	 * @param maxContentLen      最大聚合请求体长度
-	 * @param serForPerConn      是否启用每连接序列化
-	 * @param dispatcherHandler  HTTP 请求分发器
+	 * @param pipeline          管道
+	 * @param maxContentLen     最大聚合请求体长度
+	 * @param serForPerConn     是否启用每连接序列化
+	 * @param dispatcherHandler HTTP 请求分发器
+	 * @param http2Settings     HTTP/2 配置
 	 */
-	private void registerHandler4Http2(ChannelPipeline pipeline, int maxContentLen, boolean serForPerConn, HttpProtocolDispatcher dispatcherHandler) {
+	private void registerHandler4Http2(
+			ChannelPipeline pipeline,
+			int maxContentLen,
+			boolean serForPerConn,
+			HttpProtocolDispatcher dispatcherHandler,
+			Http2Settings http2Settings
+	) {
 		// 判断是否支持SSL
 		if (sslContext == null) {
 			throw new TurboServerInitException("SSL is required for HTTP/2");
@@ -305,7 +317,10 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 			protected void configurePipeline(ChannelHandlerContext ctx, String protocol) throws Exception {
 				if (HTTP2.equals(protocol)) {
 					// 注册http2相关的处理器
-					Http2FrameCodec codec = Http2FrameCodecBuilder.forServer().build();
+					Http2FrameCodec codec = Http2FrameCodecBuilder
+							.forServer()
+							.initialSettings(http2Settings != null? http2Settings : Http2Settings.defaultSettings())
+							.build();
 					ctx.pipeline().addLast(codec);
 					// 注册http2多路复用处理器
 					ctx.pipeline().addLast(new Http2MultiplexHandler(new ChannelInitializer<Channel>() {
