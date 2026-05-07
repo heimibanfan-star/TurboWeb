@@ -88,7 +88,7 @@ public abstract class CoreHttpContext implements HttpContext{
 		this.httpCookieManager = cookieManager;
 		this.connectSession = connectSession;
 		HttpMethod method = request.method();
-		if (HttpMethod.GET == method || HttpMethod.HEAD == method) {
+		if (HttpMethod.HEAD == method) {
 			httpContent = HttpContent.empty();
 		} else {
 			httpContent = new HttpContent(request);
