@@ -1,14 +1,15 @@
 package top.turboweb.core.handler;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http2.*;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
-import java.util.LinkedList;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -25,15 +26,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class Http2FrameAdaptorHandler extends ChannelDuplexHandler {
 
-    /**
-     * 当前处理的 HTTP/2 Headers 帧
-     */
-    private Http2HeadersFrame headersFrame;
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(Http2FrameAdaptorHandler.class);
 
-    /**
-     * 当前处理的 HTTP/2 Data 帧列表，用于组合请求体
-     */
-    private final LinkedList<Http2DataFrame> dataFrames = new LinkedList<>();
 
     /**
      * 响应写入状态标识，避免重复写入
@@ -43,9 +37,6 @@ public class Http2FrameAdaptorHandler extends ChannelDuplexHandler {
     /**
      * <h2>读取通道数据</h2>
      * <p>
-     * 当接收到 HTTP/2 HeadersFrame 或 DataFrame 时，进行缓存并判断是否为最后一个帧。
-     * 如果是最后一个帧，则调用 {@link #handleFullHttp2Frame(ChannelHandlerContext)} 处理为 FullHttpRequest。
-     * </p>
      *
      * @param ctx 通道上下文
      * @param msg 接收到的消息对象
@@ -53,57 +44,43 @@ public class Http2FrameAdaptorHandler extends ChannelDuplexHandler {
      */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof Http2HeadersFrame http2HeadersFrame) {
-            headersFrame = http2HeadersFrame;
-            // 获取客户端请求头中推荐的帧大小
-
-            // 判断是否是最后一个信号
-            if (http2HeadersFrame.isEndStream()) {
-                handleFullHttp2Frame(ctx);
+        if (msg instanceof Http2Frame http2Frame) {
+            Http2StreamChannel streamChannel = (Http2StreamChannel) ctx.channel();
+            int streamId = streamChannel.stream().id();
+            // 转化头部帧
+            if (http2Frame instanceof Http2HeadersFrame http2HeadersFrame) {
+                HttpRequest httpRequest = HttpConversionUtil.toHttpRequest(streamId, http2HeadersFrame.headers(), true);
+                ctx.fireChannelRead(httpRequest);
+                // 如果是尾帧，发送结束帧
+                if (http2HeadersFrame.isEndStream()) {
+                    ctx.fireChannelRead(LastHttpContent.EMPTY_LAST_CONTENT);
+                }
             }
-        } else if (msg instanceof Http2DataFrame http2DataFrame) {
-            dataFrames.add(http2DataFrame);
-            // 判断是否是最后一个信号
-            if (http2DataFrame.isEndStream()) {
-                handleFullHttp2Frame(ctx);
+            // 处理数据帧
+            else if (http2Frame instanceof Http2DataFrame http2DataFrame) {
+                ByteBuf content = http2DataFrame.content();
+                HttpContent httpContent;
+                if (http2DataFrame.isEndStream()) {
+                    httpContent = new DefaultLastHttpContent(content);
+                } else {
+                    httpContent = new DefaultHttpContent(content);
+                }
+                ctx.fireChannelRead(httpContent);
+            }
+            else {
+                log.error("Unsupported message type: {}", msg.getClass().getName());
+                ctx.close();
             }
         } else {
             ctx.fireChannelRead(msg);
         }
     }
 
-    /**
-     * <h2>处理完整的 HTTP/2 请求帧</h2>
-     * <p>
-     * 将 Headers 和 Data 帧组合为 FullHttpRequest，并触发后续 ChannelHandler 处理。
-     * </p>
-     *
-     * @param ctx 通道上下文
-     */
-    private void handleFullHttp2Frame(ChannelHandlerContext ctx) {
-        try {
-            // 获取http2的请求头
-            Http2Headers headers = headersFrame.headers();
-            Http2StreamChannel streamChannel = (Http2StreamChannel) ctx.channel();
-            int streamId = streamChannel.stream().id();
-            // 组合请求体的数据
-            CompositeByteBuf compositeByteBuf = ctx.alloc().compositeBuffer();
-            for (Http2DataFrame dataFrame : dataFrames) {
-                compositeByteBuf.addComponent(true, dataFrame.content());
-            }
-            try {
-                FullHttpRequest fullHttpRequest = HttpConversionUtil.toFullHttpRequest(streamId, headers, compositeByteBuf, true);
-                ctx.fireChannelRead(fullHttpRequest);
-            } catch (Http2Exception e) {
-                ctx.close();
-            }
-        } finally {
-            // 释放资源
-            this.headersFrame = null;
-            this.dataFrames.clear();
-        }
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        ctx.fireChannelRead(LastHttpContent.EMPTY_LAST_CONTENT);
+        super.channelInactive(ctx);
     }
-
 
     /**
      * <h2>写出通道数据</h2>
