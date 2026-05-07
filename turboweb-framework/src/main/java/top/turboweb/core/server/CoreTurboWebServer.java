@@ -6,6 +6,7 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http2.Http2FrameCodec;
 import io.netty.handler.codec.http2.Http2FrameCodecBuilder;
 import io.netty.handler.codec.http2.Http2MultiplexHandler;
+import io.netty.handler.codec.http2.Http2StreamFrameToHttpObjectCodec;
 import io.netty.handler.ssl.ApplicationProtocolNegotiationHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
@@ -14,7 +15,6 @@ import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.core.dispatch.HttpProtocolDispatcher;
 import top.turboweb.core.handler.ChannelHandlerFactory;
 import top.turboweb.core.handler.ConnectLimiter;
-import top.turboweb.core.handler.Http2FrameAdaptorHandler;
 import top.turboweb.core.handler.RequestSerializerHandler;
 import top.turboweb.gateway.GatewayChannelHandler;
 import top.turboweb.gateway.client.ReactorHttpClientFactory;
@@ -312,7 +312,7 @@ public abstract class CoreTurboWebServer implements TurboWebServer {
 						@Override
 						protected void initChannel(Channel ch) throws Exception {
 							// 注册http2与http1.1适配的处理器
-							ch.pipeline().addLast(new Http2FrameAdaptorHandler());
+							ch.pipeline().addLast(new Http2StreamFrameToHttpObjectCodec(true));
 							ch.pipeline().addLast(new HttpObjectAggregator(maxContentLen));
 							// 注册通用的处理器
 							registerDefaultHandlers(ch.pipeline(), serForPerConn, dispatcherHandler);
