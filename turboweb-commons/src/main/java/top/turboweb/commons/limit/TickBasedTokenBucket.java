@@ -48,7 +48,7 @@ public class TickBasedTokenBucket implements TokenBucket, Closeable {
                 } catch (Exception ignore) {
                 }
             }
-        }).start();
+        });
     }
 
     @Override
