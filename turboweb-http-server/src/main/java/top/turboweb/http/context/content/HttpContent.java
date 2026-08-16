@@ -160,37 +160,41 @@ public class HttpContent {
         );
         List<InterfaceHttpData> httpDataList = decoder.getBodyHttpDatas();
         // 解析数据
-        for (InterfaceHttpData httpData : httpDataList) {
-            if (httpData instanceof Attribute attribute) {
-                String name = attribute.getName();
-                String value;
-                try {
-                    value = attribute.getValue();
-                    if (name == null || name.isBlank()) {
-                        log.error("form表单中出现空name：key:{}, value: {}", name, value);
-                        continue;
+        try {
+            for (InterfaceHttpData httpData : httpDataList) {
+                if (httpData instanceof Attribute attribute) {
+                    String name = attribute.getName();
+                    String value;
+                    try {
+                        value = attribute.getValue();
+                        if (name == null || name.isBlank()) {
+                            log.error("form表单中出现空name：key:{}, value: {}", name, value);
+                            continue;
+                        }
+                    } catch (IOException e) {
+                        log.error("解析失败", e);
+                        throw new TurboHttpParseException("解析请求体失败");
+                    } finally {
+                        attribute.release();
                     }
-                } catch (IOException e) {
-                    log.error("解析失败", e);
-                    throw new TurboHttpParseException("解析请求体失败");
-                } finally {
-                    attribute.release();
-                }
-                // 加入到集合中
-                formParams.computeIfAbsent(name, k -> new ArrayList<>(1)).add(value);
-            } else if (httpData instanceof FileUpload fileUpload) {
-                if (isMultiPart) {
-                    // 获取文件名
-                    String name = fileUpload.getName();
-                    if (name == null || name.isBlank()) {
-                        log.error("文件上传出现空的name：name:{}", name);
+                    // 加入到集合中
+                    formParams.computeIfAbsent(name, k -> new ArrayList<>(1)).add(value);
+                } else if (httpData instanceof FileUpload fileUpload) {
+                    if (isMultiPart) {
+                        // 获取文件名
+                        String name = fileUpload.getName();
+                        if (name == null || name.isBlank()) {
+                            log.error("文件上传出现空的name：name:{}", name);
+                        }
+                        // 存入请求信息中
+                        formFiles.computeIfAbsent(name, k -> new ArrayList<>(1)).add(fileUpload);
+                    } else {
+                        fileUpload.release();
                     }
-                    // 存入请求信息中
-                    formFiles.computeIfAbsent(name, k -> new ArrayList<>(1)).add(fileUpload);
-                } else {
-                    fileUpload.release();
                 }
             }
+        } finally {
+            decoder.destroy();
         }
         this.formParams = formParams;
         this.formFiles = formFiles;
