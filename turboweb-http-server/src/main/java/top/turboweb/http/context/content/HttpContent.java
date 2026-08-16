@@ -193,7 +193,11 @@ public class HttpContent {
                     }
                 }
             }
-        } finally {
+        } catch (Exception e) {
+            doRelease(formFiles);
+            throw e;
+        }
+        finally {
             decoder.destroy();
         }
         this.formParams = formParams;
@@ -218,6 +222,10 @@ public class HttpContent {
      * 调用该方法后，文件上传对象中的资源将被释放。
      */
     public void release() {
+        doRelease(this.formFiles);
+    }
+
+    private void doRelease(Map<String, List<FileUpload>> formFiles) {
         if (formFiles == null || formFiles.isEmpty()) {
             return;
         }
