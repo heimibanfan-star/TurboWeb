@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * 基于内存的会话管理器实现，适用于单机环境下的会话存储与管理。
@@ -216,7 +217,8 @@ public class MemorySessionManager implements SessionManager {
             }
             long start = System.currentTimeMillis();
             // 获取session的写锁
-            Locks.SESSION_LOCK.writeLock().lock();
+            ReentrantReadWriteLock.WriteLock writeLock = Locks.SESSION_LOCK.writeLock();
+            writeLock.lock();
             try {
                 log.debug("session垃圾回收器触发");
                 Iterator<Map.Entry<String, MemorySessionMap>> iterator = sessionContainer.entrySet().iterator();
@@ -230,7 +232,7 @@ public class MemorySessionManager implements SessionManager {
                     }
                 }
             } finally {
-                Locks.SESSION_LOCK.writeLock().unlock();
+                writeLock.unlock();
                 long end = System.currentTimeMillis();
                 log.info("session垃圾回收器检查结束，耗时：{}ms", end - start);
             }
