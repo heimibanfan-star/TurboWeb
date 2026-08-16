@@ -1,6 +1,8 @@
 package top.turboweb.core.channel;
 
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelOutboundBuffer;
+import io.netty.channel.FileRegion;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.nio.ByteBuffer;
@@ -73,8 +75,11 @@ public class TurboWebNioSocketChannel extends NioSocketChannel {
                                 this.close();
                             } finally {
                                 isWriting = false;
-                                // 刷新缓冲区
-                                incompleteWrite(isFull);
+                                final boolean full = isFull;
+                                this.eventLoop().execute(() -> {
+                                    // 刷新缓冲区
+                                    incompleteWrite(full);
+                                });
                             }
                         });
                         return;
