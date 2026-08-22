@@ -33,6 +33,8 @@ public class HttpContent {
 
     private boolean formIsParsed = false;
 
+    private HttpPostRequestDecoder decoder;
+
     /**
      * json格式的请求体
      */
@@ -153,52 +155,40 @@ public class HttpContent {
         Map<String, List<String>> formParams = new HashMap<>();
         Map<String, List<FileUpload>> formFiles = new HashMap<>();
         // 创建处理器
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(
+        this.decoder = new HttpPostRequestDecoder(
                 new DefaultHttpDataFactory(Integer.MAX_VALUE),
                 request,
                 HttpRequestUtils.getRequestCharset(request)
         );
         List<InterfaceHttpData> httpDataList = decoder.getBodyHttpDatas();
         // 解析数据
-        try {
-            for (InterfaceHttpData httpData : httpDataList) {
-                if (httpData instanceof Attribute attribute) {
-                    String name = attribute.getName();
-                    String value;
-                    try {
-                        value = attribute.getValue();
-                        if (name == null || name.isBlank()) {
-                            log.error("form表单中出现空name：key:{}, value: {}", name, value);
-                            continue;
-                        }
-                    } catch (IOException e) {
-                        log.error("解析失败", e);
-                        throw new TurboHttpParseException("解析请求体失败");
-                    } finally {
-                        attribute.release();
+        for (InterfaceHttpData httpData : httpDataList) {
+            if (httpData instanceof Attribute attribute) {
+                String name = attribute.getName();
+                String value;
+                try {
+                    value = attribute.getValue();
+                    if (name == null || name.isBlank()) {
+                        log.error("form表单中出现空name：key:{}, value: {}", name, value);
+                        continue;
                     }
-                    // 加入到集合中
-                    formParams.computeIfAbsent(name, k -> new ArrayList<>(1)).add(value);
-                } else if (httpData instanceof FileUpload fileUpload) {
-                    if (isMultiPart) {
-                        // 获取文件名
-                        String name = fileUpload.getName();
-                        if (name == null || name.isBlank()) {
-                            log.error("文件上传出现空的name：name:{}", name);
-                        }
-                        // 存入请求信息中
-                        formFiles.computeIfAbsent(name, k -> new ArrayList<>(1)).add(fileUpload);
-                    } else {
-                        fileUpload.release();
+                } catch (IOException e) {
+                    log.error("解析失败", e);
+                    throw new TurboHttpParseException("解析请求体失败");
+                }
+                // 加入到集合中
+                formParams.computeIfAbsent(name, k -> new ArrayList<>(1)).add(value);
+            } else if (httpData instanceof FileUpload fileUpload) {
+                if (isMultiPart) {
+                    // 获取文件名
+                    String name = fileUpload.getName();
+                    if (name == null || name.isBlank()) {
+                        log.error("文件上传出现空的name：name:{}", name);
                     }
+                    // 存入请求信息中
+                    formFiles.computeIfAbsent(name, k -> new ArrayList<>(1)).add(fileUpload);
                 }
             }
-        } catch (Exception e) {
-            doRelease(formFiles);
-            throw e;
-        }
-        finally {
-            decoder.destroy();
         }
         this.formParams = formParams;
         this.formFiles = formFiles;
@@ -222,18 +212,8 @@ public class HttpContent {
      * 调用该方法后，文件上传对象中的资源将被释放。
      */
     public void release() {
-        doRelease(this.formFiles);
-    }
-
-    private void doRelease(Map<String, List<FileUpload>> formFiles) {
-        if (formFiles == null || formFiles.isEmpty()) {
-            return;
+        if (decoder != null) {
+            decoder.destroy();
         }
-        formFiles.forEach((key, value) -> {
-            if (value == null || value.isEmpty()) {
-                return;
-            }
-            value.forEach(FileUpload::release);
-        });
     }
 }
