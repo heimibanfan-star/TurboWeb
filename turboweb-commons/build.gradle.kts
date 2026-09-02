@@ -12,10 +12,10 @@ dependencies {
     api(libs.commons.lang3)
     api(libs.jackson.databind)
     api(libs.jakarta.validation.api)
-    api(libs.hibernate.validator)
-    api(libs.jakarta.el.api)
-    api(libs.jakarta.el)
-    api(libs.jackson.datatype.jsr310)
+    implementation(libs.hibernate.validator)
+    implementation(libs.jakarta.el.api)
+    implementation(libs.jakarta.el)
+    implementation(libs.jackson.datatype.jsr310)
 }
 
 description = "turboweb-commons"
