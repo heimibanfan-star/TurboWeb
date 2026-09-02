@@ -29,6 +29,18 @@ publishing {
     publications.create<MavenPublication>("maven") {
         from(components["java"])
     }
+
+    repositories {
+        maven {
+            name = "aliyunRDC"
+            url = uri("https://packages.aliyun.com/69cb35b37c12f71e8ca5b2be/maven/luanet")
+
+             credentials {
+                 username = System.getenv("ALIYUN_REPO_USERNAME")
+                 password = System.getenv("ALIYUN_REPO_PASSWORD")
+             }
+        }
+    }
 }
 
 tasks.withType<JavaCompile>() {
