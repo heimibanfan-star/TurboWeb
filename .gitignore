@@ -41,3 +41,4 @@ code-review-report
 .env.*.loca
 
 .gradle
+build
