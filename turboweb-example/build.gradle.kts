@@ -12,8 +12,6 @@ dependencies {
     api(project(":turboweb-framework"))
     api(libs.logback.classic)
     api(project(":turboweb-http-client"))
-    api(libs.bcprov.jdk15on)
-    api(libs.bcpkix.jdk15on)
     testImplementation(libs.junit.jupiter)
 }
 
