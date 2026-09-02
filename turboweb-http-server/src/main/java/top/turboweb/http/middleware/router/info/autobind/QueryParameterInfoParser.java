@@ -1,6 +1,7 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
 import top.turboweb.anno.param.binder.Query;
+import top.turboweb.commons.exception.TurboArgsValidationException;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.context.HttpContext;
 
@@ -24,13 +25,20 @@ public class QueryParameterInfoParser extends AbstractParamInfoParser {
             String name,
             TypeConverters.Converter converter,
             // 集合类型,0 非集合, 1 list, 2 set
-            short collectionType
+            short collectionType,
+            boolean nonNull
     ) implements ParameterBinder {
 
         @Override
         public Object bindParameter(HttpContext ctx) {
             if (collectionType == 0) {
-                return converter.convert(ctx.query(name));
+                Object arg = converter.convert(ctx.query(name));
+                // 规则判断
+                if (nonNull && arg == null) {
+                    throw new TurboArgsValidationException(List.of(name + "不能为null"));
+                } else {
+                    return arg;
+                }
             }
             // 获取所有数据
             List<String> values = ctx.queries(name);
@@ -84,6 +92,6 @@ public class QueryParameterInfoParser extends AbstractParamInfoParser {
         // 获取参数名
         Query query = parameter.getAnnotation(Query.class);
         String name = query.value();
-        return new QueryParameterBinder(name, converter, collectionType);
+        return new QueryParameterBinder(name, converter, collectionType, query.nonNull());
     }
 }

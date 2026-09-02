@@ -22,7 +22,7 @@ dependencies {
 }
 
 group = "io.gitee.turboweb"
-version = "2.4.0-Beta1"
+version = "2.4.0-Beta2"
 java.sourceCompatibility = JavaVersion.VERSION_21
 
 publishing {

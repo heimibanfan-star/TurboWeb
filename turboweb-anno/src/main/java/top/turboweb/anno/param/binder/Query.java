@@ -13,4 +13,10 @@ import java.lang.annotation.Target;
 public @interface Query {
     // 参数名
     String value();
+
+    /**
+     * 是否不能为null, 默认可以为null
+     * @return true代表不能为null
+     */
+    boolean nonNull() default false;
 }
