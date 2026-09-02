@@ -9,13 +9,13 @@ plugins {
 }
 
 dependencies {
-    api(libs.org.apache.commons.commons.lang3)
-    api(libs.com.fasterxml.jackson.core.jackson.databind)
-    api(libs.jakarta.validation.jakarta.validation.api)
-    api(libs.org.hibernate.hibernate.validator)
-    api(libs.jakarta.el.jakarta.el.api)
-    api(libs.org.glassfish.jakarta.el)
-    api(libs.com.fasterxml.jackson.datatype.jackson.datatype.jsr310)
+    api(libs.commons.lang3)
+    api(libs.jackson.databind)
+    api(libs.jakarta.validation.api)
+    api(libs.hibernate.validator)
+    api(libs.jakarta.el.api)
+    api(libs.jakarta.el)
+    api(libs.jackson.datatype.jsr310)
 }
 
 description = "turboweb-commons"

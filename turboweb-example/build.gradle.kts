@@ -10,11 +10,11 @@ plugins {
 
 dependencies {
     api(project(":turboweb-framework"))
-    api(libs.ch.qos.logback.logback.classic)
+    api(libs.logback.classic)
     api(project(":turboweb-http-client"))
-    api(libs.org.bouncycastle.bcprov.jdk15on)
-    api(libs.org.bouncycastle.bcpkix.jdk15on)
-    testImplementation(libs.org.junit.jupiter.junit.jupiter)
+    api(libs.bcprov.jdk15on)
+    api(libs.bcpkix.jdk15on)
+    testImplementation(libs.junit.jupiter)
 }
 
 description = "turboweb-example"

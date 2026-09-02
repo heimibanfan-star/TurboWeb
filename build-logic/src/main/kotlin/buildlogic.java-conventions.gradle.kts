@@ -23,7 +23,7 @@ dependencies {
 
 group = "io.gitee.turboweb"
 version = "2.4.0-Beta1"
-java.sourceCompatibility = JavaVersion.VERSION_1_8
+java.sourceCompatibility = JavaVersion.VERSION_21
 
 publishing {
     publications.create<MavenPublication>("maven") {

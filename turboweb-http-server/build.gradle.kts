@@ -10,7 +10,7 @@ plugins {
 
 dependencies {
     api(project(":turboweb-commons"))
-    api(libs.org.freemarker.freemarker)
+    api(libs.freemarker)
     api(project(":turboweb-anno"))
 }
 
