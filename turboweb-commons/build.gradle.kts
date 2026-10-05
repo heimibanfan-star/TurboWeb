@@ -16,6 +16,12 @@ dependencies {
     implementation(libs.jakarta.el.api)
     implementation(libs.jakarta.el)
     implementation(libs.jackson.datatype.jsr310)
+
+    // Gradle 9 不再自带 platform launcher；BOM 复用既有的 junit-jupiter 版本，不引入第二个版本号
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.logback.classic)
 }
 
 description = "turboweb-commons"

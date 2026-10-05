@@ -23,4 +23,6 @@ commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "co
 freemarker = { module = "org.freemarker:freemarker", version.ref = "freemarker" }
 jakarta-el = { module = "org.glassfish:jakarta.el", version.ref = "jakarta-el" }
 hibernate-validator = { module = "org.hibernate:hibernate-validator", version.ref = "hibernate-validator" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit-jupiter" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
