@@ -42,3 +42,6 @@ code-review-report
 
 .gradle
 build
+
+### CodeGraph ###
+.codegraph/
