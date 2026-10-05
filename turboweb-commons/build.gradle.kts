@@ -25,3 +25,31 @@ dependencies {
 }
 
 description = "turboweb-commons"
+
+// commons 覆盖率门禁分母：只统计支撑本次重构的公共面，exception/** 与 func/TirConsumer 不计入（spec §2.1）
+val gateClasses = listOf(
+    "top/turboweb/commons/utils/thread/**",
+    "top/turboweb/commons/utils/resource/**",
+    "top/turboweb/commons/utils/base/**",
+    "top/turboweb/commons/limit/**",
+    "top/turboweb/commons/lock/**",
+    "top/turboweb/commons/struct/trie/**",
+    "top/turboweb/commons/serializer/**",
+    "top/turboweb/commons/constants/**",
+    "top/turboweb/commons/config/**"
+)
+
+tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.test)
+    // classDirectories 是 Filterable：按 glob 收窄分母，报告仍展示全量类
+    classDirectories.setFrom(classDirectories.files.map { dir -> fileTree(dir) { include(gateClasses) } })
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                minimum = "0.90".toBigDecimal()
+            }
+        }
+    }
+    // 注意：本阶段不接入 check，开闸在 spec 阶段 5
+}
