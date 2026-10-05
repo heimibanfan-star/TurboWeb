@@ -20,7 +20,7 @@ import top.turboweb.http.processor.convertor.HttpResponseConverter;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.scheduler.VirtualThreadHttpScheduler;
 import top.turboweb.http.server.config.HttpConfig;
-import top.turboweb.http.server.handler.HttpProtocolDispatcher;
+import top.turboweb.http.server.handler.HttpRequestSchedulerHandler;
 import top.turboweb.http.server.handler.RequestSerializerHandler;
 import top.turboweb.http.session.DefaultSessionManagerHolder;
 import top.turboweb.http.session.MemorySessionManager;
@@ -39,9 +39,9 @@ import java.util.stream.Stream;
  * http请求应用，服务器与业务装配逻辑之间的桥梁。
  * <p>
  * 对外只暴露 {@link #configure(ChannelPipeline)}：每条新连接建立时向pipeline尾部追加
- * 请求串行化处理器（可选，连接级新实例）与http协议分发器（无状态单例，跨连接复用）；
+ * 请求串行化处理器（可选，连接级新实例）与http请求调度处理器（无状态单例，跨连接复用）；
  * 对内通过 {@link Builder} 在构建期一次性完成处理器责任链
- * （CORS -> 异常处理 -> 中间件执行）、虚拟线程http调度器与协议分发器的装配。
+ * （CORS -> 异常处理 -> 中间件执行）、虚拟线程http调度器与调度处理器的装配。
  * <p>
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
  *
@@ -67,27 +67,27 @@ public class HttpRequestApplication implements Application {
     private final boolean requestSerial;
 
     /**
-     * http协议分发器，构建期装配好的无状态单例（{@code @Sharable}），
+     * http请求调度处理器，构建期装配好的无状态单例（{@code @Sharable}），
      * 负责把请求转交给内部http调度器执行处理器责任链
      */
-    private final HttpProtocolDispatcher httpProtocolDispatcher;
+    private final HttpRequestSchedulerHandler httpRequestSchedulerHandler;
 
-    public HttpRequestApplication(boolean requestSerial, HttpProtocolDispatcher httpProtocolDispatcher) {
+    public HttpRequestApplication(boolean requestSerial, HttpRequestSchedulerHandler httpRequestSchedulerHandler) {
         this.requestSerial = requestSerial;
-        this.httpProtocolDispatcher = httpProtocolDispatcher;
+        this.httpRequestSchedulerHandler = httpRequestSchedulerHandler;
     }
 
 
     /**
      * 每条新连接建立时被调用一次，向pipeline尾部追加应用级处理器。
-     * 串行化处理器有连接级状态必须每次新建，分发器为单例直接复用
+     * 串行化处理器有连接级状态必须每次新建，调度处理器为单例直接复用
      */
     @Override
     public void configure(ChannelPipeline pipeline) {
         if (this.requestSerial) {
             pipeline.addLast(new RequestSerializerHandler());
         }
-        pipeline.addLast(httpProtocolDispatcher);
+        pipeline.addLast(httpRequestSchedulerHandler);
         log.debug("连接[{}]装配http应用处理器完成，请求串行化: {}",
                 pipeline.channel().id().asShortText(), this.requestSerial);
     }
@@ -100,7 +100,7 @@ public class HttpRequestApplication implements Application {
      * <p>
      * {@link #build()} 按以下顺序完成装配：
      * 补全响应转换器 -> 串联三大处理器（CORS -> 异常处理 -> 中间件执行）->
-     * 初始化http调度器（应用限流与请求日志配置）-> 构建协议分发器。
+     * 初始化http调度器（应用限流与请求日志配置）-> 构建http请求调度处理器。
      */
     public static class Builder {
 
@@ -218,7 +218,7 @@ public class HttpRequestApplication implements Application {
 
         /**
          * 构建应用：补全默认响应转换器，串联处理器责任链，按 {@link HttpConfig}
-         * 初始化虚拟线程调度器（限流参数与请求日志开关），最后装配协议分发器；
+         * 初始化虚拟线程调度器（限流参数与请求日志开关），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}
          */
         public HttpRequestApplication build() {
@@ -251,12 +251,12 @@ public class HttpRequestApplication implements Application {
             } else {
                 log.info("http调度器限流未开启");
             }
-            HttpProtocolDispatcher dispatcher = HttpProtocolDispatcher.builder()
+            HttpRequestSchedulerHandler schedulerHandler = HttpRequestSchedulerHandler.builder()
                     .httpScheduler(httpScheduler)
                     .build();
             log.info("http请求应用装配完成，连接级请求串行化: {}, 请求日志: {}",
                     httpConfig.isSerializePerConnection(), httpConfig.isShowRequestLog());
-            return new HttpRequestApplication(httpConfig.isSerializePerConnection(), dispatcher);
+            return new HttpRequestApplication(httpConfig.isSerializePerConnection(), schedulerHandler);
         }
 
         /**

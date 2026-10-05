@@ -19,7 +19,7 @@ import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
  * <p>
  * 参考 top.turboweb.websocket.init.PathWebSocketPreInit 与 top.turboweb.core.dispatch.HttpProtocolDispatcher
  * 中的handleInitWebSocket逻辑，改为pipeline中独立的后置handler实现：
- * 与纯http的 {@link HttpProtocolDispatcher} 配套使用，分发器把携带Upgrade头的http升级协议请求向后转发，
+ * 与纯http的 {@link HttpRequestSchedulerHandler} 配套使用，处理器把携带Upgrade头的http升级协议请求向后转发，
  * 由本handler完成websocket的协议升级：
  * <ul>
  *     <li>websocket升级协议请求（GET方法、Connection头包含upgrade且Upgrade为websocket）且uri匹配路径表达式：

@@ -9,13 +9,13 @@ import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.scheduler.HttpScheduler;
 
 /**
- * http协议分发器（纯http版本，不可变）。
+ * http请求调度处理器（纯http版本，不可变）。
  * <p>
- * 参考 top.turboweb.core.dispatch.HttpProtocolDispatcher 实现，区别在于本分发器内部
- * 不聚合任何websocket相关的处理器，只专注于http协议的处理：
+ * 参考 top.turboweb.core.dispatch.HttpProtocolDispatcher 实现，区别在于本处理器内部
+ * 不聚合任何websocket相关的处理器，只专注于把http请求送进调度器：
  * <ul>
- *     <li>普通http请求：封装会话对象后交给 {@link HttpScheduler} 调度执行；</li>
- *     <li>http升级协议请求（携带Upgrade头，如websocket握手）：不在本分发器处理，
+ *     <li>普通http请求：封装连接会话对象后交给 {@link HttpScheduler} 调度执行；</li>
+ *     <li>http升级协议请求（携带Upgrade头，如websocket握手）：不在本处理器处理，
  *     retain后继续向后转发，由pipeline中后续的处理器完成协议升级。</li>
  * </ul>
  * 创建方式参考 top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory，
@@ -24,25 +24,25 @@ import top.turboweb.http.scheduler.HttpScheduler;
  * {@link top.turboweb.http.server.application.HttpRequestApplication} 装配并跨channel复用。
  *
  * <pre>{@code
- * HttpProtocolDispatcher dispatcher = HttpProtocolDispatcher.builder()
+ * HttpRequestSchedulerHandler schedulerHandler = HttpRequestSchedulerHandler.builder()
  *         .httpScheduler(httpScheduler)
  *         .build();
  * }</pre>
  */
 @ChannelHandler.Sharable
-public class HttpProtocolDispatcher extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class HttpRequestSchedulerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     /**
      * http调度器
      */
     private final HttpScheduler httpScheduler;
 
-    private HttpProtocolDispatcher(Builder builder) {
+    private HttpRequestSchedulerHandler(Builder builder) {
         this.httpScheduler = builder.httpScheduler;
     }
 
     /**
-     * 创建分发器构建器，默认不聚合websocket处理器
+     * 创建处理器构建器，默认不聚合websocket处理器
      */
     public static Builder builder() {
         return new Builder();
@@ -66,7 +66,7 @@ public class HttpProtocolDispatcher extends SimpleChannelInboundHandler<FullHttp
     }
 
     /**
-     * {@link HttpProtocolDispatcher} 的建造者，链式方法校验非法参数立即抛出 {@link IllegalArgumentException}。
+     * {@link HttpRequestSchedulerHandler} 的建造者，链式方法校验非法参数立即抛出 {@link IllegalArgumentException}。
      */
     public static final class Builder {
 
@@ -89,13 +89,13 @@ public class HttpProtocolDispatcher extends SimpleChannelInboundHandler<FullHttp
         }
 
         /**
-         * 构建分发器对象，只处理http协议，默认没有websocket
+         * 构建处理器对象，只处理http请求，默认没有websocket
          */
-        public HttpProtocolDispatcher build() {
+        public HttpRequestSchedulerHandler build() {
             if (httpScheduler == null) {
                 throw new IllegalArgumentException("httpScheduler不能为空");
             }
-            return new HttpProtocolDispatcher(this);
+            return new HttpRequestSchedulerHandler(this);
         }
     }
 }
