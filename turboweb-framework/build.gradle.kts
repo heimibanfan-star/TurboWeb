@@ -11,7 +11,7 @@ plugins {
 dependencies {
     api(project(":turboweb-commons"))
     api(project(":turboweb-http-server"))
-    api(project(":turboweb-websocket"))
+    api(project(":turboweb-websocket-core"))
     api(project(":turboweb-gateway"))
 }
 

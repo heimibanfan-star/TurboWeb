@@ -11,7 +11,7 @@ pluginManagement {
 
 rootProject.name = "turboweb"
 include(":turboweb-example")
-include(":turboweb-websocket")
+include(":turboweb-websocket-core")
 include(":turboweb-loadbalance")
 include(":turboweb-commons")
 include(":turboweb-http-client")

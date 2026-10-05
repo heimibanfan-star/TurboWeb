@@ -12,4 +12,4 @@ dependencies {
     api(project(":turboweb-commons"))
 }
 
-description = "turboweb-websocket"
+description = "turboweb-websocket-core"

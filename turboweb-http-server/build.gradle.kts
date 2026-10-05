@@ -12,6 +12,8 @@ dependencies {
     api(project(":turboweb-commons"))
     api(libs.freemarker)
     api(project(":turboweb-anno"))
+    // 聚合turboweb-websocket-core模块
+    api(project(":turboweb-websocket-core"))
 }
 
 description = "turboweb-http"
