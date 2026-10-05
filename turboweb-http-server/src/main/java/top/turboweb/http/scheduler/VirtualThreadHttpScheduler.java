@@ -3,6 +3,7 @@ package top.turboweb.http.scheduler;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.constants.FontColors;
+import top.turboweb.commons.utils.thread.ThreadPool;
 import top.turboweb.commons.utils.thread.VirtualThreads;
 import top.turboweb.http.connect.ConnectSession;
 import top.turboweb.http.connect.InternalConnectSession;
@@ -12,6 +13,7 @@ import top.turboweb.http.scheduler.strategy.ResponseStrategyContext;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -83,27 +85,32 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
      * 创建一个默认（无限流）的虚拟线程调度器。
      *
      * @param processorChain 请求处理链
+     * @param threadPool     磁盘IO线程池，注入文件流响应策略
      */
-    public VirtualThreadHttpScheduler(Processor processorChain) {
-        this(processorChain, false, 0, 0, 0);
+    public VirtualThreadHttpScheduler(Processor processorChain, ThreadPool threadPool) {
+        this(processorChain, threadPool, false, 0, 0, 0);
     }
 
     /**
      * 创建带限流策略的虚拟线程调度器。
      *
      * @param processorChain       请求处理链
+     * @param threadPool           磁盘IO线程池，向下注入 {@link ResponseStrategyContext}
+     *                             供文件流响应策略调度分块读取；调度器仅使用不负责其关闭
      * @param enableLimit          是否启用限流
      * @param limit                最大并发线程数（即同时持有的信号量许可数）
      * @param maxSuspendThreadNum  最大允许挂起等待的线程数
      * @param timeout              挂起线程等待许可的超时时间（毫秒）
+     * @throws NullPointerException 线程池为null
      */
-    public VirtualThreadHttpScheduler(Processor processorChain, boolean enableLimit, int limit, int maxSuspendThreadNum, long timeout) {
+    public VirtualThreadHttpScheduler(Processor processorChain, ThreadPool threadPool, boolean enableLimit, int limit, int maxSuspendThreadNum, long timeout) {
         this.processorChain = processorChain;
         this.enableLimit = enableLimit;
         this.maxSuspendThreadNum = maxSuspendThreadNum;
         this.timeout = timeout;
         permission = new Semaphore(limit);
-        responseStrategyContext = new ResponseStrategyContext(enableLimit);
+        responseStrategyContext = new ResponseStrategyContext(enableLimit,
+                Objects.requireNonNull(threadPool, "磁盘IO线程池不能为null"));
     }
 
     /**

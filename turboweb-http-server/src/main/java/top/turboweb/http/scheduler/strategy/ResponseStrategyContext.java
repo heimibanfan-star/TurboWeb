@@ -1,6 +1,7 @@
 package top.turboweb.http.scheduler.strategy;
 
 import io.netty.handler.codec.http.HttpResponse;
+import top.turboweb.commons.utils.thread.ThreadPool;
 import top.turboweb.http.response.InternalCallResponse;
 
 import java.util.Map;
@@ -23,6 +24,7 @@ import java.util.Map;
  *     <li>自动匹配 {@link InternalCallResponse.InternalCallType} 类型到对应策略。</li>
  *     <li>默认策略兜底，避免空指针与未定义响应类型问题。</li>
  *     <li>支持启用响应限流（仅影响 {@link ReactorResponseStrategy}）。</li>
+ *     <li>磁盘IO线程池由构造器注入，交由 {@link FileStreamResponseStrategy} 调度文件分块读取。</li>
  * </ul>
  */
 public class ResponseStrategyContext {
@@ -36,11 +38,13 @@ public class ResponseStrategyContext {
      * </p>
      *
      * @param enableLimit 是否启用响应限流（仅影响 Reactor 响应类型）
+     * @param threadPool  磁盘IO线程池，注入 {@link FileStreamResponseStrategy} 用于调度文件分块读取，不能为null
+     * @throws NullPointerException 线程池为null
      */
-    public ResponseStrategyContext(boolean enableLimit) {
+    public ResponseStrategyContext(boolean enableLimit, ThreadPool threadPool) {
         responseStrategyMap = Map.of(
                 InternalCallResponse.InternalCallType.SSE, new SseResponseStrategy(),
-                InternalCallResponse.InternalCallType.FILE_STREAM, new FileStreamResponseStrategy(),
+                InternalCallResponse.InternalCallType.FILE_STREAM, new FileStreamResponseStrategy(threadPool),
                 InternalCallResponse.InternalCallType.DEFAULT, new DefaultResponseStrategy(),
                 InternalCallResponse.InternalCallType.AIO_FILE, new AsyncFileResponseStrategy(),
                 InternalCallResponse.InternalCallType.ZERO_COPY, new ZeroCopyResponseStrategy(),

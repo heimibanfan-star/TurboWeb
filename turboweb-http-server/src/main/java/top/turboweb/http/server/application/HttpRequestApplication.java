@@ -5,6 +5,8 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.serializer.JacksonJsonSerializer;
 import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.commons.utils.thread.ElasticThreadPool;
+import top.turboweb.commons.utils.thread.ThreadPool;
 import top.turboweb.http.handler.DefaultExceptionHandlerMatcher;
 import top.turboweb.http.handler.ExceptionHandlerContainer;
 import top.turboweb.http.handler.ExceptionHandlerContainerInitHelper;
@@ -100,7 +102,8 @@ public class HttpRequestApplication implements Application {
      * <p>
      * {@link #build()} 按以下顺序完成装配：
      * 补全响应转换器 -> 串联三大处理器（CORS -> 异常处理 -> 中间件执行）->
-     * 初始化http调度器（应用限流与请求日志配置）-> 构建http请求调度处理器。
+     * 按 {@link HttpConfig} 创建磁盘IO线程池 -> 初始化http调度器（注入线程池与应用限流配置）->
+     * 构建http请求调度处理器。
      */
     public static class Builder {
 
@@ -217,8 +220,9 @@ public class HttpRequestApplication implements Application {
         }
 
         /**
-         * 构建应用：补全默认响应转换器，串联处理器责任链，按 {@link HttpConfig}
-         * 初始化虚拟线程调度器（限流参数与请求日志开关），最后装配http请求调度处理器；
+         * 构建应用：补全默认响应转换器，串联处理器责任链，按 {@link HttpConfig} 的
+         * diskOpeThread* 参数创建磁盘IO线程池，注入虚拟线程调度器（同时应用限流参数与请求日志开关），
+         * 最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}
          */
         public HttpRequestApplication build() {
@@ -233,9 +237,20 @@ public class HttpRequestApplication implements Application {
             corsProcessor.setNextProcessor(exceptionHandlerProcessor);
             exceptionHandlerProcessor.setNextProcessor(middlewareInvokeProcessor);
             log.info("处理器责任链装配完成：CORS -> 异常处理 -> 中间件执行");
+            // 创建磁盘IO线程池，供文件流响应策略调度分块读取；调度器只使用不负责关闭
+            ThreadPool diskOpeThreadPool = new ElasticThreadPool(
+                    httpConfig.getDiskOpeThreadCacheQueue(),
+                    httpConfig.getDiskOpeThreadCoreQueue(),
+                    httpConfig.getDiskOpeThreadMaxThreadNum()
+            );
+            log.info("磁盘IO线程池创建完成：缓冲队列 {}, 核心队列 {}, 最大线程数 {}",
+                    httpConfig.getDiskOpeThreadCacheQueue(),
+                    httpConfig.getDiskOpeThreadCoreQueue(),
+                    httpConfig.getDiskOpeThreadMaxThreadNum());
             // 初始化http调度器
             HttpScheduler httpScheduler = new VirtualThreadHttpScheduler(
                     corsProcessor,
+                    diskOpeThreadPool,
                     httpConfig.isEnableHttpSchedulerLimit(),
                     httpConfig.getHttpSchedulerLimitCount(),
                     httpConfig.getHttpSchedulerLimitCacheThread(),

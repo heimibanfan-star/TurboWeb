@@ -3,6 +3,8 @@ package top.turboweb.core.initializer.impl;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboServerInitException;
+import top.turboweb.commons.utils.thread.ElasticThreadPool;
+import top.turboweb.commons.utils.thread.ThreadPool;
 import top.turboweb.core.config.HttpServerConfig;
 import top.turboweb.http.processor.Processor;
 import top.turboweb.http.scheduler.HttpScheduler;
@@ -18,10 +20,17 @@ public class DefaultHttpSchedulerInitializer implements HttpSchedulerInitializer
 
     @Override
     public HttpScheduler init(Processor processorChain, HttpServerConfig config) {
+        // 磁盘IO线程池，注入调度器供文件流响应策略调度分块读取
+        ThreadPool diskOpeThreadPool = new ElasticThreadPool(
+                config.getDiskOpeThreadCacheQueue(),
+                config.getDiskOpeThreadCoreQueue(),
+                config.getDiskOpeThreadMaxThreadNum()
+        );
         HttpScheduler scheduler;
         if (!config.isEnableHttpSchedulerLimit()) {
             scheduler = new VirtualThreadHttpScheduler(
-                    processorChain
+                    processorChain,
+                    diskOpeThreadPool
             );
         } else {
             // 校验数据是否合法
@@ -33,6 +42,7 @@ public class DefaultHttpSchedulerInitializer implements HttpSchedulerInitializer
             }
             scheduler = new VirtualThreadHttpScheduler(
                     processorChain,
+                    diskOpeThreadPool,
                     true,
                     config.getHttpSchedulerLimitCount(),
                     config.getHttpSchedulerLimitCacheThread(),

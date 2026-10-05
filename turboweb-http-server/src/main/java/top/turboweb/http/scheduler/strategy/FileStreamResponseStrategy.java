@@ -9,16 +9,18 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
+import org.jspecify.annotations.NonNull;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.SynchronousSink;
 import top.turboweb.commons.exception.TurboFileException;
-import top.turboweb.commons.utils.thread.DiskOpeThreadUtils;
+import top.turboweb.commons.utils.thread.ThreadPool;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.response.FileStreamResponse;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * 文件流响应处理策略。
@@ -33,13 +35,28 @@ import java.io.IOException;
  * <ul>
  *   <li>在文件下载过程中避免阻塞 Netty 的 I/O 线程。</li>
  *   <li>通过 Reactor 的 {@code Flux.generate()} 实现分块读取与背压控制。</li>
- *   <li>利用 {@link DiskOpeThreadUtils} 调度磁盘 I/O 线程，实现业务线程与网络线程的分离。</li>
+ *   <li>利用外部注入的 {@link ThreadPool} 调度磁盘 I/O 线程，实现业务线程与网络线程的分离。</li>
  *   <li>保证文件通道在传输完成或异常时被安全关闭。</li>
  * </ul>
  * </p>
  */
 public class FileStreamResponseStrategy extends ResponseStrategy {
     private static final InternalLogger log = InternalLoggerFactory.getInstance(FileStreamResponseStrategy.class);
+
+    /**
+     * 磁盘IO线程池，调度文件分块的读取任务；由构造器注入，本策略不负责其生命周期
+     */
+    private final ThreadPool threadPool;
+
+    /**
+     * 构造文件流响应策略。
+     *
+     * @param threadPool 磁盘IO线程池，不能为null
+     * @throws NullPointerException 线程池为null
+     */
+    public FileStreamResponseStrategy(ThreadPool threadPool) {
+        this.threadPool = Objects.requireNonNull(threadPool, "磁盘IO线程池不能为null");
+    }
 
     /**
      * 处理 {@link FileStreamResponse} 类型的文件流响应。
@@ -102,8 +119,8 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
                 .subscribe(new BaseSubscriber<>() {
 
                     @Override
-                    protected void hookOnSubscribe(Subscription subscription) {
-                        boolean ok = DiskOpeThreadUtils.execute(() -> {
+                    protected void hookOnSubscribe(@NonNull Subscription subscription) {
+                        boolean ok = threadPool.execute(() -> {
                             // 订阅一个流
                             subscription.request(1);
                         });
@@ -114,7 +131,7 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
                     }
 
                     @Override
-                    protected void hookOnNext(ByteBuf value) {
+                    protected void hookOnNext(@NonNull ByteBuf value) {
                         // 将数据发送出去
                         session.getChannel().writeAndFlush(new DefaultHttpContent(value))
                                 .addListener(f -> {
@@ -123,7 +140,7 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
                                         cancel();
                                     } else {
                                         // 订阅下一个分块
-                                        boolean ok = DiskOpeThreadUtils.execute(() -> {
+                                        boolean ok = threadPool.execute(() -> {
                                             request(1);
                                         });
                                         if (!ok) {
@@ -148,7 +165,7 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
                     }
 
                     @Override
-                    protected void hookOnError(Throwable throwable) {
+                    protected void hookOnError(@NonNull Throwable throwable) {
                         promise.setFailure(throwable);
                         // 关闭连接管道
                         session.close();
