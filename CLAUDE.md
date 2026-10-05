@@ -1,0 +1,71 @@
+# CLAUDE.md
+
+本文件是 Claude Code 在本项目中使用 CodeGraph 时必须遵循的规范。CodeGraph 是本项目的代码知识图谱（SQLite 索引：符号、调用边、文件关系），一次查询即可替代 grep + 逐个 Read 的循环。
+
+---
+
+## 1. 索引现状
+
+- 索引位于项目根目录 `.codegraph/`，覆盖 turboweb 全部 Gradle 子模块（java / kotlin 源码）。
+- `.codegraph/` 是生成产物，已加入 `.gitignore`，**不得提交**。
+- 查看索引规模与健康度：`codegraph status`。
+
+---
+
+## 2. 何时使用（优先规则）
+
+以下场景在动手 grep / find / 逐文件 Read **之前**，必须先走 CodeGraph：
+
+- 理解工作原理：架构、某个流程怎么跑、某逻辑在哪里
+- 修改代码前：需要了解目标符号的源码、调用链、改动影响面
+- 调用关系排查：谁调用它、它调用谁、改动某符号会波及哪些代码
+
+可以退回 Read / Grep / Glob 的情况：
+
+- CodeGraph 查询无结果
+- 目标是配置 / 资源 / Markdown 等非代码文件（如 `.gradle.kts` 依赖列表、`libs.versions.toml`）
+- 已知确切文件与行号，只需精确核对
+
+---
+
+## 3. 两种入口
+
+| 入口 | 用法 |
+| --- | --- |
+| MCP 工具 `codegraph_explore` | 传 `projectPath` 为项目根目录；优先使用 |
+| 命令行 `codegraph explore "<符号名或问题>"` | MCP 不可用时使用，输出一致 |
+
+同一个问题不重复跨入口查询；MCP 返回已足够时不再跑 CLI。
+
+---
+
+## 4. 命令速查
+
+| 命令 | 用途 |
+| --- | --- |
+| `explore <query>` | 主入口：相关符号的逐字源码 + 调用路径 + 影响面，一次返回 |
+| `node <symbol>` | 单个符号的源码与 callers/callees 轨迹（或按文件读依赖方） |
+| `query <关键词>` | 按符号名搜索 |
+| `callers <symbol>` / `callees <symbol>` | 调用关系反查 / 正查 |
+| `impact <symbol>` | 分析改动该符号受影响的代码范围 |
+| `affected [files]` | 由改动的源文件找出受影响的测试文件 |
+| `files` | 从索引查看项目文件结构 |
+| `status` / `sync` / `index` | 索引状态 / 增量同步 / 全量重建 |
+
+---
+
+## 5. 输出使用规则
+
+- `explore` / `node` 返回的源码块是**当前磁盘上的逐字内容（带行号）**，视为已 Read，不得再重复打开同一文件。
+- 引用代码位置一律使用 `文件路径:行号` 格式，可直接引用 CodeGraph 返回的行号。
+- 影响面中出现 `⚠️ no covering tests found` 时，修改前须向用户说明该处无测试覆盖。
+- 查询结果以行号为准：改动落地前，如目标文件在本轮已被编辑，需以最新返回重新定位，不复用过期行号。
+
+---
+
+## 6. 索引维护
+
+- 后台守护进程负责增量同步；若刚做大范围改动、怀疑索引滞后，手动执行 `codegraph sync`。
+- 模块重命名、目录移动、增删模块等结构性变更后，执行 `codegraph index` 全量重建（例：`turboweb-websocket` → `turboweb-websocket-core`）。
+- 索引被残留锁阻塞时使用 `codegraph unlock <路径>`；守护进程管理用 `codegraph daemon`。
+- 升级 `codegraph upgrade` 仅在用户同意后执行，不自动升级。

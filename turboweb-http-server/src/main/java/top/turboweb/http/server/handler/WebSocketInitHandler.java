@@ -9,7 +9,6 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import top.turboweb.http.server.handler.manager.NettyHandlerManager;
 import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
 import top.turboweb.websocket.handler.WebSocketHandler;
 import top.turboweb.websocket.info.WebSocketConnectInfo;
@@ -34,7 +33,7 @@ import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
  * 与 top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory，改为建造者模式，
  * 默认使用虚拟线程，可选工作窃取线程池。
  * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
- * {@link NettyHandlerManager} 装配并跨channel复用。
+ * {@link top.turboweb.http.server.application.WebSocketApplication} 装配并跨channel复用。
  *
  * <pre>{@code
  * WebSocketInitHandler webSocketInitHandler = WebSocketInitHandler.builder()

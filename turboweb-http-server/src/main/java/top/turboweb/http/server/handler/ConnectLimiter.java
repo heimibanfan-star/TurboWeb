@@ -3,7 +3,6 @@ package top.turboweb.http.server.handler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import top.turboweb.http.server.handler.manager.NettyHandlerManager;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
@@ -13,7 +12,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * 连接限流器。
  * <p>
  * 服务器级单例处理器，标注了 {@link ChannelHandler.Sharable}，同一实例可跨channel复用，
- * 由 {@link NettyHandlerManager} 创建并装配到每条管道首位。
+ * 由 {@link top.turboweb.http.server.TurboWebHttpServer} 启动时创建，经
+ * {@link top.turboweb.http.server.channel.ServerChannelInitializer} 装配到每条管道首位。
  */
 @ChannelHandler.Sharable
 public class ConnectLimiter extends ChannelInboundHandlerAdapter {

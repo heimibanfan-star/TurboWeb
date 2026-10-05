@@ -4,12 +4,10 @@ package top.turboweb.http.server.config;
  * http请求应用配置类（不可变），只包含与http请求应用相关的纯参数配置：
  * 请求串行化开关、请求日志开关、session回收参数与http调度器限流参数。
  * <p>
- * 协议编解码、线程、连接数等服务器层配置见 {@link HttpServerConfig}；
+ * 协议编解码、线程、连接数等服务器层配置见 {@link ServerConfig}；
  * 中间件、session管理器等组件对象不属于配置，由 HttpRequestApplication 的建造者持有。
  * <p>
- * 通过建造者模式构建，字段与默认值对齐 top.turboweb.http.server.config.HttpServerConfig 中
- * 应用相关字段（例外：{@code serializePerConnection} 在应用层默认关闭，需显式开启），
- * 参数校验前置到 {@link Builder} 的链式方法中，非法参数立即抛出异常。
+ * 通过建造者模式构建，参数校验前置到 {@link Builder} 的链式方法中，非法参数立即抛出异常。
  *
  * <pre>{@code
  * HttpConfig config = HttpConfig.builder()
@@ -123,7 +121,6 @@ public final class HttpConfig {
 
     /**
      * {@link HttpConfig} 的建造者，链式方法名与配置字段同名，
-     * 默认值与校验逻辑与 {@code HttpServerConfig.Builder} 的应用相关字段保持一致，
      * 非法参数立即抛出 {@link IllegalArgumentException}。
      */
     public static final class Builder {

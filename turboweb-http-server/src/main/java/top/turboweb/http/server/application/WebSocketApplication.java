@@ -17,9 +17,8 @@ import java.util.Objects;
  * 对内通过 {@link Builder} 在构建期一次性完成路径表达式、业务处理器与消息处理线程模型的校验与装配。
  * <p>
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
- * 装配位置在http应用之后（接收 {@link top.turboweb.http.server.handler.HttpProtocolDispatcher}
- * 向后转发的websocket升级协议请求），与 {@link top.turboweb.http.server.handler.group.WebSocketGroup}
- * 的分组装配顺序约定一致。
+ * 注册时须排在http应用之后（接收 {@link top.turboweb.http.server.handler.HttpProtocolDispatcher}
+ * 向后转发的websocket升级协议请求）。
  *
  * <pre>{@code
  * WebSocketApplication application = new WebSocketApplication.Builder()
