@@ -23,3 +23,16 @@ dependencies {
 }
 
 description = "turboweb-http"
+
+// http-server 覆盖率门禁：整模块零排除，行覆盖 ≥ 0.90（spec §2.1）。本阶段只验证机制，不接入 check
+tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.test)
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                minimum = "0.90".toBigDecimal()
+            }
+        }
+    }
+}
