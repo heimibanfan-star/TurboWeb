@@ -7,6 +7,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import top.turboweb.http.connect.InternalConnectSession;
 import top.turboweb.http.scheduler.HttpScheduler;
+import top.turboweb.http.server.handler.manager.NettyHandlerManager;
 
 /**
  * http协议分发器（纯http版本，不可变）。
@@ -20,6 +21,8 @@ import top.turboweb.http.scheduler.HttpScheduler;
  * </ul>
  * 创建方式参考 top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory，
  * 改为建造者模式，默认没有websocket。
+ * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
+ * {@link NettyHandlerManager} 装配并跨channel复用。
  *
  * <pre>{@code
  * HttpProtocolDispatcher dispatcher = HttpProtocolDispatcher.builder()
