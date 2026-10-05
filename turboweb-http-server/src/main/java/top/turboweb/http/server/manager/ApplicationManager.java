@@ -1,6 +1,8 @@
 package top.turboweb.http.server.manager;
 
 import io.netty.channel.ChannelPipeline;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.server.application.Application;
 
 import java.util.LinkedList;
@@ -17,6 +19,9 @@ import java.util.Objects;
  * <p>
  * 应用的注册须在服务器启动前确定：{@code configure} 会被多个worker线程并发调用，
  * 启动后再修改应用列表存在并发风险。
+ * <p>
+ * 本类同时是应用层的关闭入口：{@link #close()} 按注册顺序逐个调用应用的close，
+ * 由各应用自己释放装配期创建的资源（线程池、中间件销毁等），通常在服务器关闭时触发。
  *
  * <pre>{@code
  * ApplicationManager manager = new ApplicationManager()
@@ -25,7 +30,9 @@ import java.util.Objects;
  * // 每条新连接协议层就绪后由 ServerChannelInitializer 调用：manager.configure(pipeline);
  * }</pre>
  */
-public class ApplicationManager {
+public class ApplicationManager implements AutoCloseable {
+
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(ApplicationManager.class);
 
     /**
      * 已注册的应用列表，装配顺序即列表顺序（addFirst插队头、addLast排队尾）
@@ -63,6 +70,25 @@ public class ApplicationManager {
         }
         for (Application application : applications) {
             application.configure(pipeline);
+        }
+    }
+
+    /**
+     * 关闭全部已注册的应用：按注册顺序依次调用各应用的close，由各应用释放自己
+     * {@link top.turboweb.commons.utils.resource.ScopedResource} 作用域中登记的资源
+     * （http应用按登记顺序销毁中间件链、关闭磁盘IO线程池，websocket应用释放消息处理线程池）。
+     * <p>
+     * 由 {@code TurboWebHttpServer#close()} 在传输层线程组关闭之后发起；单个应用关闭抛出的异常
+     * 只记录日志，不阻断其余应用的关闭。应用自身的close是幂等的，因此本方法可安全地重复调用
+     */
+    @Override
+    public void close() {
+        for (Application application : applications) {
+            try {
+                application.close();
+            } catch (Exception e) {
+                log.error("应用关闭异常: {}", application.getClass().getName(), e);
+            }
         }
     }
 }

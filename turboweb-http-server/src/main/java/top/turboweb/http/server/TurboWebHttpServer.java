@@ -288,7 +288,11 @@ public final class TurboWebHttpServer implements AutoCloseable {
 
     /**
      * 关闭服务器：先关闭服务端监听通道（零拷贝通道的关闭逻辑会同时释放零拷贝线程池），
-     * 再调用 {@link #shutdown()} 优雅关闭boss与worker线程组；从未启动过时只跳过通道关闭。
+     * 再调用 {@link #shutdown()} 优雅关闭boss与worker线程组，最后调用
+     * {@link ApplicationManager#close()} 按注册顺序关闭全部应用，由各应用释放自己装配的资源；
+     * 从未启动过时只跳过通道关闭（线程组与应用资源仍需释放）。
+     * <p>
+     * 应用关闭排在传输层之后，保证不再有新的请求进入应用处理器链后再回收其线程池。
      * <p>实现 {@link AutoCloseable}，支持try-with-resources与容器生命周期托管回调。</p>
      */
     @Override
@@ -298,5 +302,6 @@ public final class TurboWebHttpServer implements AutoCloseable {
             channel.close();
         }
         shutdown();
+        applicationManager.close();
     }
 }

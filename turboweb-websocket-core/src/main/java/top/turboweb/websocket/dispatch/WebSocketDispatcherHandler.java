@@ -30,6 +30,11 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
     private final Map<String, WebSocketSession> sessionMap = new ConcurrentHashMap<>(1024);
     private final WebSocketHandler webSocketHandler;
     private final ExecutorService POOL;
+    /**
+     * 执行器是否为本实例私有：ForkJoin分支创建的是私有线程池，须由 {@link #destroy()} 回收；
+     * 虚拟线程分支复用JVM全局共享池，任何单个使用者都无权关闭
+     */
+    private final boolean ownExecutor;
 
     public WebSocketDispatcherHandler(WebSocketHandler webSocketHandler) {
         this(webSocketHandler, false, 0);
@@ -40,6 +45,7 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
             threadNum = Runtime.getRuntime().availableProcessors();
         }
         this.webSocketHandler = webSocketHandler;
+        this.ownExecutor = useForkJoin;
         if (useForkJoin) {
             POOL = new ForkJoinPool(threadNum);
             log.info("websocket work on ForkJoin pool, threadNum: {}", threadNum);
@@ -111,6 +117,18 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
         sessionMap.put(ctx.channel().id().asLongText(), webSocketSession);
         // 调用open方法
         webSocketHandler.onOpen(webSocketSession);
+    }
+
+    /**
+     * 销毁分发处理器持有的执行资源：仅在本实例私有时关闭 {@link ForkJoinPool}
+     * （已提交的消息任务继续执行完），虚拟线程模式下持有的是 {@link VirtualThreads#getPool()}
+     * 全局共享池，不做关闭。重复调用为幂等操作。
+     */
+    public void destroy() {
+        if (ownExecutor && !POOL.isShutdown()) {
+            POOL.shutdown();
+            log.info("websocket ForkJoinPool is shutdown");
+        }
     }
 }
 

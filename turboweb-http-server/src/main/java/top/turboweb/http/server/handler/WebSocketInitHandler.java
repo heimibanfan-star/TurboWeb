@@ -130,6 +130,15 @@ public class WebSocketInitHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     /**
+     * 销毁本handler持有的执行资源：委托内部的 {@link WebSocketDispatcherHandler} 关闭其私有的
+     * 消息处理线程池（虚拟线程模式下使用全局共享池，不会被关闭）。由
+     * {@link top.turboweb.http.server.application.WebSocketApplication#close()} 发起，重复调用为幂等操作。
+     */
+    public void destroy() {
+        webSocketDispatcherHandler.destroy();
+    }
+
+    /**
      * {@link WebSocketInitHandler} 的建造者，链式方法校验非法参数立即抛出 {@link IllegalArgumentException}。
      */
     public static final class Builder {

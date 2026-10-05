@@ -5,6 +5,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.serializer.JacksonJsonSerializer;
 import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.commons.utils.resource.ScopedResource;
 import top.turboweb.commons.utils.thread.ElasticThreadPool;
 import top.turboweb.commons.utils.thread.ThreadPool;
 import top.turboweb.http.handler.DefaultExceptionHandlerMatcher;
@@ -29,11 +30,7 @@ import top.turboweb.http.session.MemorySessionManager;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.session.SessionManagerHolder;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -46,6 +43,11 @@ import java.util.stream.Stream;
  * （CORS -> 异常处理 -> 中间件执行）、虚拟线程http调度器与调度处理器的装配。
  * <p>
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
+ * <p>
+ * 装配期创建的生命周期资源不在本类中逐个持有，而是统一登记进本应用持有的
+ * {@link ScopedResource} 资源作用域：中间件链的销毁适配器（沿链头到链尾调用各中间件的destroy）
+ * 先登记，磁盘IO线程池后登记，关闭时由 {@link Application#close()} 按登记顺序释放整个作用域。
+ * 服务器关闭时会统一触发，调用方也可对应用实例自行try-with-resources。
  *
  * <pre>{@code
  * HttpRequestApplication application = new HttpRequestApplication.Builder()
@@ -74,9 +76,19 @@ public class HttpRequestApplication implements Application {
      */
     private final HttpRequestSchedulerHandler httpRequestSchedulerHandler;
 
-    public HttpRequestApplication(boolean requestSerial, HttpRequestSchedulerHandler httpRequestSchedulerHandler) {
+    /**
+     * 应用的资源作用域：装配期由 {@link Builder#build()} 创建的磁盘IO线程池、中间件链销毁适配器
+     * 等可关闭资源全部登记于此，关闭时由 {@link Application#close()} 统一释放，
+     * 本类无须持有个别资源的引用
+     */
+    private final ScopedResource scopedResource;
+
+    public HttpRequestApplication(boolean requestSerial,
+                                  HttpRequestSchedulerHandler httpRequestSchedulerHandler,
+                                  ScopedResource scopedResource) {
         this.requestSerial = requestSerial;
         this.httpRequestSchedulerHandler = httpRequestSchedulerHandler;
+        this.scopedResource = Objects.requireNonNull(scopedResource, "资源作用域不能为null");
     }
 
 
@@ -95,6 +107,43 @@ public class HttpRequestApplication implements Application {
     }
 
     /**
+     * 获取本应用持有的资源作用域，关闭逻辑由 {@link Application#close()} 的默认实现
+     * 按作用域统一释放，本类无须自行编写
+     */
+    @Override
+    public ScopedResource getScopedResource() {
+        return this.scopedResource;
+    }
+
+    /**
+     * 沿中间件链销毁全部中间件：自链头（哨兵）起顺序遍历收集链上的中间件，
+     * 包含追加在链尾的路由管理器，再逐个调用 {@link Middleware#destroy()}，
+     * 遍历顺序与装配期的init一致；单个中间件的销毁异常只记录日志，不中断后续中间件的销毁。
+     * <p>
+     * 装配期把本方法包成 {@link AutoCloseable} 登记进应用的资源作用域，
+     * 因此应用关闭时它会先于磁盘IO线程池的关闭被执行
+     *
+     * @param middlewareChainHead 中间件链链头，为null时为空操作
+     */
+    private static void destroyMiddlewareChain(Middleware middlewareChainHead) {
+        if (middlewareChainHead == null) {
+            return;
+        }
+        List<Middleware> chain = new ArrayList<>();
+        for (Middleware current = middlewareChainHead; current != null; current = current.getNext()) {
+            chain.add(current);
+        }
+        for (Middleware middleware : chain) {
+            try {
+                middleware.destroy();
+            } catch (Exception e) {
+                log.error("中间件销毁异常: {}", middleware.getClass().getName(), e);
+            }
+        }
+        log.info("中间件链销毁完成，共 {} 个", chain.size());
+    }
+
+    /**
      * {@link HttpRequestApplication} 的建造者：持有应用装配所需的全部组件对象
      * （中间件链、异常处理器、session管理器、json序列化器、路由管理器、cors配置、响应转换器），
      * 纯参数配置（串行化开关、请求日志开关、session回收参数、调度器限流参数）全部由
@@ -103,7 +152,8 @@ public class HttpRequestApplication implements Application {
      * {@link #build()} 按以下顺序完成装配：
      * 补全响应转换器 -> 串联三大处理器（CORS -> 异常处理 -> 中间件执行）->
      * 按 {@link HttpConfig} 创建磁盘IO线程池 -> 初始化http调度器（注入线程池与应用限流配置）->
-     * 构建http请求调度处理器。
+     * 构建http请求调度处理器。装配出的中间件链销毁适配器与磁盘IO线程池依次登记进应用的
+     * {@link ScopedResource} 资源作用域，由应用在关闭时按登记顺序统一释放。
      */
     public static class Builder {
 
@@ -140,6 +190,11 @@ public class HttpRequestApplication implements Application {
          * 默认为 {@link HttpConfig} 的默认值
          */
         private HttpConfig httpConfig = HttpConfig.builder().build();
+        /**
+         * 中间件链链头（哨兵中间件），由 {@link #initMiddlewareInvokeProcessor()} 装配时回填，
+         * {@link #build()} 用它生成销毁适配器登记进应用的资源作用域
+         */
+        private Middleware middlewareChain = null;
 
         /**
          * 注册异常处理器（内部方法标注了异常处理注解的类实例），可多次调用叠加，
@@ -223,10 +278,14 @@ public class HttpRequestApplication implements Application {
          * 构建应用：补全默认响应转换器，串联处理器责任链，按 {@link HttpConfig} 的
          * diskOpeThread* 参数创建磁盘IO线程池，注入虚拟线程调度器（同时应用限流参数与请求日志开关），
          * 最后装配http请求调度处理器；
-         * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}
+         * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
+         * 装配出的中间件链销毁适配器与创建的磁盘IO线程池依次登记进资源作用域交给应用持有，
+         * 由 {@link Application#close()} 的默认实现按登记顺序释放
          */
         public HttpRequestApplication build() {
             log.info("开始装配http请求应用...");
+            // 应用持有的资源作用域：装配期创建的可关闭资源逐个登记进来，关闭时按登记顺序统一释放
+            ScopedResource scopedResource = new ScopedResource();
             if (this.responseConverter == null) {
                 this.responseConverter = new DefaultHttpResponseConverter(this.jsonSerializer);
             }
@@ -237,7 +296,10 @@ public class HttpRequestApplication implements Application {
             corsProcessor.setNextProcessor(exceptionHandlerProcessor);
             exceptionHandlerProcessor.setNextProcessor(middlewareInvokeProcessor);
             log.info("处理器责任链装配完成：CORS -> 异常处理 -> 中间件执行");
-            // 创建磁盘IO线程池，供文件流响应策略调度分块读取；调度器只使用不负责关闭
+            // 中间件链销毁适配器先登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
+            Middleware middlewareChain = this.middlewareChain;
+            scopedResource.register(() -> destroyMiddlewareChain(middlewareChain));
+            // 创建磁盘IO线程池，供文件流响应策略调度分块读取；调度器只是使用者，关闭责任交给应用
             ThreadPool diskOpeThreadPool = new ElasticThreadPool(
                     httpConfig.getDiskOpeThreadCacheQueue(),
                     httpConfig.getDiskOpeThreadCoreQueue(),
@@ -247,6 +309,7 @@ public class HttpRequestApplication implements Application {
                     httpConfig.getDiskOpeThreadCacheQueue(),
                     httpConfig.getDiskOpeThreadCoreQueue(),
                     httpConfig.getDiskOpeThreadMaxThreadNum());
+            scopedResource.register(diskOpeThreadPool);
             // 初始化http调度器
             HttpScheduler httpScheduler = new VirtualThreadHttpScheduler(
                     corsProcessor,
@@ -271,7 +334,11 @@ public class HttpRequestApplication implements Application {
                     .build();
             log.info("http请求应用装配完成，连接级请求串行化: {}, 请求日志: {}",
                     httpConfig.isSerializePerConnection(), httpConfig.isShowRequestLog());
-            return new HttpRequestApplication(httpConfig.isSerializePerConnection(), schedulerHandler);
+            return new HttpRequestApplication(
+                    httpConfig.isSerializePerConnection(),
+                    schedulerHandler,
+                    scopedResource
+            );
         }
 
         /**
@@ -334,6 +401,8 @@ public class HttpRequestApplication implements Application {
                 next.lockMiddleware();
                 next = next.getNext();
             }
+            // 回填链头，build() 用它生成销毁适配器登记进应用的资源作用域
+            this.middlewareChain = sentinel;
             log.info("中间件链装配完成：业务中间件 {} 个{}，已全部初始化并锁定",
                     middlewares.size(), routerManager != null ? "，路由管理器已追加链尾" : "，无路由管理器");
             // 创建session管理器
