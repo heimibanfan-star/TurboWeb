@@ -1,8 +1,15 @@
 package top.turboweb.http.server;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.*;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.ServerChannel;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.internal.logging.InternalLogger;
@@ -110,12 +117,12 @@ public final class TurboWebHttpServer implements AutoCloseable {
     /**
      * boss线程组（处理accept事件）
      */
-    private final NioEventLoopGroup bossGroup;
+    private final EventLoopGroup bossGroup;
 
     /**
      * worker线程组（处理io事件）
      */
-    private final NioEventLoopGroup workerGroup;
+    private final EventLoopGroup workerGroup;
 
     /**
      * netty引导对象
@@ -126,9 +133,9 @@ public final class TurboWebHttpServer implements AutoCloseable {
         this.config = builder.config;
         this.ioThreadNum = builder.ioThreadNum;
         this.sslContext = builder.sslContext;
-        // 创建线程组
-        this.bossGroup = new NioEventLoopGroup(1);
-        this.workerGroup = new NioEventLoopGroup(this.ioThreadNum);
+        // 创建线程组（netty 4.2起NioEventLoopGroup已废弃，按官方迁移指引使用NioIoHandler工厂的MultiThreadIoEventLoopGroup）
+        this.bossGroup = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
+        this.workerGroup = new MultiThreadIoEventLoopGroup(this.ioThreadNum, NioIoHandler.newFactory());
         // 服务器只补全建造者上未配置的分组（已配置的分组不覆盖）：限流分组按config生成，
         // 协议编解码分组按sslContext与config生成，config开启串行化且未配置http请求分组时补仅装配串行化处理器的分组
         NettyHandlerManager.Builder managerBuilder = builder.handlerManagerBuilder;
