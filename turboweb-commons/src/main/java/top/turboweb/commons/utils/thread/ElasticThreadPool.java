@@ -181,7 +181,17 @@ public class ElasticThreadPool implements ThreadPool {
             }
         }
         // 执行器已关闭，任务退回缓冲队列，交由 shutdown 兜底消费
-        cacheQueue.offer(task);
+        if (!cacheQueue.offer(task)) {
+            // 缓冲队列此刻也可能是满的（关闭竞态下的真实形状：主线程还没来得及掏空它），
+            // offer 静默失败就等于把"execute 已返回 true 的任务"丢掉，违反 ThreadPool
+            // 的接受契约。就地跑掉它，异常照 consumeCacheTasks 的方式记账，
+            // 不让一个坏任务打断搬运线程收尾。
+            try {
+                task.run();
+            } catch (Exception e) {
+                log.error("run cached task on close failed", e);
+            }
+        }
     }
 
     /**
