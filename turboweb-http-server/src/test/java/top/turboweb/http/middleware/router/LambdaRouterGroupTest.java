@@ -152,6 +152,7 @@ class LambdaRouterGroupTest {
         assertEquals(1, group.getRouters().size());
         // 期望的正确行为是缓存一份路由列表并原样返回；当前每次调用都重新跑 registerRoute
         // 往同一个 ArrayList 追加。把同一个组注册进两个管理器会因此重复注册 → ROUTER_REPEAT。
+        // 若将来修正，本用例应改为期望正确行为
         assertEquals(2, group.getRouters().size());
         assertEquals(2, calls.size());
     }

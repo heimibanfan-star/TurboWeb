@@ -111,6 +111,7 @@ class AnnoRouterManagerTest {
 
         // 期望的正确行为是前缀规整补上前导 "/"（"api" → "/api"）；当前只裁尾斜杠、不补首斜杠。
         // 请求 URI 必以 "/" 开头，故 "api/ping" 永远匹配不到——修正后本用例应改为期望 "/api/ping"。
+        // 若将来修正，本用例应改为期望正确行为
         assertEquals(Set.of("api/ping"), exact(manager.getRouterContainer(), "GET").keySet());
     }
 
