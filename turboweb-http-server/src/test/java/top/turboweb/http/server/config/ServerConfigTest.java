@@ -1,6 +1,13 @@
 package top.turboweb.http.server.config;
 
 import io.netty.handler.codec.http2.Http2Settings;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.handler.ssl.ApplicationProtocolNegotiator;
+import io.netty.handler.ssl.SslContext;
+
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSessionContext;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +78,53 @@ class ServerConfigTest {
     @DisplayName("http2Settings 不能为null")
     void http2SettingsNotNull() {
         assertThrows(IllegalArgumentException.class, () -> ServerConfig.builder().http2Settings(null));
+    }
+
+    @Test
+    @DisplayName("sslContext 被原样承载（引用相同）")
+    void sslContextIsCarriedByReference() {
+        SslContext fake = new NoTlsSslContext();
+        ServerConfig config = ServerConfig.builder().sslContext(fake).build();
+        assertSame(fake, config.getSslContext(), "非 null 上下文必须原样带出，不能被 setter 吞掉");
+    }
+
+    /**
+     * 夹具：不触碰任何 TLS provider、不读信任库、不建 SSLEngine 的 {@link SslContext} 占位实现。
+     * 仅用于把非 null 引用喂给 {@code ServerConfig.Builder.sslContext}，以满足 spec §2.2
+     * "不引入 TLS 夹具"——它不建立任何真实 SSL 上下文，所有抽象方法返回 null / 空。
+     */
+    @SuppressWarnings("deprecation") // Netty 4.2 的 ApplicationProtocolNegotiator 已过时，但仍是抽象方法
+    private static final class NoTlsSslContext extends SslContext {
+
+        @Override
+        public boolean isClient() {
+            return true;
+        }
+
+        @Override
+        public List<String> cipherSuites() {
+            return List.of();
+        }
+
+        @Override
+        public ApplicationProtocolNegotiator applicationProtocolNegotiator() {
+            return null;
+        }
+
+        @Override
+        public SSLEngine newEngine(ByteBufAllocator alloc) {
+            return null;
+        }
+
+        @Override
+        public SSLEngine newEngine(ByteBufAllocator alloc, String peerHost, int peerPort) {
+            return null;
+        }
+
+        @Override
+        public SSLSessionContext sessionContext() {
+            return null;
+        }
     }
 
     @Test
