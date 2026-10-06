@@ -156,7 +156,7 @@ class ExceptionHandlerContainerTest {
         // 只是 handlerClass 记在公有子类上而非声明它的 package-private 父类（与公有父类的
         // InheritedHandler 用例恰成对照：那里 handlerClass=父类）。:109-110 两行按结构性边界记账。
         // 钉住 HS-19：若将来 JDK/javac 改为暴露声明类本身的原方法（unreflect 抛 IllegalAccessException、
-        // initContainer 整容器失败），本用例应改为期望修正后行为。
+        // initContainer 整容器失败），本用例应改为期望正确行为。
         ExceptionHandlerContainer container = ExceptionHandlerContainerInitHelper.initContainer(
                 List.of(new PackagePrivateBaseSubHandler()));
 
