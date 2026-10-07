@@ -7,7 +7,6 @@ import top.turboweb.commons.exception.TurboRouterException;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -87,18 +86,17 @@ class RouterInfoTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-12：参数路径重复注册不报 ROUTER_REPEAT，后注册者静默胜出")
-    void duplicateParameterPathIsSilentlyOverwritten() {
+    @DisplayName("HS-12（已修，随 commons F1）：参数路径重复注册与静态路径一致地报 ROUTER_REPEAT")
+    void duplicateParameterPathRaisesRouterRepeat() {
         TrieRouterInfo info = new TrieRouterInfo();
         RouterDefinition first = definition();
-        RouterDefinition second = definition();
         info.addRouter("GET", "/u/{id}", first);
-        // 期望：与静态路径一致地抛 ROUTER_REPEAT。
-        // 实际：commons AbstractTrie:187 用未归一化的 "{id}" 查重复，而节点以 "{id:str}" 入 map，
-        // 检测落空 ⇒ 不抛，并把 map 里的值换成新定义。修 commons F1 后本用例应改为 assertThrows。
-        // 若将来修正，本用例应改为期望正确行为
-        assertDoesNotThrow(() -> info.addRouter("GET", "/u/{id}", second));
-        assertEquals(second, info.getPathTrie("GET").match("/u/9").value, "第二次注册替换了首个定义");
+        // commons F1 修复后 trie 判重改用归一化键并抛 IAE，容器照静态路径的同一通道包成 ROUTER_REPEAT。
+        TurboRouterException ex = assertThrows(TurboRouterException.class,
+                () -> info.addRouter("GET", "/u/{id}", definition()));
+        assertEquals(TurboRouterException.ROUTER_REPEAT, ex.getCode());
+        assertInstanceOf(IllegalArgumentException.class, ex.getCause());
+        assertSame(first, info.getPathTrie("GET").match("/u/9").value, "被拒绝的注册不得顶掉原定义");
     }
 
     @Test

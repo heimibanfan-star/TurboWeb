@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * {@link RestUrlTrie} 插入期的路径参数校验矩阵（spec §5：struct.trie 全家族）。
  *
- * <p>这里断言的是既有语义，不是理想语义：钉住 F1/F1b 的用例在缺陷修正后应当改为期望正确行为。
+ * <p>原钉住 F1/F1b 的用例已随 2026-10-07 的修复改为期望正确行为（§10.7），其余用例断言既有语义。
  */
 class RestUrlTrieInsertTest {
 
@@ -163,26 +162,42 @@ class RestUrlTrieInsertTest {
     }
 
     @Test
-    @DisplayName("钉住 F1：参数路径重复插入静默替换旧值且 size 虚增")
-    void duplicateParameterPathSilentlyReplacesAndInflatesSize() {
+    @DisplayName("F1（已修）：参数路径重复插入与静态路径一致地判重拒绝，size 不再虚增")
+    void duplicateParameterPathIsRejectedLikeStaticPath() {
         RestUrlTrie<String> t = trie();
         t.insert("/a/{id}", "v1");
-        // 期望的正确行为是抛 "key already exists"（与静态路径一致）；当前不抛。
-        // 钉住 F1：若将来修正，本用例应改为期望正确行为（修正 F1 后，本用例应改为 assertThrows）。
-        assertDoesNotThrow(() -> t.insert("/a/{id}", "v2"));
+        // 修复口径：重复性判断挪到归一化后的键上——map 键实为 {id:str}，判断同样先归一化再查。
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> t.insert("/a/{id}", "v2"));
+        assertEquals("key already exists", ex.getMessage());
+        // "{id}" 与 "{id:str}" 归一化后同键——同一路由的两种拼写，第二条也应判重复。
+        assertThrows(IllegalArgumentException.class, () -> t.insert("/a/{id:str}", "v3"));
 
-        assertEquals(2, t.size(), "同一路径两次插入被记成 2 个节点——size 记账被虚增");
-        assertEquals(1, t.root.get("a").subKeys().size(), "map 里实际只有一个键 {id:str}");
+        assertEquals("v1", t.get("/a/{id}"), "被拒绝的插入不得改动原值");
+        assertEquals(1, t.size(), "被拒绝的插入不得计入 size");
+        assertEquals(1, t.root.get("a").subKeys().size(), "map 仍只有 {id:str} 一个键");
     }
 
     @Test
-    @DisplayName("钉住 F1b：原始占位符键无法用精确 get 取回")
-    void rawPlaceholderKeyIsNotReachableByExactGet() {
-        // 钉住 F1b：若将来修正，本用例应改为期望正确行为
+    @DisplayName("F1 边界：overwrite=true 对参数路径替换值且 size 不增")
+    void overwriteOnParameterPathReplacesValueWithoutGrowingSize() {
+        RestUrlTrie<String> t = trie();
+        t.insert("/a/{id}", "v1");
+        t.insert("/a/{id}", "v2", true);
+        assertEquals("v2", t.get("/a/{id}"));
+        assertEquals(1, t.size(), "覆盖走既有节点，不得再记一个新节点");
+    }
+
+    @Test
+    @DisplayName("F1b（已修）：原始占位符键可用精确 get 取回，与 match 行为一致")
+    void rawPlaceholderKeyIsReachableByExactGet() {
         RestUrlTrie<String> t = trie();
         t.insert("/a/{id}", "v1");
 
-        assertNull(t.get("/a/{id}"), "get 用未归一化的段查 map，必然落空");
-        assertEquals("v1", t.match("/a/9").value, "match 走归一化后的参数节点，正常命中");
+        assertEquals("v1", t.get("/a/{id}"), "get 与 insert 同源，先归一化段再查 map");
+        assertEquals("v1", t.get("/a/{id:str}"), "归一化键照常可取——回归：不得弄坏原存储键路径");
+        assertTrue(t.exists("/a/{id}"), "exists 跟随 get");
+        assertNull(t.get("/a/9"), "具体值不是精确键，只有 match 该命中它");
+        assertEquals("v1", t.match("/a/9").value, "match 仍命中参数节点");
     }
 }

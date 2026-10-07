@@ -162,6 +162,7 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
      *
      * <p>若 {@code overwrite = false} 且目标键已存在，将抛出异常。
      * 分割符与子键处理由子类实现决定。
+     * <br>每段先经 {@link #handleSubKey(String)} 归一化，查重、查找与存放统一使用归一化后的键。
      */
     @Override
     public void insert(String key, T value, boolean overwrite) {
@@ -180,6 +181,11 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
             if (str.isEmpty()) {
                 throw new IllegalArgumentException("subKey cannot be empty");
             }
+            // 先归一化再查找：map 的键就是归一化后的键，判重必须用同一个键（修 F1）
+            Details details = handleSubKey(str);
+            if (details != null && details.newSubKey() != null && !details.newSubKey().isEmpty()) {
+                str = details.newSubKey();
+            }
             Node<T> node = currentNode.get(str);
             // 判断是否是最后一个字符
             if (i == lastIndex) {
@@ -188,10 +194,6 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
                     throw new IllegalArgumentException("key already exists");
                 }
                 if (node == null) {
-                    Details details = handleSubKey(str);
-                    if (details != null && details.newSubKey() != null && !details.newSubKey().isEmpty()) {
-                        str = details.newSubKey();
-                    }
                     node = new Node<>(str, details);
                     size++;
                 } else {
@@ -203,10 +205,6 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
                 currentNode.put(str, node);
             } else {
                 if (node == null) {
-                    Details details = handleSubKey(str);
-                    if (details != null && details.newSubKey() != null && !details.newSubKey().isEmpty()) {
-                        str = details.newSubKey();
-                    }
                     node = new Node<>(str, details);
                     currentNode.put(str, node);
                 }
@@ -222,6 +220,8 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
 
     /**
      * 精确获取键对应的值。
+     *
+     * <br>每段与 {@link #insert} 同源：先经 {@link #handleSubKey(String)} 归一化，再按归一化后的键下钻。
      *
      * @param key 键
      * @return 匹配到的值；若不存在则返回 {@code null}
@@ -243,6 +243,11 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
             // 出现空字符说明节点根本不存在
             if (str.isEmpty()) {
                 return null;
+            }
+            // 先归一化再查：map 的键就是归一化后的键，原始段（如 {id}）本身不是键（修 F1b）
+            Details details = handleSubKey(str);
+            if (details != null && details.newSubKey() != null && !details.newSubKey().isEmpty()) {
+                str = details.newSubKey();
             }
             // 获取节点
             Node<T> node = currentNode.get(str);
