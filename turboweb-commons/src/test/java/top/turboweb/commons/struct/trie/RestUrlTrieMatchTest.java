@@ -3,16 +3,18 @@ package top.turboweb.commons.struct.trie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.PatternSyntaxException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link RestUrlTrie} 的匹配语义：固定段优先、参数类型过滤、{@code path} 贪婪吞段、回溯。
+ * {@link RestUrlTrie} 的匹配语义：固定段优先、参数类型过滤、{@code path} 贪婪吞段、死路即返回 null（F13 修法 A 后已无回溯栈）。
  */
 class RestUrlTrieMatchTest {
 
@@ -153,47 +155,73 @@ class RestUrlTrieMatchTest {
     }
 
     @Test
-    @DisplayName("同层多候选：首选即正解时正常返回，压栈的备选只是被丢弃")
-    void multipleCandidatesPushFrameButFirstOneWins() {
+    @DisplayName("同层多候选：首选走通即正常返回（F13 修法 A 后其余候选就地丢弃，不再压栈）")
+    void multipleCandidatesFirstOneWinsWithoutBacktrack() {
         RestUrlTrie<String> t = trie();
         t.insert("/seg/{a:int}/end", "V");
         t.insert("/seg/{b:str}/end", "V");
-        // 两个参数节点都能吞 "1"，doMatch 会为非首选者压一帧（:369-370）。
-        // 无论 HashMap 把哪个排在首位，两条分支都指向值为 "V" 的 end 节点，
-        // 所以结果与顺序无关；参数表里恰好只有一个名字被填上。
+        // 两个参数节点都能吞 "1"。无论 HashMap 把哪个排在首位，两条分支都指向值为 "V"
+        // 的 end 节点，所以结果与顺序无关；参数表里恰好只有一个名字被填上。
         RestUrlTrie.MatchResult<String> hit = t.match("/seg/1/end");
-        assertNotNull(hit, "多候选中首选走通，不应回溯");
+        assertNotNull(hit, "首选走通应正常返回");
         assertEquals("V", hit.value);
         assertEquals(1, hit.params.size(), "只有被选中的那个参数节点会写入 params");
     }
 
     @Test
-    @DisplayName("固定段命中时，同层参数候选只被记账，不参与结果")
-    void fixedMatchRecordsParamCandidatesWithoutUsingThem() {
+    @DisplayName("固定段命中时，同层参数候选不参与结果（F13 修法 A 后也不再为它们压栈记账）")
+    void fixedMatchWinsOverParamCandidates() {
         RestUrlTrie<String> t = trie();
         t.insert("/m/{a:str}/v", "V");
         t.insert("/m/{b:str}/v", "V");
         t.insert("/m/keep/v", "V");
-        // "keep" 有固定节点，参数分支被收集且（因数量≥2）压栈（:322-328），但走的是固定段，
-        // params 保持为空——这正是 fixedSegmentWinsOverParameterSegment 的多候选版本。
+        // "keep" 有固定节点，走的是固定段，params 保持为空——这正是
+        // fixedSegmentWinsOverParameterSegment 的多候选版本。
         RestUrlTrie.MatchResult<String> hit = t.match("/m/keep/v");
         assertEquals("V", hit.value);
         assertTrue(hit.params.isEmpty(), "固定段命中时不得写入任何参数");
     }
 
     @Test
-    @DisplayName("钉住 F13 的可终止半边：单候选死路能干净返回 null")
+    @DisplayName("F13（已修·修法 A）：单候选死路干净返回 null")
     void singleCandidateDeadEndReturnsNull() {
-        // 钉住 F13：若将来修正，本用例应改为期望正确行为
         RestUrlTrie<String> t = trie();
         t.insert("/seg/{a:int}/end", "V-int");
-        assertNull(t.match("/seg/1/other"), "候选只有一个，压栈从未发生，栈空即返回 null");
-        // 同层有 ≥2 候选且首选走不通的形状不能进常驻用例：三个出栈恢复点
-        // （:297-302 / :339-344 / :358-363）都只还原 node/index/params，从不消费
-        // Frame.iterator，于是恢复点重新收集候选、再次选中同一个 first，恒定自旋。
-        // 实测（本任务执行期）插入 "/seg/{b:str}/other" 后 match("/seg/1/other")
-        // 30 秒 JUnit 超时，栈顶停在 RestUrlTrie.java:354 的重收集循环。
-        // 该路径经 DefaultRouterContainer.trieMatch:57 就在请求热路径上（见缺陷清单 F13）。
+        assertNull(t.match("/seg/1/other"), "候选只有一个，走不通即返回 null");
+    }
+
+    @Test
+    @DisplayName("F13 回归（修法 A）：同层多候选且首选走不通，必须及时返回 null 而非自旋")
+    void multipleCandidateDeadEndTerminatesWithNull() throws InterruptedException {
+        // 修复前本形状恒定自旋（出栈恢复点从不消费 Frame.iterator，重收集必再选中同一首选）。
+        // 若将来有人重新引入"压栈-恢复"而不真正消费候选，本用例超时即红：探测线程设为
+        // daemon，回退场景下也不会把 forked worker 拖死。
+        RestUrlTrie<String> t = trie();
+        t.insert("/seg/{a:int}/end", "V-int");
+        t.insert("/seg/{b:str}/other", "V-other");
+        assertNullTerminates(t, "/seg/1/dead");
+    }
+
+    @Test
+    @DisplayName("F13 回归（修法 A）：固定段 + 同层≥2参数候选、固定路走死，同样及时返回 null")
+    void fixedBranchDeadEndWithExtraCandidatesTerminatesWithNull() throws InterruptedException {
+        // 修复前 :322-328 的记账压栈同样构成自旋入口：固定段死路出栈后回到同一节点同一
+        // 段，重收集出同样的候选集，再压栈、再走固定段、再死。
+        RestUrlTrie<String> t = trie();
+        t.insert("/m/{a:str}/v", "V");
+        t.insert("/m/{b:str}/v", "V");
+        t.insert("/m/keep/v", "V");
+        assertNullTerminates(t, "/m/keep/dead");
+    }
+
+    private static void assertNullTerminates(RestUrlTrie<String> t, String path) throws InterruptedException {
+        AtomicReference<RestUrlTrie.MatchResult<String>> result = new AtomicReference<>();
+        Thread probe = new Thread(() -> result.set(t.match(path)), "f13-termination-probe");
+        probe.setDaemon(true);
+        probe.start();
+        probe.join(5000);
+        assertFalse(probe.isAlive(), () -> path + " 5 秒内未返回——F13 自旋回退");
+        assertNull(result.get(), () -> path + " 死路应返回 null");
     }
 
     @Test
