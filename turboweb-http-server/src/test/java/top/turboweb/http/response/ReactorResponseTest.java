@@ -61,7 +61,7 @@ class ReactorResponseTest {
 
         assertEquals("application/octet-stream;charset=ISO-8859-1",
                 resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
-        // 钉住 HS-21：若将来修正（setContentType 同步 charset 字段），本用例应改为期望正确行为（getCharset() 返回 ISO-8859-1，与 header 一致）
+        // 钉住 HS-21：若将来修正，本用例应改为期望正确行为（setContentType 同步 charset 字段后 getCharset() 返回 ISO-8859-1，与 header 一致）
         assertEquals(StandardCharsets.UTF_8, resp.getCharset(),
                 "header 已切到 ISO-8859-1，getCharset() 却仍报 UTF-8——字段与 header 不一致");
     }
