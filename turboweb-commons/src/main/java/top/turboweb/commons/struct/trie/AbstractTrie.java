@@ -331,10 +331,12 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
     /**
      * 分割路径键。
      *
-     * <p>默认去除首尾分隔符并按 {@link #splitString()} 返回的分隔符进行拆分。
+     * <p>默认只去除<b>首部</b>一个分隔符并按 {@link #splitString()} 返回的分隔符进行拆分；
+     * 尾部分隔符不再裁掉，其产生的尾空段以 {@code limit=-1} 保留在结果数组中，
+     * 由调用方的空段守卫拒收（修 F20：畸形键不再被 {@code String.split} 静默吞掉）。
      *
      * @param key 原始键
-     * @return 拆分后的路径段数组
+     * @return 拆分后的路径段数组（可能含尾空段）
      */
     protected String[] splitKey(String key) {
         // 字符串合法性校验
@@ -345,10 +347,10 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         if (splitStr == null || splitStr.isEmpty()) {
             throw new IllegalArgumentException("splitString cannot be null or empty");
         }
-        // 去除字符串首尾的分隔符
-        key = key.trim().replaceAll("^" + Pattern.quote(splitStr) + "|" + Pattern.quote(splitStr) + "$", "");
-        // 分割成字符串数组
-        return key.split(Pattern.quote(splitStr));
+        // 只去除字符串首部的分隔符（修 F20：尾部不裁，尾空段留给空段守卫拒收）
+        key = key.trim().replaceAll("^" + Pattern.quote(splitStr), "");
+        // 分割成字符串数组（limit=-1 保留尾部空串；默认 limit=0 会把尾部空串全部丢弃）
+        return key.split(Pattern.quote(splitStr), -1);
     }
 
     /**

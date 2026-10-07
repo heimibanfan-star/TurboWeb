@@ -44,19 +44,22 @@ class AbstractTrieContractTest {
     }
 
     @Test
-    @DisplayName("钉住 F20：尾部空段被 String.split 丢弃，\"/a//\" 被当成 \"/a\" 静默接受")
-    void trailingEmptySegmentsAreSilentlyDropped() {
-        // 钉住 F20：若将来修正，本用例应改为期望正确行为
+    @DisplayName("F20 已修：splitKey 只裁首分隔符且保留尾空段，\"/a//\" 被空段守卫拒收")
+    void trailingEmptySegmentsAreRejected() {
+        // F20 修正后期望正确行为：尾部空段以 limit=-1 保留，由 insert 的 subKey 守卫拒收，
+        // 不再静默折叠成 /a；get 侧同源，畸形尾斜杠键读不到值。
         SlashTrie t = new SlashTrie();
-        // splitKey 裁掉首尾各一个分隔符："/a//" -> "a/"，而 "a/".split("/") -> ["a"]
-        // 尾空段不会进循环，所以这里不抛 IAE，而是等价插入 "/a"。中间的 "" 仍会抛（见上一条用例）。
-        t.insert("/a//", "v");
+        t.insert("/a", "v");
 
-        assertEquals("v", t.get("/a"), "被静默折叠成 /a");
-        assertEquals(1, t.size());
-        assertEquals("v", t.get("/a//"), "读写走同一套裁剪，尾部斜杠形式也能读回——缺陷在于它绕过了重复检测");
-        assertThrows(IllegalArgumentException.class, () -> t.insert("/a", "dup"),
-                "折叠成同一节点后，真正的 /a 会被判重复；反过来 /a// 也应当被判重复，当前不会");
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> t.insert("/a//", "w"));
+        assertEquals("subKey cannot be empty", ex.getMessage());
+        assertThrows(IllegalArgumentException.class, () -> t.insert("/a/", "w"), "单个尾斜杠同样拒收");
+
+        assertNull(t.get("/a//"), "畸形尾斜杠键不再借同一套裁剪读回值");
+        assertNull(t.get("/a/"));
+        assertEquals("v", t.get("/a"), "正常键不受影响");
+        assertEquals(1, t.size(), "拒收不得改变树内容");
+        assertThrows(IllegalArgumentException.class, () -> t.insert("/a", "dup"), "判重回到单一键形");
     }
 
     @Test
@@ -179,9 +182,10 @@ class AbstractTrieContractTest {
     @DisplayName("F6 探针：split 永不返回零长度数组，故三处 strs.length==0 分支不可达")
     void splitNeverProducesZeroLengthArray() {
         SlashTrie t = new SlashTrie();
-        // splitKey 会先裁掉首尾各一个分隔符，"/" 变成 ""，而 "".split("/") == [""]
+        // splitKey 只裁首部一个分隔符，"/" 变成 ""，而 "".split("/", -1) == [""]
         assertArrayEqualsCompat(new String[]{""}, t.splitKey("/"));
-        assertArrayEqualsCompat(new String[]{"a"}, t.splitKey("/a/"));
+        // F20 修正后 "/a/" 不再裁尾：尾空段由 limit=-1 保留，交由空段守卫拒收
+        assertArrayEqualsCompat(new String[]{"a", ""}, t.splitKey("/a/"));
     }
 
     /** 局部小助手：避免为一个断言引入 AssertJ（spec §2.2 未批准新增测试库）。 */
