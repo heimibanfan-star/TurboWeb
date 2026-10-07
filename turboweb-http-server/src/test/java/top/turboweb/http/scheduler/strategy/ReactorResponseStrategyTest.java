@@ -125,6 +125,11 @@ class ReactorResponseStrategyTest {
         try {
             ChannelFuture f = handleOnVirtualThread(new ReactorResponseStrategy(false), resp, session);
             assertFalse(f.isSuccess(), "写头失败必须走 :80-81 置败分支");
+            // 终审修复#1：pending promise 同样 isSuccess()==false——必须钉终态与真实 cause，
+            // 否则删掉 :80 setFailure 本用例仍绿。（:81 在"预关通道"夹具形状下不可观察：
+            // InternalConnectSession.close() 对已关通道 early-return，本用例只钉得住 :80。）
+            assertTrue(f.isDone(), "promise 必须经 :80 setFailure 到达终态（pending 也会让 isSuccess()==false 通过）");
+            assertNotNull(f.cause(), "置败必须携带写头失败的真实 cause");
             channel.runPendingTasks();
         } finally {
             ReferenceCountUtil.release(ab);
@@ -148,6 +153,28 @@ class ReactorResponseStrategyTest {
             plain.release();
             err.release();
         } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    @DisplayName("平台线程直接调用：:72 虚拟线程断言被模板兜成 500（Review Focus 4·Reactor 半边）")
+    void platformThreadIsRejectedAs500() {
+        ByteBuf z = buf("z"); // 断言先于订阅抛出，该缓冲只能测试侧回收
+        ReactorResponse resp = new ReactorResponse(Flux.just(z));
+        EmbeddedChannel channel = new EmbeddedChannel();
+        try {
+            // 就在当前（JUnit 平台）线程直调 handle，不自起虚拟线程
+            ChannelFuture f = new ReactorResponseStrategy(false)
+                    .handle(resp, new InternalConnectSession(channel));
+            assertTrue(f.isSuccess(), "模板 catch 的返回 future 是 500 页写出 future，应成功");
+            List<Object> out = drain(channel);
+            assertEquals(1, out.size(), "唯一出站帧 = 模板兜底的错误页（断言若被删除会先写出响应头）");
+            DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out.get(0));
+            assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
+            err.release();
+        } finally {
+            ReferenceCountUtil.release(z);
             channel.finishAndReleaseAll();
         }
     }
