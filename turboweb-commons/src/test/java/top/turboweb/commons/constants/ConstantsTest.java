@@ -36,11 +36,12 @@ class ConstantsTest {
     }
 
     @Test
-    @DisplayName("钉住 F11：WRAPPER_TYPE 有重复的 String 项，11 个元素只有 10 个唯一值")
-    void wrapperTypeListContainsDuplicateStringEntry() {
-        // 钉住 F11：若将来修正，本用例应改为期望正确行为
-        assertEquals(11, TypeConstants.WRAPPER_TYPE.size());
+    @DisplayName("F11 已修：WRAPPER_TYPE 去重，10 个元素、10 个唯一值")
+    void wrapperTypeListIsDuplicateFree() {
+        // F11 修正后期望正确行为：重复的 String.class.getName() 已移除，
+        // 列表长度即唯一值数，String 恰出现一次。
+        assertEquals(10, TypeConstants.WRAPPER_TYPE.size());
         assertEquals(10, new HashSet<>(TypeConstants.WRAPPER_TYPE).size());
-        assertEquals(2, Collections.frequency(TypeConstants.WRAPPER_TYPE, String.class.getName()));
+        assertEquals(1, Collections.frequency(TypeConstants.WRAPPER_TYPE, String.class.getName()));
     }
 }
