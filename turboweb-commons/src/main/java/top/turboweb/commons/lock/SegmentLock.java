@@ -10,7 +10,16 @@ public class SegmentLock {
     private final ReentrantLock[] LOCKS;
     private final ReentrantLock DEFAULT_LOCK = new ReentrantLock();
 
+    /**
+     * 构造分段锁。
+     *
+     * @param lockNum 分段数量，必须大于 0
+     * @throws IllegalArgumentException lockNum 非正时在构造期抛出（fail-fast，不留到首次取锁）
+     */
     public SegmentLock(int lockNum) {
+        if (lockNum <= 0) {
+            throw new IllegalArgumentException("lockNum must be greater than 0");
+        }
         LOCKS = new ReentrantLock[lockNum];
         for (int i = 0; i < lockNum; i++) {
             LOCKS[i] = new ReentrantLock();
