@@ -47,9 +47,12 @@ tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoT
         rule {
             limit {
                 counter = "LINE"
-                minimum = "0.90".toBigDecimal()
+                minimum = "0.80".toBigDecimal()
             }
         }
     }
-    // 注意：本阶段不接入 check，开闸在 spec 阶段 5
+}
+// 阶段 4 开闸（2026-10-07 终裁：commons 由"不接"改判"接 LINE ≥ 0.80"，spec §11.1 要求两模块皆启用）
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
 }

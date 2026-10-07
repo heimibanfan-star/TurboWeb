@@ -24,15 +24,19 @@ dependencies {
 
 description = "turboweb-http"
 
-// http-server 覆盖率门禁：整模块零排除，行覆盖 ≥ 0.90（spec §2.1）。本阶段只验证机制，不接入 check
+// http-server 覆盖率门禁（阶段 4 开闸）：整模块零排除，行覆盖 ≥ 0.80
+// ——闸线 0.90→0.80 为 2026-10-07 用户终裁，接入 check（spec §10 阶段 4 / §11.1）
 tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn(tasks.test)
     violationRules {
         rule {
             limit {
                 counter = "LINE"
-                minimum = "0.90".toBigDecimal()
+                minimum = "0.80".toBigDecimal()
             }
         }
     }
+}
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
 }
