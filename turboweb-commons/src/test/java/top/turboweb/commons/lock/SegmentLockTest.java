@@ -86,6 +86,7 @@ class SegmentLockTest {
     @Test
     @DisplayName("钉住 F9：SegmentLock(0) 构造不报错，首次按哈希取锁才抛 / by zero")
     void zeroSegmentCountFailsOnlyOnFirstUse() {
+        // 钉住 F9：若将来修正，本用例应改为期望正确行为
         SegmentLock lock = assertDoesNotThrow(() -> new SegmentLock(0), "构造期没有校验，不该在这里失败");
         ArithmeticException ex = assertThrows(ArithmeticException.class, () -> lock.lock("k"));
         assertTrue(ex.getMessage().contains("/ by zero"), ex.getMessage());

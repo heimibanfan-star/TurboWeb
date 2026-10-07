@@ -168,7 +168,7 @@ class RestUrlTrieInsertTest {
         RestUrlTrie<String> t = trie();
         t.insert("/a/{id}", "v1");
         // 期望的正确行为是抛 "key already exists"（与静态路径一致）；当前不抛。
-        // 修正 F1 后，本用例应改为 assertThrows。
+        // 钉住 F1：若将来修正，本用例应改为期望正确行为（修正 F1 后，本用例应改为 assertThrows）。
         assertDoesNotThrow(() -> t.insert("/a/{id}", "v2"));
 
         assertEquals(2, t.size(), "同一路径两次插入被记成 2 个节点——size 记账被虚增");
@@ -178,6 +178,7 @@ class RestUrlTrieInsertTest {
     @Test
     @DisplayName("钉住 F1b：原始占位符键无法用精确 get 取回")
     void rawPlaceholderKeyIsNotReachableByExactGet() {
+        // 钉住 F1b：若将来修正，本用例应改为期望正确行为
         RestUrlTrie<String> t = trie();
         t.insert("/a/{id}", "v1");
 

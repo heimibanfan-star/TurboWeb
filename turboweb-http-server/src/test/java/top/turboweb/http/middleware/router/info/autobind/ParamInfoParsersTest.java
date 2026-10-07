@@ -385,7 +385,7 @@ class ParamInfoParsersTest {
         // :44 的守卫要求 T.isAssignableFrom(FileUpload.class)，对 List/Set 恒假；
         // 于是 :48 起的集合判定、collectionType 1/2、loadFiles/HashSet 分支全部不可达。
         // 修正（改成对元素类型判断）后，本用例应改为期望非 null 的 binder。
-        // 钉住 HS-16：若将来修正（守卫改为对元素类型判定），本用例应改为期望正确行为。
+        // 钉住 HS-16：若将来修正，本用例应改为期望正确行为（守卫改为对元素类型判定）。
         assertNull(new UploadParameterInfoParser().parse(parameter("uploadList")));
         assertNull(new UploadParameterInfoParser().parse(parameter("uploadSet")));
     }
@@ -395,7 +395,7 @@ class ParamInfoParsersTest {
     void uploadFileWithoutAnnotationThrowsNpe() {
         // 其余 parser 都先判注解再取值；本 parser 直接 upload.value() → upload 为 null → NPE。
         // 修正后本用例应改为 assertNull。
-        // 钉住 HS-17：若将来修正（先判 @Upload 存在再取 value），本用例应改为期望正确行为。
+        // 钉住 HS-17：若将来修正，本用例应改为期望正确行为（先判 @Upload 存在再取 value）。
         assertThrows(NullPointerException.class,
                 () -> new UploadParameterInfoParser().parse(parameter("uploadFileWithoutAnnotation")));
     }

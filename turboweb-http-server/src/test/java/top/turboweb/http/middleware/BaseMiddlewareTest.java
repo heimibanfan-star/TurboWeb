@@ -44,7 +44,7 @@ class BaseMiddlewareTest {
     }
 
     @Test
-    @DisplayName("钉住 BaseMiddleware:20-26：lockMiddleware 之后 setNext 只告警、不改链")
+    @DisplayName("观察：BaseMiddleware:20-26 lockMiddleware 之后 setNext 只告警、不改链")
     void lockedSetNextIsIgnored() {
         List<String> events = new ArrayList<>();
         RecordingMiddleware a = new RecordingMiddleware("a", events);

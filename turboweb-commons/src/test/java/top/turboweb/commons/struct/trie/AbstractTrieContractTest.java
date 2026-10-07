@@ -47,6 +47,7 @@ class AbstractTrieContractTest {
     @Test
     @DisplayName("钉住 F20：尾部空段被 String.split 丢弃，\"/a//\" 被当成 \"/a\" 静默接受")
     void trailingEmptySegmentsAreSilentlyDropped() {
+        // 钉住 F20：若将来修正，本用例应改为期望正确行为
         SlashTrie t = new SlashTrie();
         // splitKey 裁掉首尾各一个分隔符："/a//" -> "a/"，而 "a/".split("/") -> ["a"]
         // 尾空段不会进循环，所以这里不抛 IAE，而是等价插入 "/a"。中间的 "" 仍会抛（见上一条用例）。
@@ -182,7 +183,8 @@ class AbstractTrieContractTest {
         t.insert("/a/b", "v1");
         t.insert("/a/c", "v2");
         // 根级队列在 :363 入栈时没有配对的 keyStack.push，而 :370 无条件 pop，
-        // 所以遍历收尾必然弹空。修正 F19 后本用例应改为断言 keySet == {"a/b", "a/c"}。
+        // 所以遍历收尾必然弹空。
+        // 钉住 F19：若将来修正，本用例应改为期望正确行为（修正 F19 后本用例应改为断言 keySet == {"a/b", "a/c"}）。
         assertThrows(NoSuchElementException.class, t::all,
                 "all() 对任何非空 trie 都抛，永远返回不了结果集");
     }
@@ -206,6 +208,7 @@ class AbstractTrieContractTest {
     @Test
     @DisplayName("钉住 F19：iterator() 委托 all()，因此同样抛 NoSuchElementException")
     void iteratorThrowsBecauseItDelegatesToAll() {
+        // 钉住 F19：若将来修正，本用例应改为期望正确行为
         SlashTrie t = new SlashTrie();
         t.insert("/a/b", "v1");
         t.insert("/x", "v2");

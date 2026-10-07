@@ -57,8 +57,8 @@ class DefaultHttpResponseConverterTest {
         // :62 又无条件 response.headers().set(headers)；Netty 4.2 的 DefaultHeaders.set(Headers)
         // 语义是 clear+add，于是 :53 写下的 Content-Type 与 setContent(:76) 写下的 Content-Length
         // 都被清空——状态码与响应体不依赖请求头所以仍在。
-        // 钉住 HS-23：若将来修正（末行改为逐名增量 set 而非整体清空），本用例应改为期望正确行为
-        // （Content-Type=text/html;charset=utf-8、Content-Length=2）。
+        // 钉住 HS-23：若将来修正，本用例应改为期望正确行为（末行改为逐名增量 set 而非整体清空，
+        // Content-Type=text/html;charset=utf-8、Content-Length=2）。
         assertNull(full.headers().get(HttpHeaderNames.CONTENT_TYPE),
                 "HS-23：空 headers 的整体 set 清空了 Content-Type，钉住现状");
         assertNull(full.headers().get(HttpHeaderNames.CONTENT_LENGTH),

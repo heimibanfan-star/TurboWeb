@@ -48,6 +48,7 @@ class HttpRequestUtilsTest {
     @Test
     @DisplayName("钉住 F12：空白 Content-Type 原样返回，不裁剪也不置 null")
     void blankContentTypeIsReturnedVerbatim() {
+        // 钉住 F12：若将来修正，本用例应改为期望正确行为
         assertEquals(" ", HttpRequestUtils.getContentType(requestWithContentType(" ")));
         assertEquals("", HttpRequestUtils.getContentType(requestWithContentType("")));
     }

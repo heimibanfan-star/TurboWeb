@@ -17,6 +17,7 @@ class ThreadSlotTest {
     @Test
     @DisplayName("钉住 F16：空壳类无任何成员可测（阶段 5 连同本用例一并删除）")
     void hasNoMembersToExercise() {
+        // 钉住 F16：若将来修正，本用例应改为期望正确行为（阶段 5 连同本用例一并删除，见类注释）
         assertNotNull(new ThreadSlot());
     }
 }

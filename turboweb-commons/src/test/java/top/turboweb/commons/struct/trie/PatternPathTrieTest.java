@@ -167,7 +167,7 @@ class PatternPathTrieTest {
     void allPathsExposesNormalizedKeys() {
         PatternPathTrie<String> t = trie();
         t.insert("/x/{p}", "v");
-        // 修正 F4 后本用例应改为期望 "/x/{p}"。
+        // 钉住 F4：若将来修正，本用例应改为期望正确行为（修正 F4 后本用例应改为期望 "/x/{p}"）。
         // 实测比"只是补全类型"更严重：collectEntries 拼的是 children map 的键（:314 e.getKey()），
         // 而参数段的键由 keyForSegment 写成字面量 "{param:类型}"（:389），参数名在插入时就丢了——
         // 拿回来的既不是 "/x/{p}"，也不是 insert 内部归一化出的 "/x/{p:str}"，而是 "/x/{param:str}"。
@@ -178,6 +178,7 @@ class PatternPathTrieTest {
     @Test
     @DisplayName("钉住 F3：delete 返回的是整树是否剪空，不是该路径是否被删")
     void deleteReportsTreeEmptinessNotPathRemoval() {
+        // 钉住 F3：若将来修正，本用例应改为期望正确行为
         PatternPathTrie<String> t = trie();
         t.insert("/a/b", "v1");
         t.insert("/a/c", "v2");

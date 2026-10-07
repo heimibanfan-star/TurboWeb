@@ -133,6 +133,7 @@ class PatternUrlTrieTest {
     @Test
     @DisplayName("钉住 F15：null 键在 PatternUrlTrie 里抛 NPE 而非 IAE")
     void nullKeyThrowsNpeNotIae() {
+        // 钉住 F15：若将来修正，本用例应改为期望正确行为
         PatternUrlTrie<String> t = trie();
         // RestUrlTrie 对 null 抛 IAE("Key cannot be null or empty")，本类直接把它喂给 matcher()
         assertThrows(NullPointerException.class, () -> t.insert(null, "v"));

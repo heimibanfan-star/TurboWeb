@@ -196,8 +196,8 @@ class HttpRequestApplicationTest {
         HttpRequestApplication first = builder.build();
         HttpRequestApplication second = builder.build();
 
-        // 期望的正确实现应在 build() 后重置自身状态/不复用已锁定的中间件；
-        // 修正 F5 后本用例应改为断言第二次不再 init 同一实例。
+        // 期望的正确实现应在 build() 后重置自身状态/不复用已锁定的中间件。
+        // 钉住 F5：若将来修正，本用例应改为期望正确行为（修正 F5 后本用例应改为断言第二次不再 init 同一实例）。
         assertEquals(List.of("init:mw", "init:mw"), events,
                 "第二次 build 对已被锁定的同一中间件再次 init，Builder 非幂等");
         first.close();
@@ -226,7 +226,7 @@ class HttpRequestApplicationTest {
         app.close();
 
         // 期望的正确行为是 branchMw.destroy() 也被调用；当前销毁只沿主链 getNext() 遍历。
-        // 修正 F1 后本用例应改为断言 events 含 "destroy:branch"。
+        // 钉住 F1：若将来修正，本用例应改为期望正确行为（修正 F1 后本用例应改为断言 events 含 "destroy:branch"）。
         assertTrue(events.contains("destroy:main"), "主链上的中间件被销毁");
         assertFalse(events.contains("destroy:branch"),
                 "钉住 F1：分支内的中间件不在主链上，destroyMiddlewareChain 漏掉它");

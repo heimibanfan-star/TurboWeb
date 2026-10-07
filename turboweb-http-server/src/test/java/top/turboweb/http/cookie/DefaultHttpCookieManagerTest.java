@@ -116,7 +116,7 @@ class DefaultHttpCookieManagerTest {
         // "a=1; =oops" 的第二段是 " =oops"：indexOf('=') == 1 > 0 通过了守卫，
         // 但 substring(0,1).trim() 得到空串，HttpCookie 的 checkKey 抛 "key can not be empty"。
         // 对比 malformedSegmentsAreSkipped：'=' 在首的段会被跳过，空白键却把整个构造打挂。
-        // 若将来把守卫收紧为对键做非空校验后 continue，本用例应改为断言该段被跳过。
+        // 钉住 HS-7：若将来修正，本用例应改为期望正确行为（若将来把守卫收紧为对键做非空校验后 continue，本用例应改为断言该段被跳过）。
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new DefaultHttpCookieManager(cookieHeader("a=1; =oops")));
         assertEquals("key can not be empty", ex.getMessage());

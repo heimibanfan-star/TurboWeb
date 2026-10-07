@@ -195,8 +195,8 @@ class ExceptionHandlerContainerTest {
         // 实测（GraalVM/OpenJDK 21）：InvocationTargetException.getMessage() 为 null（它的 message
         // 不参与 toString 合成，底层异常只挂在 getCause() 上），单参 String 构造又不带 cause——
         // 包装后消息与原因双双丢失，只剩一条空消息的 TurboExceptionHandlerException（台账 HS-18 原样成立）。
-        // 钉住 HS-18：若将来修正包装方式（改用带 cause 的构造并传入底层异常消息），本用例应改为期望正确行为
-        // （cause 为 IllegalStateException、消息非空）。
+        // 钉住 HS-18：若将来修正，本用例应改为期望正确行为（修正包装方式：改用带 cause 的构造并传入底层异常消息，
+        // cause 为 IllegalStateException、消息非空）。
         TurboExceptionHandlerException ex = assertThrows(TurboExceptionHandlerException.class,
                 () -> createInstanceOf(ExplodingCtorHandler.class));
         assertNull(ex.getCause(), "当前行为：底层构造异常没有被保留为 cause");

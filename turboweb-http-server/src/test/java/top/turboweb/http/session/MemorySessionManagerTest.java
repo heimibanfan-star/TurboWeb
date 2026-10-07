@@ -134,8 +134,8 @@ class MemorySessionManagerTest {
         // 现象（spec §8 候选 2）：sessionGC 把 ScheduledExecutorService 建在方法局部变量里，
         // 类既不实现 AutoCloseable，也没有 close/shutdown/stop 之类停止入口 ⇒ 外部无法回收该守护
         // 线程池，因此无法登记进 ScopedResource，属资源泄漏。
-        // 本用例不断言线程是否终止（不可确定），只断言“停止入口不存在”这一 API 事实；
-        // 若将来补上停止钩子，本用例会变红，届时改为断言该入口存在并调用它。
+        // 本用例不断言线程是否终止（不可确定），只断言“停止入口不存在”这一 API 事实。
+        // 钉住 F2：若将来修正，本用例应改为期望正确行为（若将来补上停止钩子，本用例会变红，届时改为断言该入口存在并调用它）。
         assertFalse(AutoCloseable.class.isAssignableFrom(MemorySessionManager.class),
                 "一旦实现 AutoCloseable 即说明已补停止钩子");
         Set<String> names = Arrays.stream(MemorySessionManager.class.getMethods())

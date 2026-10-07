@@ -38,6 +38,7 @@ class ConstantsTest {
     @Test
     @DisplayName("钉住 F11：WRAPPER_TYPE 有重复的 String 项，11 个元素只有 10 个唯一值")
     void wrapperTypeListContainsDuplicateStringEntry() {
+        // 钉住 F11：若将来修正，本用例应改为期望正确行为
         assertEquals(11, TypeConstants.WRAPPER_TYPE.size());
         assertEquals(10, new HashSet<>(TypeConstants.WRAPPER_TYPE).size());
         assertEquals(2, Collections.frequency(TypeConstants.WRAPPER_TYPE, String.class.getName()));

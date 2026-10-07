@@ -66,6 +66,7 @@ class GlobalConfigTest {
     @Test
     @DisplayName("钉住 F8：lockConfig() 一旦调用即不可逆，setter 之后静默失效")
     void lockConfigIsIrreversible() throws Exception {
+        // 钉住 F8：若将来修正，本用例应改为期望正确行为
         Charset originalRequest = GlobalConfig.getRequestCharset();
         Charset originalResponse = GlobalConfig.getResponseCharset();
         boolean originalLock = readIsLock();

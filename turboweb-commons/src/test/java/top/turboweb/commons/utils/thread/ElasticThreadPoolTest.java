@@ -100,6 +100,7 @@ class ElasticThreadPoolTest {
     @Test
     @DisplayName("钉住 F7：搬运线程抱着的任务也不许丢，shutdown 后已接受数 == 已执行数")
     void shutdownRunsEveryAcceptedTaskUnderBackpressure() throws Exception {
+        // 钉住 F7：若将来修正，本用例应改为期望正确行为
         // 2 条上限线程 + 1 格核心队列 + 2 格缓冲：三层全占满后才开始取证
         ElasticThreadPool pool = new ElasticThreadPool(2, 1, 2);
         CountDownLatch blockerGate = new CountDownLatch(1);

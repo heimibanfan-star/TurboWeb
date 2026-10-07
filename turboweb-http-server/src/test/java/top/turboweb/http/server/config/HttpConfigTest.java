@@ -51,6 +51,7 @@ class HttpConfigTest {
         assertThrows(IllegalArgumentException.class, () -> HttpConfig.builder().sessionCheckTime(0L));
         // 代码判据是 `< 1000`，故 1000 合法；消息写"大于1000"、javadoc 写"大于等于1000"，
         // 以代码为准（文案与边界不一致，已在缺陷裁决里登记，非阻塞）
+        // 钉住 HS-1：若将来修正，本用例应改为期望正确行为
         assertDoesNotThrow(() -> HttpConfig.builder().sessionCheckTime(1000L));
     }
 
@@ -67,6 +68,7 @@ class HttpConfigTest {
     @Test
     @DisplayName("钉住 HS-2：httpSchedulerLimitCount 必须大于等于0")
     void httpSchedulerLimitCountNonNegative() {
+        // 钉住 HS-2：若将来修正，本用例应改为期望正确行为
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().httpSchedulerLimitCount(-1));
         assertEquals("httpSchedulerLimitCount must be greater than or equal to 0", ex.getMessage());
@@ -76,6 +78,7 @@ class HttpConfigTest {
     @Test
     @DisplayName("钉住 HS-2：httpSchedulerLimitCacheThread 必须大于等于0")
     void httpSchedulerLimitCacheThreadNonNegative() {
+        // 钉住 HS-2：若将来修正，本用例应改为期望正确行为
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().httpSchedulerLimitCacheThread(-1));
         assertEquals("httpSchedulerLimitCacheThread must be greater than or equal to 0", ex.getMessage());
@@ -85,6 +88,7 @@ class HttpConfigTest {
     @Test
     @DisplayName("钉住 HS-2：httpSchedulerLimitTimeout 必须大于等于0")
     void httpSchedulerLimitTimeoutNonNegative() {
+        // 钉住 HS-2：若将来修正，本用例应改为期望正确行为
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().httpSchedulerLimitTimeout(-1L));
         assertEquals("httpSchedulerLimitTimeout must be greater than or equal to 0", ex.getMessage());

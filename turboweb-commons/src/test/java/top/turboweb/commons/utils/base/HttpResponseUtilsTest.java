@@ -69,6 +69,7 @@ class HttpResponseUtilsTest {
     @Test
     @DisplayName("钉住 F18：Set-Cookie 先 add 又被 fall-through 的 set 覆盖，先前值丢失")
     void setCookieMergeIsUndoneByTheFallthroughSet() {
+        // 钉住 F18：若将来修正，本用例应改为期望正确行为
         HttpResponse source = response();
         source.headers().set("Set-Cookie", "a=1");
         HttpResponse target = response();

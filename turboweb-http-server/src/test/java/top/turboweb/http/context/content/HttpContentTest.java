@@ -216,8 +216,8 @@ class HttpContentTest {
             content.getFormParams();
             content.release();
             // 当前实现：HttpContent.decoder 销毁后不清空，第二次 destroy() 命中
-            // HttpPostStandardRequestDecoder.checkDestroyed()。若将来把 release 改成幂等，
-            // 本用例应改为 assertDoesNotThrow。
+            // HttpPostStandardRequestDecoder.checkDestroyed()。
+            // 钉住 HS-5：若将来修正，本用例应改为期望正确行为（若将来把 release 改成幂等，本用例应改为 assertDoesNotThrow）。
             assertThrows(IllegalStateException.class, content::release);
         } finally {
             Requests.release(req);

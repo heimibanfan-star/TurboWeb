@@ -225,7 +225,7 @@ class AbstractConcurrentLimitMiddlewareTest {
         // 只发一条 warn 日志（本套用例不靠日志取证），随后无条件覆盖为新 ConcurrentLimit
         p.addStrategy(HttpMethod.GET, "/api", 2);
 
-        // 钉住 HS-3：若将来修正（改为保留已有计数或拒绝重复登记），本用例应改为期望正确行为
+        // 钉住 HS-3：若将来修正，本用例应改为期望正确行为（改为保留已有计数或拒绝重复登记）
         assertEquals(LimitMatchStatus.ALLOW, p.couldEnter("GET", "/api/c").status(),
                 "重复登记把计数从 2 归零，于是又放行了第 3 个请求");
     }
@@ -239,7 +239,7 @@ class AbstractConcurrentLimitMiddlewareTest {
 
         LimitMatchResult hit = p.couldEnter("GET", "/api/users/1");
         assertEquals(LimitMatchStatus.ALLOW, hit.status());
-        // 钉住 HS-4：若将来修正（最具体前缀优先），本用例应改为期望正确行为；
+        // 钉住 HS-4：若将来修正，本用例应改为期望正确行为（最具体前缀优先）；
         // 现状是两个前缀都匹配，命中哪个取决于 HashMap 迭代顺序（不固定）
         assertTrue(hit.prefix().equals("/api") || hit.prefix().equals("/api/users"), hit.prefix());
         if (hit.prefix().equals("/api/users")) {

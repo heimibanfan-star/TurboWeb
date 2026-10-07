@@ -206,7 +206,8 @@ class FullHttpContextTest {
         try {
             FullHttpContext ctx = context(req);
             ctx.injectPathParam(Map.of("d", "abc", "date", "2026-13-01"));
-            // 与 paramInt/paramLong 的 TurboParamParseException 不对称：修镜像时本用例应改为断言包装类型
+            // 与 paramInt/paramLong 的 TurboParamParseException 不对称。
+            // 钉住 HS-6：若将来修正，本用例应改为期望正确行为（修镜像时本用例应改为断言包装类型）。
             assertThrows(NumberFormatException.class, () -> ctx.paramDouble("d"));
             assertThrows(DateTimeParseException.class, () -> ctx.paramDate("date"));
         } finally {

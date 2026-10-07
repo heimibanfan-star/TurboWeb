@@ -228,6 +228,7 @@ class JacksonJsonSerializerTest {
     @Test
     @DisplayName("钉住 F17：convertValue 一路（mapToBean/beanToMap）不包装异常，与其余方法不对称")
     void convertValueFailuresAreNotWrapped() {
+        // 钉住 F17：若将来修正，本用例应改为期望正确行为
         JacksonJsonSerializer s = withJavaTime();
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> s.mapToBean(Map.of("name", "n", "age", "not-a-number"), Profile.class));

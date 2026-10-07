@@ -184,6 +184,7 @@ class RestUrlTrieMatchTest {
     @Test
     @DisplayName("钉住 F13 的可终止半边：单候选死路能干净返回 null")
     void singleCandidateDeadEndReturnsNull() {
+        // 钉住 F13：若将来修正，本用例应改为期望正确行为
         RestUrlTrie<String> t = trie();
         t.insert("/seg/{a:int}/end", "V-int");
         assertNull(t.match("/seg/1/other"), "候选只有一个，压栈从未发生，栈空即返回 null");
@@ -198,6 +199,7 @@ class RestUrlTrieMatchTest {
     @Test
     @DisplayName("钉住 F14：非法正则能在插入期通过，到匹配时才抛 PatternSyntaxException")
     void malformedRegexInsertsFineAndBlowsUpAtMatch() {
+        // 钉住 F14：若将来修正，本用例应改为期望正确行为
         RestUrlTrie<String> t = trie();
         t.insert("/x/{p:regex=[}", "V");   // 插入期不编译正则，所以这一步是成功的
         assertThrows(PatternSyntaxException.class, () -> t.match("/x/abc"));
