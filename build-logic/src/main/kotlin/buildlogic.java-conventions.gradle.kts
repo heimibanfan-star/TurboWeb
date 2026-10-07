@@ -7,6 +7,7 @@
 plugins {
     `java-library`
     `maven-publish`
+    jacoco
 }
 
 repositories {
@@ -49,4 +50,27 @@ tasks.withType<JavaCompile>() {
 
 tasks.withType<Javadoc>() {
     options.encoding = "UTF-8"
+}
+
+// ---------- 测试与覆盖率机制（spec §4.1：机制在插件，阈值与门禁绑定在各模块） ----------
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+    // L3 端到端用例命名 *IT，Gradle 默认 include 不含它，必须显式加入
+    include("**/*Test.class", "**/*IT.class")
+    testLogging {
+        events("passed", "failed", "skipped")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+    finalizedBy(tasks.named("jacocoTestReport"))
+}
+
+tasks.withType<org.gradle.testing.jacoco.tasks.JacocoReport>().configureEach {
+    // 无测试的模块不能让 finalize 失败：没有执行数据就跳过报告生成。
+    // 守卫读 layout provider 而不是任务的 executionData，避免把任务引用序列化进 configuration-cache
+    val execFile = layout.buildDirectory.file("jacoco/test.exec")
+    onlyIf { execFile.get().asFile.exists() }
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }

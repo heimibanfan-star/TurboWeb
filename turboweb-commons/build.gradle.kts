@@ -16,6 +16,43 @@ dependencies {
     implementation(libs.jakarta.el.api)
     implementation(libs.jakarta.el)
     implementation(libs.jackson.datatype.jsr310)
+
+    // Gradle 9 不再自带 platform launcher；BOM 复用既有的 junit-jupiter 版本，不引入第二个版本号
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.logback.classic)
 }
 
 description = "turboweb-commons"
+
+// commons 覆盖率门禁分母：只统计支撑本次重构的公共面，exception/** 与 func/TirConsumer 不计入（spec §2.1）
+val gateClasses = listOf(
+    "top/turboweb/commons/utils/thread/**",
+    "top/turboweb/commons/utils/resource/**",
+    "top/turboweb/commons/utils/base/**",
+    "top/turboweb/commons/limit/**",
+    "top/turboweb/commons/lock/**",
+    "top/turboweb/commons/struct/trie/**",
+    "top/turboweb/commons/serializer/**",
+    "top/turboweb/commons/constants/**",
+    "top/turboweb/commons/config/**"
+)
+
+tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.test)
+    // classDirectories 是 Filterable：按 glob 收窄分母，报告仍展示全量类
+    classDirectories.setFrom(classDirectories.files.map { dir -> fileTree(dir) { include(gateClasses) } })
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+    }
+}
+// 阶段 4 开闸（2026-10-07 终裁：commons 由"不接"改判"接 LINE ≥ 0.80"，spec §11.1 要求两模块皆启用）
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}

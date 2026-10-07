@@ -14,6 +14,29 @@ dependencies {
     api(project(":turboweb-anno"))
     // 聚合turboweb-websocket-core模块
     api(project(":turboweb-websocket-core"))
+
+    // Gradle 9 不再自带 platform launcher；BOM 复用既有的 junit-jupiter 版本号，不引入第二个需要手工同步的版本
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.logback.classic)
 }
 
 description = "turboweb-http"
+
+// http-server 覆盖率门禁（阶段 4 开闸）：整模块零排除，行覆盖 ≥ 0.80
+// ——闸线 0.90→0.80 为 2026-10-07 用户终裁，接入 check（spec §10 阶段 4 / §11.1）
+tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.test)
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+    }
+}
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}

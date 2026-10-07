@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 /**
  * 基于 REST 风格 URL 的前缀树（Trie）实现。
  *
- * <p>支持路径参数、类型约束与回溯匹配等功能。
+ * <p>支持路径参数、类型约束等功能；某层走不通即返回 null（F13 修法 A：原从未生效的回溯栈已删除）。
  * 可用于 Web 框架的路由解析、API 映射等场景。
  *
  * <p>示例：
@@ -256,33 +256,16 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
     }
 
     /**
-     * 回溯帧结构。
-     * 用于存储匹配过程中的状态。
-     */
-    private class Frame {
-        Node<T> node;
-        int index;
-        Map<String, String> params;
-        Iterator<Node<T>> iterator;
-
-        Frame(Node<T> node, int index, Map<String, String> params, Iterator<Node<T>> iterator) {
-            this.node = node;
-            this.index = index;
-            this.params = params;
-            this.iterator = iterator;
-        }
-    }
-
-    /**
      * 执行路径匹配。
      *
-     * <p>采用深度优先 + 回溯算法。
-     * 优先匹配固定路径，再匹配参数节点；
-     * 当存在多个候选参数节点时，会将剩余分支压栈以备回溯。
+     * <p>逐段匹配，优先固定路径、再参数节点；某层没有可用候选即返回 {@code null}。
+     * F13 修法 A 说明：原"回溯栈"的三个出栈恢复点从不消费 {@code Frame.iterator}，
+     * 恢复后重新收集必然再次选中同一首选——只有两种输入存在：从未出栈的（结果与本
+     * 实现逐字节一致），与出过一次栈的（原为恒定自旋、永不返回，现改为死路及时返回
+     * {@code null}）。命中面不因此扩大或缩小任何一条路由。
      */
     @Override
     protected MatchResult<T> doMatch(String[] segs) {
-        Deque<Frame> stack = new ArrayDeque<>();
         Node<T> current = root;
         Map<String, String> params = new HashMap<>();
         int index = 0;
@@ -293,13 +276,7 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
                 if (current.value() != null) {
                     return new MatchResult<>(current.value(), params);
                 }
-                // 没有匹配值，尝试回溯
-                if (stack.isEmpty()) return null;
-                Frame back = stack.pop();
-                current = back.node;
-                index = back.index;
-                params = back.params;
-                continue;
+                return null;
             }
 
             String seg = segs[index];
@@ -307,26 +284,6 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
             // --- 1. 先尝试固定匹配 ---
             Node<T> fixed = current.get(seg);
             if (fixed != null) {
-                // 把可能的参数分支保存到回溯栈
-                Map<String, Node<T>> subNodes = current.subNodes();
-                if (subNodes != null) {
-                    Iterator<Node<T>> it = subNodes.values().iterator();
-                    List<Node<T>> candidates = new ArrayList<>();
-                    while (it.hasNext()) {
-                        Node<T> n = it.next();
-                        ParamDetails details = n.details(ParamDetails.class);
-                        if (details != null && details.paramInfo.type.match(seg)) {
-                            candidates.add(n);
-                        }
-                    }
-                    if (!candidates.isEmpty()) {
-                        Iterator<Node<T>> it2 = candidates.iterator();
-                        it2.next(); // 留一个用于当前匹配
-                        if (it2.hasNext()) {
-                            stack.push(new Frame(current, index, new HashMap<>(params), it2));
-                        }
-                    }
-                }
                 current = fixed;
                 index++;
                 continue;
@@ -335,13 +292,8 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
             // --- 2. 再尝试参数匹配 ---
             Map<String, Node<T>> subNodes = current.subNodes();
             if (subNodes == null || subNodes.isEmpty()) {
-                // 匹配失败 -> 回溯
-                if (stack.isEmpty()) return null;
-                Frame back = stack.pop();
-                current = back.node;
-                index = back.index;
-                params = back.params;
-                continue;
+                // 匹配失败
+                return null;
             }
 
             // 找所有能匹配的参数节点
@@ -354,21 +306,12 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
             }
 
             if (candidates.isEmpty()) {
-                // 当前层匹配不到，回溯
-                if (stack.isEmpty()) return null;
-                Frame back = stack.pop();
-                current = back.node;
-                index = back.index;
-                params = back.params;
-                continue;
+                // 当前层匹配不到
+                return null;
             }
 
-            // 保存除了第一个以外的候选，用于回溯
-            Iterator<Node<T>> it = candidates.iterator();
-            Node<T> first = it.next();
-            if (it.hasNext()) {
-                stack.push(new Frame(current, index, new HashMap<>(params), it));
-            }
+            // 取首选候选（原"压入其余候选"从未被消费，F13 修法 A 已删除）
+            Node<T> first = candidates.get(0);
 
             // 应用第一个匹配
             ParamDetails details = first.details(ParamDetails.class);
