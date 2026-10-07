@@ -1,6 +1,5 @@
 package top.turboweb.commons.struct.trie;
 
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -12,7 +11,7 @@ import java.util.Set;
  * @param <T> 节点存储的值类型
  * @param <M> 匹配结果类型（由具体实现定义）
  */
-public interface Trie <T, M> extends Iterable<T> {
+public interface Trie <T, M> {
 
     /**
      * 插入元素
@@ -59,12 +58,6 @@ public interface Trie <T, M> extends Iterable<T> {
      * @param key 元素的key
      */
     void delete(String key);
-
-    /**
-     * 获取所有元素
-     * @return 所有元素
-     */
-    Map<String, T> all();
 
     /**
      * 获取所有根key

@@ -7,7 +7,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -174,46 +173,6 @@ class AbstractTrieContractTest {
         SlashTrie t = new SlashTrie();
         t.delete("/a");
         assertEquals(0, t.size());
-    }
-
-    @Test
-    @DisplayName("钉住 F19：all() 收尾时多弹一次 keyStack，任何非空 trie 都抛 NoSuchElementException")
-    void allThrowsNoSuchElementOnNonEmptyTrie() {
-        SlashTrie t = new SlashTrie();
-        t.insert("/a/b", "v1");
-        t.insert("/a/c", "v2");
-        // 根级队列在 :363 入栈时没有配对的 keyStack.push，而 :370 无条件 pop，
-        // 所以遍历收尾必然弹空。
-        // 钉住 F19：若将来修正，本用例应改为期望正确行为（修正 F19 后本用例应改为断言 keySet == {"a/b", "a/c"}）。
-        assertThrows(NoSuchElementException.class, t::all,
-                "all() 对任何非空 trie 都抛，永远返回不了结果集");
-    }
-
-    @Test
-    @DisplayName("F2 被 F19 掩盖：深度≥3 的键序在当前实现下无法观测")
-    void depthThreeKeyOrderIsUnobservableBehindF19() {
-        SlashTrie t = new SlashTrie();
-        t.insert("/a/b/c", "v");
-        Set<String> keys = null;
-        try {
-            keys = t.all().keySet();
-        } catch (NoSuchElementException expected) {
-            // F19 先抛，段序问题（F2）到不了可观测的一步
-        }
-        // 取证：给 :370 的无条件 pop 加上空栈保护后重跑，红点实测产出 [b/a/c]，
-        // 即 F2（keyStack 头插却正向拼接）成立——只是当前被 F19 的异常挡在可观测之前。
-        assertNull(keys, "F19 修正后本用例应改为断言键序（变异实测产出 b/a/c，段序倒置）");
-    }
-
-    @Test
-    @DisplayName("钉住 F19：iterator() 委托 all()，因此同样抛 NoSuchElementException")
-    void iteratorThrowsBecauseItDelegatesToAll() {
-        // 钉住 F19：若将来修正，本用例应改为期望正确行为
-        SlashTrie t = new SlashTrie();
-        t.insert("/a/b", "v1");
-        t.insert("/x", "v2");
-        // 匿名 Iterator 的字段初始化器就会调 all()，所以 iterator() 本身即抛
-        assertThrows(NoSuchElementException.class, t::iterator);
     }
 
     @Test

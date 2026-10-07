@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
  * 抽象前缀树（Trie）实现基类。
  *
  * <p>该类提供了通用的 Trie 结构增删查改逻辑，
- * 包括节点的插入、删除、精确查找、遍历与批量获取等功能。
+ * 包括节点的插入、删除、精确查找等功能。
  * <br>子类可通过 {@link #handleSubKey(String)} 与 {@link #splitString()} 方法
  * 自定义键的处理规则与分隔符。
  *
@@ -349,73 +349,6 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         key = key.trim().replaceAll("^" + Pattern.quote(splitStr) + "|" + Pattern.quote(splitStr) + "$", "");
         // 分割成字符串数组
         return key.split(Pattern.quote(splitStr));
-    }
-
-    /**
-     * 获取所有节点的完整键值映射。
-     *
-     * @return 所有键与值的映射表
-     */
-    @Override
-    public Map<String, T> all() {
-        // 结果的集合
-        Map<String, T> result = new HashMap<>();
-        // 创建栈
-        LinkedList<String> keyStack = new LinkedList<>();
-        LinkedList<Queue<Node<T>>> nodeStack = new LinkedList<>();
-        // 将所有的根节点的值添加到队列中
-        Queue<Node<T>> queue = new LinkedList<>(root.subNodes().values());
-        nodeStack.push(queue);
-        // 遍历所有的节点
-        while (!nodeStack.isEmpty()) {
-            Queue<Node<T>> nodeQueue = nodeStack.peek();
-            if (nodeQueue.isEmpty()) {
-                // 出栈
-                nodeStack.pop();
-                keyStack.pop();
-            } else {
-                Node<T> node = nodeQueue.poll();
-                // 判断是否是值节点
-                if (node.value() != null) {
-                    StringBuilder key = new StringBuilder();
-                    for (String k : keyStack) {
-                        key.append(k).append(splitString());
-                    }
-                    key.append(node.key());
-                    // 存储结果
-                    result.put(key.toString(), node.value());
-                }
-                // 判断是否有子节点
-                if (!node.subKeys().isEmpty()) {
-                    queue = new LinkedList<>(node.subNodes().values());
-                    nodeStack.push(queue);
-                    keyStack.push(node.key());
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * 返回值的迭代器。
-     * <p>迭代顺序不保证稳定（由内部 Map 实现决定）。</p>
-     */
-    @Override
-    public Iterator<T> iterator() {
-        return new Iterator<T>() {
-
-            final Iterator<Map.Entry<String, T>> iterator = all().entrySet().iterator();
-
-            @Override
-            public boolean hasNext() {
-                return iterator.hasNext();
-            }
-
-            @Override
-            public T next() {
-                return iterator.next().getValue();
-            }
-        };
     }
 
     /**
