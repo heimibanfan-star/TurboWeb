@@ -27,6 +27,7 @@ public class HttpResponseUtils {
                 if (headerName.equalsIgnoreCase("Set-Cookie")) {
                     // 如果目标响应已经有 Set-Cookie 头部，则添加新的 Set-Cookie 值
                     target.headers().add(headerName, headerValue);
+                    continue;
                 }
                 // 对于 CORS 相关头部，确保不会覆盖用户自定义的 CORS 配置
                 else if (headerName.equalsIgnoreCase("Access-Control-Allow-Origin")

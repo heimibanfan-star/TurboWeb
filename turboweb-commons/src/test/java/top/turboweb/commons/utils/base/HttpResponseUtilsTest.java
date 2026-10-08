@@ -67,16 +67,15 @@ class HttpResponseUtilsTest {
     }
 
     @Test
-    @DisplayName("钉住 F18：Set-Cookie 先 add 又被 fall-through 的 set 覆盖，先前值丢失")
-    void setCookieMergeIsUndoneByTheFallthroughSet() {
-        // 钉住 F18：若将来修正，本用例应改为期望正确行为
+    @DisplayName("F18 回归：Set-Cookie 合并保留目标既有值并追加源值")
+    void setCookieMergeAppendsKeepingTargetValues() {
         HttpResponse source = response();
         source.headers().set("Set-Cookie", "a=1");
         HttpResponse target = response();
         target.headers().set("Set-Cookie", "b=2");
         HttpResponseUtils.mergeHeaders(source, target);
-        assertEquals(List.of("a=1"), target.headers().getAll("Set-Cookie"),
-                "当前行为：add 之后仍然 set，两个 cookie 只剩源里的一个");
+        assertEquals(List.of("b=2", "a=1"), target.headers().getAll("Set-Cookie"),
+                "Set-Cookie 允许多值：目标原值必须保留，源值追加在后");
     }
 
     @Test
