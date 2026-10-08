@@ -209,7 +209,7 @@ public final class HttpConfig {
          */
         public Builder sessionCheckTime(long sessionCheckTime) {
             if (sessionCheckTime < 1000) {
-                throw new IllegalArgumentException("sessionCheckTime必须大于1000");
+                throw new IllegalArgumentException("sessionCheckTime必须大于等于1000");
             }
             this.sessionCheckTime = sessionCheckTime;
             return this;

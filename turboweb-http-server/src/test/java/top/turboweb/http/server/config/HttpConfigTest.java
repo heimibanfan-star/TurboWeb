@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 单独成例，并断言精确消息——消息是校验分支的可观测指纹，只断言异常类型时，把 `<` 改成
  * `<=`、或把消息文案写错，用例都不会红。
  *
- * <p>带"钉住"前缀的用例钉的是现状（HS-1/HS-2 均为文案问题、待裁决）：若将来修正对应缺陷，
+ * <p>带"钉住"前缀的用例钉的是现状（HS-2 系文案问题、待裁决）：若将来修正对应缺陷，
  * 这些用例应改为期望正确行为。
  */
 class HttpConfigTest {
@@ -43,15 +43,13 @@ class HttpConfigTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-1：sessionCheckTime 不得小于1000（边界 1000 合法）")
+    @DisplayName("HS-1 回归：sessionCheckTime 边界消息与判定一致（大于等于1000）")
     void sessionCheckTimeFloor() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().sessionCheckTime(999L));
-        assertEquals("sessionCheckTime必须大于1000", ex.getMessage());
+        assertEquals("sessionCheckTime必须大于等于1000", ex.getMessage());
         assertThrows(IllegalArgumentException.class, () -> HttpConfig.builder().sessionCheckTime(0L));
-        // 代码判据是 `< 1000`，故 1000 合法；消息写"大于1000"、javadoc 写"大于等于1000"，
-        // 以代码为准（文案与边界不一致，已在缺陷裁决里登记，非阻塞）
-        // 钉住 HS-1：若将来修正，本用例应改为期望正确行为
+        // 判据 `< 1000`：边界 1000 合法（含），消息与 javadoc 同口径"大于等于1000"
         assertDoesNotThrow(() -> HttpConfig.builder().sessionCheckTime(1000L));
     }
 
