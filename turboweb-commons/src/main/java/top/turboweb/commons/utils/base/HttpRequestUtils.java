@@ -15,14 +15,14 @@ public class HttpRequestUtils {
     /**
      * 获取请求的格式
      * @param request 请求对象
-     * @return 请求格式
+     * @return 请求格式；Content-Type 头缺失或为空白时返回 null（与 {@link #getRequestCharset} 的空白视同缺失口径一致）
      */
     public static String getContentType(FullHttpRequest request) {
         String contentType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
-        if (contentType != null && !contentType.isBlank()) {
-            contentType = contentType.split(";")[0];
+        if (contentType == null || contentType.isBlank()) {
+            return null;
         }
-        return contentType;
+        return contentType.split(";")[0];
     }
 
     /**

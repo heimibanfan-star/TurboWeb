@@ -24,7 +24,7 @@ class HttpRequestUtilsTest {
 
     private static FullHttpRequest requestWithContentType(String contentType) {
         // 非校验头容器（DefaultHttpHeaders(false)）：netty 的校验器拒收以空白开头的头值
-        // （prohibited character 0x20），而 F12 钉的正是"空白/含空白的值原样透出"，
+        // （prohibited character 0x20），而空白形态（""、" "）正是要直接喂给工具函数的输入，
         // 工具函数本身不经过 netty 校验，所以测试用关掉校验的构造方式还原真实取值路径。
         DefaultFullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/probe",
                 Unpooled.EMPTY_BUFFER, new DefaultHttpHeaders(false), new DefaultHttpHeaders(false));
@@ -46,11 +46,10 @@ class HttpRequestUtilsTest {
     }
 
     @Test
-    @DisplayName("钉住 F12：空白 Content-Type 原样返回，不裁剪也不置 null")
-    void blankContentTypeIsReturnedVerbatim() {
-        // 钉住 F12：若将来修正，本用例应改为期望正确行为
-        assertEquals(" ", HttpRequestUtils.getContentType(requestWithContentType(" ")));
-        assertEquals("", HttpRequestUtils.getContentType(requestWithContentType("")));
+    @DisplayName("F12 回归：空白 Content-Type 归一为 null（与 getRequestCharset 的 blank-视同缺失口径一致）")
+    void blankContentTypeIsNormalizedToNull() {
+        assertNull(HttpRequestUtils.getContentType(requestWithContentType(" ")));
+        assertNull(HttpRequestUtils.getContentType(requestWithContentType("")));
     }
 
     @Test
