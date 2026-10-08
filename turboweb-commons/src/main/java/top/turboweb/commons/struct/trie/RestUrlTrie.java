@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 /**
  * 基于 REST 风格 URL 的前缀树（Trie）实现。
  *
- * <p>支持路径参数、类型约束等功能；某层走不通即返回 null（F13 修法 A：原从未生效的回溯栈已删除）。
+ * <p>支持路径参数、类型约束等功能；某层走不通即返回 null（不做隐式回溯重试）。
  * 可用于 Web 框架的路由解析、API 映射等场景。
  *
  * <p>示例：
@@ -258,11 +258,9 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
     /**
      * 执行路径匹配。
      *
-     * <p>逐段匹配，优先固定路径、再参数节点；某层没有可用候选即返回 {@code null}。
-     * F13 修法 A 说明：原"回溯栈"的三个出栈恢复点从不消费 {@code Frame.iterator}，
-     * 恢复后重新收集必然再次选中同一首选——只有两种输入存在：从未出栈的（结果与本
-     * 实现逐字节一致），与出过一次栈的（原为恒定自旋、永不返回，现改为死路及时返回
-     * {@code null}）。命中面不因此扩大或缩小任何一条路由。
+     * <p>逐段匹配，优先固定路径、再参数节点；同层多候选时只取首选（第一个匹配到的
+     * 参数节点），不做候选间回溯——某层没有可用候选或首选在后续层走不通，即返回
+     * {@code null}，命中面不因重试而扩大。
      */
     @Override
     protected MatchResult<T> doMatch(String[] segs) {
@@ -310,7 +308,7 @@ public class RestUrlTrie<T> extends UrlTrie<T, RestUrlTrie.MatchResult<T>> {
                 return null;
             }
 
-            // 取首选候选（原"压入其余候选"从未被消费，F13 修法 A 已删除）
+            // 取首选候选（不压栈备选、不跨候选回溯，死路及时返回 null）
             Node<T> first = candidates.get(0);
 
             // 应用第一个匹配

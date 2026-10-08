@@ -177,7 +177,7 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
             if (str.isEmpty()) {
                 throw new IllegalArgumentException("subKey cannot be empty");
             }
-            // 先归一化再查找：map 的键就是归一化后的键，判重必须用同一个键（修 F1）
+            // 先归一化再查找：map 的键就是归一化后的键，判重必须用同一个键
             Details details = handleSubKey(str);
             if (details != null && details.newSubKey() != null && !details.newSubKey().isEmpty()) {
                 str = details.newSubKey();
@@ -236,7 +236,7 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
             if (str.isEmpty()) {
                 return null;
             }
-            // 先归一化再查：map 的键就是归一化后的键，原始段（如 {id}）本身不是键（修 F1b）
+            // 先归一化再查：map 的键就是归一化后的键，原始段（如 {id}）本身不是键
             Details details = handleSubKey(str);
             if (details != null && details.newSubKey() != null && !details.newSubKey().isEmpty()) {
                 str = details.newSubKey();
@@ -322,7 +322,7 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
      *
      * <p>默认只去除<b>首部</b>一个分隔符并按 {@link #splitString()} 返回的分隔符进行拆分；
      * 尾部分隔符不再裁掉，其产生的尾空段以 {@code limit=-1} 保留在结果数组中，
-     * 由调用方的空段守卫拒收（修 F20：畸形键不再被 {@code String.split} 静默吞掉）。
+     * 由调用方的空段守卫拒收（畸形键不再被 {@code String.split} 静默吞掉）。
      *
      * <p>返回数组<b>长度恒 ≥ 1</b>：null/空键与非法分隔符在方法起始守卫即抛，而
      * {@code String.split} 对任何非空输入至少返回一个元素，故结果数组不存在
@@ -340,7 +340,7 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         if (splitStr == null || splitStr.isEmpty()) {
             throw new IllegalArgumentException("splitString cannot be null or empty");
         }
-        // 只去除字符串首部的分隔符（修 F20：尾部不裁，尾空段留给空段守卫拒收）
+        // 只去除字符串首部的分隔符（尾部不裁，尾空段留给空段守卫拒收）
         key = key.trim().replaceAll("^" + Pattern.quote(splitStr), "");
         // 分割成字符串数组（limit=-1 保留尾部空串；默认 limit=0 会把尾部空串全部丢弃）
         return key.split(Pattern.quote(splitStr), -1);

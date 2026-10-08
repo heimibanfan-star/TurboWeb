@@ -10,8 +10,8 @@ public class TypeConstants {
 
     /**
      * 包装类型：8 个基本类型包装类 + String + Void，共 10 个唯一值。
-     * <br>修 F11：原表尾第 11 项与第 9 项重复（同为 {@code String.class.getName()}），已移除；
-     * 唯一生产消费点 {@code TypeUtils.isWrapperType} 走 {@code contains} 判定，去重行为等价。
+     * <br>元素须保持无重复：唯一生产消费点 {@code TypeUtils.isWrapperType} 走
+     * {@code contains} 判定，重复项不影响判定结果，但会扭曲该表自身的计数语义。
      */
     public static final List<String> WRAPPER_TYPE = List.of(
         Boolean.class.getName(),
