@@ -15,9 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>与 {@link ServerConfigTest} 同风格：校验前置在链式方法里"立即抛出"，因此每个非法参数
  * 单独成例，并断言精确消息——消息是校验分支的可观测指纹，只断言异常类型时，把 `<` 改成
  * `<=`、或把消息文案写错，用例都不会红。
- *
- * <p>带"钉住"前缀的用例钉的是现状（HS-2 系文案问题、待裁决）：若将来修正对应缺陷，
- * 这些用例应改为期望正确行为。
  */
 class HttpConfigTest {
 
@@ -64,32 +61,29 @@ class HttpConfigTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-2：httpSchedulerLimitCount 必须大于等于0")
+    @DisplayName("HS-2 回归：httpSchedulerLimitCount 校验消息为中文口径（大于等于0）")
     void httpSchedulerLimitCountNonNegative() {
-        // 钉住 HS-2：若将来修正，本用例应改为期望正确行为
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().httpSchedulerLimitCount(-1));
-        assertEquals("httpSchedulerLimitCount must be greater than or equal to 0", ex.getMessage());
+        assertEquals("httpSchedulerLimitCount必须大于等于0", ex.getMessage());
         assertDoesNotThrow(() -> HttpConfig.builder().httpSchedulerLimitCount(0));
     }
 
     @Test
-    @DisplayName("钉住 HS-2：httpSchedulerLimitCacheThread 必须大于等于0")
+    @DisplayName("HS-2 回归：httpSchedulerLimitCacheThread 校验消息为中文口径（大于等于0）")
     void httpSchedulerLimitCacheThreadNonNegative() {
-        // 钉住 HS-2：若将来修正，本用例应改为期望正确行为
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().httpSchedulerLimitCacheThread(-1));
-        assertEquals("httpSchedulerLimitCacheThread must be greater than or equal to 0", ex.getMessage());
+        assertEquals("httpSchedulerLimitCacheThread必须大于等于0", ex.getMessage());
         assertDoesNotThrow(() -> HttpConfig.builder().httpSchedulerLimitCacheThread(0));
     }
 
     @Test
-    @DisplayName("钉住 HS-2：httpSchedulerLimitTimeout 必须大于等于0")
+    @DisplayName("HS-2 回归：httpSchedulerLimitTimeout 校验消息为中文口径（大于等于0）")
     void httpSchedulerLimitTimeoutNonNegative() {
-        // 钉住 HS-2：若将来修正，本用例应改为期望正确行为
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().httpSchedulerLimitTimeout(-1L));
-        assertEquals("httpSchedulerLimitTimeout must be greater than or equal to 0", ex.getMessage());
+        assertEquals("httpSchedulerLimitTimeout必须大于等于0", ex.getMessage());
         assertDoesNotThrow(() -> HttpConfig.builder().httpSchedulerLimitTimeout(0L));
     }
 
