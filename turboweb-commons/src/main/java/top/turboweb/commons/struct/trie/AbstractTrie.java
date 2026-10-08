@@ -166,12 +166,8 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
      */
     @Override
     public void insert(String key, T value, boolean overwrite) {
-        // 分割key
+        // 分割key（splitKey 保证返回长度 ≥ 1：空键与非法分隔符已在其内部抛出）
         String[] strs = splitKey(key);
-        // 判断key是否为空
-        if (strs.length == 0) {
-            throw new IllegalArgumentException("key cannot be empty");
-        }
         // 迭代添加节点
         int lastIndex = strs.length - 1;
         Node<T> currentNode = root;
@@ -231,12 +227,8 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         if (size == 0) {
             return null;
         }
-        // 分割key
+        // 分割key（splitKey 保证返回长度 ≥ 1：空键与非法分隔符已在其内部抛出）
         String[] strs = splitKey(key);
-        // 判断key是否能被成功分割
-        if (strs.length == 0) {
-            return null;
-        }
         // 迭代寻找节点
         Node<T> currentNode = root;
         for (String str : strs) {
@@ -287,11 +279,8 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
         }
         // 创建栈
         LinkedList<Node<T>> stack = new LinkedList<>();
-        // 分割路径
+        // 分割路径（splitKey 保证返回长度 ≥ 1：空键与非法分隔符已在其内部抛出）
         String[] strs = splitKey(key);
-        if (strs.length == 0) {
-            return;
-        }
         // 迭代寻找删除的路径
         stack.push(root);
         Node<T> current = root;
@@ -335,8 +324,12 @@ public abstract class AbstractTrie <T, M> implements Trie<T, M>{
      * 尾部分隔符不再裁掉，其产生的尾空段以 {@code limit=-1} 保留在结果数组中，
      * 由调用方的空段守卫拒收（修 F20：畸形键不再被 {@code String.split} 静默吞掉）。
      *
+     * <p>返回数组<b>长度恒 ≥ 1</b>：null/空键与非法分隔符在方法起始守卫即抛，而
+     * {@code String.split} 对任何非空输入至少返回一个元素，故结果数组不存在
+     * 零长度情形；元素可能为空串（如 {@code "/"} 裁首后得 {@code [""]}）。
+     *
      * @param key 原始键
-     * @return 拆分后的路径段数组（可能含尾空段）
+     * @return 拆分后的路径段数组（长度 ≥ 1，可能含尾空段）
      */
     protected String[] splitKey(String key) {
         // 字符串合法性校验
