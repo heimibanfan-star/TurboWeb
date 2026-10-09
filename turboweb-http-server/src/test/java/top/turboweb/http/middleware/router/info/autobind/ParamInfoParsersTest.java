@@ -90,6 +90,7 @@ class ParamInfoParsersTest {
         void uploadRawCollection(@Upload("f") Collection<FileUpload> v) {}
         void uploadString(@Upload("f") String v) {}
         void uploadFileWithoutAnnotation(FileUpload v) {}
+        void uploadObjectWithoutAnnotation(Object v) {}
 
         // —— 模型 ——
         void jsonModel(@JsonModel Model v) {}
@@ -411,13 +412,14 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-17：FileUpload 参数缺 @Upload 时抛 NPE 而非返回 null")
-    void uploadFileWithoutAnnotationThrowsNpe() {
-        // 其余 parser 都先判注解再取值；本 parser 直接 upload.value() → upload 为 null → NPE。
-        // 修正后本用例应改为 assertNull。
-        // 钉住 HS-17：若将来修正，本用例应改为期望正确行为（先判 @Upload 存在再取 value）。
-        assertThrows(NullPointerException.class,
-                () -> new UploadParameterInfoParser().parse(parameter("uploadFileWithoutAnnotation")));
+    @DisplayName("HS-17 回归：缺 @Upload 的上传类型参数不认领，不再抛 NPE")
+    void uploadParameterWithoutAnnotationIsNotClaimed() {
+        // 修正后：注解存在性前置判定，缺 @Upload 直接返回 null 交还解析链，upload.value() 的 NPE 不可达；
+        // 判定发生在类型分流之前，FileUpload 与 Object 两型同样不认领
+        assertNull(new UploadParameterInfoParser().parse(parameter("uploadFileWithoutAnnotation")),
+                "缺 @Upload 的 FileUpload 参数应不认领");
+        assertNull(new UploadParameterInfoParser().parse(parameter("uploadObjectWithoutAnnotation")),
+                "缺 @Upload 的 Object 参数应不认领");
     }
 
     // ---------- JsonModelParameterInfoParser ----------

@@ -48,12 +48,16 @@ public class UploadParameterInfoParser extends AbstractParamInfoParser {
 
     @Override
     protected ParameterBinder doParse(Parameter parameter) {
+        // 显式标注 @Upload 的形参才认领（与其余参数解析器同款注解前置判定），
+        // 并保证随后取注解值必定非空
+        if (!parameter.isAnnotationPresent(Upload.class)) {
+            return null;
+        }
         Class<?> type = parameter.getType();
         boolean collection = Collection.class.isAssignableFrom(type);
         if (collection) {
-            // 集合形参须显式标注 @Upload 才认领，避免截走其他解析器负责的 List/Set 参数；
-            // 声明的元素类型可判定为具体类且与 FileUpload 不符时同样不认领
-            if (!parameter.isAnnotationPresent(Upload.class) || !elementIsUploadCompatible(parameter)) {
+            // 声明的元素类型可判定为具体类且与 FileUpload 不符时不认领
+            if (!elementIsUploadCompatible(parameter)) {
                 return null;
             }
         } else if (!type.isAssignableFrom(FileUpload.class)) {
