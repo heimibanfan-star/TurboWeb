@@ -335,9 +335,10 @@ public class AnnoRouterManager extends RouterManager {
         if (index != -1) {
             // 根据请求方式获取前缀树
             TrieRouterInfo trieRouterInfo = routerContainer.getTrieRouterInfo();
-            // 添加到前缀树中
+            // 添加到前缀树中（含参模板路径只注册前缀树，不进精确表）
             trieRouterInfo.addRouter(type, path, definition);
+        } else {
+            routerContainer.getExactRouterInfo().addRouter(type, path, definition);
         }
-        routerContainer.getExactRouterInfo().addRouter(type, path, definition);
     }
 }

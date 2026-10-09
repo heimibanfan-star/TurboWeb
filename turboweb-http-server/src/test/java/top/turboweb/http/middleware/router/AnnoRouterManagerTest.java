@@ -23,6 +23,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -117,9 +118,9 @@ class AnnoRouterManagerTest {
         AnnoRouterManager manager = initialized("", new RequestPathController());
         RouterContainer container = manager.getRouterContainer();
 
-        assertEquals(Set.of("/fixture/ping", "/fixture/user/{id}"),
+        assertEquals(Set.of("/fixture/ping"),
                 exact(container, "GET").keySet(),
-                "无注解方法（如 Object 继承来的）与未加入的控制器都不得出现在路由表里");
+                "无注解方法（如 Object 继承来的）与未加入的控制器都不得出现在路由表里；含参路径只进前缀树不在精确表");
         assertEquals(Set.of("/fixture/echo"), exact(container, "POST").keySet());
         assertTrue(exact(container, "PUT").isEmpty());
     }
@@ -143,14 +144,13 @@ class AnnoRouterManagerTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-11：含参路径同时落入 trie 与精确表")
-    void pathVariableRouteIsRegisteredInBothTrieAndExact() {
+    @DisplayName("HS-11 回归：含参路径只落入前缀树、不进精确表")
+    void pathVariableRouteIsRegisteredOnlyInTrie() {
         AnnoRouterManager manager = initialized("", new RequestPathController());
         RouterContainer container = manager.getRouterContainer();
 
-        // 钉住现状：若将来修正，本用例应改为期望正确行为（含参路径只进 trie）
-        assertNotNull(container.exactMatch("GET", "/fixture/user/{id}"),
-                "注解路由把含参路径同时放进精确表");
+        assertNull(container.exactMatch("GET", "/fixture/user/{id}"),
+                "精确表不得含占位符模板键（字面大括号 URI 应落入前缀树按参数匹配）");
         RouterContainer.TrieMatchResult match = container.trieMatch("GET", "/fixture/user/42");
         assertNotNull(match);
         assertEquals("42", match.params().get("id"));
