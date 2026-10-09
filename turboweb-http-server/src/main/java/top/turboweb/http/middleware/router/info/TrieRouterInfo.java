@@ -35,7 +35,7 @@ public class TrieRouterInfo {
         // 获取路由定义
         RestUrlTrie<RouterDefinition> pathTrie = routerStrategy.get(method.toUpperCase());
         if (pathTrie == null) {
-            throw new RuntimeException("不支持的方法:" + method);
+            throw new TurboRouterException("不支持的方法:" + method, TurboRouterException.ROUTER_NOT_MATCH);
         }
         // 尝试添加路由
         try {
@@ -52,6 +52,7 @@ public class TrieRouterInfo {
      * @return 路由定义
      */
     public RestUrlTrie<RouterDefinition> getPathTrie(String method) {
+        method = Optional.ofNullable(method).orElse("");
         RestUrlTrie<RouterDefinition> routerDefinitionPathTrie = routerStrategy.get(method.toUpperCase());
         if (routerDefinitionPathTrie == null) {
             throw new TurboRouterException("不支持的方法:" + method, TurboRouterException.ROUTER_NOT_MATCH);

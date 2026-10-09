@@ -2,13 +2,11 @@ package top.turboweb.http.middleware.router.info;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboMethodNotSupportException;
 import top.turboweb.commons.exception.TurboRouterException;
 
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -61,17 +59,19 @@ class RouterInfoTest {
     @Test
     void nullMethodIsRejectedOnAdd() {
         TrieRouterInfo info = new TrieRouterInfo();
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        TurboRouterException ex = assertThrows(TurboRouterException.class,
                 () -> info.addRouter(null, "/a", definition()));
         assertEquals("不支持的方法:", ex.getMessage());
+        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test
     void unsupportedMethodIsRejectedOnAdd() {
         TrieRouterInfo info = new TrieRouterInfo();
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        TurboRouterException ex = assertThrows(TurboRouterException.class,
                 () -> info.addRouter("HEAD", "/a", definition()));
         assertEquals("不支持的方法:HEAD", ex.getMessage());
+        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test
@@ -108,29 +108,25 @@ class RouterInfoTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-13：getPathTrie(null) 抛 NPE，而 addRouter(null,…) 有守卫")
-    void getPathTrieWithNullMethodThrowsNpe() {
+    @DisplayName("HS-13 回归：getPathTrie(null) 归一空串后按不支持方法抛 ROUTER_NOT_MATCH")
+    void getPathTrieWithNullMethodRaisesRouterNotMatch() {
         TrieRouterInfo info = new TrieRouterInfo();
-        // addRouter 用 Optional 兜底后抛 RuntimeException("不支持的方法:")（:34）；
-        // getPathTrie 少了这层守卫，直接 method.toUpperCase() 撞 NPE（:55）。修时可改为同样的兜底。
-        // 若将来修正，本用例应改为期望正确行为
-        assertThrows(NullPointerException.class, () -> info.getPathTrie(null));
+        TurboRouterException ex = assertThrows(TurboRouterException.class, () -> info.getPathTrie(null));
+        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        assertEquals("不支持的方法:", ex.getMessage(), "空值与 addRouter 的守卫同款归一后入消息");
     }
 
     @Test
-    @DisplayName("钉住 HS-14：不支持的方法在两个容器抛不同异常类型")
-    void unsupportedMethodUsesDifferentExceptionTypesAcrossContainers() {
-        // 钉住现状：同一"不支持的方法"语义在两个容器分别抛 TurboMethodNotSupportException、
-        // TurboRouterException 与裸 RuntimeException，调用方无法用统一类型兜住。
-        // 若将来修正，本用例应改为期望正确行为
-        assertInstanceOf(TurboMethodNotSupportException.class, assertThrows(RuntimeException.class,
+    @DisplayName("HS-14 回归：不支持的方法在两个容器四个抛出点统一抛 TurboRouterException(ROUTER_NOT_MATCH)")
+    void unsupportedMethodUsesUnifiedExceptionAcrossContainers() {
+        assertInstanceOf(TurboRouterException.class, assertThrows(RuntimeException.class,
                 () -> new ExactRouterInfo().getRouterDefinition("HEAD")));
         assertInstanceOf(TurboRouterException.class, assertThrows(RuntimeException.class,
+                () -> new ExactRouterInfo().addRouter("HEAD", "/a", definition())));
+        assertInstanceOf(TurboRouterException.class, assertThrows(RuntimeException.class,
                 () -> new TrieRouterInfo().getPathTrie("HEAD")));
-        RuntimeException fromAdd = assertThrows(RuntimeException.class,
-                () -> new TrieRouterInfo().addRouter("HEAD", "/a", definition()));
-        assertFalse(fromAdd instanceof TurboRouterException, "addRouter 的不支持方法异常比 getPathTrie 更弱");
-        assertFalse(fromAdd instanceof TurboMethodNotSupportException);
+        assertInstanceOf(TurboRouterException.class, assertThrows(RuntimeException.class,
+                () -> new TrieRouterInfo().addRouter("HEAD", "/a", definition())));
     }
 
     @Test
@@ -176,18 +172,20 @@ class RouterInfoTest {
     @Test
     void unsupportedMethodIsRejectedForAddAndGet() {
         ExactRouterInfo info = new ExactRouterInfo();
-        TurboMethodNotSupportException fromAdd = assertThrows(TurboMethodNotSupportException.class,
+        TurboRouterException fromAdd = assertThrows(TurboRouterException.class,
                 () -> info.addRouter("HEAD", "/a", definition()));
         assertEquals("不支持的方法:HEAD", fromAdd.getMessage());
-        assertThrows(TurboMethodNotSupportException.class, () -> info.getRouterDefinition("HEAD"));
+        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, fromAdd.getCode());
+        assertThrows(TurboRouterException.class, () -> info.getRouterDefinition("HEAD"));
     }
 
     @Test
     void nullMethodIsTreatedAsUnsupported() {
         ExactRouterInfo info = new ExactRouterInfo();
-        TurboMethodNotSupportException ex = assertThrows(TurboMethodNotSupportException.class,
+        TurboRouterException ex = assertThrows(TurboRouterException.class,
                 () -> info.getRouterDefinition(null));
         assertEquals("不支持的方法:", ex.getMessage());
+        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test

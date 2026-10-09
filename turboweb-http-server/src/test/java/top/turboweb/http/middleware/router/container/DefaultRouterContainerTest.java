@@ -2,7 +2,6 @@ package top.turboweb.http.middleware.router.container;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboMethodNotSupportException;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.http.middleware.router.info.RouterDefinition;
 
@@ -74,9 +73,10 @@ class DefaultRouterContainerTest {
     }
 
     @Test
-    void exactMatchUnsupportedMethodThrowsMethodNotSupport() {
+    void exactMatchUnsupportedMethodThrowsRouterNotMatch() {
         DefaultRouterContainer c = new DefaultRouterContainer();
-        assertThrows(TurboMethodNotSupportException.class, () -> c.exactMatch("HEAD", "/a"));
+        TurboRouterException ex = assertThrows(TurboRouterException.class, () -> c.exactMatch("HEAD", "/a"));
+        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test

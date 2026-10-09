@@ -1,6 +1,5 @@
 package top.turboweb.http.middleware.router.info;
 
-import top.turboweb.commons.exception.TurboMethodNotSupportException;
 import top.turboweb.commons.exception.TurboRouterException;
 
 import java.util.*;
@@ -31,7 +30,7 @@ public class ExactRouterInfo {
         method = Optional.ofNullable(method).orElse("").toUpperCase();
         Map<String, RouterDefinition> stringRouterDefinitionMap = routerStrategy.get(method);
         if (Objects.isNull(stringRouterDefinitionMap)) {
-            throw new TurboMethodNotSupportException("不支持的方法:" + method);
+            throw new TurboRouterException("不支持的方法:" + method, TurboRouterException.ROUTER_NOT_MATCH);
         }
         return stringRouterDefinitionMap;
     }
@@ -46,7 +45,7 @@ public class ExactRouterInfo {
         method = Optional.ofNullable(method).orElse("").toUpperCase();
         Map<String, RouterDefinition> stringRouterDefinitionMap = routerStrategy.get(method);
         if (Objects.isNull(stringRouterDefinitionMap)) {
-            throw new TurboMethodNotSupportException("不支持的方法:" + method);
+            throw new TurboRouterException("不支持的方法:" + method, TurboRouterException.ROUTER_NOT_MATCH);
         }
         // 判断路径是否存在
         if (stringRouterDefinitionMap.containsKey(path)) {
