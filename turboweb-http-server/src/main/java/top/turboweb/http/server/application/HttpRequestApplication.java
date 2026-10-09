@@ -31,6 +31,7 @@ import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.session.SessionManagerHolder;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -154,6 +155,9 @@ public class HttpRequestApplication implements Application {
      * 按 {@link HttpConfig} 创建磁盘IO线程池 -> 初始化http调度器（注入线程池与应用限流配置）->
      * 构建http请求调度处理器。装配出的中间件链销毁适配器与磁盘IO线程池依次登记进应用的
      * {@link ScopedResource} 资源作用域，由应用在关闭时按登记顺序统一释放。
+     * <p>
+     * Builder 为一次性装配载体：{@link #build()} 仅允许调用一次，重复调用在装配开始前抛出
+     * {@link IllegalStateException}。
      */
     public static class Builder {
 
@@ -195,6 +199,12 @@ public class HttpRequestApplication implements Application {
          * {@link #build()} 用它生成销毁适配器登记进应用的资源作用域
          */
         private Middleware middlewareChain = null;
+        /**
+         * 一次性构建门：装配会消费注册参数、回填链头并对全部中间件执行 init 与锁定，
+         * 同一 Builder 只允许进入一次 {@link #build()}；重复调用在装配开始前抛出
+         * {@link IllegalStateException}，第二次调用不触达任何组件
+         */
+        private final AtomicBoolean built = new AtomicBoolean(false);
 
         /**
          * 注册异常处理器（内部方法标注了异常处理注解的类实例），可多次调用叠加，
@@ -280,9 +290,16 @@ public class HttpRequestApplication implements Application {
          * 最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
          * 装配出的中间件链销毁适配器与创建的磁盘IO线程池依次登记进资源作用域交给应用持有，
-         * 由 {@link Application#close()} 的默认实现按登记顺序释放
+         * 由 {@link Application#close()} 的默认实现按登记顺序释放。
+         * <p>
+         * 同一 Builder 仅允许构建一次，重复调用在装配开始前抛出 {@link IllegalStateException}
+         *
+         * @throws IllegalStateException 同一 Builder 重复调用 build()，或同一中间件类重复注册
          */
         public HttpRequestApplication build() {
+            if (!built.compareAndSet(false, true)) {
+                throw new IllegalStateException("Builder 已构建过应用，不能重复 build()");
+            }
             log.info("开始装配http请求应用...");
             // 应用持有的资源作用域：装配期创建的可关闭资源逐个登记进来，关闭时按登记顺序统一释放
             ScopedResource scopedResource = new ScopedResource();

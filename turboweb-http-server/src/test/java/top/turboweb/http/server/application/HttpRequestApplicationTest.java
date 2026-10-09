@@ -185,8 +185,8 @@ class HttpRequestApplicationTest {
     // ---------- 缺陷候选实测裁决 ----------
 
     @Test
-    @DisplayName("钉住 F5：Builder.build() 回填 this.responseConverter/this.middlewareChain，重复 build 复用同一中间件并再次 init")
-    void repeatedBuildReusesSameMiddlewareInstances() {
+    @DisplayName("F5 回归：同一 Builder 重复 build() 抛出 IllegalStateException")
+    void secondBuildOnSameBuilderIsRejected() {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
         HttpRequestApplication.Builder builder = new HttpRequestApplication.Builder()
@@ -194,16 +194,16 @@ class HttpRequestApplicationTest {
                 .middleware(mw);
 
         HttpRequestApplication first = builder.build();
-        HttpRequestApplication second = builder.build();
 
-        // 期望的正确实现应在 build() 后重置自身状态/不复用已锁定的中间件。
-        // 钉住 F5：若将来修正，本用例应改为期望正确行为（修正 F5 后本用例应改为断言第二次不再 init 同一实例）。
-        assertEquals(List.of("init:mw", "init:mw"), events,
-                "第二次 build 对已被锁定的同一中间件再次 init，Builder 非幂等");
+        IllegalStateException ex = assertThrows(IllegalStateException.class, builder::build,
+                "F5 修复回归：Builder 以原子布尔一次性门拒绝重复 build");
+        assertEquals("Builder 已构建过应用，不能重复 build()", ex.getMessage());
+
+        assertEquals(List.of("init:mw"), events,
+                "第二次 build 在进入装配前即被拒绝，未对同一中间件二次 init");
         first.close();
-        second.close();
-        assertEquals(List.of("init:mw", "init:mw", "destroy:mw", "destroy:mw"), events,
-                "两个应用共享同一中间件实例，两次 close 各自销毁它一次");
+        assertEquals(List.of("init:mw", "destroy:mw"), events,
+                "首个应用正常销毁其唯一中间件实例");
     }
 
     @Test
