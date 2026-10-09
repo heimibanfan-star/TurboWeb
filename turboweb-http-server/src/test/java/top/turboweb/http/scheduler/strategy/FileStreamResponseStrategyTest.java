@@ -115,10 +115,10 @@ class FileStreamResponseStrategyTest {
     }
 
     @Test
-    @DisplayName("钉住：offset>0 时物理仍从文件头读（Review Focus 1）")
-    void offsetRangeIsReadFromPhysicalFileHead() throws IOException {
-        // doReadChunk 用通道当前位置读取，offset 只参与 remaining 计算——
-        // "hello" 的 [2,5) 窗口实发 "hel" 而非 "llo"。钉住现状；改版时本用例改期望。
+    @DisplayName("HS-25 回归：offset>0 的窗口按物理偏移读取（'hello' 的 [2,5) 实发 'llo'）")
+    void offsetRangeIsReadFromItsPhysicalOffset() throws IOException {
+        // doReadChunk 按流逻辑偏移做绝对读，读取起点与窗口同坐标——
+        // "hello" 的 [2,5) 窗口实发 "llo"，Content-Length=3 与实体相符。
         FileStreamResponse resp = response(write("o.txt", "hello"), 8, 2, 3);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
@@ -126,7 +126,7 @@ class FileStreamResponseStrategyTest {
                     .handle(resp, new InternalConnectSession(channel));
             assertTrue(f.isSuccess());
             Object[] out = drain(channel);
-            assertEquals("hel", concatBody(out));
+            assertEquals("llo", concatBody(out), "修复形状：窗口起点即物理偏移，不再从文件头错位读");
             releaseAll(out);
         } finally {
             channel.finishAndReleaseAll();

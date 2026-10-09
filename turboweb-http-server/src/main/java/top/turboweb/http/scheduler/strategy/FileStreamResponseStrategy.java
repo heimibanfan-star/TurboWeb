@@ -200,7 +200,8 @@ public class FileStreamResponseStrategy extends ResponseStrategy {
         int bufSize = (int) Math.min(remaining, response.getChunkSize());
         ByteBuf buf = PooledByteBufAllocator.DEFAULT.directBuffer(bufSize);
         int writeIndex = buf.writerIndex();
-        int read = response.getFileChannel().read(buf.nioBuffer(writeIndex, bufSize));
+        // 按流逻辑偏移做绝对读：读取起点与窗口坐标一致，offset>0 时不会错位读物理文件头
+        int read = response.getFileChannel().read(buf.nioBuffer(writeIndex, bufSize), position);
         if (read > 0) {
             buf.writerIndex(writeIndex + read);
             sink.next(buf);
