@@ -30,8 +30,8 @@ public class ReactorResponse extends DefaultHttpResponse implements InternalCall
     /** 响应体 Flux 流，用于异步推送数据 */
     public final Flux<ByteBuf> bodyFlux;
 
-    /** 响应内容的字符集 */
-    private final Charset charset;
+    /** 响应内容的字符集，随 {@link #setContentType(ContentType)} 同步更新 */
+    private Charset charset;
 
     /**
      * 使用默认 HTML 内容类型创建 ReactorResponse。
@@ -56,12 +56,15 @@ public class ReactorResponse extends DefaultHttpResponse implements InternalCall
     }
 
     /**
-     * 设置响应内容类型。
+     * 设置响应内容类型，并同步更新响应字符集。
+     *
+     * <p>写入 Content-Type 头的同时刷新 {@link #getCharset()} 的取值，
+     * 二者始终一致；内容类型不带字符集时以全局默认字符集回填。</p>
      *
      * @param contentType 内容类型 {@link ContentType}，会覆盖原有 Content-Type
      */
     public void setContentType(ContentType contentType) {
-        Charset charset = contentType.getCharset() == null ? GlobalConfig.getResponseCharset() : contentType.getCharset();
+        this.charset = contentType.getCharset() == null ? GlobalConfig.getResponseCharset() : contentType.getCharset();
         this.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType.getMimeType() + ";" + "charset=" + charset.name());
     }
 

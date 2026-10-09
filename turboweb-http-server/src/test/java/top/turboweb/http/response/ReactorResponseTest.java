@@ -52,8 +52,8 @@ class ReactorResponseTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-21：setContentType 只改 header，不改 charset 字段，getCharset 仍返回构造期值")
-    void setContentTypeOnlyChangesHeaderNotField() {
+    @DisplayName("HS-21 回归：setContentType 同步 charset 字段，getCharset 与 header 声明一致")
+    void setContentTypeSyncsCharsetFieldWithHeader() {
         ReactorResponse resp = new ReactorResponse(Flux.empty(),
                 ContentType.create("text/html", StandardCharsets.UTF_8));
 
@@ -61,9 +61,15 @@ class ReactorResponseTest {
 
         assertEquals("application/octet-stream;charset=ISO-8859-1",
                 resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
-        // 钉住 HS-21：若将来修正，本用例应改为期望正确行为（setContentType 同步 charset 字段后 getCharset() 返回 ISO-8859-1，与 header 一致）
-        assertEquals(StandardCharsets.UTF_8, resp.getCharset(),
-                "header 已切到 ISO-8859-1，getCharset() 却仍报 UTF-8——字段与 header 不一致");
+        assertEquals(StandardCharsets.ISO_8859_1, resp.getCharset(),
+                "charset 字段随 setContentType 同步，getCharset() 与 header 同为 ISO-8859-1");
+
+        // 三元回退的另一支：新内容类型不带字符集时，字段与 header 均回落到全局默认
+        resp.setContentType(ContentType.create("text/plain"));
+        assertEquals("text/plain;charset=" + GlobalConfig.getResponseCharset().name(),
+                resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
+        assertEquals(GlobalConfig.getResponseCharset(), resp.getCharset(),
+                "无字符集的内容类型回退全局默认，字段与 header 一致");
     }
 
     @Test
