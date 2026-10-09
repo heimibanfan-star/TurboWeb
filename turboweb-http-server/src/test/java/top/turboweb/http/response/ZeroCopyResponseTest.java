@@ -58,16 +58,17 @@ class ZeroCopyResponseTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-20：Content-Length 用 length-offset，而 FileRegion 的 count 是 length，二者在 offset≠0 时不一致")
-    void offsetAndLengthHeaderDisagreesWithRegionCount() throws IOException {
+    @DisplayName("HS-20 回归：Content-Length 与 FileRegion count 在 offset≠0 时同为传输字节数")
+    void contentLengthEqualsRegionCountWithNonZeroOffset() throws IOException {
         ZeroCopyResponse resp = new ZeroCopyResponse(write("z.bin", "abcdef").toFile(), 2L, 5L);
         FileRegion region = resp.getFileRegion();
         try {
             assertEquals(2L, region.position());
-            assertEquals(5L, region.count(), "region 从偏移 2 起传 5 字节");
-            // header 却按 5 - 2 = 3 声明；真写出会送出 5 字节（受文件长度截断后可能更少）。
-            // 钉住 HS-20：若将来修正，本用例应改为期望正确行为（Content-Length 与 FileRegion count 一致取 5；真写出的字节数由阶段 3/4 的真实下载用例裁决）。
-            assertEquals("3", resp.headers().get(HttpHeaderNames.CONTENT_LENGTH));
+            assertEquals(5L, region.count(), "region 从偏移 2 起请求传 5 字节");
+            // 头声明与 region count 同为 count（5）；自偏移 2 起文件只剩 4 字节可读，
+            // transferTo 到文件尾自然截断，实际写出字节数由真实下载用例侧裁决。
+            assertEquals("5", resp.headers().get(HttpHeaderNames.CONTENT_LENGTH),
+                    "Content-Length 取传输字节数，与 region 请求的 count 一致");
         } finally {
             region.release();
         }

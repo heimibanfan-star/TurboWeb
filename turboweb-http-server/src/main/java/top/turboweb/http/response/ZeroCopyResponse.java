@@ -28,16 +28,17 @@ public class ZeroCopyResponse extends AbstractFileResponse implements InternalCa
     private final FileRegion fileRegion;
 
     /**
-     * 使用文件及指定偏移量和长度创建零拷贝响应对象。
+     * 使用文件及指定起始偏移量与传输字节数创建零拷贝响应对象。
      *
      * @param file   待传输的文件
      * @param offset 文件传输起始偏移量
-     * @param length 文件传输长度
+     * @param count  自起始偏移量起传输的字节数（与 {@link FileRegion#count()} 同义；
+     *               超出文件尾的部分写出时自然截断）
      */
-    public ZeroCopyResponse(File file, long offset, long length) {
+    public ZeroCopyResponse(File file, long offset, long count) {
         super(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset());
-        fileRegion = new DefaultFileRegion(file, offset, length);
-        this.headers().add(HttpHeaderNames.CONTENT_LENGTH, (length -  offset));
+        fileRegion = new DefaultFileRegion(file, offset, count);
+        this.headers().add(HttpHeaderNames.CONTENT_LENGTH, count);
     }
 
     /**
@@ -50,17 +51,18 @@ public class ZeroCopyResponse extends AbstractFileResponse implements InternalCa
     }
 
     /**
-     * 使用文件通道及指定偏移量和长度创建零拷贝响应对象。
+     * 使用文件通道及指定起始偏移量与传输字节数创建零拷贝响应对象。
      *
      * @param fileChannel 文件通道
      * @param offset      文件传输起始偏移量
-     * @param length      文件传输长度
+     * @param count       自起始偏移量起传输的字节数（与 {@link FileRegion#count()} 同义；
+     *                    超出文件尾的部分写出时自然截断）
      * @param filename    响应文件名
      */
-    public ZeroCopyResponse(FileChannel fileChannel, long offset, long length, String filename) {
+    public ZeroCopyResponse(FileChannel fileChannel, long offset, long count, String filename) {
         super(HttpResponseStatus.OK, filename, GlobalConfig.getResponseCharset());
-        fileRegion = new DefaultFileRegion(fileChannel, offset, length);
-        this.headers().add(HttpHeaderNames.CONTENT_LENGTH, (length -  offset));
+        fileRegion = new DefaultFileRegion(fileChannel, offset, count);
+        this.headers().add(HttpHeaderNames.CONTENT_LENGTH, count);
     }
 
     /**
