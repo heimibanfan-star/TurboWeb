@@ -1,5 +1,7 @@
 package top.turboweb.http.middleware;
 
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.http.context.HttpContext;
@@ -29,11 +31,14 @@ import java.util.*;
  * <ul>
  *     <li>在服务器初始化阶段，所有分支中间件应调用 {@link #init(Middleware)} 组装中间件链。</li>
  *     <li>在运行时，根据 {@link #getBranchKey(HttpContext)} 获取对应链路执行。</li>
+ *     <li>在销毁阶段，覆写的 {@link #destroy()} 随主链销毁回调触达，按注册顺序补销毁各分支内的中间件。</li>
  * </ul>
  * </p>
  *
  */
 public abstract class BranchMiddleware extends Middleware {
+
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(BranchMiddleware.class);
 
     /**
      * 存放每个分支对应的中间件集合。
@@ -162,6 +167,27 @@ public abstract class BranchMiddleware extends Middleware {
                 }
                 // 存入容器
                 middlewareChains.put(key, sentinelMiddleware);
+            }
+        }
+    }
+
+    /**
+     * 销毁分支内的全部中间件。
+     * <p>
+     * 分支成员挂在 {@link #middlewareMap} 上、不在主链 {@code getNext()} 指针上，
+     * 应用关闭时沿主链的销毁遍历触达不到它们；本覆写按与 {@link #init(Middleware)}
+     * 相同的逐分支、逐成员顺序调用各成员的 {@link Middleware#destroy()}。
+     * 单个成员的销毁异常只记录日志，不中断其余成员的销毁。
+     */
+    @Override
+    public void destroy() {
+        for (LinkedHashSet<Middleware> middlewares : middlewareMap.values()) {
+            for (Middleware middleware : middlewares) {
+                try {
+                    middleware.destroy();
+                } catch (Exception e) {
+                    log.error("分支中间件销毁异常: {}", middleware.getClass().getName(), e);
+                }
             }
         }
     }

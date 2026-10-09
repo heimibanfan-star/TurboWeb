@@ -557,8 +557,8 @@ class MiddlewareTypesTest {
     }
 
     @Test
-    @DisplayName("观察（裁决归 Task 3）：BranchMiddleware 未覆写 destroy，分支成员收不到 destroy 回调")
-    void branchMembersReceiveNoDestroyFromBranchMiddleware() {
+    @DisplayName("F1 回归：BranchMiddleware 覆写 destroy 后分支成员收到销毁回调")
+    void branchMembersReceiveDestroyFromBranchMiddleware() {
         List<String> events = new ArrayList<>();
         FixedBranch branch = new FixedBranch("a");
         branch.addMiddleware("a", new ChainProbe("m1", events, null));
@@ -566,10 +566,8 @@ class MiddlewareTypesTest {
 
         branch.destroy();
 
-        assertFalse(events.stream().anyMatch(e -> e.startsWith("destroy:")),
-                "destroy 继承自 BaseMiddleware 的空实现；分支成员的销毁只能由主链遍历触达（"
-                        + "HttpRequestApplication.java:128-144）——与 spec §8 候选缺陷同一现象的观察点，"
-                        + "裁决归 Task 3，本任务不表态");
+        assertEquals(List.of("init:m1", "destroy:m1"), events,
+                "分支成员按注册序经 BranchMiddleware.destroy 覆写各收到一次销毁回调");
     }
 
     @Test

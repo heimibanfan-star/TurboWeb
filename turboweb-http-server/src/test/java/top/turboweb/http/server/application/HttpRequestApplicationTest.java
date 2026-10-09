@@ -207,8 +207,8 @@ class HttpRequestApplicationTest {
     }
 
     @Test
-    @DisplayName("钉住 F1：分支中间件不在主链 getNext() 上，销毁遍历不到分支内的中间件")
-    void branchMiddlewareInsideBranchIsNeverDestroyed() {
+    @DisplayName("F1 回归：关闭应用时分支内中间件随分支链一并销毁")
+    void branchMiddlewareInsideBranchIsDestroyedOnClose() {
         List<String> events = new ArrayList<>();
         TestBranchMiddleware owner = new TestBranchMiddleware();
         RecordingMiddleware branchMw = new RecordingMiddleware("branch", events);
@@ -225,11 +225,9 @@ class HttpRequestApplicationTest {
 
         app.close();
 
-        // 期望的正确行为是 branchMw.destroy() 也被调用；当前销毁只沿主链 getNext() 遍历。
-        // 钉住 F1：若将来修正，本用例应改为期望正确行为（修正 F1 后本用例应改为断言 events 含 "destroy:branch"）。
         assertTrue(events.contains("destroy:main"), "主链上的中间件被销毁");
-        assertFalse(events.contains("destroy:branch"),
-                "钉住 F1：分支内的中间件不在主链上，destroyMiddlewareChain 漏掉它");
+        assertTrue(events.contains("destroy:branch"),
+                "F1 修复回归：BranchMiddleware 覆写 destroy 后，分支内中间件随分支链销毁、不再漏于主链遍历");
     }
 
     // ---------- 夹具 ----------
