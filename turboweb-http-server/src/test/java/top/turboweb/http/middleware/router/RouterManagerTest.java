@@ -14,7 +14,6 @@ import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.router.container.DefaultRouterContainer;
 import top.turboweb.http.middleware.router.container.RouterContainer;
 import top.turboweb.http.middleware.router.info.AutoBindRouterDefinition;
-import top.turboweb.http.middleware.router.info.LambdaRouterDefinition;
 import top.turboweb.http.middleware.router.info.MethodRouterDefinition;
 import top.turboweb.http.middleware.router.info.RouterDefinition;
 import top.turboweb.http.testkit.RecordingMiddleware;
@@ -33,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * {@link RouterManager} 的分发骨架与三种 {@link RouterDefinition} 的契约（spec §5：middleware/router）。
+ * {@link RouterManager} 的分发骨架与两种 {@link RouterDefinition} 的契约（spec §5：middleware/router）。
  *
  * <p>同包测试，`getRouterContainer()` 的 `protected` 覆盖可直接调用，因此可以用真实
  * {@code DefaultRouterContainer} 摆出路由表，再喂内存版 ctx 断言命中结果——全部是确定量，
@@ -196,13 +195,5 @@ class RouterManagerTest {
                 new AutoBindRouterDefinition(List.of(), target, zero);
 
         assertEquals("zero", definition.invoke(ctx(HttpMethod.GET, "/zero")));
-    }
-
-    @Test
-    void lambdaRouterDefinitionDelegatesToHandler() throws Throwable {
-        LambdaHandler handler = context -> "lambda-result";
-        LambdaRouterDefinition definition = new LambdaRouterDefinition(handler);
-
-        assertEquals("lambda-result", definition.invoke(ctx(HttpMethod.GET, "/lambda")));
     }
 }

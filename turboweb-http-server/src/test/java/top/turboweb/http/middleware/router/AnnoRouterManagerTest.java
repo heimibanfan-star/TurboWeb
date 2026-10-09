@@ -151,9 +151,9 @@ class AnnoRouterManagerTest {
         AnnoRouterManager manager = initialized("", new RequestPathController());
         RouterContainer container = manager.getRouterContainer();
 
-        // 钉住现状：若将来修正，本用例应改为期望正确行为（含参路径只进 trie，与 lambda 路由一致）
+        // 钉住现状：若将来修正，本用例应改为期望正确行为（含参路径只进 trie）
         assertNotNull(container.exactMatch("GET", "/fixture/user/{id}"),
-                "注解路由把含参路径同时放进精确表（lambda 路由则只放 trie，见 LambdaRouterGroupTest）");
+                "注解路由把含参路径同时放进精确表");
         RouterContainer.TrieMatchResult match = container.trieMatch("GET", "/fixture/user/42");
         assertNotNull(match);
         assertEquals("42", match.params().get("id"));
