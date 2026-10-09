@@ -85,6 +85,9 @@ class ParamInfoParsersTest {
         void uploadObject(@Upload("f") Object v) {}
         void uploadList(@Upload("f") List<FileUpload> v) {}
         void uploadSet(@Upload("f") Set<FileUpload> v) {}
+        void uploadListWithoutAnnotation(List<FileUpload> v) {}
+        void uploadStringList(@Upload("f") List<String> v) {}
+        void uploadRawCollection(@Upload("f") Collection<FileUpload> v) {}
         void uploadString(@Upload("f") String v) {}
         void uploadFileWithoutAnnotation(FileUpload v) {}
 
@@ -380,14 +383,31 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-16：List/Set<FileUpload> 拿不到 binder（入口守卫 isAssignableFrom 判反）")
-    void uploadCollectionTypesGetNoBinder() {
-        // :44 的守卫要求 T.isAssignableFrom(FileUpload.class)，对 List/Set 恒假；
-        // 于是 :48 起的集合判定、collectionType 1/2、loadFiles/HashSet 分支全部不可达。
-        // 修正（改成对元素类型判断）后，本用例应改为期望非 null 的 binder。
-        // 钉住 HS-16：若将来修正，本用例应改为期望正确行为（守卫改为对元素类型判定）。
-        assertNull(new UploadParameterInfoParser().parse(parameter("uploadList")));
-        assertNull(new UploadParameterInfoParser().parse(parameter("uploadSet")));
+    @DisplayName("HS-16 回归：@Upload 集合参数走 loadFiles 绑定，集合分支可达")
+    void uploadCollectionTypesBindFileCollections() {
+        // 守卫修正后：集合形参显式标注 @Upload 且元素类型相符才认领，collectionType 1/2 与 loadFiles/HashSet 分支可达
+        FileUpload a = proxy(FileUpload.class);
+        FileUpload b = proxy(FileUpload.class);
+        Stub stub = new Stub().returning("loadFiles", List.of(a, b));
+        ParameterBinder listBinder = new UploadParameterInfoParser().parse(parameter("uploadList"));
+        assertNotNull(listBinder, "List<FileUpload> + @Upload 应被认领");
+        assertEquals(List.of(a, b), listBinder.bindParameter(stub.ctx()));
+        assertEquals("f", stub.lastArgs("loadFiles")[0], "注解的 value 即表单字段名");
+        ParameterBinder setBinder = new UploadParameterInfoParser().parse(parameter("uploadSet"));
+        assertNotNull(setBinder, "Set<FileUpload> + @Upload 应被认领");
+        assertEquals(Set.of(a, b), setBinder.bindParameter(stub.ctx()), "Set 分支把 loadFiles 结果包装成 HashSet");
+        // 字段缺失（loadFiles 返回 null）归一为空集合
+        Stub empty = new Stub().returning("loadFiles", null);
+        assertEquals(List.of(), listBinder.bindParameter(empty.ctx()));
+        assertEquals(Set.of(), setBinder.bindParameter(empty.ctx()));
+        // 无 @Upload 的裸 List 不认领——不得截走其他渠道负责的参数
+        assertNull(new UploadParameterInfoParser().parse(parameter("uploadListWithoutAnnotation")));
+        // 声明元素类型与 FileUpload 不符 → 不认领
+        assertNull(new UploadParameterInfoParser().parse(parameter("uploadStringList")));
+        // List/Set 之外的裸集合类型 → 注册期异常，与查询侧同款
+        TurboRouterDefinitionCreateException ex = assertThrows(TurboRouterDefinitionCreateException.class,
+                () -> new UploadParameterInfoParser().parse(parameter("uploadRawCollection")));
+        assertEquals("not support type of collection:java.util.Collection", ex.getMessage());
     }
 
     @Test
