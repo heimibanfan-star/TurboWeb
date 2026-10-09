@@ -101,7 +101,7 @@ public class AnnoRouterManager extends RouterManager {
         } else {
             pathPrefix = pathPrefix.trim();
         }
-        if (pathPrefix.isEmpty()) {
+        if (!pathPrefix.startsWith("/")) {
             pathPrefix = "/" + pathPrefix;
         }
         if (pathPrefix.endsWith("/")) {
