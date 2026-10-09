@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,23 +45,16 @@ class DefaultHttpResponseConverterTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-23：HttpResult.createResponse 末行 set(空 headers) 在 Netty 4.2 语义下清空全部响应头")
+    @DisplayName("HS-23 回归：HttpResult 委托路径两头俱在（调用方头先写、自算 Content-Type/Content-Length 后写）")
     void httpResultDelegatesToItsOwnResponse() {
         HttpResponse response = converter().convertor(new HttpResult<>(201, "hi"));
 
         FullHttpResponse full = (FullHttpResponse) response;
         assertEquals(201, full.status().code());
         assertEquals("hi", text(full));
-        // HttpResult.java:42 保证 headers 恒非空（两参构造传入 null 时建空 DefaultHttpHeaders），
-        // :62 又无条件 response.headers().set(headers)；Netty 4.2 的 DefaultHeaders.set(Headers)
-        // 语义是 clear+add，于是 :53 写下的 Content-Type 与 setContent(:76) 写下的 Content-Length
-        // 都被清空——状态码与响应体不依赖请求头所以仍在。
-        // 钉住 HS-23：若将来修正，本用例应改为期望正确行为（末行改为逐名增量 set 而非整体清空，
-        // Content-Type=text/html;charset=utf-8、Content-Length=2）。
-        assertNull(full.headers().get(HttpHeaderNames.CONTENT_TYPE),
-                "HS-23：空 headers 的整体 set 清空了 Content-Type，钉住现状");
-        assertNull(full.headers().get(HttpHeaderNames.CONTENT_LENGTH),
-                "HS-23：同上，Content-Length 也被清空，钉住现状");
+        assertEquals("text/html;charset=utf-8", full.headers().get(HttpHeaderNames.CONTENT_TYPE));
+        assertEquals(2, full.headers().getInt(HttpHeaderNames.CONTENT_LENGTH),
+                "HS-23 回归：createResponse 先整体写入调用方头再逐名写自算头，两头不再被抹除");
     }
 
     @Test

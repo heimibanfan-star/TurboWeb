@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * {@link HttpResult} 的状态码/头/体承载、String 与 JSON 两条内容分支（spec §5：response）。
@@ -70,7 +69,7 @@ class HttpResultTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-23：String 分支 :53 的 Content-Type 与 :76 的 Content-Length 被 :62 空 headers 整体 set 抹除")
+    @DisplayName("HS-23 回归：String 分支写 text/html Content-Type，Content-Length 取实际体长")
     void stringDataIsWrittenAsHtmlWithoutSerialization() {
         StubJsonSerializer serializer = new StubJsonSerializer();
         FullHttpResponse response = (FullHttpResponse) new HttpResult<>("hi <b>").createResponse(serializer);
@@ -78,21 +77,16 @@ class HttpResultTest {
             assertEquals(200, response.status().code());
             assertEquals("hi <b>", response.content().toString(GlobalConfig.getResponseCharset()));
             assertEquals(0, serializer.calls.get(), "String 数据不得经过 JSON 序列化");
-            // HttpResult.java:42 两参构造恒建空 DefaultHttpHeaders，:62 无条件 response.headers().set(headers)
-            // （Netty 4.2 DefaultHeaders.set(Headers) 语义为 clear+add），:53 的 Content-Type 与 :76 的 Content-Length
-            // 都被清空；状态码与响应体不依赖头，仍逐字断言。
-            // 钉住 HS-23：若将来修正，本用例应改为期望正确行为（Content-Type=text/html;charset=utf-8、Content-Length=6）
-            assertNull(response.headers().get(HttpHeaderNames.CONTENT_TYPE),
-                    "HS-23：空 headers 的整体 set 清空了 Content-Type，钉住现状");
-            assertNull(response.headers().get(HttpHeaderNames.CONTENT_LENGTH),
-                    "HS-23：同上，Content-Length 也被清空，钉住现状");
+            assertEquals("text/html;charset=utf-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
+            assertEquals(6, response.headers().getInt(HttpHeaderNames.CONTENT_LENGTH),
+                    "HS-23 回归：调用方头先整体写入、自算头后写，不再被空 headers 整体 set 抹除");
         } finally {
             response.release();
         }
     }
 
     @Test
-    @DisplayName("钉住 HS-23：JSON 分支 :57 的 Content-Type 与 :76 的 Content-Length 被 :62 空 headers 整体 set 抹除")
+    @DisplayName("HS-23 回归：JSON 分支写 application/json Content-Type，Content-Length 取序列化体长")
     void objectDataIsSerializedAsJson() {
         StubJsonSerializer serializer = new StubJsonSerializer();
         FullHttpResponse response = (FullHttpResponse) new HttpResult<>(Map.of("k", "v")).createResponse(serializer);
@@ -100,32 +94,25 @@ class HttpResultTest {
             String json = "{\"ok\":1}";
             assertEquals(json, response.content().toString(GlobalConfig.getResponseCharset()));
             assertEquals(1, serializer.calls.get());
-            // 同上：:42 空 headers + :62 无条件整体 set（clear+add），:57 与 :76 写下的两头必被抹为 null。
-            // 钉住 HS-23：若将来修正，本用例应改为期望正确行为（Content-Type=application/json;charset=utf-8、Content-Length=9）
-            assertNull(response.headers().get(HttpHeaderNames.CONTENT_TYPE),
-                    "HS-23：空 headers 的整体 set 清空了 Content-Type，钉住现状");
-            assertNull(response.headers().get(HttpHeaderNames.CONTENT_LENGTH),
-                    "HS-23：同上，Content-Length 也被清空，钉住现状");
+            assertEquals("application/json;charset=utf-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
+            assertEquals(8, response.headers().getInt(HttpHeaderNames.CONTENT_LENGTH),
+                    "HS-23 回归：Content-Length 按实际序列化体长写入（桩序列化器定值 8 字节），不被调用方空头集抹除");
         } finally {
             response.release();
         }
     }
 
     @Test
-    @DisplayName("钉住 HS-23：null 序列化体时 :57 的 Content-Type 与 :78 的 Content-Length=0 被 :62 空 headers 整体 set 抹除")
+    @DisplayName("HS-23 回归：null 序列化体时 Content-Type 仍在、Content-Length=0")
     void nullSerializedContentProducesZeroLengthBody() {
         StubJsonSerializer serializer = new StubJsonSerializer();
         serializer.json = null; // 序列化器显式返回 null，走 setContent 的 content==null 分支
         FullHttpResponse response = (FullHttpResponse) new HttpResult<>(new Object()).createResponse(serializer);
         try {
             assertEquals(0, response.content().readableBytes());
-            // 同上：:42 空 headers + :62 无条件整体 set（clear+add），:57 与 :78 写下的两头必被抹为 null；
-            // 空响应体不是头，仍逐字钉 0 长度。
-            // 钉住 HS-23：若将来修正，本用例应改为期望正确行为（Content-Type=application/json;charset=utf-8、Content-Length=0）
-            assertNull(response.headers().get(HttpHeaderNames.CONTENT_TYPE),
-                    "HS-23：空 headers 的整体 set 清空了 Content-Type，钉住现状");
-            assertNull(response.headers().get(HttpHeaderNames.CONTENT_LENGTH),
-                    "HS-23：同上，Content-Length（含 0 值）也被清空，钉住现状");
+            assertEquals("application/json;charset=utf-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
+            assertEquals(0, response.headers().getInt(HttpHeaderNames.CONTENT_LENGTH),
+                    "HS-23 回归：0 长度的 Content-Length 同样是显式写入的头，不被抹除");
         } finally {
             response.release();
         }

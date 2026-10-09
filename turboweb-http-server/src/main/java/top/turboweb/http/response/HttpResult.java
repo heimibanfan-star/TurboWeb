@@ -46,6 +46,8 @@ public class HttpResult <T> {
     public HttpResponse createResponse(JsonSerializer jsonSerializer) {
         // 创建响应对象
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
+        // 设置响应头（先整体写入调用方头，后写的 Content-Type / Content-Length 以框架按实际响应体算出的值为准）
+        response.headers().set(headers);
         // 处理响应内容
         String content;
         if (data instanceof String s) {
@@ -58,8 +60,6 @@ public class HttpResult <T> {
         }
         // 设置响应内容
         setContent(response, content);
-        // 设置响应头
-        response.headers().set(headers);
         return response;
     }
 
