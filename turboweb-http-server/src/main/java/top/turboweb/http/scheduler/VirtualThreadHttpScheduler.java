@@ -102,8 +102,14 @@ public class VirtualThreadHttpScheduler implements HttpScheduler {
      * @param maxSuspendThreadNum  最大允许挂起等待的线程数
      * @param timeout              挂起线程等待许可的超时时间（毫秒）
      * @throws NullPointerException 线程池为null
+     * @throws IllegalArgumentException 开启限流时 {@code limit} 不为正数——零许可信号量会使
+     *                                  {@code tryAcquire} 恒假、全部请求被拒绝，负数同样无从发放许可，
+     *                                  两者均在构造期拒绝
      */
     public VirtualThreadHttpScheduler(Processor processorChain, ThreadPool threadPool, boolean enableLimit, int limit, int maxSuspendThreadNum, long timeout) {
+        if (enableLimit && limit <= 0) {
+            throw new IllegalArgumentException("开启限流时最大并发线程数必须大于0");
+        }
         this.processorChain = processorChain;
         this.enableLimit = enableLimit;
         this.maxSuspendThreadNum = maxSuspendThreadNum;
