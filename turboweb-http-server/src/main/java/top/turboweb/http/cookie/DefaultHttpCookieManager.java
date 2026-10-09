@@ -51,6 +51,10 @@ public class DefaultHttpCookieManager implements HttpCookieManager {
                 int index = s.indexOf('=');
                 if (index > 0) {
                     String key = s.substring(0, index).trim();
+                    if (key.isEmpty()) {
+                        // 键段只含空白时与"等号在首"的畸形段同样跳过，不进入 Cookie 构造校验
+                        continue;
+                    }
                     String value = s.substring(index + 1).trim();
                     httpCookieMap.put(key, new HttpCookie(key, value));
                 }

@@ -13,9 +13,9 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -79,9 +79,9 @@ class DefaultHttpCookieManagerTest {
     @Test
     @DisplayName("无等号、或等号在首的段被静默跳过")
     void malformedSegmentsAreSkipped() {
-        // 分号后不留空格："; =orphan" 会让段变成 " =orphan"，indexOf('=')==1 通过 index>0 守卫、
-        // 键 trim 后为空串 → 构造期抛 IAE（那正是 blankKeySegmentThrowsDuringConstruction 钉住的形态）。
-        // 要命中"等号在首被跳过"的 index==0 分支，'=' 必须真的是段首字符。
+        // 段 "garbage" 无等号（indexOf 返回 -1）、段 "=orphan" 等号在首（indexOf 返回 0），
+        // 两类都被 index > 0 守卫跳过；空白键段（如 " =orphan"）由键 trim 后判空跳过，
+        // 见 blankKeySegmentIsSkipped。要命中"等号在首"分支，'=' 必须真的是段首字符。
         DefaultHttpCookieManager manager =
                 new DefaultHttpCookieManager(cookieHeader("a=1;garbage;=orphan;b=2"));
 
@@ -111,15 +111,17 @@ class DefaultHttpCookieManagerTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-7：空键段（空白+等号）让构造期抛 IAE，而不是像其它畸形段那样被跳过")
-    void blankKeySegmentThrowsDuringConstruction() {
-        // "a=1; =oops" 的第二段是 " =oops"：indexOf('=') == 1 > 0 通过了守卫，
-        // 但 substring(0,1).trim() 得到空串，HttpCookie 的 checkKey 抛 "key can not be empty"。
-        // 对比 malformedSegmentsAreSkipped：'=' 在首的段会被跳过，空白键却把整个构造打挂。
-        // 钉住 HS-7：若将来修正，本用例应改为期望正确行为（若将来把守卫收紧为对键做非空校验后 continue，本用例应改为断言该段被跳过）。
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> new DefaultHttpCookieManager(cookieHeader("a=1; =oops")));
-        assertEquals("key can not be empty", ex.getMessage());
+    @DisplayName("HS-7 回归：空键段（空白+等号）与'等号在首'一样被静默跳过，不再让构造期抛 IAE")
+    void blankKeySegmentIsSkipped() {
+        // 修复前钉住的现状：'=' 前有空白、等号不在段首的段（" =oops"）通过 index>0 守卫后，
+        // 键 trim 成空串、HttpCookie.checkKey 抛 "key can not be empty"，同头其它 Cookie 全部丢失。
+        // 修复后按登记注翻正：空键段与 '='/无 '=' 的畸形段同样被跳过，其余键值照常收录。
+        DefaultHttpCookieManager manager = assertDoesNotThrow(
+                () -> new DefaultHttpCookieManager(cookieHeader("a=1; =oops; b=2")));
+
+        assertEquals(Map.of("a", "1", "b", "2"), manager.getCookies(),
+                "空键段被跳过，同头的合法段不受牵连");
+        assertNull(manager.getCookie(""), "空键不得进入映射");
     }
 
     @Test
