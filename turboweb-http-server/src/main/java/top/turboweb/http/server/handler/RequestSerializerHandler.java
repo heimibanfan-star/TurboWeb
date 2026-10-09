@@ -3,11 +3,11 @@ package top.turboweb.http.server.handler;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.commons.utils.thread.ThreadAssert;
 
 import java.util.LinkedList;
 import java.util.Queue;
@@ -26,7 +26,20 @@ public class RequestSerializerHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        ThreadAssert.assertIsEventLoop(ctx.channel().eventLoop());
+        EventLoop eventLoop = ctx.channel().eventLoop();
+        if (!eventLoop.inEventLoop()) {
+            // 非本channel的事件循环线程调用时，不触碰缓冲队列与处理中标记，
+            // 把控制权移交回该channel的事件循环执行，保证状态单线程访问
+            eventLoop.execute(() -> {
+                try {
+                    channelRead(ctx, msg);
+                } catch (Exception e) {
+                    // 照Netty对每次handler调用的处理口径：异常交回exceptionCaught通道由管线管理
+                    ctx.fireExceptionCaught(e);
+                }
+            });
+            return;
+        }
         if (msg instanceof FullHttpRequest fullHttpRequest) {
             // 判断当前连接是否有请求正在处理
             if (isProcessing) {
@@ -59,12 +72,12 @@ public class RequestSerializerHandler extends ChannelDuplexHandler {
                     }
                     // 获取缓冲的请求
                     FullHttpRequest request = cacheRequest.poll();
-                    // 恢复当前请求
+                    // 恢复当前请求：channelRead的受检异常不作为断连依据，
+                    // 交回exceptionCaught通道由管线按Netty口径管理
                     try {
                         this.channelRead(ctx, request);
                     } catch (Exception e) {
-                        log.error("RequestSerializerHandler error", e);
-                        ctx.close();
+                        ctx.fireExceptionCaught(e);
                     }
                 });
             }

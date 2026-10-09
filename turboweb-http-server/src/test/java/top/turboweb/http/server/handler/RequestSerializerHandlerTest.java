@@ -1,8 +1,10 @@
 package top.turboweb.http.server.handler;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
@@ -12,14 +14,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.testkit.Requests;
 
+import java.lang.reflect.Proxy;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * 连接级请求串行化的 L2 面：单请求直通、忙时入缓冲、响应结束回放、
- * 满 8 先关连接后仍入队（钉住形状）、inactive 清缓存、回放异常改道链尾。
+ * 满 8 先关连接后仍入队（钉住形状）、inactive 清缓存、回放异常改道链尾不断连、环外调用移交回环执行。
  * 通道为 EmbeddedChannel：无真实 socket，事件由测试线程显式驱动；
  * 引用计数断言只用带体夹具（postJson）——无体请求的 EmptyByteBuf 引用计数恒 1，
  * 拿它断言释放是空转（Netty 4.2.12 EmptyByteBuf:1012-1044、DefaultFullHttpRequest:119-149）。
@@ -35,7 +41,7 @@ class RequestSerializerHandlerTest {
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
             if (throwOnSecondRead && inbound.size() == 1) {
-                // 回放第二个请求时在下游炸掉，钉 handler 的 catch→close
+                // 回放第二个请求时在下游炸掉（下游异常由 Netty 就地改道 exceptionCaught，不回穿调用点）
                 throwOnSecondRead = false;
                 ReferenceCountUtil.release(msg); // release 对 refCnt==0 幂等安全
                 throw new IllegalStateException("downstream boom");
@@ -143,8 +149,8 @@ class RequestSerializerHandlerTest {
     }
 
     @Test
-    @DisplayName("钉住：回放期下游异常被 pipeline 截获改道 exceptionCaught，handler 的 catch→close 不可达（HS-24 候选）")
-    void replayFailureIsRoutedByPipelineNotHandlerCatch() {
+    @DisplayName("HS-24 回归：回放期下游异常被 pipeline 截获改道 exceptionCaught 至链尾，异常不作断连依据（框架管理连接）")
+    void replayFailureIsRoutedToExceptionCaughtChannelWithoutClosingChannel() {
         start();
         fwd.throwOnSecondRead = true;
         channel.pipeline().fireChannelRead(Requests.get("/a"));
@@ -152,13 +158,56 @@ class RequestSerializerHandlerTest {
         channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
         channel.runPendingTasks();
         // Netty 对每次 handler 调用整体 try/catch（AbstractChannelHandlerContext:346-361），
-        // 下游异常在抛出的 ctx 处改道 exceptionCaught、向链尾传播——从不回穿 serializer :44 的调用点，
-        // :65-68 的 catch（log+ctx.close）对回放失败不可达：连接没关、被回放请求丢了。
-        assertTrue(channel.isActive(), "兜底 close 不可达：连接未被关闭（产品意图落空的形状）");
+        // 下游异常在抛出的 ctx 处改道 exceptionCaught、向链尾传播——从不回穿 serializer 的回放调用点；
+        // 修复后回放处的 catch 是受检异常不得不捕获、捕获后交回 exceptionCaught 通道——
+        // 异常不作为断连依据，连接生命周期由框架与通信两端管理。
+        assertTrue(channel.isActive(), "修复形状：异常不断连，连接由框架与客户端管理");
         assertEquals(1, fwd.inbound.size(), "第二个请求没进过下游记录");
         // 异常没有蒸发：到达链尾后被 EmbeddedChannel 记账（EmbeddedChannelPipeline:1341-1344），
         // checkException 消费并重抛。必须在测试体内消费——否则 finishAndReleaseAll 会在 @AfterEach 里抛出。
         assertThrows(IllegalStateException.class, channel::checkException,
                 "回放异常应以未处理 exceptionCaught 的形态到达链尾");
+    }
+
+    @Test
+    @DisplayName("HS-24 回归：非本 channel 事件循环调用 channelRead 时移交回事件循环，不在调用线程触碰状态")
+    void offEventLoopCallIsHandedBackToEventLoop() throws Exception {
+        start();
+        ChannelHandlerContext realCtx = channel.pipeline().context(RequestSerializerHandler.class);
+        RequestSerializerHandler serializer = (RequestSerializerHandler) realCtx.handler();
+        // EmbeddedChannel 的派发恒已在环内，环外分支从管线进不去：
+        // 代理伪造 eventLoop 与 channel 上下文，inEventLoop 由开关控制、execute 入队由测试显式驱动
+        AtomicBoolean onLoop = new AtomicBoolean(false);
+        Deque<Runnable> pending = new ArrayDeque<>();
+        EventLoop fakeLoop = (EventLoop) Proxy.newProxyInstance(
+                EventLoop.class.getClassLoader(), new Class<?>[]{EventLoop.class},
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "inEventLoop":
+                            return onLoop.get();
+                        case "execute":
+                            pending.add((Runnable) args[0]);
+                            return null;
+                        default:
+                            return method.invoke(realCtx.channel().eventLoop(), args);
+                    }
+                });
+        Channel fakeChannel = (Channel) Proxy.newProxyInstance(
+                Channel.class.getClassLoader(), new Class<?>[]{Channel.class},
+                (proxy, method, args) -> "eventLoop".equals(method.getName())
+                        ? fakeLoop
+                        : method.invoke(realCtx.channel(), args));
+        ChannelHandlerContext proxyCtx = (ChannelHandlerContext) Proxy.newProxyInstance(
+                ChannelHandlerContext.class.getClassLoader(), new Class<?>[]{ChannelHandlerContext.class},
+                (proxy, method, args) -> "channel".equals(method.getName())
+                        ? fakeChannel
+                        : method.invoke(realCtx, args));
+        FullHttpRequest deferred = Requests.get("/defer");
+        serializer.channelRead(proxyCtx, deferred); // 模拟环外线程直调
+        assertEquals(0, fwd.inbound.size(), "环外调用不得直达下游，须移交事件循环");
+        assertEquals(1, pending.size(), "控制权应以单个任务移交回本 channel 的事件循环");
+        onLoop.set(true);
+        pending.forEach(Runnable::run); // 环内驱动移交任务
+        assertEquals(1, fwd.inbound.size(), "移交任务在环内执行后请求应到达下游");
     }
 }
