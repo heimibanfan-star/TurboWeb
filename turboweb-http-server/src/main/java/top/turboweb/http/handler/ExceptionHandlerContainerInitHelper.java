@@ -1,16 +1,12 @@
 package top.turboweb.http.handler;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.internal.logging.InternalLogger;
-import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.anno.ExceptionHandler;
 import top.turboweb.anno.ExceptionResponseStatus;
 import top.turboweb.commons.exception.TurboExceptionHandlerException;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -25,8 +21,6 @@ import java.util.List;
  * </p>
  */
 public class ExceptionHandlerContainerInitHelper {
-
-    private static final InternalLogger log = InternalLoggerFactory.getInstance(ExceptionHandlerContainerInitHelper.class);
 
     private ExceptionHandlerContainerInitHelper() {
     }
@@ -56,28 +50,6 @@ public class ExceptionHandlerContainerInitHelper {
             }
         }
         return container;
-    }
-
-    /**
-     * 通过无参构造方法创建类实例。
-     * <p>
-     * 若类中不存在无参构造方法，或实例化失败，则抛出 {@link TurboExceptionHandlerException}。
-     * </p>
-     *
-     * @param clazz 目标类
-     * @return 类的实例对象
-     */
-    private static Object createInstance(Class<?> clazz) {
-        try {
-            Constructor<?> constructor = clazz.getConstructor();
-            return constructor.newInstance();
-        } catch (NoSuchMethodException e) {
-            log.error("类上没有无参构造方法", e);
-            throw new TurboExceptionHandlerException(e.getMessage());
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            log.error("异常处理器实例创建失败：{}", clazz, e);
-            throw new TurboExceptionHandlerException(e.getMessage());
-        }
     }
 
     /**

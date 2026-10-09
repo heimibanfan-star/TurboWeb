@@ -7,21 +7,15 @@ import top.turboweb.commons.exception.TurboExceptionHandlerException;
 import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures;
 import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures.DefaultStatusHandler;
 import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures.DuplicateRuntimeHandler;
-import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures.ExplodingCtorHandler;
 import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures.InheritedHandler;
 import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures.NoAnnotatedMethodHandler;
-import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures.NoDefaultCtorHandler;
 import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures.PackagePrivateBaseSubHandler;
-import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures.PlainHandler;
 import top.turboweb.http.testkit.fixtures.ExceptionHandlerFixtures.UserExceptionHandler;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -169,48 +163,5 @@ class ExceptionHandlerContainerTest {
                 "handlerClass 取桥方法的 getDeclaringClass()：公有子类，而非 package-private 父类");
         assertEquals("unsupported:boom", definition.getMethodHandler().invoke(new UnsupportedOperationException("boom")),
                 "桥方法经 unreflect+bindTo 后可直接调用");
-    }
-
-    // ------------------------------------------------------------------ createInstance
-
-    @Test
-    @DisplayName("createInstance（私有工厂，生产路径无调用者）能创建公有无参构造的实例")
-    void createInstanceBuildsNoArgInstance() throws Throwable {
-        assertInstanceOf(PlainHandler.class, createInstanceOf(PlainHandler.class));
-    }
-
-    @Test
-    @DisplayName("createInstance：缺少无参构造时包装为 TurboExceptionHandlerException")
-    void createInstanceRejectsClassWithoutNoArgConstructor() {
-        TurboExceptionHandlerException ex = assertThrows(TurboExceptionHandlerException.class,
-                () -> createInstanceOf(NoDefaultCtorHandler.class));
-        assertTrue(ex.getMessage().contains("NoDefaultCtorHandler"), ex.getMessage());
-    }
-
-    @Test
-    @DisplayName("钉住 HS-18：构造执行失败时包装为 TurboExceptionHandlerException，cause 与消息双双丢失")
-    void createInstanceWrapsConstructorFailureWithoutPreservingCause() {
-        // 构造抛出的 IllegalStateException 被 Constructor.newInstance（:73）包进
-        // InvocationTargetException，而 catch 分支用 new TurboExceptionHandlerException(e.getMessage())。
-        // 实测（GraalVM/OpenJDK 21）：InvocationTargetException.getMessage() 为 null（它的 message
-        // 不参与 toString 合成，底层异常只挂在 getCause() 上），单参 String 构造又不带 cause——
-        // 包装后消息与原因双双丢失，只剩一条空消息的 TurboExceptionHandlerException（台账 HS-18 原样成立）。
-        // 钉住 HS-18：若将来修正，本用例应改为期望正确行为（修正包装方式：改用带 cause 的构造并传入底层异常消息，
-        // cause 为 IllegalStateException、消息非空）。
-        TurboExceptionHandlerException ex = assertThrows(TurboExceptionHandlerException.class,
-                () -> createInstanceOf(ExplodingCtorHandler.class));
-        assertNull(ex.getCause(), "当前行为：底层构造异常没有被保留为 cause");
-        assertNull(ex.getMessage(), "当前行为：InvocationTargetException.getMessage() 为 null，包装消息同为空");
-    }
-
-    /** createInstance 是私有方法，只能反射触达；把 InvocationTargetException 拆开便于断言真实异常类型。 */
-    private static Object createInstanceOf(Class<?> clazz) throws Throwable {
-        Method method = ExceptionHandlerContainerInitHelper.class.getDeclaredMethod("createInstance", Class.class);
-        method.setAccessible(true);
-        try {
-            return method.invoke(null, clazz);
-        } catch (InvocationTargetException e) {
-            throw e.getCause();
-        }
     }
 }

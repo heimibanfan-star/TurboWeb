@@ -52,27 +52,6 @@ public final class ExceptionHandlerFixtures {
         }
     }
 
-    // -------------------------------------------------------- createInstance 夹具
-
-    /** 公有无参构造：createInstance 反射创建成功。 */
-    public static class PlainHandler {
-        public PlainHandler() {
-        }
-    }
-
-    /** 只有带参构造：createInstance 走 NoSuchMethodException 分支。 */
-    public static class NoDefaultCtorHandler {
-        public NoDefaultCtorHandler(String ignored) {
-        }
-    }
-
-    /** 无参构造直接抛异常：createInstance 走 InvocationTargetException 分支。 */
-    public static class ExplodingCtorHandler {
-        public ExplodingCtorHandler() {
-            throw new IllegalStateException("ctor boom");
-        }
-    }
-
     // -------------------------------------------------------------- 处理器夹具
 
     /** 没有任何注解方法的对象：不应贡献任何注册。 */
