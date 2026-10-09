@@ -81,10 +81,6 @@ TurboWeb在进行文件下载的时候，可以实现零拷贝传输而不阻塞
 
 新增对HTTP2.0的无感知支持，若开启HTTP2.0，框架会自动注册协商器，根据客户端的情况选择使用HTTP1.1还是HTTP2.0，若客户端支持HTTP2.0则通过适配层将HTTP2.0的Frame转化为标准的HTTP1.1的请求响应对象，对上层无任何感知。
 
-**对嵌入式网关进行重构**
-
-将嵌入式网关作为一个单独的Handler，支持本地中转、远程中转以及WebSocket双向中转；工程化节点的注册与配置；引入过滤器，便于实现网关鉴权；同时提供断路器，对一些故障服务快速降级，防止服务雪崩。
-
 **简洁的 HTTP 客户端**
 
 基于 `reactor-netty` 构建，提供类似 **Axios** 的调用风格，提升易用性和开发效率。
@@ -157,8 +153,6 @@ TurboWeb提供了与SpringBoot的整合包，详细教程看如下仓库:
 [Server-Sent Events](./docs/sse.md)
 
 [WebSocket](./docs/websocket.md)
-
-[嵌入式网关](./docs/gateway.md)
 
 [监听器](./docs/listener.md)
 

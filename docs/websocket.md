@@ -266,5 +266,5 @@ websocket("/ws/(.*)", new MyWebSocketHandler(), 8)
 
 
 
-[首页](../README.md) | [Server-Sent Events](./sse.md) | [嵌入式网关](./gateway.md)
+[首页](../README.md) | [Server-Sent Events](./sse.md)
 

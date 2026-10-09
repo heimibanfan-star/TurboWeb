@@ -11,12 +11,10 @@ pluginManagement {
 
 rootProject.name = "turboweb"
 include(":turboweb-websocket-core")
-include(":turboweb-loadbalance")
 include(":turboweb-commons")
 include(":turboweb-http-client")
 include(":turboweb-http-server")
 include(":turboweb-anno")
-include(":turboweb-gateway")
 
 // turboweb-example暂不参与构建：其启动类全部基于已删除的turboweb-framework装配体系，
 // 待迁移到TurboWebHttpServer + HttpRequestApplication之后再恢复include

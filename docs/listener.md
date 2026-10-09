@@ -70,5 +70,5 @@ BootStrapTurboWebServer.create()
 
 
 
-[首页](../README.md) | [嵌入式网关](./gateway) | [服务器参数配置](./config.md)
+[首页](../README.md) | [服务器参数配置](./config.md)
 
