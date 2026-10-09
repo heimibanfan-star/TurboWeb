@@ -50,14 +50,16 @@ public interface HttpSessionStore {
     /**
      * 从会话中获取指定属性的值，并转换为指定类型。
      * <p>
-     * 若属性不存在、已过期或类型转换失败（如将String转换为Integer），则返回null。
+     * 若属性不存在或已过期，则返回null；若属性存在但值的类型与{@code clazz}不符
+     * （如以Integer读取String值），则抛出{@link ClassCastException}。
      * 该方法简化了类型转换的流程。
      * </p>
      *
      * @param key   属性的唯一标识，非空字符串
      * @param clazz 目标类型的Class对象，非空
      * @param <T>   目标类型的泛型参数
-     * @return 转换后的属性值，若无法获取则返回null。
+     * @return 转换后的属性值，若属性不存在或已过期则返回null
+     * @throws ClassCastException 属性值存在但无法转换为{@code clazz}所表示的类型
      */
     <T> T getAttr(String key, Class<T> clazz);
 

@@ -38,16 +38,15 @@ class MemorySessionMapTest {
     }
 
     @Test
-    @DisplayName("钉住 HS-8：类型化读取做强制转换，类型不符抛 ClassCastException")
+    @DisplayName("HS-8 回归：类型化读取做强制转换，类型不符抛 ClassCastException")
     void typedGetCastsAndThrowsOnTypeMismatch() {
         MemorySessionMap map = new MemorySessionMap();
         map.setAttr("text", "hello");
 
         assertEquals("hello", map.getAttr("text", String.class));
         assertNull(map.getAttr("missing", String.class), "属性不存在返回 null");
-        // 与 javadoc 不符（HS-8，非阻塞）：HttpSessionStore.getAttr(key, clazz) 的注释写
-        // “转换失败返回 null”，实现却是 clazz.cast，类型不符会抛 ClassCastException。
-        // 本用例钉住真实行为；若将来修正，本用例应改为期望正确行为（转换失败返回 null ⇒ assertNull）。
+        // 契约锚定：未命中返回 null，类型不符抛 ClassCastException（与 HttpSessionStore
+        // getAttr(key, clazz) javadoc 同口径）。
         assertThrows(ClassCastException.class, () -> map.getAttr("text", Integer.class));
     }
 

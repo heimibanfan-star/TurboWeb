@@ -101,16 +101,17 @@ public class MemorySessionManager implements SessionManager {
     /**
      * 从指定会话中获取属性值，并转换为指定类型。
      * <p>
-     * 若会话不存在、属性不存在/已过期或类型转换失败，则返回null。
-     * 类型转换逻辑由{@link MemorySessionMap#getAttr(String, Class)}实现，
-     * 支持基本数据类型及其包装类、String等常见类型的转换。
+     * 若会话不存在、属性不存在或已过期，则返回null；若属性存在但值的类型与
+     * {@code clazz}不符，则抛出{@link ClassCastException}。
+     * 强制转换逻辑由{@link MemorySessionMap#getAttr(String, Class)}实现。
      * </p>
      *
      * @param sessionId 会话的唯一标识，非空字符串
      * @param key       属性的唯一标识，非空字符串
      * @param clazz     目标类型的Class对象，非空
      * @param <T>       目标类型的泛型参数
-     * @return 转换后的属性值
+     * @return 转换后的属性值，若会话不存在、属性不存在或已过期则返回null
+     * @throws ClassCastException 属性值存在但无法转换为{@code clazz}所表示的类型
      */
     @Override
     public <T> T getAttr(String sessionId, String key, Class<T> clazz) {
