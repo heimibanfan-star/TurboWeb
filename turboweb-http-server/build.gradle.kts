@@ -4,10 +4,7 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-plugins {
-    id("buildlogic.java-conventions")
-}
-
+// 插件与统一约定（java-library/maven-publish/jacoco、公共依赖、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
     api(project(":turboweb-commons"))
     api(libs.freemarker)
@@ -27,7 +24,7 @@ description = "turboweb-http"
 // http-server 覆盖率门禁（阶段 4 开闸）：整模块零排除，行覆盖 ≥ 0.80
 // ——闸线 0.90→0.80 为 2026-10-07 用户终裁，接入 check（spec §10 阶段 4 / §11.1）
 tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
-    dependsOn(tasks.test)
+    dependsOn(tasks.named("test"))
     violationRules {
         rule {
             limit {

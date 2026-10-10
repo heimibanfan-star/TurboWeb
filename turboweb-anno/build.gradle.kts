@@ -4,8 +4,5 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-plugins {
-    id("buildlogic.java-conventions")
-}
-
+// 插件与统一约定（java-library/maven-publish/jacoco、公共依赖、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 description = "turboweb-anno"
