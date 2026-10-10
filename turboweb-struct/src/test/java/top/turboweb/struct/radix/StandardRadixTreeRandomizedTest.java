@@ -11,10 +11,12 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * 随机操作序列回放：以 HashMap 朴素参照实现对账 get / exist / match，
+ * 随机操作序列回放：以 HashMap 朴素参照实现对账 get / exist / match / matchAny，
  * 覆盖 put 拆分与 remove 合并的交错组合；固定种子保证失败可复现。
+ * <p>参照 matchAny 取命中键中最长者的值，与实现取最深命中的口径一致；
+ * 两条前缀键等长则必然相等，参照结果确定。
  */
-class MutiRadixTreeRandomizedTest {
+class StandardRadixTreeRandomizedTest {
 
     private static final String ALPHABET = "abc";
     private static final int ROUNDS = 8;
@@ -30,7 +32,7 @@ class MutiRadixTreeRandomizedTest {
 
     private void replay(long seed) {
         Random random = new Random(seed);
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         Map<String, Integer> reference = new HashMap<>();
         for (int op = 0; op < OPERATIONS_PER_ROUND; op++) {
             String key = randomKey(random, 1, 5);
@@ -51,6 +53,7 @@ class MutiRadixTreeRandomizedTest {
                 assertEquals(expectedProbeGet, tree.get(probeKey), seed + " 轮 get 探针, op=" + op);
                 assertEquals(reference.containsKey(probeKey), tree.exist(probeKey), seed + " 轮 exist 探针, op=" + op);
                 assertEquals(referenceMatch(reference, probeKey), tree.match(probeKey), seed + " 轮 match 探针, op=" + op);
+                assertEquals(referenceMatchAny(reference, probeKey), tree.matchAny(probeKey), seed + " 轮 matchAny 探针, op=" + op);
             }
         }
     }
@@ -72,5 +75,15 @@ class MutiRadixTreeRandomizedTest {
             }
         }
         return hits;
+    }
+
+    private Integer referenceMatchAny(Map<String, Integer> reference, String probe) {
+        String best = null;
+        for (String key : reference.keySet()) {
+            if (probe.startsWith(key) && (best == null || key.length() > best.length())) {
+                best = key;
+            }
+        }
+        return best == null ? null : reference.get(best);
     }
 }

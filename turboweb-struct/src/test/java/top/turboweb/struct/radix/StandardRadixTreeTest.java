@@ -16,18 +16,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link WriteAbleStandardRadixTree} 的 put 四分类、remove 三分支与父合并、
- * 三个读方法行为及参数校验。
+ * {@link StandardRadixTree} 的 put 四分类、remove 三分支与父合并、
+ * 四个读方法行为及参数校验。
  * <p>结构断言经反射读取节点字段，dump 形如 [edge=value [子节点] [子节点]]，
  * 子节点按入边首字符排序；根节点 edge 恒为空串、value 恒为 null。
  */
-class WriteAbleStandardRadixTreeTest {
+class StandardRadixTreeTest {
 
     // ---------- put ----------
 
     @Test
     void putOnEmptyTreeCreatesSingleChild() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         assertNull(tree.put("abc", 1));
         assertEquals("[=null [abc=1]]", dump(tree));
         assertEquals(1, tree.get("abc"));
@@ -36,7 +36,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void putExactMatchOverwritesAndReturnsOldValue() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         assertNull(tree.put("k", 1));
         assertEquals(1, tree.put("k", 2));
         assertEquals("[=null [k=2]]", dump(tree));
@@ -45,7 +45,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void putDeepExactMatchOverwritesAndReturnsOldValue() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("ab", 1);
         tree.put("abcd", 2);
         assertEquals(2, tree.put("abcd", 9));
@@ -55,7 +55,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void putKeyEndingMidEdgeSplitsIntoTwo() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         assertNull(tree.put("ab", 2));
         assertEquals("[=null [ab=2 [c=1]]]", dump(tree));
@@ -67,7 +67,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void putAppendsNewChildAfterFullyMatchedEdge() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("ab", 1);
         assertNull(tree.put("abcd", 2));
         assertEquals("[=null [ab=1 [cd=2]]]", dump(tree));
@@ -77,7 +77,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void putDivergingMidEdgeSplitsIntoThree() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         assertNull(tree.put("abd", 2));
         assertEquals("[=null [ab=null [c=1] [d=2]]]", dump(tree));
@@ -89,7 +89,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void putDivergingBelowNestedEdgeSplitsIntoThree() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("ab", 1);
         tree.put("abcd", 2);
         assertNull(tree.put("abce", 3));
@@ -105,7 +105,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void removeLeafWithValuedParentKeepsParent() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("ab", 1);
         tree.put("abc", 2);
         assertTrue(tree.remove("abc"));
@@ -116,7 +116,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void removeLeafTriggersParentMergeWhenParentValueless() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         tree.put("abd", 2);
         assertTrue(tree.remove("abc"));
@@ -129,7 +129,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void removeNodeWithSingleChildMergesWithChild() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("ab", 1);
         tree.put("abc", 2);
         assertTrue(tree.remove("ab"));
@@ -141,7 +141,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void removeNodeWithMultipleChildrenOnlyClearsValue() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("ab", 1);
         tree.put("abc", 2);
         tree.put("abd", 3);
@@ -156,7 +156,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void removeFromRootDoesNotMergeRootWithRemainingChild() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("a", 1);
         tree.put("b", 2);
         assertTrue(tree.remove("a"));
@@ -168,7 +168,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void removeMissesReturnFalse() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         assertFalse(tree.remove("x"), "空树无键可删");
         tree.put("abc", 1);
         tree.put("abd", 2);
@@ -181,14 +181,14 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void removeKeyEndingMidEdgeReturnsFalse() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         assertFalse(tree.remove("ab"));
     }
 
     @Test
     void putThenRemoveRestoresEmptyTree() throws Exception {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         tree.put("abd", 2);
         tree.put("abe", 3);
@@ -208,7 +208,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void getMissesReturnNull() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         tree.put("abd", 2);
         assertNull(tree.get("ab"), "路径节点无值");
@@ -221,7 +221,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void existReflectsRegisteredKeysOnly() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         tree.put("abd", 2);
         assertTrue(tree.exist("abc"));
@@ -235,14 +235,14 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void matchExactKeyIncludesItsOwnValue() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         assertEquals(Set.of(1), tree.match("abc"));
     }
 
     @Test
     void matchCollectsAllRegisteredPrefixValues() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("a", 1);
         tree.put("abc", 2);
         assertEquals(Set.of(1, 2), tree.match("abcd"));
@@ -253,14 +253,14 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void matchKeyEndingMidEdgeCollectsNothing() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         assertEquals(Set.of(), tree.match("ab"));
     }
 
     @Test
     void matchKeyEndingOnValuelessNodeCollectsNothing() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("abc", 1);
         tree.put("abd", 2);
         assertEquals(Set.of(), tree.match("ab"));
@@ -268,7 +268,7 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void matchDivergenceKeepsAncestorHitsOnly() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         tree.put("ab", 1);
         tree.put("abc", 2);
         assertEquals(Set.of(1), tree.match("abd"), "分叉前祖先已命中");
@@ -277,63 +277,86 @@ class WriteAbleStandardRadixTreeTest {
 
     @Test
     void matchOnEmptyTreeReturnsEmptySet() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         assertEquals(Set.of(), tree.match("abc"));
     }
 
     @Test
     void matchDedupesEqualValuesFromDifferentKeys() {
-        WriteAbleStandardRadixTree<String> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<String> tree = new StandardRadixTree<>();
         tree.put("a", "v");
         tree.put("ab", "v");
         assertEquals(Set.of("v"), tree.match("abc"));
+    }
+
+    // ---------- matchAny ----------
+
+    @Test
+    void matchAnyReturnsNullWhenNothingHit() {
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
+        assertNull(tree.matchAny("abc"), "空树无命中");
+        tree.put("abc", 1);
+        tree.put("abd", 2);
+        assertNull(tree.matchAny("ab"), "key 止于值节点之前");
+    }
+
+    @Test
+    void matchAnyReturnsDeepestPrefixHit() {
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
+        tree.put("a", 1);
+        tree.put("abc", 2);
+        assertEquals(2, tree.matchAny("abcd"), "多命中取最深前缀");
+        assertEquals(1, tree.matchAny("ab"), "仅浅层命中取该值");
+        assertEquals(2, tree.matchAny("abc"), "完全相等命中取自身值");
     }
 
     // ---------- 校验 ----------
 
     @Test
     void putRejectsNullKey() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         assertEquals("The key argument was null",
                 assertThrows(IllegalArgumentException.class, () -> tree.put(null, 1)).getMessage());
     }
 
     @Test
     void putRejectsZeroLengthKey() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         assertEquals("The key argument was zero-length",
                 assertThrows(IllegalArgumentException.class, () -> tree.put("", 1)).getMessage());
     }
 
     @Test
     void putRejectsNullValue() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         assertEquals("The value argument was null",
                 assertThrows(IllegalArgumentException.class, () -> tree.put("k", null)).getMessage());
     }
 
     @Test
     void removeRejectsNullKey() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         assertEquals("The key argument was null",
                 assertThrows(IllegalArgumentException.class, () -> tree.remove(null)).getMessage());
     }
 
     @Test
     void readsRejectNullKey() {
-        WriteAbleStandardRadixTree<Integer> tree = new WriteAbleStandardRadixTree<>();
+        StandardRadixTree<Integer> tree = new StandardRadixTree<>();
         assertEquals("The key argument was null",
                 assertThrows(IllegalArgumentException.class, () -> tree.get(null)).getMessage());
         assertEquals("The key argument was null",
                 assertThrows(IllegalArgumentException.class, () -> tree.exist(null)).getMessage());
         assertEquals("The key argument was null",
                 assertThrows(IllegalArgumentException.class, () -> tree.match(null)).getMessage());
+        assertEquals("The key argument was null",
+                assertThrows(IllegalArgumentException.class, () -> tree.matchAny(null)).getMessage());
     }
 
     // ---------- 结构 dump ----------
 
-    private static String dump(WriteAbleStandardRadixTree<?> tree) throws Exception {
-        Field rootField = WriteAbleStandardRadixTree.class.getDeclaredField("root");
+    private static String dump(StandardRadixTree<?> tree) throws Exception {
+        Field rootField = StandardRadixTree.class.getDeclaredField("root");
         rootField.setAccessible(true);
         return dumpNode(rootField.get(tree));
     }

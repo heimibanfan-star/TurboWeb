@@ -9,10 +9,11 @@ import java.util.Set;
  * 可读可写的基数树实现。
  * <p>非并发安全：不加锁，写操作不做原子性保证。
  * 边以传入键的子序列视图存储；子节点按入边首字符索引。
+ * 读方法面齐全：match 收集全部前缀命中，matchAny 取最深的命中。
  *
  * @param <O> 值类型
  */
-public class WriteAbleStandardRadixTree<O> implements MutiRadixTree<O> {
+public class StandardRadixTree<O> implements RadixTree<O> {
 
     /**
      * 树节点：edge 为入边字符序列，value 可空（根节点恒为 null），
@@ -43,9 +44,9 @@ public class WriteAbleStandardRadixTree<O> implements MutiRadixTree<O> {
     /**
      * 只读视图缓存：首次 {@link #toReadView()} 创建，此后复用同一实例。
      */
-    private MutiRadixTree<O> readView;
+    private RadixTree<O> readView;
 
-    public WriteAbleStandardRadixTree() {
+    public StandardRadixTree() {
         this.root = new Node<>("", null);
     }
 
@@ -95,6 +96,19 @@ public class WriteAbleStandardRadixTree<O> implements MutiRadixTree<O> {
             }
         }
         return hits;
+    }
+
+    /**
+     * 任一命中读取：取最深的命中（最长前缀）的值；
+     * 无命中返回 null，key 为 null 时抛 IllegalArgumentException。
+     */
+    @Override
+    public O matchAny(CharSequence key) {
+        O any = null;
+        for (O hit : match(key)) {
+            any = hit;
+        }
+        return any;
     }
 
     /**
@@ -203,9 +217,9 @@ public class WriteAbleStandardRadixTree<O> implements MutiRadixTree<O> {
      *
      * @return 只读视图
      */
-    public MutiRadixTree<O> toReadView() {
+    public RadixTree<O> toReadView() {
         if (readView == null) {
-            readView = new ReadOnlyStandardRadixTree<>(this);
+            readView = new ReadView();
         }
         return readView;
     }
@@ -284,5 +298,33 @@ public class WriteAbleStandardRadixTree<O> implements MutiRadixTree<O> {
 
     private static CharSequence concatenate(CharSequence first, CharSequence second) {
         return first.toString() + second;
+    }
+
+    /**
+     * 只读视图：四个读方法全部委托给外部实例，
+     * 写侧后续 put / remove 对本视图可见（活视图，非快照）。
+     * 仅能经 {@link StandardRadixTree#toReadView()} 获得。
+     */
+    private final class ReadView implements RadixTree<O> {
+
+        @Override
+        public O get(CharSequence key) {
+            return StandardRadixTree.this.get(key);
+        }
+
+        @Override
+        public boolean exist(CharSequence key) {
+            return StandardRadixTree.this.exist(key);
+        }
+
+        @Override
+        public Set<O> match(CharSequence key) {
+            return StandardRadixTree.this.match(key);
+        }
+
+        @Override
+        public O matchAny(CharSequence key) {
+            return StandardRadixTree.this.matchAny(key);
+        }
     }
 }

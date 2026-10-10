@@ -16,10 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * 随机操作序列回放：以朴素参照实现对账 put / remove / match 的交错组合，
+ * 随机操作序列回放：以朴素参照实现对账 put / remove / matchAny 的交错组合，
  * 固定种子保证失败可复现。生成器只产合法格式模式串（格式校验由单测钉死，
  * 参照不含格式与模式内重名校验逻辑，但含同槽异名冲突语义）。
- * <p>参照 match 取"字面 0 参数 1"类型签名最小（即字面优先、参数兜底、失败回溯
+ * <p>参照 matchAny 取"字面 0 参数 1"类型签名最小（即字面优先、参数兜底、失败回溯
  * 的深度优先顺序）的首个候选，与实现的回溯 DFS 等价。
  */
 class RestRadixTreeRandomizedTest {
@@ -40,7 +40,7 @@ class RestRadixTreeRandomizedTest {
 
     private void replay(long seed) {
         Random random = new Random(seed);
-        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
         ReferenceTrie reference = new ReferenceTrie();
         for (int op = 0; op < OPERATIONS_PER_ROUND; op++) {
             String pattern = randomPattern(random);
@@ -64,10 +64,10 @@ class RestRadixTreeRandomizedTest {
         }
     }
 
-    private void assertMatchEquals(ReferenceTrie reference, WriteAbleRestRadixTree<Integer> tree,
+    private void assertMatchEquals(ReferenceTrie reference, RestRadixTree<Integer> tree,
                                    String path, long seed, int op) {
         ReferenceHit expected = reference.match(path);
-        RestRadixTree.MatchResult<Integer> actual = tree.match(path);
+        RestRadixTree.MatchResult<Integer> actual = tree.matchAny(path);
         if (expected == null) {
             assertNull(actual, seed + " 轮 match 应未命中, path=" + path + ", op=" + op);
             return;
