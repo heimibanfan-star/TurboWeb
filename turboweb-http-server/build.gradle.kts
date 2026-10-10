@@ -42,3 +42,8 @@ tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoT
 tasks.named("check") {
     dependsOn(tasks.named("jacocoTestCoverageVerification"))
 }
+
+// PITest 变异作用域与覆盖率闸同形：整模块零排除
+configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
+    targetClasses.set(listOf("top.turboweb.http.*"))
+}

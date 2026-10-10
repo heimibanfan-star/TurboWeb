@@ -5,6 +5,11 @@
  * 覆盖率阈值与 check 门禁绑定留在各模块自身脚本（turboweb-commons、turboweb-http-server）。
  */
 
+plugins {
+    // 变异测试插件：此处只定版本与类路径，下方 subprojects 对有测试源码的模块授予
+    id("info.solidsoft.pitest") version "1.19.0" apply false
+}
+
 subprojects {
     apply(plugin = "java-library")
     apply(plugin = "maven-publish")
@@ -70,6 +75,21 @@ subprojects {
         reports {
             xml.required = true
             html.required = true
+        }
+    }
+
+    // ---------- 变异测试（PITest）：机制在此授予，作用域（targetClasses）留在各模块脚本 ----------
+    // 只有 commons 与 http-server 有测试源码，其余模块不授予（无测试可跑变异只会空转发红）。
+    if (name in setOf("turboweb-commons", "turboweb-http-server")) {
+        apply(plugin = "info.solidsoft.pitest")
+        configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
+            // JUnit5 provider 由 pitest-junit5-plugin 供给了引擎自动发现；
+            // 废弃的 testPlugin 属性不再设置（PIT 1.6.7 起引擎侧忽略该值）
+            pitestVersion.set("1.30.0")
+            junit5PluginVersion.set("1.2.3")
+            // 本仓存在顶满 30s 的定时敏感用例，默认 1.2 倍超时窗会把慢用例误判为超时，放宽
+            timeoutFactor.set(java.math.BigDecimal.valueOf(4))
+            // mutationThreshold 暂不钉线：先跑基线，随用例补充逐步抬升
         }
     }
 }

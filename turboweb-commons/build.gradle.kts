@@ -57,3 +57,8 @@ tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoT
 tasks.named("check") {
     dependsOn(tasks.named("jacocoTestCoverageVerification"))
 }
+
+// PITest 变异作用域与覆盖率闸分母同形：由 gateClasses 列表推导，两处口径不分叉
+configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
+    targetClasses.set(gateClasses.map { it.removeSuffix("/**").replace('/', '.') + ".*" })
+}
