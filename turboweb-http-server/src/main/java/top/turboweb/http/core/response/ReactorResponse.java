@@ -5,10 +5,10 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import org.apache.hc.core5.http.ContentType;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import top.turboweb.commons.config.GlobalConfig;
+import top.turboweb.http.core.constant.ContentType;
 
 import java.nio.charset.Charset;
 

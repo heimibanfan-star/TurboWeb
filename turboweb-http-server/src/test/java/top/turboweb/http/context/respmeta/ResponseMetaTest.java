@@ -1,8 +1,8 @@
 package top.turboweb.http.context.respmeta;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.hc.core5.http.ContentType;
 import org.junit.jupiter.api.Test;
+import top.turboweb.http.core.constant.ContentType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;

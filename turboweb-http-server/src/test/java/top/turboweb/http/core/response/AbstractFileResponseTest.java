@@ -3,10 +3,10 @@ package top.turboweb.http.core.response;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import org.apache.hc.core5.http.ContentType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.core.constant.ContentType;
 
 import java.io.File;
 import java.io.IOException;

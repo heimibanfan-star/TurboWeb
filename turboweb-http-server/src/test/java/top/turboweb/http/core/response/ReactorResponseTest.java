@@ -4,11 +4,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.hc.core5.http.ContentType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import top.turboweb.commons.config.GlobalConfig;
+import top.turboweb.http.core.constant.ContentType;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * {@link ReactorResponse} 的字符集回退与 Flux 包装（reactor 同步订阅，无时序）。
- * 依赖来自约定插件 {@code api(reactor-netty)} → {@code reactor-core}、{@code api(httpcore5)}（见任务头）。
+ * 依赖来自本模块 api 声明的 {@code reactor-core} 与仓内 {@code core.constant.ContentType}。
  */
 class ReactorResponseTest {
 

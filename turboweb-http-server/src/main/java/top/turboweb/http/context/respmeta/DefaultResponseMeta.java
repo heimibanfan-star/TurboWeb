@@ -1,7 +1,7 @@
 package top.turboweb.http.context.respmeta;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.hc.core5.http.ContentType;
+import top.turboweb.http.core.constant.ContentType;
 
 /**
  * {@code DefaultResponseMeta} 是 {@link ResponseMetaGetter} 和 {@link ResponseMeta} 的默认实现，

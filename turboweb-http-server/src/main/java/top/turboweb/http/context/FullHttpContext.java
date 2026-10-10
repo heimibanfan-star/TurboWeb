@@ -3,8 +3,6 @@ package top.turboweb.http.context;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.apache.hc.core5.http.NameValuePair;
-import org.apache.hc.core5.net.URIBuilder;
 import top.turboweb.commons.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookieManager;
@@ -12,6 +10,8 @@ import top.turboweb.commons.exception.TurboArgsValidationException;
 import top.turboweb.commons.exception.TurboParamParseException;
 import top.turboweb.commons.utils.base.ValidationUtils;
 import top.turboweb.http.core.session.HttpSession;
+import top.turboweb.http.core.helper.UrlHelper;
+import top.turboweb.http.core.helper.UrlHelper.ParamPair;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -203,10 +203,9 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	private static Map<String, List<String>> parseQueryParams(String uri) {
 		Map<String, List<String>> paramsForSearch = new HashMap<>();
 		try {
-			URIBuilder uriBuilder = new URIBuilder(uri);
 			// 获取所有的查询参数
-			List<NameValuePair> params = uriBuilder.getQueryParams();
-			for (NameValuePair param : params) {
+			List<ParamPair> params = UrlHelper.parseQueryParams(uri);
+			for (ParamPair param : params) {
 				paramsForSearch
 						.computeIfAbsent(param.getName(), k -> new ArrayList<>(1))
 						.add(param.getValue());
