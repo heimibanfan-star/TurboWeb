@@ -1,4 +1,4 @@
-package top.turboweb.commons.utils.base;
+package top.turboweb.http.core.helper;
 
 import io.netty.handler.codec.http.HttpResponse;
 
@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * http响应对象的工具类
  */
-public class HttpResponseUtils {
+public class HttpResponseHelper {
 
     /**
      * 合并两个HttpResponse对象的头部

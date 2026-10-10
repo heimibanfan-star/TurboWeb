@@ -1,4 +1,4 @@
-package top.turboweb.commons.utils.base;
+package top.turboweb.http.core.helper;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -10,7 +10,7 @@ import java.util.Locale;
 /**
  * http请求相关的工具包
  */
-public class HttpRequestUtils {
+public class HttpRequestHelper {
 
     /**
      * 获取请求的格式

@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.multipart.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboHttpParseException;
-import top.turboweb.commons.utils.base.HttpRequestUtils;
+import top.turboweb.http.core.helper.HttpRequestHelper;
 
 import java.io.IOException;
 import java.util.*;
@@ -59,7 +59,7 @@ public class HttpContent {
     public HttpContent(FullHttpRequest request) {
         Objects.requireNonNull(request, "request can not be null");
         this.request = request;
-        this.contentType = HttpRequestUtils.getContentType(request);
+        this.contentType = HttpRequestHelper.getContentType(request);
     }
 
     /**
@@ -96,7 +96,7 @@ public class HttpContent {
         }
         ByteBuf contentBuf = request.content();
         // 序列化为json
-        String jsonContent = contentBuf.toString(HttpRequestUtils.getRequestCharset(request));
+        String jsonContent = contentBuf.toString(HttpRequestHelper.getRequestCharset(request));
         if (jsonContent == null || jsonContent.isBlank()) {
             jsonContent = "{}";
         } else {
@@ -158,7 +158,7 @@ public class HttpContent {
         this.decoder = new HttpPostRequestDecoder(
                 new DefaultHttpDataFactory(Integer.MAX_VALUE),
                 request,
-                HttpRequestUtils.getRequestCharset(request)
+                HttpRequestHelper.getRequestCharset(request)
         );
         List<InterfaceHttpData> httpDataList = decoder.getBodyHttpDatas();
         // 解析数据
