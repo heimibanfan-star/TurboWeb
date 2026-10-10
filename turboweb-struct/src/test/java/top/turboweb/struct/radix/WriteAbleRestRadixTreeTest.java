@@ -1,0 +1,480 @@
+package top.turboweb.struct.radix;
+
+import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * {@link WriteAbleRestRadixTree} 的 put 分类、put / remove 校验全表与 remove miss 基线。
+ * <p>结构断言经反射读取节点字段，dump 形如 [seg=value [子节点]]，
+ * 字面子节点按键排序、参数子节点殿后且段名记 ":name"；根节点段为空、值恒为 null。
+ */
+class WriteAbleRestRadixTreeTest {
+
+    // ---------- put ----------
+
+    @Test
+    void putOnEmptyTreeCreatesLiteralChain() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertNull(tree.put("/a/b", 1));
+        assertEquals("[=null [a=null [b=1]]]", dump(tree));
+    }
+
+    @Test
+    void putSamePatternOverwritesAndReturnsOldValue() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertNull(tree.put("/a/b", 1));
+        assertEquals(1, tree.put("/a/b", 2));
+        assertEquals("[=null [a=null [b=2]]]", dump(tree));
+    }
+
+    @Test
+    void putParamPatternOverwriteReusesNodeAndReturnsOldValue() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertNull(tree.put("/x/:id", 1));
+        assertEquals(1, tree.put("/x/:id", 2));
+        assertEquals("[=null [x=null [:id=2]]]", dump(tree));
+    }
+
+    @Test
+    void putLiteralAndParamCoexistInSameSlotWithLiteralFirst() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a", 1);
+        assertNull(tree.put("/:x", 2));
+        assertEquals("[=null [a=1] [:x=2]]", dump(tree));
+    }
+
+    @Test
+    void putLiteralAndParamChainsContinueBelowParamNode() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertNull(tree.put("/:x/a", 1));
+        assertNull(tree.put("/:x/:y", 2));
+        assertEquals("[=null [:x=null [a=1] [:y=2]]]", dump(tree));
+    }
+
+    @Test
+    void putSameNameParamsInDifferentPatternsShareParamNode() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertNull(tree.put("/:x/aaa/bbb", 1));
+        assertNull(tree.put("/:x/ccc/ddd", 2));
+        assertEquals("[=null [:x=null [aaa=null [bbb=1]] [ccc=null [ddd=2]]]]", dump(tree));
+    }
+
+    @Test
+    void putLiteralsSortedAndParamChildLast() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/b", 1);
+        tree.put("/a", 2);
+        assertNull(tree.put("/:x", 3));
+        assertEquals("[=null [a=2] [b=1] [:x=3]]", dump(tree));
+    }
+
+    // ---------- put 校验全表 ----------
+
+    @Test
+    void putRejectsNullKey() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("The key argument was null",
+                assertThrows(IllegalArgumentException.class, () -> tree.put(null, 1)).getMessage());
+    }
+
+    @Test
+    void putChecksValueBeforeLeadingSlash() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("The value argument was null",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("abc", null)).getMessage());
+    }
+
+    @Test
+    void putRejectsNullValue() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("The value argument was null",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/a", null)).getMessage());
+    }
+
+    @Test
+    void putRejectsPatternWithoutLeadingSlash() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("The key must start with '/'",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("abc", 1)).getMessage());
+        assertEquals("The key must start with '/'",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("", 1)).getMessage());
+    }
+
+    @Test
+    void putRejectsEmptySegments() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("Empty path segment is not allowed",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/a//b", 1)).getMessage());
+        assertEquals("Empty path segment is not allowed",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/a/", 1)).getMessage());
+        assertEquals("Empty path segment is not allowed",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/", 1)).getMessage());
+        assertEquals("Empty path segment is not allowed",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("//a", 1)).getMessage());
+    }
+
+    @Test
+    void putRejectsInvalidParamSegment() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("Invalid path variable: :1abc",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/:1abc", 1)).getMessage());
+        assertEquals("Invalid path variable: :a-b",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/a/:a-b", 1)).getMessage());
+        assertEquals("Invalid path variable: :",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/a/:", 1)).getMessage());
+        assertEquals("Invalid path variable: :a b",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/:a b", 1)).getMessage());
+    }
+
+    @Test
+    void putAcceptsValidParamNameBoundaries() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertNull(tree.put("/:a", 1));
+        assertNull(tree.put("/b/:_x1", 2));
+        assertNull(tree.put("/c/:A9_", 3));
+        assertEquals("[=null [b=null [:_x1=2]] [c=null [:A9_=3]] [:a=1]]", dump(tree));
+    }
+
+    @Test
+    void putRejectsDuplicateParamNameInPattern() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("Duplicate path variable 'x' in path",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/a/:x/b/:x", 1)).getMessage());
+    }
+
+    @Test
+    void putRejectsConflictingParamNameInSlotAndKeepsTreeUnchanged() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertNull(tree.put("/path/:param1", 1));
+        assertEquals("Conflicting path variable ':param2' with existing ':param1'",
+                assertThrows(IllegalArgumentException.class, () -> tree.put("/path/:param2", 2)).getMessage());
+        assertEquals("[=null [path=null [:param1=1]]]", dump(tree));
+    }
+
+    // ---------- remove 校验与 miss 基线 ----------
+
+    @Test
+    void removeRejectsNullKey() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("The key argument was null",
+                assertThrows(IllegalArgumentException.class, () -> tree.remove(null)).getMessage());
+    }
+
+    @Test
+    void removeRejectsPatternWithoutLeadingSlash() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("The key must start with '/'",
+                assertThrows(IllegalArgumentException.class, () -> tree.remove("abc")).getMessage());
+    }
+
+    @Test
+    void removeRejectsEmptySegments() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("Empty path segment is not allowed",
+                assertThrows(IllegalArgumentException.class, () -> tree.remove("/a//b")).getMessage());
+        assertEquals("Empty path segment is not allowed",
+                assertThrows(IllegalArgumentException.class, () -> tree.remove("/a/")).getMessage());
+    }
+
+    @Test
+    void removeRejectsInvalidParamSegment() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("Invalid path variable: :1abc",
+                assertThrows(IllegalArgumentException.class, () -> tree.remove("/:1abc")).getMessage());
+    }
+
+    @Test
+    void removeRejectsDuplicateParamNameInPattern() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("Duplicate path variable 'x' in path",
+                assertThrows(IllegalArgumentException.class, () -> tree.remove("/a/:x/b/:x")).getMessage());
+    }
+
+    @Test
+    void removeMissOnEmptyTreeReturnsFalse() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertFalse(tree.remove("/a"), "字面分支不存在");
+        assertFalse(tree.remove("/:x"), "参数分支不存在");
+    }
+
+    @Test
+    void removeMissOnAbsentBranchReturnsFalse() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a", 1);
+        tree.put("/:x/b", 2);
+        assertFalse(tree.remove("/b"), "字面分支不存在");
+        assertFalse(tree.remove("/a/c"), "深层字面分支不存在");
+        assertFalse(tree.remove("/:x"), "参数节点无值");
+        assertFalse(tree.remove("/:x/c"), "参数链下字面分支不存在");
+    }
+
+    // ---------- match ----------
+
+    @Test
+    void matchRejectsNullPath() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertEquals("The path argument was null",
+                assertThrows(IllegalArgumentException.class, () -> tree.match(null)).getMessage());
+    }
+
+    @Test
+    void matchOnEmptyTreeReturnsNull() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        assertNull(tree.match("/a"));
+    }
+
+    @Test
+    void matchHitsLiteralPatternWithoutParams() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a/b", 1);
+        RestRadixTree.MatchResult<Integer> hit = tree.match("/a/b");
+        assertEquals(1, hit.value);
+        assertEquals(Map.of(), hit.params);
+    }
+
+    @Test
+    void matchBindsSingleParam() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/user/:id", 1);
+        RestRadixTree.MatchResult<Integer> hit = tree.match("/user/42");
+        assertEquals(1, hit.value);
+        assertEquals(Map.of("id", "42"), hit.params);
+    }
+
+    @Test
+    void matchBindsMultipleParamsInOrder() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/:x/:y", 1);
+        RestRadixTree.MatchResult<Integer> hit = tree.match("/a/b");
+        assertEquals(1, hit.value);
+        assertEquals(Map.of("x", "a", "y", "b"), hit.params);
+    }
+
+    @Test
+    void matchPrefersLiteralOverParamInSameSlot() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/user/admin", 1);
+        tree.put("/:param/posts", 2);
+        RestRadixTree.MatchResult<Integer> literalHit = tree.match("/user/admin");
+        assertEquals(1, literalHit.value);
+        assertEquals(Map.of(), literalHit.params);
+    }
+
+    @Test
+    void matchBacktracksFromDeadLiteralBranchToParamBranch() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/user/admin", 1);
+        tree.put("/:param/posts", 2);
+        RestRadixTree.MatchResult<Integer> hit = tree.match("/user/posts");
+        assertEquals(2, hit.value);
+        assertEquals(Map.of("param", "user"), hit.params);
+    }
+
+    @Test
+    void matchSameNameParamPatternsEachHitWithOwnBinding() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/:x/aaa/bbb", 1);
+        tree.put("/:x/ccc/ddd", 2);
+        RestRadixTree.MatchResult<Integer> first = tree.match("/p/aaa/bbb");
+        assertEquals(1, first.value);
+        assertEquals(Map.of("x", "p"), first.params);
+        RestRadixTree.MatchResult<Integer> second = tree.match("/q/ccc/ddd");
+        assertEquals(2, second.value);
+        assertEquals(Map.of("x", "q"), second.params);
+    }
+
+    @Test
+    void matchFailedParamBindingLeavesNoResidueOnLaterHit() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/:a/zzz", 1);
+        tree.put("/lit/:b/end", 2);
+        // 字面 lit 分支先试：绑定 b=zzz 走到无值节点失败，撤销后回溯根参数分支命中
+        RestRadixTree.MatchResult<Integer> hit = tree.match("/lit/zzz");
+        assertEquals(1, hit.value);
+        assertEquals(Map.of("a", "lit"), hit.params, "失败分支的绑定不得残留");
+        RestRadixTree.MatchResult<Integer> direct = tree.match("/lit/other/end");
+        assertEquals(2, direct.value);
+        assertEquals(Map.of("b", "other"), direct.params);
+    }
+
+    @Test
+    void matchMissWhenSegmentsDontReachValue() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a", 1);
+        tree.put("/b/:id", 2);
+        assertNull(tree.match("/a/c"), "字面节点无更深子节点");
+        assertNull(tree.match("/b"), "参数节点无值");
+        assertNull(tree.match("/b/id/extra"), "越过已注册深度");
+    }
+
+    @Test
+    void matchMissWhenMidPathDiverges() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a/b", 1);
+        tree.put("/:x/aaa", 2);
+        assertNull(tree.match("/a/c"), "字面槽位失配且无参数分支");
+        assertNull(tree.match("/z/bbb"), "参数链下字面失配");
+        assertNull(tree.match("/x/aaa/extra"), "命中深度多出一段");
+    }
+
+    @Test
+    void matchMissAfterBacktrackExhaustedReturnsNull() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/:param/aaa", 1);
+        assertNull(tree.match("/x/bbb"));
+    }
+
+    @Test
+    void matchNormalizesRedundantSlashes() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a/b", 1);
+        assertEquals(1, tree.match("//a/b//").value, "首尾多余斜杠");
+        assertEquals(1, tree.match("/a//b").value, "中间连续斜杠");
+        assertEquals(1, tree.match("///a/b///").value, "首尾与中间叠加");
+    }
+
+    @Test
+    void matchOnRootOnlyPathReturnsNull() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a", 1);
+        assertNull(tree.match("/"));
+        assertNull(tree.match("//"));
+    }
+
+    @Test
+    void matchPathWithoutLeadingSlashReturnsNull() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a", 1);
+        assertNull(tree.match("a"));
+        assertNull(tree.match("a/b"));
+        assertNull(tree.match(""));
+    }
+
+    @Test
+    void matchParamsAreImmutable() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/user/:id", 1);
+        RestRadixTree.MatchResult<Integer> hit = tree.match("/user/42");
+        assertThrows(UnsupportedOperationException.class, () -> hit.params.put("k", "v"));
+    }
+
+    // ---------- remove 折叠 ----------
+
+    @Test
+    void removeLeafLiteralDetachesUpToRoot() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a/b", 1);
+        assertTrue(tree.remove("/a/b"));
+        assertEquals("[=null]", dump(tree), "无值无子的整条链应折叠殆尽");
+    }
+
+    @Test
+    void removeFoldStopsAtValuedAncestor() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a/b", 1);
+        tree.put("/a/b/c", 2);
+        assertTrue(tree.remove("/a/b/c"));
+        assertEquals("[=null [a=null [b=1]]]", dump(tree));
+    }
+
+    @Test
+    void removeFoldStopsAtAncestorWithRemainingChild() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a/b/c", 1);
+        tree.put("/a/d", 2);
+        assertTrue(tree.remove("/a/b/c"));
+        assertEquals("[=null [a=null [d=2]]]", dump(tree));
+    }
+
+    @Test
+    void removeParamLeafDetachesFromParent() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/:x/a", 1);
+        tree.put("/:x/b", 2);
+        assertTrue(tree.remove("/:x/a"));
+        assertEquals("[=null [:x=null [b=2]]]", dump(tree));
+        assertTrue(tree.remove("/:x/b"));
+        assertEquals("[=null]", dump(tree), "参数节点与参数链应一并折叠");
+    }
+
+    @Test
+    void removeKeepsValuedParamSiblingBranch() throws Exception {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/:x/a", 1);
+        tree.put("/lit", 2);
+        assertTrue(tree.remove("/:x/a"));
+        assertEquals("[=null [lit=2]]", dump(tree));
+    }
+
+    @Test
+    void removeRegisteredParamPatternRequiresSameName() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/:x/a", 1);
+        assertFalse(tree.remove("/:y/a"), "同槽参数名不同即未注册");
+        assertTrue(tree.remove("/:x/a"));
+    }
+
+    @Test
+    void removeTwiceReturnsFalseOnSecondCall() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a", 1);
+        assertTrue(tree.remove("/a"));
+        assertFalse(tree.remove("/a"));
+    }
+
+    @Test
+    void removeThenMatchMissesAndReputReuses() {
+        WriteAbleRestRadixTree<Integer> tree = new WriteAbleRestRadixTree<>();
+        tree.put("/a/b", 1);
+        assertTrue(tree.remove("/a/b"));
+        assertNull(tree.match("/a/b"));
+        assertNull(tree.put("/a/b", 2));
+        assertEquals(2, tree.match("/a/b").value);
+    }
+
+    // ---------- 结构 dump ----------
+
+    private static String dump(WriteAbleRestRadixTree<?> tree) throws Exception {
+        Field rootField = WriteAbleRestRadixTree.class.getDeclaredField("root");
+        rootField.setAccessible(true);
+        return dumpNode("", rootField.get(tree));
+    }
+
+    private static String dumpNode(String literalKey, Object node) throws Exception {
+        Object value = field(node, "value").get(node);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> literals = (Map<String, Object>) field(node, "literals").get(node);
+        Object paramChild = field(node, "paramChild").get(node);
+        String paramName = (String) field(node, "paramName").get(node);
+        // 段名取自身：参数节点记 ":name"，字面节点记父方的键，根节点为空串
+        String label = paramName != null ? ":" + paramName : literalKey;
+        StringBuilder sb = new StringBuilder();
+        sb.append('[').append(label).append('=').append(value);
+        List<String> keys = new ArrayList<>(literals.keySet());
+        keys.sort(Comparator.naturalOrder());
+        for (String key : keys) {
+            sb.append(' ').append(dumpNode(key, literals.get(key)));
+        }
+        if (paramChild != null) {
+            sb.append(' ').append(dumpNode(null, paramChild));
+        }
+        return sb.append(']').toString();
+    }
+
+    private static Field field(Object node, String name) throws Exception {
+        Field f = node.getClass().getDeclaredField(name);
+        f.setAccessible(true);
+        return f;
+    }
+}
