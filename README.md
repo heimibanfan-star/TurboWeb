@@ -43,7 +43,7 @@ TurboWeb 全面基于 **虚拟线程** 执行请求处理，不再使用传统�
 
 **_中间件驱动的灵活架构_**
 
-TurboWeb 拒绝内置臃肿，所有功能都以中间件形式插件化集成：跨域处理、限流、模板渲染、甚至是 controller 本身，都是中间件。你只引入你用到的，它就只干你想干的。
+TurboWeb 拒绝内置臃肿，所有功能都以中间件形式插件化集成：跨域处理、限流、甚至是 controller 本身，都是中间件。你只引入你用到的，它就只干你想干的。
 
 **_长连接原生支持_**
 
@@ -138,13 +138,7 @@ TurboWeb提供了与SpringBoot的整合包，详细教程看如下仓库:
 
 [中间件的使用](./docs/middleware.md)
 
-[拦截器的使用](./docs/interceptor.md)
-
 [静态资源的支持](./docs/staticresource.md)
-
-[模板技术的支持](./docs/template.md)
-
-[运行信息的获取](./docs/serverinfo.md)
 
 [Cookie](./docs/cookie.md)
 
@@ -167,8 +161,6 @@ TurboWeb提供了与SpringBoot的整合包，详细教程看如下仓库:
 [HTTP客户端](./docs/httpclient.md)
 
 [多版本路由控制](./docs/mvrc.md)
-
-[中间件类型订阅](./docs/middlewaretype.md)
 
 
 ## 联系我们

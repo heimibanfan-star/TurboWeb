@@ -45,4 +45,4 @@ staticResourceMiddleware.addMimeType("wasm", "application/wasm");
 
 
 
-[首页](./README.md) | [拦截器的使用](./interceptor.md) | [模板技术的支持](./template.md)
+[首页](./README.md)

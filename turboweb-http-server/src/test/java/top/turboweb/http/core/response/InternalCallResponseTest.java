@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
  * {@link InternalCallResponse} 的枚举契约与"结果类型 → {@code InternalCallType}"事实（spec §5：response）。
  *
  * <p>这里只固定映射事实：{@code IgnoredHttpResponse → IGNORED}、未实现本接口的结果一律按
- * {@code DEFAULT} 兜底（`HttpResult`/`HttpInfoResponse`/`ViewModel`/内存模式的 `HttpFileResult`）；
+ * {@code DEFAULT} 兜底（`HttpResult`/`HttpInfoResponse`/内存模式的 `HttpFileResult`）；
  * `HttpFileResult` 超限产出 `FileStreamResponse → FILE_STREAM` 的断言在 `HttpFileResultTest`。
  * 真正的策略选择（`ResponseStrategyContext.chooseStrategy`）归 Task 16。
  */
@@ -50,7 +50,6 @@ class InternalCallResponseTest {
             // brief 原文 `new HttpResult<>()` 无零参构造可用（HttpResult.java:28-44），编译修复为显式状态码构造
             assertFalse(new HttpResult<Object>(200) instanceof InternalCallResponse);
             assertFalse(info instanceof InternalCallResponse);
-            assertFalse(new ViewModel() instanceof InternalCallResponse);
             assertFalse(fileBody instanceof InternalCallResponse,
                     "内存模式的 HttpFileResult 产出普通 FullHttpResponse，走 DEFAULT 兜底");
         } finally {

@@ -11,7 +11,6 @@ dependencies {
     api(libs.netty.codec.http)
     api(libs.netty.codec.http2)
     api(libs.reactor.core)
-    api(libs.freemarker)
     api(project(":turboweb-anno"))
     // 聚合turboweb-websocket-core模块
     api(project(":turboweb-websocket-core"))

@@ -8,7 +8,6 @@ jackson-datatype-jsr310 = "2.17.3"
 jakarta-el-api = "5.0.0"
 jakarta-validation-api = "3.0.0"
 commons-lang3 = "3.18.0"
-freemarker = "2.3.32"
 jakarta-el = "5.0.0-M1"
 hibernate-validator = "7.0.0.Final"
 junit-jupiter = "5.12.2"
@@ -25,7 +24,6 @@ jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-dat
 jakarta-el-api = { module = "jakarta.el:jakarta.el-api", version.ref = "jakarta-el-api" }
 jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api", version.ref = "jakarta-validation-api" }
 commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
-freemarker = { module = "org.freemarker:freemarker", version.ref = "freemarker" }
 jakarta-el = { module = "org.glassfish:jakarta.el", version.ref = "jakarta-el" }
 hibernate-validator = { module = "org.hibernate:hibernate-validator", version.ref = "hibernate-validator" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit-jupiter" }
