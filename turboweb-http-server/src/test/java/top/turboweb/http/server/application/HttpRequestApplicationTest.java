@@ -12,7 +12,7 @@ import top.turboweb.http.middleware.router.RouterManager;
 import top.turboweb.http.middleware.router.container.RouterContainer;
 import top.turboweb.http.processor.convertor.DefaultHttpResponseConverter;
 import top.turboweb.http.server.config.HttpConfig;
-import top.turboweb.http.session.SessionManager;
+import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
 
 import java.lang.reflect.Field;

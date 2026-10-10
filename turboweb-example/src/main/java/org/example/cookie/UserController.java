@@ -4,8 +4,8 @@ package org.example.cookie;
 import top.turboweb.anno.method.Get;
 import top.turboweb.anno.RequestPath;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.cookie.HttpCookie;
-import top.turboweb.http.cookie.HttpCookieManager;
+import top.turboweb.http.core.cookie.HttpCookie;
+import top.turboweb.http.core.cookie.HttpCookieManager;
 
 @RequestPath("/user")
 public class UserController {

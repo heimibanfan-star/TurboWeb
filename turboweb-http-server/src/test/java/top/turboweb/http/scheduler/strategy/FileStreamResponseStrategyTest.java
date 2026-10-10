@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
-import top.turboweb.http.connect.InternalConnectSession;
-import top.turboweb.http.response.FileStreamResponse;
+import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.response.FileStreamResponse;
 import top.turboweb.http.testkit.Stubs;
 import io.netty.util.ReferenceCountUtil;
 

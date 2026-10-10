@@ -7,10 +7,10 @@ import top.turboweb.anno.method.Post;
 import top.turboweb.anno.RequestPath;
 import top.turboweb.anno.param.binder.Upload;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.response.AsyncFileResponse;
-import top.turboweb.http.response.FileStreamResponse;
-import top.turboweb.http.response.HttpFileResult;
-import top.turboweb.http.response.ZeroCopyResponse;
+import top.turboweb.http.core.response.AsyncFileResponse;
+import top.turboweb.http.core.response.FileStreamResponse;
+import top.turboweb.http.core.response.HttpFileResult;
+import top.turboweb.http.core.response.ZeroCopyResponse;
 
 import java.io.*;
 import java.util.List;

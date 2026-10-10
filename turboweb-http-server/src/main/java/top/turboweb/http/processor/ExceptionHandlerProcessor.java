@@ -6,7 +6,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.commons.utils.base.ErrorStrGenerator;
-import top.turboweb.http.connect.ConnectSession;
+import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.handler.ExceptionHandlerDefinition;
 import top.turboweb.http.handler.ExceptionHandlerMatcher;
 import top.turboweb.http.processor.convertor.HttpResponseConverter;

@@ -11,7 +11,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.connect.ConnectSession;
+import top.turboweb.http.core.connect.ConnectSession;
 
 import java.util.List;
 

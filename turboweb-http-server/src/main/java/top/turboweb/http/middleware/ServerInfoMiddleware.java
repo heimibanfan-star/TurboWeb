@@ -3,7 +3,7 @@ package top.turboweb.http.middleware;
 import io.netty.handler.codec.http.FullHttpRequest;
 import jakarta.validation.constraints.NotBlank;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.response.HttpResult;
+import top.turboweb.http.core.response.HttpResult;
 
 import java.lang.management.*;
 import java.util.*;

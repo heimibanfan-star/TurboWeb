@@ -5,8 +5,8 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.response.InternalCallResponse;
-import top.turboweb.http.response.InternalCallResponse.InternalCallType;
+import top.turboweb.http.core.response.InternalCallResponse;
+import top.turboweb.http.core.response.InternalCallResponse.InternalCallType;
 import top.turboweb.http.testkit.Stubs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

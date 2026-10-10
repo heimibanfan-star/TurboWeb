@@ -25,10 +25,10 @@ import top.turboweb.http.scheduler.VirtualThreadHttpScheduler;
 import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.handler.HttpRequestSchedulerHandler;
 import top.turboweb.http.server.handler.RequestSerializerHandler;
-import top.turboweb.http.session.DefaultSessionManagerHolder;
-import top.turboweb.http.session.MemorySessionManager;
-import top.turboweb.http.session.SessionManager;
-import top.turboweb.http.session.SessionManagerHolder;
+import top.turboweb.http.core.session.DefaultSessionManagerHolder;
+import top.turboweb.http.core.session.MemorySessionManager;
+import top.turboweb.http.core.session.SessionManager;
+import top.turboweb.http.core.session.SessionManagerHolder;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;

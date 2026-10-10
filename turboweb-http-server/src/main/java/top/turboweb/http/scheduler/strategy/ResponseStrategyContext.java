@@ -2,7 +2,7 @@ package top.turboweb.http.scheduler.strategy;
 
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.commons.utils.thread.ThreadPool;
-import top.turboweb.http.response.InternalCallResponse;
+import top.turboweb.http.core.response.InternalCallResponse;
 
 import java.util.Map;
 

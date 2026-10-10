@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.response.HttpResult;
+import top.turboweb.http.core.response.HttpResult;
 import top.turboweb.http.testkit.RecordingMiddleware;
 import top.turboweb.http.testkit.Stubs;
 

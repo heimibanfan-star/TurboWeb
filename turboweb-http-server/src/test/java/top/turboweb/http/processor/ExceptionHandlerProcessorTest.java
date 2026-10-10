@@ -14,7 +14,7 @@ import top.turboweb.anno.ExceptionResponseStatus;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboRouterException;
 import top.turboweb.commons.serializer.JacksonJsonSerializer;
-import top.turboweb.http.connect.ConnectSession;
+import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.handler.DefaultExceptionHandlerMatcher;
 import top.turboweb.http.handler.ExceptionHandlerContainerInitHelper;
 import top.turboweb.http.processor.convertor.DefaultHttpResponseConverter;

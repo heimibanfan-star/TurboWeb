@@ -1,7 +1,7 @@
 package top.turboweb.http.testkit;
 
 import io.netty.channel.ChannelFuture;
-import top.turboweb.http.connect.ConnectSession;
+import top.turboweb.http.core.connect.ConnectSession;
 
 import java.net.SocketAddress;
 import java.util.ArrayList;

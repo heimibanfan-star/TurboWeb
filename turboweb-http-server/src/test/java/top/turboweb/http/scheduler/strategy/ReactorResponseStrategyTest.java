@@ -8,8 +8,8 @@ import io.netty.handler.codec.http.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import top.turboweb.http.connect.InternalConnectSession;
-import top.turboweb.http.response.ReactorResponse;
+import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.response.ReactorResponse;
 import io.netty.util.ReferenceCountUtil;
 
 import java.nio.charset.StandardCharsets;

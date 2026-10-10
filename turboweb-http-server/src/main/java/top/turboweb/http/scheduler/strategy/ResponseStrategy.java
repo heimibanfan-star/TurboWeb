@@ -4,7 +4,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.utils.base.ErrorStrGenerator;
-import top.turboweb.http.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalConnectSession;
 
 import java.nio.charset.StandardCharsets;
 

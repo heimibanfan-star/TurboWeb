@@ -6,7 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.commons.exception.TurboTemplateRenderException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.response.ViewModel;
+import top.turboweb.http.core.response.ViewModel;
 
 import java.io.IOException;
 import java.lang.reflect.Field;

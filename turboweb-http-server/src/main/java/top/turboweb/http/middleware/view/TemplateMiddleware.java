@@ -2,7 +2,7 @@ package top.turboweb.http.middleware.view;
 
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.response.ViewModel;
+import top.turboweb.http.core.response.ViewModel;
 
 /**
  * 模型渲染的中间件
