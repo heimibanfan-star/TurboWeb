@@ -4,9 +4,13 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-// 插件与统一约定（java-library/maven-publish/jacoco、公共依赖、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
+// 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
     api(libs.commons.lang3)
+    // 本模块只消费 netty（util.internal/buffer/channel/http 编解码），codec-http 传递闭包恰好覆盖，不再全局背 reactor-netty 整栈
+    api(libs.netty.codec.http)
+    // 线程工厂签名上的 NonNull 注解仅编译期需要：compileOnly 供给，不入 POM 与运行时类路径
+    compileOnly(libs.jspecify)
     api(libs.jackson.databind)
     api(libs.jakarta.validation.api)
     implementation(libs.hibernate.validator)

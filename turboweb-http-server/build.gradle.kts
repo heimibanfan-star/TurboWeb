@@ -4,9 +4,14 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-// 插件与统一约定（java-library/maven-publish/jacoco、公共依赖、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
+// 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
     api(project(":turboweb-commons"))
+    // 服务器线程模型直接使用 netty（http/websocketx 与 http2 编解码），响应写出使用 reactor-core，均不涉 reactor-netty 本体；媒体类型与 URI 编解码使用 httpcore5
+    api(libs.netty.codec.http)
+    api(libs.netty.codec.http2)
+    api(libs.reactor.core)
+    api(libs.httpcore5)
     api(libs.freemarker)
     api(project(":turboweb-anno"))
     // 聚合turboweb-websocket-core模块
