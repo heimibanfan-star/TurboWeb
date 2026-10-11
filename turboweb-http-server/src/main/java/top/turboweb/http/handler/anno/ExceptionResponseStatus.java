@@ -1,4 +1,4 @@
-package top.turboweb.anno;
+package top.turboweb.http.handler.anno;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,16 +6,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 异常处理器方法注解
+ * 标注异常类处理器返回的状态码
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ExceptionHandler {
+public @interface ExceptionResponseStatus {
 
     /**
-     * 异常类
+     * 状态码
      *
-     * @return 异常类
+     * @return 状态码
      */
-    Class<? extends Throwable> value();
+    int value() default 500;
 }

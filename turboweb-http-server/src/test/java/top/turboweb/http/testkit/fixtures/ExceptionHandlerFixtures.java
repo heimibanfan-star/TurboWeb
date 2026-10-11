@@ -1,7 +1,7 @@
 package top.turboweb.http.testkit.fixtures;
 
-import top.turboweb.anno.ExceptionHandler;
-import top.turboweb.anno.ExceptionResponseStatus;
+import top.turboweb.http.handler.anno.ExceptionHandler;
+import top.turboweb.http.handler.anno.ExceptionResponseStatus;
 import top.turboweb.http.handler.ExceptionHandlerDefinition;
 
 import java.lang.invoke.MethodHandle;
