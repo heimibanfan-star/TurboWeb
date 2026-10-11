@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AnnoRouterManagerTest {
 
-    /** 通配符路径：`PathHelper.mergePath` 先于 AnnoRouterManager 自己的校验拒绝它。 */
+    /** 通配符路径：`PathHelper.mergePath` 只规整斜杠，由本类的路径校验分支拒绝它。 */
     static class WildcardController {
         @Get("/bad/*")
         public String bad() {
@@ -161,8 +161,10 @@ class AnnoRouterManagerTest {
         AnnoRouterManager manager = new AnnoRouterManager();
         manager.addController(new WildcardController());
 
-        assertThrows(IllegalArgumentException.class, () -> manager.init(null),
-                "PathHelper.mergePath 先抛 IAE，AnnoRouterManager 自己的通配符校验是死分支");
+        TurboRouterDefinitionCreateException ex = assertThrows(TurboRouterDefinitionCreateException.class,
+                () -> manager.init(null), "通配符由 doInitRouterDefinition 的路径校验拒绝，该分支现网生效");
+        assertEquals("path is not allowed to contain * or ? ", ex.getMessage(),
+                "断言消息把异常唯一归因到路径校验分支");
     }
 
     @Test

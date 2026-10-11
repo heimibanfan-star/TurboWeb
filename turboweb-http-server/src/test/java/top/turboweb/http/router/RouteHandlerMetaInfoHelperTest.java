@@ -1,5 +1,6 @@
 package top.turboweb.http.router;
 
+import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.Test;
 import top.turboweb.rest.route.Delete;
 import top.turboweb.rest.route.Get;
@@ -19,7 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * RouteHandlerMetaInfoHelper.parse 单元测试:三级路径合并(baseUrl + 类级 Route +
  * 方法级请求方式注解)、公有方法注解扫描、多动词注解拒绝、参数判空与 targetClass
- * 回落实例类、url 标准化(斜杠归一、以 / 开头、根路径为单个 /)与输出排序。
+ * 回落实例类、url 标准化(补前导斜杠、裁除尾斜杠)、连续斜杠非法路径拒绝、各级都提不出段时
+ * 根路径不受支持的拒绝与输出排序。
  */
 class RouteHandlerMetaInfoHelperTest {
 
@@ -43,6 +45,7 @@ class RouteHandlerMetaInfoHelperTest {
         assertSame(HelloController.class, meta.routeClass());
         assertEquals("hello", meta.method().getName());
         assertEquals(0, meta.method().getParameterCount());
+        assertSame(HttpMethod.GET, meta.httpMethod(), "Get 注解映射为 Netty GET");
     }
 
     @Test
@@ -75,6 +78,14 @@ class RouteHandlerMetaInfoHelperTest {
     }
 
     @Test
+    void verbAnnotationsMapToNettyHttpMethods() {
+        List<RouteHandlerMetaInfo> result = RouteHandlerMetaInfoHelper.parse("", new VerbController(), VerbController.class);
+        assertEquals(List.of(HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH, HttpMethod.POST, HttpMethod.PUT),
+                result.stream().map(RouteHandlerMetaInfo::httpMethod).toList(),
+                "五种请求方式注解分别映射为对应的 Netty HttpMethod");
+    }
+
+    @Test
     void multipleVerbAnnotationsOnOneMethodThrow() {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> RouteHandlerMetaInfoHelper.parse("", new MultiVerbController(), MultiVerbController.class));
@@ -82,18 +93,18 @@ class RouteHandlerMetaInfoHelperTest {
     }
 
     @Test
-    void wildcardMethodPathRejectedByMerge() {
-        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
-                () -> RouteHandlerMetaInfoHelper.parse("", new WildcardController(), WildcardController.class));
-        assertEquals("路由路径不允许包含*或..", error.getMessage(), "合并守卫的异常直接透出");
+    void wildcardMethodPathIsPassedThroughToMetaInfo() {
+        List<RouteHandlerMetaInfo> result = RouteHandlerMetaInfoHelper.parse("", new WildcardController(), WildcardController.class);
+        assertEquals(1, result.size());
+        assertEquals("/bad*", result.get(0).url(), "通配符不属路径结构,合并不再拒绝,由路由语法校验方处理");
     }
 
     @Test
-    void rootAndDefaultMethodAnnotationYieldSingleSlash() {
-        List<RouteHandlerMetaInfo> result = RouteHandlerMetaInfoHelper.parse("", new RootController(), RootController.class);
-        assertEquals(2, result.size());
-        assertEquals("/", result.get(0).url(), "缺省注解值为斜杠时根路径输出单个斜杠");
-        assertEquals("/", result.get(1).url());
+    void rootPathIsRejectedDuringMerge() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> RouteHandlerMetaInfoHelper.parse("", new RootController(), RootController.class),
+                "前缀、类路径、方法路径都提不出段,合并退化成根路径,不受支持");
+        assertTrue(error.getMessage().contains("不支持根路径路由"), "异常由路径合并透出,文案归路径助手");
     }
 
     @Test
@@ -209,9 +220,23 @@ class RouteHandlerMetaInfoHelperTest {
 
     @Test
     void slashesAreNormalizedAcrossAllThreeSegments() {
-        List<RouteHandlerMetaInfo> result = RouteHandlerMetaInfoHelper.parse("api//", new NormalizeController(), NormalizeController.class);
+        List<RouteHandlerMetaInfo> result = RouteHandlerMetaInfoHelper.parse("api/", new NormalizeController(), NormalizeController.class);
         assertEquals(List.of("/api/c", "/api/c/sub/x"), result.stream().map(RouteHandlerMetaInfo::url).toList(),
-                "前导补斜杠、连续斜杠折叠、尾斜杠裁除");
+                "三段各带缺前导或带尾斜杠,合并后以 / 开头且结尾不含 /");
+    }
+
+    @Test
+    void consecutiveSlashInBaseUrlIsRejected() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> RouteHandlerMetaInfoHelper.parse("api//", new NormalizeController(), NormalizeController.class));
+        assertTrue(error.getMessage().contains("api//"), "连续斜杠属非法路径,异常带原文直接透出");
+    }
+
+    @Test
+    void consecutiveSlashInMethodAnnotationIsRejected() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> RouteHandlerMetaInfoHelper.parse("", new DoubleSlashController(), DoubleSlashController.class));
+        assertTrue(error.getMessage().contains("//sub//x"), "方法级注解里的连续斜杠同样拒绝");
     }
 
     @Test
@@ -292,13 +317,21 @@ class RouteHandlerMetaInfoHelperTest {
     @Route("/c/")
     public static class NormalizeController {
 
-        @Get("//sub//x")
+        @Get("sub/x/")
         public String sub() {
             return "";
         }
 
         @Get("")
         public String empty() {
+            return "";
+        }
+    }
+
+    public static class DoubleSlashController {
+
+        @Get("//sub//x")
+        public String sub() {
             return "";
         }
     }
