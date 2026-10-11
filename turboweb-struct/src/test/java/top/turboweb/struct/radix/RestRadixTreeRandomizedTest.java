@@ -18,9 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /**
  * 随机操作序列回放：以朴素参照实现对账 put / remove / matchAny 的交错组合，
  * 固定种子保证失败可复现。生成器只产合法格式模式串（格式校验由单测钉死，
- * 参照不含格式与模式内重名校验逻辑，但含同槽异名冲突语义）。
- * <p>参照 matchAny 取"字面 0 参数 1"类型签名最小（即字面优先、参数兜底、失败回溯
- * 的深度优先顺序）的首个候选，与实现的回溯 DFS 等价。
+ * 参照不含格式与模式内重名校验逻辑，但含与匹配同口径的冲突检测语义，
+ * 歧义与重复注册均拒收）。
+ * <p>参照 matchAny 取"字面 0 参数 1"类型签名最小的首个候选（在最先分型的段位上
+ * 字面量优先），与实现的穷举择优 DFS 等价。
  */
 class RestRadixTreeRandomizedTest {
 
@@ -33,48 +34,51 @@ class RestRadixTreeRandomizedTest {
 
     @Test
     void randomOperationSequencesMatchReferenceImplementation() {
-        for (long seed = 0; seed < ROUNDS; seed++) {
-            replay(seed);
+        for (boolean fastPath : new boolean[]{false, true}) {
+            for (long seed = 0; seed < ROUNDS; seed++) {
+                replay(fastPath, seed);
+            }
         }
     }
 
-    private void replay(long seed) {
+    private void replay(boolean fastPath, long seed) {
         Random random = new Random(seed);
-        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RestRadixTree<Integer> tree = new RestRadixTree<>(fastPath);
         ReferenceTrie reference = new ReferenceTrie();
         for (int op = 0; op < OPERATIONS_PER_ROUND; op++) {
             String pattern = randomPattern(random);
+            String tag = (fastPath ? "fast" : "tree") + " 模式 " + seed + " 轮";
             if (random.nextInt(100) < 55) {
                 int value = random.nextInt();
                 if (reference.conflictWith(pattern) != null) {
                     assertThrows(IllegalArgumentException.class, () -> tree.put(pattern, value),
-                            seed + " 轮 put 应抛同槽冲突, op=" + op);
+                            tag + " put 应抛同槽冲突, op=" + op);
                 } else {
-                    Integer expected = reference.put(pattern, value);
-                    assertEquals(expected, tree.put(pattern, value), seed + " 轮 put 返回值, op=" + op);
+                    reference.put(pattern, value);
+                    tree.put(pattern, value);
                 }
             } else {
                 boolean expected = reference.remove(pattern);
-                assertEquals(expected, tree.remove(pattern), seed + " 轮 remove 返回值, op=" + op);
+                assertEquals(expected, tree.remove(pattern), tag + " remove 返回值, op=" + op);
             }
-            assertMatchEquals(reference, tree, concretePath(pattern, random), seed, op);
+            assertMatchEquals(reference, tree, concretePath(pattern, random), tag, op);
             for (int probe = 0; probe < PROBES_PER_OPERATION; probe++) {
-                assertMatchEquals(reference, tree, randomPath(random, 1, 4), seed, op);
+                assertMatchEquals(reference, tree, randomPath(random), tag, op);
             }
         }
     }
 
     private void assertMatchEquals(ReferenceTrie reference, RestRadixTree<Integer> tree,
-                                   String path, long seed, int op) {
+                                   String path, String tag, int op) {
         ReferenceHit expected = reference.match(path);
         RestRadixTree.MatchResult<Integer> actual = tree.matchAny(path);
         if (expected == null) {
-            assertNull(actual, seed + " 轮 match 应未命中, path=" + path + ", op=" + op);
+            assertNull(actual, tag + " match 应未命中, path=" + path + ", op=" + op);
             return;
         }
-        assertNotNull(actual, seed + " 轮 match 应命中, path=" + path + ", op=" + op);
-        assertEquals(expected.value, actual.value, seed + " 轮 match 值, path=" + path + ", op=" + op);
-        assertEquals(expected.params, actual.params, seed + " 轮 match 参数绑定, path=" + path + ", op=" + op);
+        assertNotNull(actual, tag + " match 应命中, path=" + path + ", op=" + op);
+        assertEquals(expected.value(), actual.value(), tag + " match 值, path=" + path + ", op=" + op);
+        assertEquals(expected.params(), actual.params(), tag + " match 参数绑定, path=" + path + ", op=" + op);
     }
 
     /**
@@ -105,8 +109,8 @@ class RestRadixTreeRandomizedTest {
      * 随机路径：1 到 4 段的净形路径（单首斜杠、无空段），
      * 字母表含模式字面之外的字以抬高未命中概率。
      */
-    private String randomPath(Random random, int minLength, int maxLength) {
-        int length = minLength + random.nextInt(maxLength - minLength + 1);
+    private String randomPath(Random random) {
+        int length = 1 + random.nextInt(4);
         StringBuilder path = new StringBuilder();
         for (int i = 0; i < length; i++) {
             path.append('/').append(PATH_ALPHABET.get(random.nextInt(PATH_ALPHABET.size())));
@@ -135,28 +139,21 @@ class RestRadixTreeRandomizedTest {
     /**
      * 参照命中：命中值与参数绑定。
      */
-    private static final class ReferenceHit {
-
-        private final Integer value;
-        private final Map<String, String> params;
-
-        private ReferenceHit(Integer value, Map<String, String> params) {
-            this.value = value;
-            this.params = params;
-        }
+    private record ReferenceHit(Integer value, Map<String, String> params) {
     }
 
     /**
      * 朴素参照实现：注册表为模式串到值的映射。
-     * put 含同槽异名冲突判定（逐段相容走到双参数且异名即冲突），
+     * put 含冲突检测（逐段比对：双参数或同字面量继续向后，字面量相异或字面量对参数即分叉不歧义，
+     * 段数不同匹配面不相交，逐段对齐走到尽头即冲突，含模式串相同的重复注册），
      * match 筛选段数相同的已注册模式，取类型签名最小者为命中。
      */
     private static final class ReferenceTrie {
 
         private final Map<String, Integer> patterns = new HashMap<>();
 
-        Integer put(String pattern, Integer value) {
-            return patterns.put(pattern, value);
+        void put(String pattern, Integer value) {
+            patterns.put(pattern, value);
         }
 
         boolean remove(String pattern) {
@@ -164,7 +161,7 @@ class RestRadixTreeRandomizedTest {
         }
 
         /**
-         * 返回与新模式发生同槽异名参数冲突的既有模式；无冲突返回 null。
+         * 返回与新模式冲突的既有模式（歧义或重复注册）；无冲突返回 null。
          */
         String conflictWith(String pattern) {
             for (String existing : patterns.keySet()) {
@@ -175,22 +172,30 @@ class RestRadixTreeRandomizedTest {
             return null;
         }
 
+        /**
+         * 冲突判定与匹配同口径：逐段比对，字面量相同或双方均为参数则继续向后，
+         * 字面量相异或一方为参数一方为字面量则匹配面自此分叉（字面量优先）不歧义，
+         * 段数不同不存在同段数的公共匹配路径；逐段对齐走到尽头即冲突，
+         * 模式串完全相同属重复注册，同样拒收。
+         */
         private boolean conflicts(String first, String second) {
             String[] firstSegments = split(first);
             String[] secondSegments = split(second);
-            int common = Math.min(firstSegments.length, secondSegments.length);
-            for (int i = 0; i < common; i++) {
+            if (firstSegments.length != secondSegments.length) {
+                return false;
+            }
+            for (int i = 0; i < firstSegments.length; i++) {
                 String a = firstSegments[i];
                 String b = secondSegments[i];
                 if (a.equals(b)) {
                     continue;
                 }
                 if (a.charAt(0) == ':' && b.charAt(0) == ':') {
-                    return true;
+                    continue;
                 }
                 return false;
             }
-            return false;
+            return true;
         }
 
         ReferenceHit match(String path) {

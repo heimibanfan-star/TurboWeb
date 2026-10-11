@@ -12,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link RestRadixTree} 只读视图 ReadView：同一实例缓存、matchAny 委托（含 null 校验同源）、
- * 不支持读方法经视图同样抛出、后续 put / remove 对视图可见。
+ * 不支持读方法经视图同样抛出、toReadView 封存写侧（此后 put / remove 一律抛
+ * IllegalStateException，封存前注册的内容对视图可见）。
  */
 class RestRadixTreeReadViewTest {
 
@@ -22,6 +23,8 @@ class RestRadixTreeReadViewTest {
         tree.put("/a", 1);
         RadixTree<RestRadixTree.MatchResult<Integer>> view = tree.toReadView();
         assertSame(view, tree.toReadView());
+        assertThrows(IllegalStateException.class, () -> tree.put("/b", 2),
+                "重复建视图封存状态不变");
     }
 
     @Test
@@ -30,19 +33,31 @@ class RestRadixTreeReadViewTest {
         tree.put("/user/:id", 1);
         RadixTree<RestRadixTree.MatchResult<Integer>> view = tree.toReadView();
         RestRadixTree.MatchResult<Integer> hit = view.matchAny("/user/42");
-        assertEquals(1, hit.value);
-        assertEquals(Map.of("id", "42"), hit.params);
+        assertEquals(1, hit.value());
+        assertEquals(Map.of("id", "42"), hit.params());
     }
 
     @Test
-    void readViewSeesSubsequentPutAndRemove() {
+    void writeOperationsAfterToReadViewAreRejected() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/a", 1);
         RadixTree<RestRadixTree.MatchResult<Integer>> view = tree.toReadView();
-        assertNull(tree.put("/b", 2));
-        assertEquals(2, view.matchAny("/b").value, "建视图后的 put 对视图可见");
-        assertTrue(tree.remove("/a"));
-        assertNull(view.matchAny("/a"), "建视图后的 remove 对视图可见");
+        assertEquals("The rest radix tree does not allow write operations after toReadView()",
+                assertThrows(IllegalStateException.class, () -> tree.put("/b", 2)).getMessage());
+        assertEquals("The rest radix tree does not allow write operations after toReadView()",
+                assertThrows(IllegalStateException.class, () -> tree.remove("/a")).getMessage());
+        assertEquals(1, view.matchAny("/a").value(), "封存前注册的内容对视图可见");
+    }
+
+    @Test
+    void sealedWriteRejectionPrecedesArgumentValidation() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RadixTree<RestRadixTree.MatchResult<Integer>> view = tree.toReadView();
+        assertThrows(IllegalStateException.class, () -> tree.put(null, 1),
+                "封存先于参数校验");
+        assertThrows(IllegalStateException.class, () -> tree.remove(null),
+                "封存先于参数校验");
+        assertNull(view.matchAny("/a"), "封存空树读取不受影响");
     }
 
     @Test
@@ -51,8 +66,8 @@ class RestRadixTreeReadViewTest {
         tree.put("/user/admin", 1);
         tree.put("/:param/posts", 2);
         RadixTree<RestRadixTree.MatchResult<Integer>> view = tree.toReadView();
-        assertEquals(1, view.matchAny("//user//admin/").value, "归一化与字面优先同写侧");
-        assertEquals(2, view.matchAny("/user/posts").value, "回溯命中参数分支同写侧");
+        assertEquals(1, view.matchAny("//user//admin/").value(), "归一化与字面优先同写侧");
+        assertEquals(2, view.matchAny("/user/posts").value(), "回溯命中参数分支同写侧");
     }
 
     @Test

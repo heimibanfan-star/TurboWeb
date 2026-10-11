@@ -1,21 +1,30 @@
 package top.turboweb.struct.radix;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
 /**
  * REST 路径基数树实现。
  * <p>树的边即单个路径段（段级 Trie，无压缩）：字面子节点按段原文索引，
- * 同一节点至多挂一个参数子节点（{@code :name} 占位段）。
- * put 时同槽异名参数视为冲突立即拒收，同名参数复用同一参数节点；
- * matchAny 按字面优先、参数兜底、失败回溯的深度优先顺序解析路径，
- * 命中返回携带参数绑定的 {@link MatchResult}。
- * get、exist、match 与本实现的单命中语义不符，一律抛出 UnsupportedOperationException。
+ * 参数子节点（{@code :name} 占位段）按参数名索引，同一节点可并存多个互为兄弟分支。
+ * put 时按匹配同款口径做冲突检测：逐段比对，字面量相同或双方均为参数则继续向后，
+ * 字面量相异或一方为字面量一方为参数即分叉（字面量优先）不歧义，逐段对齐走到尽头
+ * 即冲突拒收——既有模式与新模式相同属重复注册，不同属歧义路径；不歧义的同槽异名
+ * 参数作为兄弟参数分支共存，同名参数复用同一参数节点；
+ * matchAny 穷举全部可行分支收集全部命中，按类型签名升序取最小（签名逐位记段类型，
+ * 字面 0 参数 1，最小即在最先分型的段位上字面量优先，与 put 冲突检测的字面量优先口径一致），
+ * 命中返回携带参数绑定的 {@link MatchResult}。构造器可开启查询优化：
+ * 纯字面量模式进入哈希快表，匹配先查快表未果再走树，对外语义不变。
+ * get、exist、match 与本实现的单命中语义不符，一律抛出 UnsupportedOperationException；
+ * {@link #toReadView()} 返回只读视图并将本树封存为只读，封存后 put 与 remove 一律抛出
+ * IllegalStateException。
  * <p>非并发安全：不加锁，写操作不做原子性保证。
  *
  * @param <O> 值类型
@@ -25,23 +34,17 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     /**
      * 匹配命中结果：命中模式上注册的值与路径参数绑定。
      *
-     * @param <O> 值类型
+     * @param <O>    值类型
+     * @param value  命中模式上注册的值
+     * @param params 路径参数绑定（参数名到路径段），不可变
      */
-    static final class MatchResult<O> {
+    public record MatchResult<O>(O value, Map<String, String> params) {
 
         /**
-         * 命中模式上注册的值。
+         * 归一参数绑定为不可变映射。
          */
-        public final O value;
-
-        /**
-         * 路径参数绑定（参数名到路径段），不可变。
-         */
-        public final Map<String, String> params;
-
-        MatchResult(O value, Map<String, String> params) {
-            this.value = value;
-            this.params = Map.copyOf(params);
+        public MatchResult {
+            params = Map.copyOf(params);
         }
     }
 
@@ -58,19 +61,24 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     private static final String MATCH_NOT_SUPPORTED = "The rest radix tree does not support the match operation";
 
     /**
-     * 树节点：value 可空（根节点恒为 null），literals 按段原文索引，
-     * paramChild 为参数子节点（至多一个，无则为 null），
-     * paramName 仅在本节点是参数节点时为参数名（不带冒号），否则为 null。
+     * 只读封存后写操作抛出的异常消息。
+     */
+    private static final String WRITE_NOT_ALLOWED_AFTER_TO_READ_VIEW =
+            "The rest radix tree does not allow write operations after toReadView()";
+
+    /**
+     * 树节点：value 可空（根节点恒为 null），literals 按段原文索引字面子节点，
+     * params 按参数名（不带冒号）索引参数子节点，可并存多个互为兄弟分支。
      */
     private static final class Node<O> {
 
         private O value;
         private final Map<String, Node<O>> literals;
-        private Node<O> paramChild;
-        private String paramName;
+        private final Map<String, Node<O>> params;
 
         private Node() {
             this.literals = new HashMap<>();
+            this.params = new HashMap<>();
         }
     }
 
@@ -80,12 +88,39 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     private final Node<O> root;
 
     /**
+     * 字面路径快表：查询优化开启时注册纯字面量模式的哈希表，键为 {@code /} 连接的
+     * 归一化段序列（与 matchAny 的归一化同口径）；未开启时为 null——null 即未开启，
+     * 作为全部快路径访问点的统一判据。
+     */
+    private final Map<String, O> literalPaths;
+
+    /**
      * 只读视图缓存：首次 {@link #toReadView()} 创建，此后复用同一实例。
      */
     private RadixTree<MatchResult<O>> readView;
 
+    /**
+     * 只读封存标记：{@link #toReadView()} 调用起置真，此后所有写操作拒绝。
+     */
+    private final AtomicBoolean readViewSealed = new AtomicBoolean(false);
+
+    /**
+     * 构造未开启查询优化的空树，全部模式按原逻辑进树。
+     */
     public RestRadixTree() {
+        this(false);
+    }
+
+    /**
+     * @param literalFastPath 查询优化开关：开启时纯字面量模式进入哈希快表，
+     *                        匹配先查快表未果再走树；未开启时全部模式按原逻辑进树。
+     *                        开关只改变存储与查找的路径，不改变注册、冲突、匹配、
+     *                        删除的任何对外语义（纯字面量模式与含参模式在参数位必然
+     *                        分叉不歧义，快表内重复注册即其唯一冲突形态）
+     */
+    public RestRadixTree(boolean literalFastPath) {
         this.root = new Node<>();
+        this.literalPaths = literalFastPath ? new HashMap<>() : null;
     }
 
     /**
@@ -113,8 +148,10 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
-     * 单命中匹配：按字面优先、参数兜底、失败回溯的深度优先顺序解析路径，
-     * 返回携带参数绑定的命中结果；路径不以 {@code /} 开头或未命中返回 null，
+     * 单命中匹配：查询优化开启时先查字面快表（键为归一化段序列，命中即注册时的
+     * 纯字面量模式——全字面签名必然最小，快表命中即整体最优）；未命中再穷举
+     * 全部可行分支收集全部命中，按类型签名升序取最小者，返回携带参数绑定的
+     * 命中结果；路径不以 {@code /} 开头或未命中返回 null，
      * path 为 null 时抛 IllegalArgumentException。
      */
     @Override
@@ -127,47 +164,120 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
             return null;
         }
         List<String> segments = normalize(target);
-        return walk(root, segments, 0, new HashMap<>());
+        if (literalPaths != null) {
+            O literal = literalPaths.get(String.join("/", segments));
+            if (literal != null) {
+                return new MatchResult<>(literal, new HashMap<>());
+            }
+        }
+        List<Hit<O>> hits = new ArrayList<>();
+        walk(root, segments, 0, new HashMap<>(), new boolean[segments.size()], hits);
+        if (hits.isEmpty()) {
+            return null;
+        }
+        hits.sort((a, b) -> Arrays.compare(a.signature, b.signature));
+        return hits.getFirst().result;
     }
 
     /**
-     * 注册模式并关联值，模式已存在时覆盖旧值。
+     * 注册模式并关联值；模式已注册（重复注册）或与既有注册面歧义时拒收，
+     * 抛出异常且树保持不变。
      * <p>模式以 {@code /} 开头，按 {@code /} 分割为段，任何空段拒收；
      * 以 {@code :} 开头的整段为参数段，参数名须匹配 {@code [A-Za-z_][A-Za-z0-9_]*}；
-     * 同一模式内参数名不得重复；同一槽位上与既有参数节点异名的参数视为冲突拒收。
+     * 同一模式内参数名不得重复；字面段内不得出现 {@code :}（冒号仅允许作为参数段前缀）。
+     * <p>查询优化开启时，纯字面量模式（不含任何参数段）进入哈希快表而非树：
+     * 纯字面量模式与含参模式在参数位必然分叉（字面量优先）不歧义，快表内键重复
+     * 即重复注册，为唯一冲突形态；未开启时全部模式走下述树逻辑。
+     * <p>冲突检测与匹配同口径逐段比对新模式与既有注册面：字面量相同或双方均为参数
+     * 继续向后，字面量相异或字面量对参数即分叉（字面量优先）不歧义；与既有模式在
+     * 参数点对齐时逐支回溯比对。逐段对齐走到尽头且既有节点有值即冲突——既有模式与
+     * 新模式相同为重复注册、不同为歧义路径，均拒收；不歧义的同槽异名参数作为
+     * 兄弟参数分支共存。
      *
      * @param pattern 目标模式，不得为 null
      * @param value   关联值，不得为 null
-     * @return 模式原先注册的值；模式原先不存在时返回 null
-     * @throws IllegalArgumentException pattern 为 null、value 为 null、格式非法或参数冲突
+     * @throws IllegalArgumentException pattern 为 null、value 为 null、格式非法、
+     *         重复注册已存在的模式或与既有模式歧义
+     * @throws IllegalStateException 已调用 {@link #toReadView()} 封存为只读后
      */
-    public O put(String pattern, O value) {
+    public void put(String pattern, O value) {
+        ensureNotSealed();
         checkKeyNotNull(pattern);
         if (value == null) {
             throw new IllegalArgumentException("The value argument was null");
         }
         List<String> segments = parseSegments(pattern);
+        if (literalPaths != null && segments.stream().noneMatch(RestRadixTree::isParamSegment)) {
+            String key = String.join("/", segments);
+            if (literalPaths.containsKey(key)) {
+                throw new IllegalArgumentException("Path pattern '" + pattern + "' is already registered");
+            }
+            literalPaths.put(key, value);
+            return;
+        }
+        String conflict = findConflict(root, segments, 0, new StringBuilder());
+        if (conflict != null) {
+            throw new IllegalArgumentException(conflict.equals(pattern)
+                    ? "Path pattern '" + pattern + "' is already registered"
+                    : "Ambiguous path pattern '" + pattern + "' conflicts with existing pattern '" + conflict + "'");
+        }
         Node<O> node = root;
         for (String segment : segments) {
             node = descendForPut(node, segment);
         }
-        O old = node.value;
         node.value = value;
-        return old;
     }
 
     /**
-     * 按模式精确删除：与 put 同源校验，按模式串逐段下钻，
-     * 任一段走不通或末节点无值返回 false；命中则摘除该模式注册的值，
-     * 并向上折叠无值且无子的节点（根不摘）。
+     * 冲突检测：按匹配同款口径逐段比对新模式与既有注册面。
+     * 新模式字面段只与同名既有字面子节点对齐下探，新模式参数段与全部既有参数子节点
+     * 逐支对齐下探（一支走穷即回溯改试下一支）；字面量与参数同槽不比对，字面量优先
+     * 不歧义；逐段对齐走到新模式尽头且节点有值，即与既有注册冲突，返回自根重建的
+     * 该既有模式串（与新模式相同即重复注册，不同即歧义路径）；
+     * 全部分支走穷无对齐命中返回 null。path 为自根累积的模式前缀。
+     */
+    private String findConflict(Node<O> node, List<String> segments, int index, StringBuilder path) {
+        if (index == segments.size()) {
+            return node.value == null ? null : path.toString();
+        }
+        String segment = segments.get(index);
+        int mark = path.length();
+        if (isParamSegment(segment)) {
+            for (Map.Entry<String, Node<O>> entry : node.params.entrySet()) {
+                path.append("/:").append(entry.getKey());
+                String conflict = findConflict(entry.getValue(), segments, index + 1, path);
+                if (conflict != null) {
+                    return conflict;
+                }
+                path.setLength(mark);
+            }
+            return null;
+        }
+        Node<O> literal = node.literals.get(segment);
+        if (literal == null) {
+            return null;
+        }
+        path.append('/').append(segment);
+        return findConflict(literal, segments, index + 1, path);
+    }
+
+    /**
+     * 按模式精确删除：与 put 同源校验；查询优化开启时纯字面量模式自快表删除，
+     * 其余按模式串逐段下钻，任一段走不通或末节点无值返回 false；命中则摘除
+     * 该模式注册的值，并向上折叠无值且无子的节点（根不摘）。
      *
      * @param pattern 目标模式，不得为 null
      * @return 是否发生了删除；模式未注册时返回 false
      * @throws IllegalArgumentException pattern 为 null 或格式非法
+     * @throws IllegalStateException 已调用 {@link #toReadView()} 封存为只读后
      */
     public boolean remove(String pattern) {
+        ensureNotSealed();
         checkKeyNotNull(pattern);
         List<String> segments = parseSegments(pattern);
+        if (literalPaths != null && segments.stream().noneMatch(RestRadixTree::isParamSegment)) {
+            return literalPaths.remove(String.join("/", segments)) != null;
+        }
         List<Node<O>> path = new ArrayList<>();
         path.add(root);
         Node<O> node = root;
@@ -187,12 +297,14 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
-     * 返回只读视图。视图为活视图而非快照：内部持有本实例，
-     * 此后的 put / remove 对视图可见；重复调用返回同一实例。
+     * 返回只读视图，同时将本树封存为只读：自本次调用起所有写操作（put、remove）
+     * 一律抛出 {@link IllegalStateException}，封存前注册的内容对视图可见。
+     * 视图为活视图而非快照：内部持有本实例；重复调用返回同一实例且封存状态不变。
      *
      * @return 只读视图
      */
     public RadixTree<MatchResult<O>> toReadView() {
+        readViewSealed.set(true);
         if (readView == null) {
             readView = new ReadView();
         }
@@ -200,33 +312,40 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
-     * 回溯匹配：到达段数时节点有值即命中（params 经 Map.copyOf 封装为不可变）；
-     * 否则先试字面子节点，失败再试参数分支（绑定后下钻，失败撤销绑定），
-     * 两分支皆败返回 null，由上层回溯改试其备选分支。
-     * params 为单次调用的局部 Map，命中封装副本、未命中整体丢弃，匹配对树无副作用。
+     * 回溯匹配：深度优先穷举全部可行分支，逐个命中收集进 hits，不做首命中即停
+     * ——参数兄弟分支的子树可能在更深层才分型，首命中不保证全局字面量优先，
+     * 最终由 matchAny 按签名升序取最小。签名逐位记段类型（字面 false、参数
+     * true，按位比较字面小于参数）。到达段数时节点有值即为一个命中（params
+     * 经 Map.copyOf 封装为不可变，签名克隆当前轨迹留存）；params 为单次调用的
+     * 局部 Map，命中封装副本、未命中撤销绑定整体丢弃，匹配对树无副作用。
+     * types 为当前路径的段类型轨迹。
      */
-    private MatchResult<O> walk(Node<O> node, List<String> segments, int index, Map<String, String> params) {
+    private void walk(Node<O> node, List<String> segments, int index, Map<String, String> params,
+                      boolean[] types, List<Hit<O>> hits) {
         if (index == segments.size()) {
-            return node.value == null ? null : new MatchResult<>(node.value, params);
+            if (node.value != null) {
+                hits.add(new Hit<>(new MatchResult<>(node.value, params), types.clone()));
+            }
+            return;
         }
         String segment = segments.get(index);
         Node<O> literal = node.literals.get(segment);
         if (literal != null) {
-            MatchResult<O> hit = walk(literal, segments, index + 1, params);
-            if (hit != null) {
-                return hit;
-            }
+            types[index] = false;
+            walk(literal, segments, index + 1, params, types, hits);
         }
-        Node<O> param = node.paramChild;
-        if (param != null) {
-            params.put(param.paramName, segment);
-            MatchResult<O> hit = walk(param, segments, index + 1, params);
-            if (hit != null) {
-                return hit;
-            }
-            params.remove(param.paramName);
+        for (Map.Entry<String, Node<O>> entry : node.params.entrySet()) {
+            types[index] = true;
+            params.put(entry.getKey(), segment);
+            walk(entry.getValue(), segments, index + 1, params, types, hits);
+            params.remove(entry.getKey());
         }
-        return null;
+    }
+
+    /**
+     * 命中候选：命中结果与克隆留存的类型签名，供按签名升序择优。
+     */
+    private record Hit<O>(MatchResult<O> result, boolean[] signature) {
     }
 
     /**
@@ -244,65 +363,51 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
-     * put 下钻一步：参数段在无参数子节点时新建（名字去掉冒号），
-     * 已有且异名抛冲突，同名复用；字面段取既有子节点，无则新建挂上。
+     * put 下钻一步：参数段按参数名取既有参数子节点，无则新建（冲突已在 put 前置检测拦下）；
+     * 字面段取既有子节点，无则新建挂上。
      */
     private Node<O> descendForPut(Node<O> node, String segment) {
         if (isParamSegment(segment)) {
-            String name = segment.substring(1);
-            if (node.paramChild == null) {
-                Node<O> param = new Node<>();
-                param.paramName = name;
-                node.paramChild = param;
-                return param;
-            }
-            if (!node.paramChild.paramName.equals(name)) {
-                throw new IllegalArgumentException("Conflicting path variable ':" + name
-                        + "' with existing ':" + node.paramChild.paramName + "'");
-            }
-            return node.paramChild;
+            return node.params.computeIfAbsent(segment.substring(1), key -> new Node<>());
         }
         return node.literals.computeIfAbsent(segment, key -> new Node<>());
     }
 
     /**
-     * 摘值后自末节点向上折叠：无值且无任何子节点（literals 空且 paramChild 为 null）的节点
-     * 从父摘除——字面子节点走 literals.remove(段)，参数子节点走 paramChild 置 null——
+     * 摘值后自末节点向上折叠：无值且无任何子节点（literals 与 params 皆空）的节点
+     * 从父摘除——模式段为参数段时按参数名摘 params 条目，字面段按键摘 literals 条目——
      * 并继续上溯，遇有值或有子的节点即停；根不摘。
      */
     private static <O> void foldUp(List<Node<O>> path, List<String> segments) {
         for (int depth = path.size() - 1; depth >= 1; depth--) {
             Node<O> node = path.get(depth);
-            if (node.value != null || !node.literals.isEmpty() || node.paramChild != null) {
+            if (node.value != null || !node.literals.isEmpty() || !node.params.isEmpty()) {
                 break;
             }
+            String segment = segments.get(depth - 1);
             Node<O> parent = path.get(depth - 1);
-            if (parent.paramChild == node) {
-                parent.paramChild = null;
+            if (isParamSegment(segment)) {
+                parent.params.remove(segment.substring(1));
             } else {
-                parent.literals.remove(segments.get(depth - 1));
+                parent.literals.remove(segment);
             }
         }
     }
 
     /**
-     * remove 下钻一步：参数段要求参数子节点存在且名字与模式一致，
-     * 字面段要求字面子节点存在；走不通返回 null。
+     * remove 下钻一步：参数段按参数名取参数子节点（键即模式名，取到即同名），
+     * 字面段按键取字面子节点；走不通返回 null。
      */
     private Node<O> descendForRemove(Node<O> node, String segment) {
         if (isParamSegment(segment)) {
-            Node<O> param = node.paramChild;
-            if (param == null || !param.paramName.equals(segment.substring(1))) {
-                return null;
-            }
-            return param;
+            return node.params.get(segment.substring(1));
         }
         return node.literals.get(segment);
     }
 
     /**
      * 模式解析与格式校验：{@code /} 开头，按 {@code /} 分割且保留尾部空段，
-     * 逐段校验空段、参数段语法、同模式参数名重复。
+     * 逐段校验空段、参数段语法、字面段冒号、同模式参数名重复。
      */
     private static List<String> parseSegments(String pattern) {
         if (!pattern.startsWith("/")) {
@@ -323,6 +428,8 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
                 if (!names.add(name)) {
                     throw new IllegalArgumentException("Duplicate path variable '" + name + "' in path");
                 }
+            } else if (segment.contains(":")) {
+                throw new IllegalArgumentException("Literal path segment must not contain ':': " + segment);
             }
             segments.add(segment);
         }
@@ -340,9 +447,20 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
+     * 写操作前置校验：已封存为只读（调用过 {@link #toReadView()}）即拒绝，
+     * 先于参数校验生效。
+     */
+    private void ensureNotSealed() {
+        if (readViewSealed.get()) {
+            throw new IllegalStateException(WRITE_NOT_ALLOWED_AFTER_TO_READ_VIEW);
+        }
+    }
+
+    /**
      * 只读视图：matchAny 委托给外部实例，get、exist、match 与外部实例同样
-     * 抛出 UnsupportedOperationException；写侧后续 put / remove 对本视图可见
-     * （活视图，非快照）。仅能经 {@link RestRadixTree#toReadView()} 获得。
+     * 抛出 UnsupportedOperationException；封存（{@link RestRadixTree#toReadView()}）
+     * 前注册的内容对本视图可见（活视图，非快照），封存后外部实例拒绝一切写操作。
+     * 仅能经 {@link RestRadixTree#toReadView()} 获得。
      */
     private final class ReadView implements RadixTree<MatchResult<O>> {
 
