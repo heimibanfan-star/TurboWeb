@@ -28,6 +28,22 @@ class RestRadixTreeFastPathTest {
     }
 
     @Test
+    void literalFastPathGetAndExistReadThroughMap() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        tree.put("/a/b", 1);
+        tree.put("/:x/b", 2);
+        assertEquals(1, tree.get("//a//b/").value(), "快表键与匹配同口径归一化，get 直接取回");
+        assertEquals(Map.of(), tree.get("/a/b").params(), "快表命中无参数绑定");
+        assertTrue(tree.exist("/a/b"));
+        assertFalse(tree.exist("/a/c"), "快表未果且树侧无该字面链即未命中");
+        assertEquals(2, tree.get("/:x/b").value(), "含参模式按注册原文走树精确取回");
+        assertTrue(tree.exist("/:x/b"));
+        assertNull(tree.get("/q/b"), "参数分支命中的路径不经 get 通配");
+        assertFalse(tree.exist("/q/b"), "参数分支命中的路径 exist 同按未命中");
+        assertEquals(2, tree.matchAny("/q/b").value(), "同一路径 matchAny 经参数分支命中");
+    }
+
+    @Test
     void literalFastPathDuplicateRegistrationRejected() {
         RestRadixTree<Integer> tree = new RestRadixTree<>(true);
         tree.put("/a", 1);

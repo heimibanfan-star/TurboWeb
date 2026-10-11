@@ -22,7 +22,10 @@ import java.util.regex.Pattern;
  * 字面 0 参数 1，最小即在最先分型的段位上字面量优先，与 put 冲突检测的字面量优先口径一致），
  * 命中返回携带参数绑定的 {@link MatchResult}。构造器可开启查询优化：
  * 纯字面量模式进入哈希快表，匹配先查快表未果再走树，对外语义不变。
- * get、exist、match 与本实现的单命中语义不符，一律抛出 UnsupportedOperationException；
+ * get 与 exist 按注册模式原文精确匹配：归一化后逐段以段原文比对，不解析参数
+ * ——冒号段视为普通字符串、须与同名参数边对齐，普通段只走字面边，不做通配绑定，
+ * 命中返回空参数绑定；match 与本实现的单命中语义不符，抛出
+ * UnsupportedOperationException；
  * {@link #toReadView()} 返回只读视图并将本树封存为只读，封存后 put 与 remove 一律抛出
  * IllegalStateException。
  * <p>非并发安全：不加锁，写操作不做原子性保证。
@@ -54,10 +57,8 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     private static final Pattern PARAM_NAME_PATTERN = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
     /**
-     * 不支持方法（get、exist、match）抛出的异常消息，主体与只读视图共用同一来源。
+     * 不支持方法（match）抛出的异常消息，主体与只读视图共用同一来源。
      */
-    private static final String GET_NOT_SUPPORTED = "The rest radix tree does not support the get operation";
-    private static final String EXIST_NOT_SUPPORTED = "The rest radix tree does not support the exist operation";
     private static final String MATCH_NOT_SUPPORTED = "The rest radix tree does not support the match operation";
 
     /**
@@ -124,19 +125,32 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
-     * 不支持精确读取，恒抛 UnsupportedOperationException。
+     * 精确模式取值：不解析参数，键归一化后逐段与注册模式原文比对——以 {@code :}
+     * 开头的段视为普通字符串、须命中同名参数边，其余段只走字面边，不做通配绑定，
+     * 命中返回空参数绑定的命中结果；键不以 {@code /} 开头、任一段走不通或末节点
+     * 无值时返回 null；查询优化开启时先查字面快表，未果再走树。
+     *
+     * @param key 目标键，不得为 null
+     * @return 命中结果；键未注册时返回 null
+     * @throws IllegalArgumentException key 为 null
      */
     @Override
     public MatchResult<O> get(CharSequence key) {
-        throw new UnsupportedOperationException(GET_NOT_SUPPORTED);
+        O value = exactPatternValue(key);
+        return value == null ? null : new MatchResult<>(value, new HashMap<>());
     }
 
     /**
-     * 不支持存在性判断，恒抛 UnsupportedOperationException。
+     * 精确存在性判断：与 {@link #get(CharSequence)} 同一命中口径，键与注册模式
+     * 原文精确命中时返回 true。
+     *
+     * @param key 目标键，不得为 null
+     * @return 键已注册返回 true，否则返回 false
+     * @throws IllegalArgumentException key 为 null
      */
     @Override
     public boolean exist(CharSequence key) {
-        throw new UnsupportedOperationException(EXIST_NOT_SUPPORTED);
+        return exactPatternValue(key) != null;
     }
 
     /**
@@ -282,7 +296,7 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
         path.add(root);
         Node<O> node = root;
         for (String segment : segments) {
-            node = descendForRemove(node, segment);
+            node = descendExact(node, segment);
             if (node == null) {
                 return false;
             }
@@ -363,6 +377,36 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
+     * 按注册模式原文精确取值，get 与 exist 共用：判空先行；键不以 {@code /} 开头
+     * 按未命中处理；归一化后快表开启时先查快表，未果再走树。树下钻与 remove 同源：
+     * 冒号段按名称走参数边、普通段走字面边，逐段全对齐且末节点有值即命中——故
+     * get 能按原文取回含参模式（如 {@code /a/:b}），但取不回其通配路径（如
+     * {@code /a/x}），也不做参数绑定。
+     */
+    private O exactPatternValue(CharSequence key) {
+        checkKeyNotNull(key);
+        String target = key.toString();
+        if (!target.startsWith("/")) {
+            return null;
+        }
+        List<String> segments = normalize(target);
+        if (literalPaths != null) {
+            O literal = literalPaths.get(String.join("/", segments));
+            if (literal != null) {
+                return literal;
+            }
+        }
+        Node<O> node = root;
+        for (String segment : segments) {
+            node = descendExact(node, segment);
+            if (node == null) {
+                return null;
+            }
+        }
+        return node.value;
+    }
+
+    /**
      * put 下钻一步：参数段按参数名取既有参数子节点，无则新建（冲突已在 put 前置检测拦下）；
      * 字面段取既有子节点，无则新建挂上。
      */
@@ -395,10 +439,10 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
-     * remove 下钻一步：参数段按参数名取参数子节点（键即模式名，取到即同名），
-     * 字面段按键取字面子节点；走不通返回 null。
+     * remove、get、exist 共用的精确下钻一步：参数段按参数名取参数子节点
+     * （键即模式名，取到即同名），字面段按键取字面子节点；走不通返回 null。
      */
-    private Node<O> descendForRemove(Node<O> node, String segment) {
+    private Node<O> descendExact(Node<O> node, String segment) {
         if (isParamSegment(segment)) {
             return node.params.get(segment.substring(1));
         }
@@ -440,8 +484,8 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
         return segment.charAt(0) == ':';
     }
 
-    private static void checkKeyNotNull(String pattern) {
-        if (pattern == null) {
+    private static void checkKeyNotNull(CharSequence key) {
+        if (key == null) {
             throw new IllegalArgumentException("The key argument was null");
         }
     }
@@ -457,7 +501,7 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
-     * 只读视图：matchAny 委托给外部实例，get、exist、match 与外部实例同样
+     * 只读视图：matchAny、get、exist 均委托给外部实例，match 与外部实例同样
      * 抛出 UnsupportedOperationException；封存（{@link RestRadixTree#toReadView()}）
      * 前注册的内容对本视图可见（活视图，非快照），封存后外部实例拒绝一切写操作。
      * 仅能经 {@link RestRadixTree#toReadView()} 获得。
@@ -466,12 +510,12 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
 
         @Override
         public MatchResult<O> get(CharSequence key) {
-            throw new UnsupportedOperationException(GET_NOT_SUPPORTED);
+            return RestRadixTree.this.get(key);
         }
 
         @Override
         public boolean exist(CharSequence key) {
-            throw new UnsupportedOperationException(EXIST_NOT_SUPPORTED);
+            return RestRadixTree.this.exist(key);
         }
 
         @Override

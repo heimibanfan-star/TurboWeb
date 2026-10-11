@@ -5,15 +5,16 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link RestRadixTree} 只读视图 ReadView：同一实例缓存、matchAny 委托（含 null 校验同源）、
- * 不支持读方法经视图同样抛出、toReadView 封存写侧（此后 put / remove 一律抛
- * IllegalStateException，封存前注册的内容对视图可见）。
+ * {@link RestRadixTree} 只读视图 ReadView：同一实例缓存、matchAny / get / exist 委托
+ * 外部实例（含 null 校验同源）、不支持读方法（match）经视图同样抛出、toReadView
+ * 封存写侧（此后 put / remove 一律抛 IllegalStateException，封存前注册的内容对视图可见）。
  */
 class RestRadixTreeReadViewTest {
 
@@ -79,13 +80,22 @@ class RestRadixTreeReadViewTest {
     }
 
     @Test
-    void readViewUnsupportedReadMethodsThrowLikeOwner() {
+    void readViewDelegatesGetAndExistLikeMatchAny() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        tree.put("/a", 1);
+        tree.put("/user/:id", 2);
+        RadixTree<RestRadixTree.MatchResult<Integer>> view = tree.toReadView();
+        assertEquals(1, view.get("/a").value(), "封存前注册的纯字面模式经视图 get 取回");
+        assertTrue(view.exist("/a"));
+        assertEquals(2, view.get("/user/:id").value(), "含参模式按注册原文经视图 get 精确取回");
+        assertNull(view.get("/user/42"), "不做通配：普通段不走参数边");
+        assertFalse(view.exist("/user/42"));
+    }
+
+    @Test
+    void readViewUnsupportedMatchThrowsLikeOwner() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         RadixTree<RestRadixTree.MatchResult<Integer>> view = tree.toReadView();
-        assertEquals("The rest radix tree does not support the get operation",
-                assertThrows(UnsupportedOperationException.class, () -> view.get("/a")).getMessage());
-        assertEquals("The rest radix tree does not support the exist operation",
-                assertThrows(UnsupportedOperationException.class, () -> view.exist("/a")).getMessage());
         assertEquals("The rest radix tree does not support the match operation",
                 assertThrows(UnsupportedOperationException.class, () -> view.match("/a")).getMessage());
     }

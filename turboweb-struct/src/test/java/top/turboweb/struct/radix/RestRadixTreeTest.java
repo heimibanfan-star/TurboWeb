@@ -579,15 +579,68 @@ class RestRadixTreeTest {
         assertEquals(1, tree.matchAny("/a/").value(), "尾斜杠归一命中");
     }
 
+    // ---------- get / exist 精确匹配 ----------
+
+    @Test
+    void getAndExistHitLiteralPatternWithEmptyParams() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        tree.put("/a/b", 1);
+        RestRadixTree.MatchResult<Integer> hit = tree.get("/a/b");
+        assertEquals(1, hit.value());
+        assertEquals(Map.of(), hit.params(), "精确字面命中无参数绑定");
+        assertTrue(tree.exist("/a/b"));
+    }
+
+    @Test
+    void getRetrievesParamPatternByExactTextOnly() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        tree.put("/a/:b/a", 1);
+        RestRadixTree.MatchResult<Integer> hit = tree.get("/a/:b/a");
+        assertEquals(1, hit.value(), "冒号段作为普通字符串与注册模式逐段比对");
+        assertEquals(Map.of(), hit.params(), "精确取值不做参数绑定");
+        assertTrue(tree.exist("/a/:b/a"));
+        assertNull(tree.get("/a/x/a"), "不做通配：普通段不走参数边");
+        assertFalse(tree.exist("/a/x/a"));
+        assertNull(tree.get("/a/:c/a"), "参数段异名即未注册");
+        assertEquals(1, tree.matchAny("/a/x/a").value(), "含参模式仍经 matchAny 生效");
+    }
+
+    @Test
+    void getMissCasesReturnNullAndFalse() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        tree.put("/a/b", 1);
+        assertNull(tree.get("/a"), "中间无值节点不算命中");
+        assertNull(tree.get("/a/b/c"), "超段数不命中");
+        assertNull(tree.get("/x/y"), "未注册路径不命中");
+        assertFalse(tree.exist("/a"));
+        assertFalse(tree.exist("/x/y"));
+    }
+
+    @Test
+    void getNormalizesLikeMatchAny() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        tree.put("/a/b", 1);
+        assertEquals(1, tree.get("/a//b").value(), "连续斜杠归一后视同单斜杠");
+        assertEquals(1, tree.get("/a/b/").value(), "尾斜杠归一命中");
+        assertNull(tree.get("a/b"), "无前导斜杠按未命中处理");
+        assertNull(tree.get("/"), "零段不命中");
+        assertFalse(tree.exist("a/b"));
+    }
+
+    @Test
+    void getAndExistRejectNullKey() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        assertEquals("The key argument was null",
+                assertThrows(IllegalArgumentException.class, () -> tree.get(null)).getMessage());
+        assertEquals("The key argument was null",
+                assertThrows(IllegalArgumentException.class, () -> tree.exist(null)).getMessage());
+    }
+
     // ---------- 不支持的读方法 ----------
 
     @Test
     void unsupportedReadMethodsThrow() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
-        assertEquals("The rest radix tree does not support the get operation",
-                assertThrows(UnsupportedOperationException.class, () -> tree.get("/a")).getMessage());
-        assertEquals("The rest radix tree does not support the exist operation",
-                assertThrows(UnsupportedOperationException.class, () -> tree.exist("/a")).getMessage());
         assertEquals("The rest radix tree does not support the match operation",
                 assertThrows(UnsupportedOperationException.class, () -> tree.match("/a")).getMessage());
     }
