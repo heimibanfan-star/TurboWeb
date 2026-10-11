@@ -1,7 +1,6 @@
 package top.turboweb.http.middleware.router;
 
-import top.turboweb.anno.*;
-import top.turboweb.anno.method.*;
+import top.turboweb.rest.route.*;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.router.container.DefaultRouterContainer;
@@ -262,8 +261,6 @@ public class AnnoRouterManager extends RouterManager {
         String prePath = "";
         if (clazz.isAnnotationPresent(Route.class)) {
             prePath = clazz.getAnnotation(Route.class).value();
-        } else if (clazz.isAnnotationPresent(RequestPath.class)) {
-            prePath = clazz.getAnnotation(RequestPath.class).value();
         }
         // 解析方法注解
         if (method.isAnnotationPresent(Get.class)) {

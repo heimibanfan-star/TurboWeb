@@ -5,7 +5,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.anno.param.parser.Parser;
 import top.turboweb.rest.param.BeanForm;
 import top.turboweb.rest.param.BeanJson;
 import top.turboweb.rest.param.BeanQuery;
@@ -66,10 +65,6 @@ class ParamInfoParsersTest {
         void queryUnsupportedCollection(@QueryParam("q") Collection<String> v) {}
         void queryUnsupportedElement(@QueryParam("q") Map<String, String> v) {}
 
-        // —— @Parser 分派 ——
-        void parserSelf(@Parser(ProbeParser.class) String v) {}
-        void parserDecides(@Parser(QueryParameterInfoParser.class) @QueryParam("q") @PathParam("id") int v) {}
-
         // —— 内部类型（无注解，按声明类型认领） ——
         void internContext(HttpContext v) {}
         void internSession(HttpSession v) {}
@@ -114,17 +109,6 @@ class ParamInfoParsersTest {
         void restPlain(int v) {}
 
         void noAnnotation(String v) {}
-    }
-
-    /** {@link AbstractParamInfoParser} 的可观测子类：记录 doParse 是否被调用。 */
-    private static final class ProbeParser extends AbstractParamInfoParser {
-        int doParseCalls;
-
-        @Override
-        protected ParameterBinder doParse(Parameter parameter) {
-            doParseCalls++;
-            return ctx -> "probe";
-        }
     }
 
     private static final class Model {}
@@ -194,31 +178,6 @@ class ParamInfoParsersTest {
                     }
                     return null;
                 });
-    }
-
-    // ---------- AbstractParamInfoParser：@Parser 分派 ----------
-
-    @Test
-    void parserAnnotationRoutesToFixedDoParse() {
-        ProbeParser p = new ProbeParser();
-        assertNotNull(p.parse(parameter("parserSelf")), "参数指定本解析器时应放行到 doParse");
-        assertEquals(1, p.doParseCalls);
-    }
-
-    @Test
-    void parserAnnotationForAnotherParserYieldsNoBinder() {
-        ProbeParser p = new ProbeParser();
-        assertNull(p.parse(parameter("parserDecides")),
-                "@Parser 指定的是 QueryParameterInfoParser，探针解析器必须短路");
-        assertEquals(0, p.doParseCalls, "不匹配的 @Parser 必须在 doParse 之前 return");
-    }
-
-    @Test
-    void parserAnnotationRestrictsWhichParserSeesTheParameter() {
-        Parameter p = parameter("parserDecides"); // @Parser(QueryParameterInfoParser) + @QueryParam + @PathParam + int
-        assertNotNull(new QueryParameterInfoParser().parse(p), "被指定的解析器可以解析");
-        assertNull(new RestParameterInfoParser().parse(p),
-                "虽然参数带 @PathParam 且类型是 int，但 @Parser 把它指派给了别的解析器 → null");
     }
 
     // ---------- QueryParameterInfoParser ----------

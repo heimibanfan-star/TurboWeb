@@ -2,9 +2,9 @@ package org.example.file;
 
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.multipart.FileUpload;
-import top.turboweb.anno.method.Get;
-import top.turboweb.anno.method.Post;
-import top.turboweb.anno.RequestPath;
+import top.turboweb.rest.route.Get;
+import top.turboweb.rest.route.Post;
+import top.turboweb.rest.route.Route;
 import top.turboweb.rest.param.UploadParam;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.response.AsyncFileResponse;
@@ -16,7 +16,7 @@ import java.io.*;
 import java.util.List;
 import java.util.UUID;
 
-@RequestPath("/file")
+@Route("/file")
 public class FileController {
 
     @Post("/upload")

@@ -1,7 +1,7 @@
 package org.example.mvrc.v2;
 
-import top.turboweb.anno.method.Get;
-import top.turboweb.anno.Route;
+import top.turboweb.rest.route.Get;
+import top.turboweb.rest.route.Route;
 
 @Route("/user")
 public class UserController {

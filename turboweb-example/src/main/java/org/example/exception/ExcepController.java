@@ -1,12 +1,12 @@
 package org.example.exception;
 
 
-import top.turboweb.anno.method.Get;
-import top.turboweb.anno.method.Post;
-import top.turboweb.anno.RequestPath;
+import top.turboweb.rest.route.Get;
+import top.turboweb.rest.route.Post;
+import top.turboweb.rest.route.Route;
 import top.turboweb.http.context.HttpContext;
 
-@RequestPath("/excep")
+@Route("/excep")
 public class ExcepController {
     @Get
     public String excep(HttpContext context) {

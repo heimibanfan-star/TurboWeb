@@ -1,13 +1,13 @@
 package org.example.request;
 
-import top.turboweb.anno.method.Get;
-import top.turboweb.anno.method.Post;
-import top.turboweb.anno.RequestPath;
+import top.turboweb.rest.route.Get;
+import top.turboweb.rest.route.Post;
+import top.turboweb.rest.route.Route;
 import top.turboweb.http.context.HttpContext;
 
 import java.util.List;
 
-@RequestPath
+@Route
 public class UserController {
 
     @Get("/user01")

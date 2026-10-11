@@ -1,4 +1,4 @@
-package top.turboweb.anno.method;
+package top.turboweb.rest.route;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,11 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * get请求方式
+ * delete请求方式
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Get {
+public @interface Delete {
     /**
      * 请求路径
      */

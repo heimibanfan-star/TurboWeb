@@ -1,6 +1,6 @@
 package top.turboweb.http.testkit.fixtures;
 
-import top.turboweb.anno.method.Get;
+import top.turboweb.rest.route.Get;
 
 /**
  * 路由用例夹具：autoBind 模式下的零参路由。

@@ -1,4 +1,4 @@
-package top.turboweb.anno.method;
+package top.turboweb.rest.route;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -10,6 +10,6 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Put {
+public @interface Patch {
     String value() default "/";
 }

@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.anno.method.Get;
+import top.turboweb.rest.route.Get;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
@@ -15,7 +15,7 @@ import top.turboweb.http.middleware.router.info.MethodRouterDefinition;
 import top.turboweb.http.middleware.router.info.RouterDefinition;
 import top.turboweb.http.testkit.fixtures.AutoBindProbeController;
 import top.turboweb.http.testkit.fixtures.PrefixProbeController;
-import top.turboweb.http.testkit.fixtures.RequestPathController;
+import top.turboweb.http.testkit.fixtures.RoutePrefixController;
 
 import java.util.Map;
 import java.util.Set;
@@ -115,7 +115,7 @@ class AnnoRouterManagerTest {
 
     @Test
     void initRegistersExactlyTheAnnotatedRoutesOfTheAddedController() {
-        AnnoRouterManager manager = initialized("", new RequestPathController());
+        AnnoRouterManager manager = initialized("", new RoutePrefixController());
         RouterContainer container = manager.getRouterContainer();
 
         assertEquals(Set.of("/fixture/ping"),
@@ -127,7 +127,7 @@ class AnnoRouterManagerTest {
 
     @Test
     void autoBindFalseProducesMethodRouterDefinition() {
-        AnnoRouterManager manager = initialized("", new RequestPathController());
+        AnnoRouterManager manager = initialized("", new RoutePrefixController());
 
         assertInstanceOf(MethodRouterDefinition.class,
                 exact(manager.getRouterContainer(), "GET").get("/fixture/ping"));
@@ -146,7 +146,7 @@ class AnnoRouterManagerTest {
     @Test
     @DisplayName("HS-11 回归：含参路径只落入前缀树、不进精确表")
     void pathVariableRouteIsRegisteredOnlyInTrie() {
-        AnnoRouterManager manager = initialized("", new RequestPathController());
+        AnnoRouterManager manager = initialized("", new RoutePrefixController());
         RouterContainer container = manager.getRouterContainer();
 
         assertNull(container.exactMatch("GET", "/fixture/user/{id}"),
@@ -176,7 +176,7 @@ class AnnoRouterManagerTest {
     @Test
     void initIsIdempotent() {
         AnnoRouterManager manager = new AnnoRouterManager();
-        manager.addController(new RequestPathController());
+        manager.addController(new RoutePrefixController());
         manager.init(null);
         Set<String> before = Set.copyOf(exact(manager.getRouterContainer(), "GET").keySet());
 
@@ -203,7 +203,7 @@ class AnnoRouterManagerTest {
 
     @Test
     void invokeDispatchesToControllerMethod() {
-        AnnoRouterManager manager = initialized("", new RequestPathController());
+        AnnoRouterManager manager = initialized("", new RoutePrefixController());
 
         assertEquals("pong", manager.invoke(ctx(HttpMethod.GET, "/fixture/ping")));
     }

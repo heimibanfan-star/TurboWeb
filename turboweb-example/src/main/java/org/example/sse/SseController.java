@@ -2,8 +2,8 @@ package org.example.sse;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import top.turboweb.anno.method.Get;
-import top.turboweb.anno.RequestPath;
+import top.turboweb.rest.route.Get;
+import top.turboweb.rest.route.Route;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.response.SseEmitter;
@@ -12,7 +12,7 @@ import top.turboweb.http.core.response.SseResponse;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-@RequestPath
+@Route
 public class SseController {
 
     @Get("/sse1")

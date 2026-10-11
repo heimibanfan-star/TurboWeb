@@ -1,11 +1,11 @@
 package org.example.middleware;
 
 
-import top.turboweb.anno.method.Get;
-import top.turboweb.anno.RequestPath;
+import top.turboweb.rest.route.Get;
+import top.turboweb.rest.route.Route;
 import top.turboweb.http.context.HttpContext;
 
-@RequestPath("/user")
+@Route("/user")
 public class UserController {
     @Get
     public String user(HttpContext context) {

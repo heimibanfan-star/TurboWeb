@@ -1,8 +1,8 @@
 package top.turboweb.http.testkit.fixtures;
 
-import top.turboweb.anno.Route;
-import top.turboweb.anno.method.Get;
-import top.turboweb.anno.method.Post;
+import top.turboweb.rest.route.Get;
+import top.turboweb.rest.route.Post;
+import top.turboweb.rest.route.Route;
 import top.turboweb.http.context.HttpContext;
 
 /**

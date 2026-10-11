@@ -2,15 +2,15 @@ package org.example.response;
 
 import io.netty.handler.codec.http.*;
 import reactor.core.publisher.Flux;
-import top.turboweb.anno.method.Get;
-import top.turboweb.anno.RequestPath;
+import top.turboweb.rest.route.Get;
+import top.turboweb.rest.route.Route;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.response.HttpInfoResponse;
 import top.turboweb.http.core.response.HttpResult;
 import top.turboweb.http.core.response.IgnoredHttpResponse;
 
-@RequestPath
+@Route
 public class UserController {
 
     @Get("/user01")

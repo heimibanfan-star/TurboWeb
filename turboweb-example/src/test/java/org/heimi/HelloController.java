@@ -1,8 +1,8 @@
 package org.heimi;
 
 import reactor.core.publisher.Flux;
-import top.turboweb.anno.method.Get;
-import top.turboweb.anno.Route;
+import top.turboweb.rest.route.Get;
+import top.turboweb.rest.route.Route;
 import top.turboweb.http.core.response.HttpFileResult;
 
 import java.io.FileInputStream;
