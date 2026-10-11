@@ -15,3 +15,4 @@ include(":turboweb-anno")
 // 待迁移到TurboWebHttpServer + HttpRequestApplication之后再恢复include
 
 include("turboweb-struct")
+include("turboweb-rest-api")

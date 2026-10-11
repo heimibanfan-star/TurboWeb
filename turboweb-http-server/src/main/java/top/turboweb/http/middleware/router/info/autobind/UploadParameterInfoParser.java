@@ -1,7 +1,7 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
 import io.netty.handler.codec.http.multipart.FileUpload;
-import top.turboweb.anno.param.binder.Upload;
+import top.turboweb.rest.param.UploadParam;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.context.HttpContext;
 
@@ -48,9 +48,9 @@ public class UploadParameterInfoParser extends AbstractParamInfoParser {
 
     @Override
     protected ParameterBinder doParse(Parameter parameter) {
-        // 显式标注 @Upload 的形参才认领（与其余参数解析器同款注解前置判定），
+        // 显式标注 @UploadParam 的形参才认领（与其余参数解析器同款注解前置判定），
         // 并保证随后取注解值必定非空
-        if (!parameter.isAnnotationPresent(Upload.class)) {
+        if (!parameter.isAnnotationPresent(UploadParam.class)) {
             return null;
         }
         Class<?> type = parameter.getType();
@@ -74,14 +74,14 @@ public class UploadParameterInfoParser extends AbstractParamInfoParser {
             }
         }
         // 获取名称
-        Upload upload = parameter.getAnnotation(Upload.class);
+        UploadParam upload = parameter.getAnnotation(UploadParam.class);
         String name = upload.value();
         return new UploadParameterBinder(name, collectionType);
     }
 
     /**
      * 集合形参的泛型元素类型若可判定为具体类，须为 FileUpload 或其子类型；
-     * 裸集合、通配符等不可判定形态以 @Upload 注解的显式表态为准。
+     * 裸集合、通配符等不可判定形态以 @UploadParam 注解的显式表态为准。
      */
     private static boolean elementIsUploadCompatible(Parameter parameter) {
         if (parameter.getParameterizedType() instanceof ParameterizedType parameterizedType) {

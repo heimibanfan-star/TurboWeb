@@ -1,4 +1,4 @@
-package top.turboweb.anno.param.binder;
+package top.turboweb.rest.param;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface QueryModel {
+public @interface BeanQuery {
     // 是否开启数据校验，默认关闭
     boolean value() default false;
     // 校验组

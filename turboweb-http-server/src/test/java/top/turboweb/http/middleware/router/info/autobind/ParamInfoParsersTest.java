@@ -5,13 +5,13 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.anno.param.binder.FormModel;
-import top.turboweb.anno.param.binder.JsonModel;
-import top.turboweb.anno.param.binder.Param;
-import top.turboweb.anno.param.binder.Query;
-import top.turboweb.anno.param.binder.QueryModel;
-import top.turboweb.anno.param.binder.Upload;
 import top.turboweb.anno.param.parser.Parser;
+import top.turboweb.rest.param.BeanForm;
+import top.turboweb.rest.param.BeanJson;
+import top.turboweb.rest.param.BeanQuery;
+import top.turboweb.rest.param.PathParam;
+import top.turboweb.rest.param.QueryParam;
+import top.turboweb.rest.param.UploadParam;
 import top.turboweb.commons.exception.TurboArgsValidationException;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.commons.serializer.JsonSerializer;
@@ -57,18 +57,18 @@ class ParamInfoParsersTest {
     @SuppressWarnings("unused")
     private static final class Params {
 
-        // —— @Query ——
-        void queryString(@Query("q") String v) {}
-        void queryNonNull(@Query(value = "q", nonNull = true) String v) {}
-        void queryInt(@Query("n") int v) {}
-        void queryList(@Query("q") List<Integer> v) {}
-        void querySet(@Query("q") Set<String> v) {}
-        void queryUnsupportedCollection(@Query("q") Collection<String> v) {}
-        void queryUnsupportedElement(@Query("q") Map<String, String> v) {}
+        // —— @QueryParam ——
+        void queryString(@QueryParam("q") String v) {}
+        void queryNonNull(@QueryParam(value = "q", nonNull = true) String v) {}
+        void queryInt(@QueryParam("n") int v) {}
+        void queryList(@QueryParam("q") List<Integer> v) {}
+        void querySet(@QueryParam("q") Set<String> v) {}
+        void queryUnsupportedCollection(@QueryParam("q") Collection<String> v) {}
+        void queryUnsupportedElement(@QueryParam("q") Map<String, String> v) {}
 
         // —— @Parser 分派 ——
         void parserSelf(@Parser(ProbeParser.class) String v) {}
-        void parserDecides(@Parser(QueryParameterInfoParser.class) @Query("q") @Param("id") int v) {}
+        void parserDecides(@Parser(QueryParameterInfoParser.class) @QueryParam("q") @PathParam("id") int v) {}
 
         // —— 内部类型（无注解，按声明类型认领） ——
         void internContext(HttpContext v) {}
@@ -80,37 +80,37 @@ class ParamInfoParsersTest {
         void internChannel(Channel v) {}
         void internUnsupported(String v) {}
 
-        // —— @Upload ——
-        void uploadFile(@Upload("f") FileUpload v) {}
-        void uploadObject(@Upload("f") Object v) {}
-        void uploadList(@Upload("f") List<FileUpload> v) {}
-        void uploadSet(@Upload("f") Set<FileUpload> v) {}
+        // —— @UploadParam ——
+        void uploadFile(@UploadParam("f") FileUpload v) {}
+        void uploadObject(@UploadParam("f") Object v) {}
+        void uploadList(@UploadParam("f") List<FileUpload> v) {}
+        void uploadSet(@UploadParam("f") Set<FileUpload> v) {}
         void uploadListWithoutAnnotation(List<FileUpload> v) {}
-        void uploadStringList(@Upload("f") List<String> v) {}
-        void uploadRawCollection(@Upload("f") Collection<FileUpload> v) {}
-        void uploadString(@Upload("f") String v) {}
+        void uploadStringList(@UploadParam("f") List<String> v) {}
+        void uploadRawCollection(@UploadParam("f") Collection<FileUpload> v) {}
+        void uploadString(@UploadParam("f") String v) {}
         void uploadFileWithoutAnnotation(FileUpload v) {}
         void uploadObjectWithoutAnnotation(Object v) {}
 
         // —— 模型 ——
-        void jsonModel(@JsonModel Model v) {}
-        void jsonValid(@JsonModel(true) Model v) {}
-        void jsonGroups(@JsonModel(value = true, groups = GroupA.class) Model v) {}
+        void jsonModel(@BeanJson Model v) {}
+        void jsonValid(@BeanJson(true) Model v) {}
+        void jsonGroups(@BeanJson(value = true, groups = GroupA.class) Model v) {}
         void jsonPlain(Model v) {}
 
-        void formModel(@FormModel Model v) {}
-        void formValid(@FormModel(true) Model v) {}
-        void formGroups(@FormModel(value = true, groups = GroupA.class) Model v) {}
+        void formModel(@BeanForm Model v) {}
+        void formValid(@BeanForm(true) Model v) {}
+        void formGroups(@BeanForm(value = true, groups = GroupA.class) Model v) {}
         void formPlain(Model v) {}
 
-        void queryModel(@QueryModel Model v) {}
-        void queryModelValid(@QueryModel(true) Model v) {}
-        void queryModelGroups(@QueryModel(value = true, groups = GroupA.class) Model v) {}
+        void queryModel(@BeanQuery Model v) {}
+        void queryModelValid(@BeanQuery(true) Model v) {}
+        void queryModelGroups(@BeanQuery(value = true, groups = GroupA.class) Model v) {}
         void queryModelPlain(Model v) {}
 
-        // —— @Param（Rest） ——
-        void restInt(@Param("id") int v) {}
-        void restUnsupported(@Param("id") Map<String, String> v) {}
+        // —— @PathParam（Rest） ——
+        void restInt(@PathParam("id") int v) {}
+        void restUnsupported(@PathParam("id") Map<String, String> v) {}
         void restPlain(int v) {}
 
         void noAnnotation(String v) {}
@@ -215,10 +215,10 @@ class ParamInfoParsersTest {
 
     @Test
     void parserAnnotationRestrictsWhichParserSeesTheParameter() {
-        Parameter p = parameter("parserDecides"); // @Parser(QueryParameterInfoParser) + @Query + @Param + int
+        Parameter p = parameter("parserDecides"); // @Parser(QueryParameterInfoParser) + @QueryParam + @PathParam + int
         assertNotNull(new QueryParameterInfoParser().parse(p), "被指定的解析器可以解析");
         assertNull(new RestParameterInfoParser().parse(p),
-                "虽然参数带 @Param 且类型是 int，但 @Parser 把它指派给了别的解析器 → null");
+                "虽然参数带 @PathParam 且类型是 int，但 @Parser 把它指派给了别的解析器 → null");
     }
 
     // ---------- QueryParameterInfoParser ----------
@@ -384,24 +384,24 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    @DisplayName("HS-16 回归：@Upload 集合参数走 loadFiles 绑定，集合分支可达")
+    @DisplayName("HS-16 回归：@UploadParam 集合参数走 loadFiles 绑定，集合分支可达")
     void uploadCollectionTypesBindFileCollections() {
-        // 守卫修正后：集合形参显式标注 @Upload 且元素类型相符才认领，collectionType 1/2 与 loadFiles/HashSet 分支可达
+        // 守卫修正后：集合形参显式标注 @UploadParam 且元素类型相符才认领，collectionType 1/2 与 loadFiles/HashSet 分支可达
         FileUpload a = proxy(FileUpload.class);
         FileUpload b = proxy(FileUpload.class);
         Stub stub = new Stub().returning("loadFiles", List.of(a, b));
         ParameterBinder listBinder = new UploadParameterInfoParser().parse(parameter("uploadList"));
-        assertNotNull(listBinder, "List<FileUpload> + @Upload 应被认领");
+        assertNotNull(listBinder, "List<FileUpload> + @UploadParam 应被认领");
         assertEquals(List.of(a, b), listBinder.bindParameter(stub.ctx()));
         assertEquals("f", stub.lastArgs("loadFiles")[0], "注解的 value 即表单字段名");
         ParameterBinder setBinder = new UploadParameterInfoParser().parse(parameter("uploadSet"));
-        assertNotNull(setBinder, "Set<FileUpload> + @Upload 应被认领");
+        assertNotNull(setBinder, "Set<FileUpload> + @UploadParam 应被认领");
         assertEquals(Set.of(a, b), setBinder.bindParameter(stub.ctx()), "Set 分支把 loadFiles 结果包装成 HashSet");
         // 字段缺失（loadFiles 返回 null）归一为空集合
         Stub empty = new Stub().returning("loadFiles", null);
         assertEquals(List.of(), listBinder.bindParameter(empty.ctx()));
         assertEquals(Set.of(), setBinder.bindParameter(empty.ctx()));
-        // 无 @Upload 的裸 List 不认领——不得截走其他渠道负责的参数
+        // 无 @UploadParam 的裸 List 不认领——不得截走其他渠道负责的参数
         assertNull(new UploadParameterInfoParser().parse(parameter("uploadListWithoutAnnotation")));
         // 声明元素类型与 FileUpload 不符 → 不认领
         assertNull(new UploadParameterInfoParser().parse(parameter("uploadStringList")));
@@ -412,14 +412,14 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    @DisplayName("HS-17 回归：缺 @Upload 的上传类型参数不认领，不再抛 NPE")
+    @DisplayName("HS-17 回归：缺 @UploadParam 的上传类型参数不认领，不再抛 NPE")
     void uploadParameterWithoutAnnotationIsNotClaimed() {
-        // 修正后：注解存在性前置判定，缺 @Upload 直接返回 null 交还解析链，upload.value() 的 NPE 不可达；
+        // 修正后：注解存在性前置判定，缺 @UploadParam 直接返回 null 交还解析链，upload.value() 的 NPE 不可达；
         // 判定发生在类型分流之前，FileUpload 与 Object 两型同样不认领
         assertNull(new UploadParameterInfoParser().parse(parameter("uploadFileWithoutAnnotation")),
-                "缺 @Upload 的 FileUpload 参数应不认领");
+                "缺 @UploadParam 的 FileUpload 参数应不认领");
         assertNull(new UploadParameterInfoParser().parse(parameter("uploadObjectWithoutAnnotation")),
-                "缺 @Upload 的 Object 参数应不认领");
+                "缺 @UploadParam 的 Object 参数应不认领");
     }
 
     // ---------- JsonModelParameterInfoParser ----------

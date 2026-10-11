@@ -4,7 +4,7 @@ package org.example.request;
 import top.turboweb.anno.*;
 import top.turboweb.anno.method.Get;
 import top.turboweb.anno.method.Post;
-import top.turboweb.anno.param.binder.*;
+import top.turboweb.rest.param.*;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.cookie.HttpCookieManager;
 import top.turboweb.http.core.response.SseEmitter;
@@ -34,49 +34,49 @@ public class BindController {
     }
 
     @Get("/2/{id:num}")
-    public String bind02(@Param("id") Long id) {
+    public String bind02(@PathParam("id") Long id) {
         System.out.println(id);
         return "success";
     }
 
     @Get("/3")
-    public String bind03(@Query("id") Long id) {
+    public String bind03(@QueryParam("id") Long id) {
         System.out.println(id);
         return "success";
     }
 
     @Get("/4")
-    public String bind04(@Query("ids") List<Long> ids) {
+    public String bind04(@QueryParam("ids") List<Long> ids) {
         System.out.println(ids);
         return "success";
     }
 
     @Get("/5")
-    public String bind05(@Query("ids") Set<Long> ids) {
+    public String bind05(@QueryParam("ids") Set<Long> ids) {
         System.out.println(ids);
         return "success";
     }
 
     @Get("/6")
-    public String bind06(@QueryModel Student student) {
+    public String bind06(@BeanQuery Student student) {
         System.out.println(student);
         return "success";
     }
 
     @Post("/7")
-    public String bind07(@FormModel Student student) {
+    public String bind07(@BeanForm Student student) {
         System.out.println(student);
         return "success";
     }
 
     @Post("/8")
-    public String bind08(@JsonModel Student student) {
+    public String bind08(@BeanJson Student student) {
         System.out.println(student);
         return "success";
     }
 
     @Get("/9")
-    public String bind09(@QueryModel(value = true, groups = Groups.Add.class) Student student) {
+    public String bind09(@BeanQuery(value = true, groups = Groups.Add.class) Student student) {
         System.out.println(student);
         return "success";
     }

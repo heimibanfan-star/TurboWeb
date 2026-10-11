@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
-import top.turboweb.anno.param.binder.Query;
+import top.turboweb.rest.param.QueryParam;
 import top.turboweb.commons.exception.TurboArgsValidationException;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.context.HttpContext;
@@ -57,7 +57,7 @@ public class QueryParameterInfoParser extends AbstractParamInfoParser {
 
     @Override
     protected ParameterBinder doParse(Parameter parameter) {
-        if (!parameter.isAnnotationPresent(Query.class)) {
+        if (!parameter.isAnnotationPresent(QueryParam.class)) {
             return null;
         }
         // 参数类型
@@ -90,7 +90,7 @@ public class QueryParameterInfoParser extends AbstractParamInfoParser {
             return null;
         }
         // 获取参数名
-        Query query = parameter.getAnnotation(Query.class);
+        QueryParam query = parameter.getAnnotation(QueryParam.class);
         String name = query.value();
         return new QueryParameterBinder(name, converter, collectionType, query.nonNull());
     }

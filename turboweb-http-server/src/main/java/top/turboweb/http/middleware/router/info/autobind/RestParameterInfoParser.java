@@ -1,12 +1,12 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
-import top.turboweb.anno.param.binder.Param;
+import top.turboweb.rest.param.PathParam;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Parameter;
 
 /**
- * 负责解析@Param注解
+ * 负责解析@PathParam注解
  */
 public class RestParameterInfoParser extends AbstractParamInfoParser {
 
@@ -28,7 +28,7 @@ public class RestParameterInfoParser extends AbstractParamInfoParser {
 
     @Override
     protected ParameterBinder doParse(Parameter parameter) {
-        if (!parameter.isAnnotationPresent(Param.class)) {
+        if (!parameter.isAnnotationPresent(PathParam.class)) {
             return null;
         }
         // 获取参数类型
@@ -38,7 +38,7 @@ public class RestParameterInfoParser extends AbstractParamInfoParser {
             return null;
         }
         // 解析注解
-        Param param = parameter.getAnnotation(Param.class);
+        PathParam param = parameter.getAnnotation(PathParam.class);
         String name = param.value();
         // 创建绑定器
         return new RestParameterBinder(name, converter);

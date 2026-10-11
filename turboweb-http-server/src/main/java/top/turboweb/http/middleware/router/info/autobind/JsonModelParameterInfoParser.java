@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
-import top.turboweb.anno.param.binder.JsonModel;
+import top.turboweb.rest.param.BeanJson;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Parameter;
@@ -35,10 +35,10 @@ public class JsonModelParameterInfoParser extends AbstractParamInfoParser{
 
     @Override
     protected ParameterBinder doParse(Parameter parameter) {
-        if (!parameter.isAnnotationPresent(JsonModel.class)) {
+        if (!parameter.isAnnotationPresent(BeanJson.class)) {
             return null;
         }
-        JsonModel jsonModel = parameter.getAnnotation(JsonModel.class);
+        BeanJson jsonModel = parameter.getAnnotation(BeanJson.class);
         return new JsonModelParameterBinder(
                 parameter.getType(),
                 jsonModel.value(),

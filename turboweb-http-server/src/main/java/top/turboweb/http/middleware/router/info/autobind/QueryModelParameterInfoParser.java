@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info.autobind;
 
-import top.turboweb.anno.param.binder.QueryModel;
+import top.turboweb.rest.param.BeanQuery;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Parameter;
@@ -37,10 +37,10 @@ public class QueryModelParameterInfoParser extends AbstractParamInfoParser{
 
     @Override
     protected ParameterBinder doParse(Parameter parameter) {
-        if (!parameter.isAnnotationPresent(QueryModel.class)) {
+        if (!parameter.isAnnotationPresent(BeanQuery.class)) {
             return null;
         }
-        QueryModel queryModel = parameter.getAnnotation(QueryModel.class);
+        BeanQuery queryModel = parameter.getAnnotation(BeanQuery.class);
         return new QueryModelParameterBinder(
                 parameter.getType(),
                 queryModel.value(),

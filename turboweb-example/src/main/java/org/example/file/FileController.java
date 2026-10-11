@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.anno.method.Get;
 import top.turboweb.anno.method.Post;
 import top.turboweb.anno.RequestPath;
-import top.turboweb.anno.param.binder.Upload;
+import top.turboweb.rest.param.UploadParam;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.response.AsyncFileResponse;
 import top.turboweb.http.core.response.FileStreamResponse;
@@ -33,13 +33,13 @@ public class FileController {
     }
 
     @Post("/upload2")
-    public String upload02(@Upload("file") FileUpload file) {
+    public String upload02(@UploadParam("file") FileUpload file) {
         System.out.println(file);
         return "upload";
     }
 
     @Post("/upload3")
-    public String upload03(@Upload("file") List<FileUpload> files) {
+    public String upload03(@UploadParam("file") List<FileUpload> files) {
         files.forEach(System.out::println);
         return "upload";
     }
