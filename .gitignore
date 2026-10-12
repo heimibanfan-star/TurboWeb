@@ -48,3 +48,7 @@ build
 ### Claude Code ###
 # .claude/ 归 git 管理（共享规则等），仅本地个人配置不入库
 .claude/settings.local.json
+
+docs/superpowers
+rest-inspect-out5
+.mcp.json
