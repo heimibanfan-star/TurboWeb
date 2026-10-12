@@ -1,6 +1,5 @@
 package org.example.httpclient;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.ssl.SslContextBuilder;
 import top.turboweb.client.DefaultTurboHttpClient;

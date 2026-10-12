@@ -2,7 +2,6 @@ package top.turboweb.commons.limit;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.StampedLock;
 
 /**
  * 固定周期的令牌桶

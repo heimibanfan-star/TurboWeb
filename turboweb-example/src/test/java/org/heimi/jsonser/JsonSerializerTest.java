@@ -2,7 +2,6 @@ package org.heimi.jsonser;
 
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JavaType;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.serializer.JacksonJsonSerializer;
 import top.turboweb.commons.serializer.JsonSerializer;

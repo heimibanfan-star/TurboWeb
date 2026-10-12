@@ -1,7 +1,6 @@
 package top.turboweb.commons.constants;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 类型相关常量

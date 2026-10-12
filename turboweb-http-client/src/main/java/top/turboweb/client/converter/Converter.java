@@ -4,7 +4,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponse;
 
 import java.nio.charset.Charset;
-import java.util.Map;
 
 /**
  * HTTP 客户端请求与响应数据转换器接口。
