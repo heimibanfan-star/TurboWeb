@@ -13,7 +13,7 @@ import top.turboweb.rest.param.QueryParam;
 import top.turboweb.rest.param.UploadParam;
 import top.turboweb.commons.exception.TurboArgsValidationException;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
-import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;

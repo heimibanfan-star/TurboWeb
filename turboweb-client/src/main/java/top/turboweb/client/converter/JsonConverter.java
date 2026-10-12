@@ -7,8 +7,8 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import top.turboweb.commons.exception.TurboHttpClientException;
-import top.turboweb.commons.serializer.JacksonJsonSerializer;
-import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.serializer.JacksonJsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;

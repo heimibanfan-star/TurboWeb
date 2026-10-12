@@ -13,7 +13,7 @@ import top.turboweb.http.handler.anno.ExceptionHandler;
 import top.turboweb.http.handler.anno.ExceptionResponseStatus;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.RouteHandlerException;
-import top.turboweb.commons.serializer.JacksonJsonSerializer;
+import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.handler.DefaultExceptionHandlerMatcher;
 import top.turboweb.http.handler.ExceptionHandlerContainerInitHelper;

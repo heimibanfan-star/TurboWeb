@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 
 import java.util.List;
 import java.util.Map;

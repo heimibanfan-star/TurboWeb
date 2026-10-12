@@ -2,7 +2,7 @@ package top.turboweb.http.server.application;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.serializer.JacksonJsonSerializer;
+import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.commons.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.context.HttpContext;

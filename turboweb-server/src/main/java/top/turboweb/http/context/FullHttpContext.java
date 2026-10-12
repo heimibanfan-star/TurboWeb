@@ -3,7 +3,7 @@ package top.turboweb.http.context;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookieManager;
 import top.turboweb.commons.exception.TurboArgsValidationException;

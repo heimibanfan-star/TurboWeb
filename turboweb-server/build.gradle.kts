@@ -9,6 +9,8 @@ dependencies {
     api(project(":turboweb-common"))
     // 线程池契约与弹性实现由 turboweb-concurrent 提供；ThreadPool 出现在本模块公开签名（调度器与响应策略构造参数），用 api 暴露
     api(project(":turboweb-concurrent"))
+    // JSON 序列化器契约与 Jackson 实现由 turboweb-serializer 提供；JsonSerializer 出现在本模块公开签名（Builder 与上下文、响应类构造参数），用 api 暴露
+    api(project(":turboweb-serializer"))
     // 服务器线程模型直接使用 netty（http/websocketx 与 http2 编解码），响应写出使用 reactor-core，均不涉 reactor-netty 本体；媒体类型与 URI 查询解析由仓内 core.constant 与 core.helper 自实现
     api(libs.netty.codec.http)
     api(libs.netty.codec.http2)

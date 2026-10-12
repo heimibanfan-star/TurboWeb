@@ -1,4 +1,4 @@
-package top.turboweb.commons.serializer;
+package top.turboweb.serializer;
 
 import java.util.List;
 import java.util.Map;

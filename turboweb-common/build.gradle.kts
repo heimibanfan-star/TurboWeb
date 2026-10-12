@@ -11,12 +11,10 @@ dependencies {
     api(libs.netty.codec.http)
     // 线程工厂签名上的 NonNull 注解仅编译期需要：compileOnly 供给，不入 POM 与运行时类路径
     compileOnly(libs.jspecify)
-    api(libs.jackson.databind)
     api(libs.jakarta.validation.api)
     implementation(libs.hibernate.validator)
     implementation(libs.jakarta.el.api)
     implementation(libs.jakarta.el)
-    implementation(libs.jackson.datatype.jsr310)
 
     // Gradle 9 不再自带 platform launcher；BOM 复用既有的 junit-jupiter 版本，不引入第二个版本号
     testImplementation(platform(libs.junit.bom))
@@ -35,7 +33,6 @@ val gateClasses = listOf(
     "top/turboweb/commons/limit/**",
     "top/turboweb/commons/lock/**",
     "top/turboweb/commons/struct/trie/**",
-    "top/turboweb/commons/serializer/**",
     "top/turboweb/commons/constants/**",
     "top/turboweb/commons/config/**"
 )

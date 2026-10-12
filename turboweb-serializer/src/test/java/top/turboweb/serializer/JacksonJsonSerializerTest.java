@@ -1,12 +1,14 @@
-package top.turboweb.commons.serializer;
+package top.turboweb.serializer;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboSerializableException;
+import top.turboweb.serializer.exception.SerializerException;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -105,18 +107,34 @@ class JacksonJsonSerializerTest {
     @Test
     void objectMapperCtorIsUsedAsIsWithoutJavaTime() {
         JacksonJsonSerializer s = new JacksonJsonSerializer(new ObjectMapper());
-        assertThrows(TurboSerializableException.class, () -> s.beanToJson(AT),
+        assertThrows(SerializerException.class, () -> s.beanToJson(AT),
                 "裸 ObjectMapper 没装 JavaTimeModule，序列化 LocalDateTime 必须失败并被包装");
     }
 
     @Test
     void moduleVarargsCtorRegistersModuleButStillHasNoJavaTime() {
         JacksonJsonSerializer s = new JacksonJsonSerializer(new SimpleModule());
-        assertThrows(TurboSerializableException.class, () -> s.beanToJson(AT),
+        assertThrows(SerializerException.class, () -> s.beanToJson(AT),
                 "只 registerModules(用户模块) 不会带来时间支持");
         // 但未知字段容忍是开着的：这条同时把 :55 钉住
         Profile p = s.jsonToBean("{\"name\":\"n\",\"age\":1,\"unknown\":true}", Profile.class);
         assertEquals("n", p.getName());
+    }
+
+    @Test
+    void moduleVarargsCtorActuallyAppliesRegisteredModule() {
+        // 空模块证明不了 registerModules 调用本身生效：这里注册一枚屏蔽 name 属性的 mixin，
+        // 输出只剩 age；若构造器不把变参模块装进 mapper，name 会回来，本用例转红
+        SimpleModule hideName = new SimpleModule();
+        hideName.setMixInAnnotation(Profile.class, HideNameMixIn.class);
+        JacksonJsonSerializer s = new JacksonJsonSerializer(hideName);
+        assertEquals("{\"age\":7}", s.beanToJson(new Profile("n", 7)));
+    }
+
+    /** 只承载注解的 mixin：屏蔽 name 属性。 */
+    abstract static class HideNameMixIn {
+        @JsonIgnore
+        abstract String getName();
     }
 
     @Test
@@ -134,6 +152,28 @@ class JacksonJsonSerializerTest {
         assertEquals(AT, back.getDateTime());
         assertEquals(AT.toLocalDate(), back.getDate());
         assertEquals(AT.toLocalTime(), back.getTime());
+    }
+
+    @Test
+    void localTimeUsesStrictSecondsPatternNotIso() {
+        // 钉住 :74-:76 的形态选择：模式 HH:mm:ss 与 ISO 默认可接受集合不同。
+        // 摘掉自定义序列化/反序列化就落回 JavaTimeModule 的 ISO 默认，下列判别输入行为翻转：
+        // 带小数秒与缺秒，ISO 能解析、本序列化器必须拒收
+        JacksonJsonSerializer s = withJavaTime();
+        assertThrows(SerializerException.class, () -> s.jsonToBean("\"12:34:56.789\"", LocalTime.class));
+        assertThrows(SerializerException.class, () -> s.jsonToBean("\"12:34\"", LocalTime.class));
+        // 写出侧：模式不带小数秒，ISO 默认会写出小数部分
+        assertEquals("\"12:34:56\"", s.beanToJson(LocalTime.of(12, 34, 56, 789_000_000)));
+    }
+
+    @Test
+    void instantSerDesUsesJavaTimeModule() {
+        // Instant 走 JavaTimeModule 默认数值时刻形态：秒.九位纳秒小数，写出为 JSON number
+        JacksonJsonSerializer s = withJavaTime();
+        Instant instant = Instant.ofEpochSecond(1_724_128_496L, 123_000_000L);
+        String json = s.beanToJson(instant);
+        assertEquals("1724128496.123000000", json);
+        assertEquals(instant, s.jsonToBean(json, Instant.class));
     }
 
     @Test
@@ -212,15 +252,15 @@ class JacksonJsonSerializerTest {
     @Test
     void malformedJsonIsWrappedForEveryReadPath() {
         JacksonJsonSerializer s = withJavaTime();
-        assertThrows(TurboSerializableException.class, () -> s.jsonToBean("not json", Profile.class));
-        assertThrows(TurboSerializableException.class, () -> s.jsonToList("{not an array}", Profile.class));
-        assertThrows(TurboSerializableException.class, () -> s.jsonToMap("[]"));
-        assertThrows(TurboSerializableException.class, () -> s.jsonUpdateBean("not json", new Profile("n", 1)));
+        assertThrows(SerializerException.class, () -> s.jsonToBean("not json", Profile.class));
+        assertThrows(SerializerException.class, () -> s.jsonToList("{not an array}", Profile.class));
+        assertThrows(SerializerException.class, () -> s.jsonToMap("[]"));
+        assertThrows(SerializerException.class, () -> s.jsonUpdateBean("not json", new Profile("n", 1)));
         // TypeReference / JavaType 两个重载也是读路径，包装行为必须一致（:170-:172 / :185-:187）
-        assertThrows(TurboSerializableException.class,
+        assertThrows(SerializerException.class,
                 () -> s.jsonToBean("not json", new TypeReference<List<Profile>>() {
                 }));
-        assertThrows(TurboSerializableException.class,
+        assertThrows(SerializerException.class,
                 () -> s.jsonToBean("not json",
                         s.objectMapper().getTypeFactory().constructType(Profile.class)));
     }
@@ -232,8 +272,8 @@ class JacksonJsonSerializerTest {
         JacksonJsonSerializer s = withJavaTime();
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> s.mapToBean(Map.of("name", "n", "age", "not-a-number"), Profile.class));
-        assertFalse(TurboSerializableException.class.isAssignableFrom(e.getClass()),
-                "产品代码只在 readValue/writeValue 路径包 TurboSerializableException");
+        assertFalse(SerializerException.class.isAssignableFrom(e.getClass()),
+                "产品代码只在 readValue/writeValue 路径包 SerializerException");
         assertTrue(e.getCause() != null, "convertValue 把底层异常挂在 cause 上，调用方仍可取原因");
     }
 }

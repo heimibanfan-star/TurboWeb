@@ -4,7 +4,7 @@ import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.context.attchment.DefaultAttachment;

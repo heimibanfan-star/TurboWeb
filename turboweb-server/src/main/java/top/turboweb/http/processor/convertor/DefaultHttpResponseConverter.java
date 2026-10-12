@@ -7,7 +7,7 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.response.HttpFileResult;
 import top.turboweb.http.core.response.HttpResult;
 import top.turboweb.http.core.response.ReactorResponse;

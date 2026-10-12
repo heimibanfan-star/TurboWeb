@@ -3,8 +3,8 @@ package org.heimi.jsonser;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.serializer.JacksonJsonSerializer;
-import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.serializer.JacksonJsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 
 public class JsonSerializerTest {
 

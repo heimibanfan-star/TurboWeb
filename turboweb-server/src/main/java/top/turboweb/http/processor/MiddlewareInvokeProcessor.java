@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.commons.lock.Locks;
-import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.context.FullHttpContext;

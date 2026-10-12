@@ -1,4 +1,4 @@
-package top.turboweb.commons.serializer;
+package top.turboweb.serializer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -15,7 +15,7 @@ import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalTimeSerializer;
-import top.turboweb.commons.exception.TurboSerializableException;
+import top.turboweb.serializer.exception.SerializerException;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -110,7 +110,7 @@ public class JacksonJsonSerializer implements JsonSerializer {
         try {
             return objectMapper.writeValueAsString(bean);
         } catch (JsonProcessingException e) {
-            throw new TurboSerializableException(e);
+            throw new SerializerException(e);
         }
     }
 
@@ -119,7 +119,7 @@ public class JacksonJsonSerializer implements JsonSerializer {
         try {
             return objectMapper.readValue(json, beanClass);
         } catch (JsonProcessingException e) {
-            throw new TurboSerializableException(e);
+            throw new SerializerException(e);
         }
     }
 
@@ -136,7 +136,7 @@ public class JacksonJsonSerializer implements JsonSerializer {
                     objectMapper.getTypeFactory().constructCollectionType(List.class, beanClass)
             );
         } catch (JsonProcessingException e) {
-            throw new TurboSerializableException(e);
+            throw new SerializerException(e);
         }
     }
 
@@ -153,7 +153,7 @@ public class JacksonJsonSerializer implements JsonSerializer {
         try {
             return objectMapper.readerForUpdating(bean).readValue(json);
         } catch (JsonProcessingException e) {
-            throw new TurboSerializableException(e);
+            throw new SerializerException(e);
         }
     }
 
@@ -168,7 +168,7 @@ public class JacksonJsonSerializer implements JsonSerializer {
         try {
             return objectMapper.readValue(json, typeReference);
         } catch (JsonProcessingException e) {
-            throw new TurboSerializableException(e);
+            throw new SerializerException(e);
         }
     }
 
@@ -183,7 +183,7 @@ public class JacksonJsonSerializer implements JsonSerializer {
         try {
             return objectMapper.readValue(json, javaType);
         } catch (JsonProcessingException e) {
-            throw new TurboSerializableException(e);
+            throw new SerializerException(e);
         }
     }
 

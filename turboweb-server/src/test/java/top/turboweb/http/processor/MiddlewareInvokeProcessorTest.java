@@ -11,7 +11,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.serializer.JacksonJsonSerializer;
+import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.context.HttpContext;

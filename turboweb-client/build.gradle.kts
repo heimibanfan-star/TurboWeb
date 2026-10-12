@@ -7,6 +7,8 @@
 // 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
     api(project(":turboweb-common"))
+    // JsonConverter 构造参数即 JsonSerializer 接口（默认实现 JacksonJsonSerializer），由 turboweb-serializer 提供，用 api 暴露
+    api(project(":turboweb-serializer"))
     // HttpClientEngine 直接使用 reactor-netty（连带供给 netty 与 reactor-core），编解码消息使用 httpcore5
     // netty-bom 以强制约束模式导入：BOM 版本在冲突裁决中优先，传递侧 netty 一律锁定本仓统一版本
     api(enforcedPlatform(libs.netty.bom))

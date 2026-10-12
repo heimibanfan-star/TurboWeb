@@ -2,7 +2,7 @@ package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.serializer.JsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 
 import java.util.Objects;
 
