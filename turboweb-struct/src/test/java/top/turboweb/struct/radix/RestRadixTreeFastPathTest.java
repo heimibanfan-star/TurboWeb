@@ -22,7 +22,7 @@ class RestRadixTreeFastPathTest {
     void literalPatternMatchesThroughFastPath() {
         RestRadixTree<Integer> tree = new RestRadixTree<>(true);
         tree.put("/a", 1);
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/a");
+        RouteTree.Result<Integer> hit = tree.matchAny("/a");
         assertEquals(1, hit.value());
         assertEquals(Map.of(), hit.params(), "纯字面量命中无参数绑定");
     }
@@ -65,7 +65,7 @@ class RestRadixTreeFastPathTest {
         tree.put("/:x", 2);
         tree.put("/a", 1);
         assertEquals(1, tree.matchAny("/a").value(), "字面量命中优先于参数分支");
-        RestRadixTree.MatchResult<Integer> miss = tree.matchAny("/b");
+        RouteTree.Result<Integer> miss = tree.matchAny("/b");
         assertEquals(2, miss.value(), "快表未命中回落树匹配");
         assertEquals(Map.of("x", "b"), miss.params());
     }
@@ -76,7 +76,7 @@ class RestRadixTreeFastPathTest {
         tree.put("/a/:x", 2);
         tree.put("/a/b", 1);
         assertEquals(1, tree.matchAny("/a/b").value(), "深层对齐时字面量同样优先");
-        RestRadixTree.MatchResult<Integer> miss = tree.matchAny("/a/c");
+        RouteTree.Result<Integer> miss = tree.matchAny("/a/c");
         assertEquals(2, miss.value());
         assertEquals(Map.of("x", "c"), miss.params());
     }
@@ -124,7 +124,7 @@ class RestRadixTreeFastPathTest {
         tree.put("/:x", 2);
         assertNull(tree.matchAny("/:literal/nowhere"),
                 "冒号前缀段不构成快表键，树内无同段数模式即未命中");
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/:x");
+        RouteTree.Result<Integer> hit = tree.matchAny("/:x");
         assertEquals(2, hit.value(), "冒号前缀路径段作为参数值绑定");
         assertEquals(Map.of("x", ":x"), hit.params());
     }
@@ -141,11 +141,11 @@ class RestRadixTreeFastPathTest {
     void literalFastPathInteractsWithSeal() {
         RestRadixTree<Integer> tree = new RestRadixTree<>(true);
         tree.put("/a", 1);
-        RadixTree<RestRadixTree.MatchResult<Integer>> view = tree.toReadView();
+        RouteTree<Integer> view = tree.toReadView();
         assertThrows(IllegalStateException.class, () -> tree.put("/b", 2),
                 "封存对快路径写侧同样生效");
         assertEquals(1, tree.matchAny("/a").value());
-        assertEquals(1, view.matchAny("/a").value(), "封存前注册的快表内容对视图可见");
+        assertEquals(1, view.match("/a").value(), "封存前注册的快表内容对视图可见");
     }
 
     @Test

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link RestRadixTree} 的 put 分类、put / remove 校验全表、remove miss 基线、
- * matchAny 回溯匹配与不支持读方法。
+ * matchAny 回溯匹配与 match 单命中委托。
  * <p>结构断言经反射读取节点字段，dump 形如 [seg=value [子节点]]，
  * 字面子节点按键排序、参数子节点按参数名排序殿后且段名记 ":name"；根节点段为空、值恒为 null。
  */
@@ -190,10 +190,10 @@ class RestRadixTreeTest {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/a/:param1/b", 1);
         tree.put("/a/:param2/c", 2);
-        RestRadixTree.MatchResult<Integer> first = tree.matchAny("/a/x/b");
+        RouteTree.Result<Integer> first = tree.matchAny("/a/x/b");
         assertEquals(1, first.value());
         assertEquals(Map.of("param1", "x"), first.params());
-        RestRadixTree.MatchResult<Integer> second = tree.matchAny("/a/y/c");
+        RouteTree.Result<Integer> second = tree.matchAny("/a/y/c");
         assertEquals(2, second.value());
         assertEquals(Map.of("param2", "y"), second.params());
         assertNull(tree.matchAny("/a/z/d"), "后缀分叉之外的路径不命中");
@@ -224,10 +224,10 @@ class RestRadixTreeTest {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/:x/a", 1);
         tree.put("/b/:y", 2);
-        RestRadixTree.MatchResult<Integer> paramFirst = tree.matchAny("/c/a");
+        RouteTree.Result<Integer> paramFirst = tree.matchAny("/c/a");
         assertEquals(1, paramFirst.value());
         assertEquals(Map.of("x", "c"), paramFirst.params());
-        RestRadixTree.MatchResult<Integer> literalFirst = tree.matchAny("/b/z");
+        RouteTree.Result<Integer> literalFirst = tree.matchAny("/b/z");
         assertEquals(2, literalFirst.value());
         assertEquals(Map.of("y", "z"), literalFirst.params());
         assertEquals(2, tree.matchAny("/b/a").value(), "字面分支优先命中");
@@ -375,7 +375,7 @@ class RestRadixTreeTest {
     void matchAnyHitsLiteralPatternWithoutParams() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/a/b", 1);
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/a/b");
+        RouteTree.Result<Integer> hit = tree.matchAny("/a/b");
         assertEquals(1, hit.value());
         assertEquals(Map.of(), hit.params());
     }
@@ -384,7 +384,7 @@ class RestRadixTreeTest {
     void matchAnyBindsSingleParam() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/user/:id", 1);
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/user/42");
+        RouteTree.Result<Integer> hit = tree.matchAny("/user/42");
         assertEquals(1, hit.value());
         assertEquals(Map.of("id", "42"), hit.params());
     }
@@ -393,7 +393,7 @@ class RestRadixTreeTest {
     void matchAnyBindsMultipleParamsInOrder() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/:x/:y", 1);
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/a/b");
+        RouteTree.Result<Integer> hit = tree.matchAny("/a/b");
         assertEquals(1, hit.value());
         assertEquals(Map.of("x", "a", "y", "b"), hit.params());
     }
@@ -403,7 +403,7 @@ class RestRadixTreeTest {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/user/admin", 1);
         tree.put("/:param/posts", 2);
-        RestRadixTree.MatchResult<Integer> literalHit = tree.matchAny("/user/admin");
+        RouteTree.Result<Integer> literalHit = tree.matchAny("/user/admin");
         assertEquals(1, literalHit.value());
         assertEquals(Map.of(), literalHit.params());
     }
@@ -413,7 +413,7 @@ class RestRadixTreeTest {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/user/admin", 1);
         tree.put("/:param/posts", 2);
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/user/posts");
+        RouteTree.Result<Integer> hit = tree.matchAny("/user/posts");
         assertEquals(2, hit.value());
         assertEquals(Map.of("param", "user"), hit.params());
     }
@@ -423,10 +423,10 @@ class RestRadixTreeTest {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/:x/aaa/bbb", 1);
         tree.put("/:x/ccc/ddd", 2);
-        RestRadixTree.MatchResult<Integer> first = tree.matchAny("/p/aaa/bbb");
+        RouteTree.Result<Integer> first = tree.matchAny("/p/aaa/bbb");
         assertEquals(1, first.value());
         assertEquals(Map.of("x", "p"), first.params());
-        RestRadixTree.MatchResult<Integer> second = tree.matchAny("/q/ccc/ddd");
+        RouteTree.Result<Integer> second = tree.matchAny("/q/ccc/ddd");
         assertEquals(2, second.value());
         assertEquals(Map.of("x", "q"), second.params());
     }
@@ -437,10 +437,10 @@ class RestRadixTreeTest {
         tree.put("/:a/zzz", 1);
         tree.put("/lit/:b/end", 2);
         // 字面 lit 分支先试：绑定 b=zzz 走到无值节点失败，撤销后回溯根参数分支命中
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/lit/zzz");
+        RouteTree.Result<Integer> hit = tree.matchAny("/lit/zzz");
         assertEquals(1, hit.value());
         assertEquals(Map.of("a", "lit"), hit.params(), "失败分支的绑定不得残留");
-        RestRadixTree.MatchResult<Integer> direct = tree.matchAny("/lit/other/end");
+        RouteTree.Result<Integer> direct = tree.matchAny("/lit/other/end");
         assertEquals(2, direct.value());
         assertEquals(Map.of("b", "other"), direct.params());
     }
@@ -450,10 +450,10 @@ class RestRadixTreeTest {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/a/:x/b", 1);
         tree.put("/a/:y", 2);
-        RestRadixTree.MatchResult<Integer> deep = tree.matchAny("/a/p/b");
+        RouteTree.Result<Integer> deep = tree.matchAny("/a/p/b");
         assertEquals(1, deep.value());
         assertEquals(Map.of("x", "p"), deep.params());
-        RestRadixTree.MatchResult<Integer> shallow = tree.matchAny("/a/q");
+        RouteTree.Result<Integer> shallow = tree.matchAny("/a/q");
         assertEquals(2, shallow.value(), "参数分支逐支回溯命中");
         assertEquals(Map.of("y", "q"), shallow.params());
         assertNull(tree.matchAny("/a/r/c"), "两参数分支后缀之外不命中");
@@ -464,10 +464,10 @@ class RestRadixTreeTest {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/a/b/c", 1);
         tree.put("/a/:x/c", 2);
-        RestRadixTree.MatchResult<Integer> literal = tree.matchAny("/a/b/c");
+        RouteTree.Result<Integer> literal = tree.matchAny("/a/b/c");
         assertEquals(1, literal.value());
         assertEquals(Map.of(), literal.params());
-        RestRadixTree.MatchResult<Integer> param = tree.matchAny("/a/z/c");
+        RouteTree.Result<Integer> param = tree.matchAny("/a/z/c");
         assertEquals(2, param.value());
         assertEquals(Map.of("x", "z"), param.params());
     }
@@ -478,7 +478,7 @@ class RestRadixTreeTest {
         // 根参数分支 HashMap 遍历序 x 在 y 先：DFS 先收集签名 11 的命中，后收集签名 10 的命中
         tree.put("/:x/:w", 1);
         tree.put("/:y/b", 2);
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/t/b");
+        RouteTree.Result<Integer> hit = tree.matchAny("/t/b");
         assertEquals(2, hit.value(), "按签名取最小而非 DFS 首命中");
         assertEquals(Map.of("y", "t"), hit.params());
     }
@@ -540,7 +540,7 @@ class RestRadixTreeTest {
     void matchAnyParamsAreImmutable() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/user/:id", 1);
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/user/42");
+        RouteTree.Result<Integer> hit = tree.matchAny("/user/42");
         assertThrows(UnsupportedOperationException.class, () -> hit.params().put("k", "v"));
     }
 
@@ -548,7 +548,7 @@ class RestRadixTreeTest {
     void matchAnyBindsSegmentContainingColonToParam() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/user/:id", 1);
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/user/a:b");
+        RouteTree.Result<Integer> hit = tree.matchAny("/user/a:b");
         assertEquals(1, hit.value());
         assertEquals(Map.of("id", "a:b"), hit.params(), "匹配侧不校验冒号，段原文绑定为参数值");
     }
@@ -557,7 +557,7 @@ class RestRadixTreeTest {
     void matchAnyBindsColonLedSegmentAsParamValue() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/:x", 1);
-        RestRadixTree.MatchResult<Integer> hit = tree.matchAny("/:x");
+        RouteTree.Result<Integer> hit = tree.matchAny("/:x");
         assertEquals(1, hit.value());
         assertEquals(Map.of("x", ":x"), hit.params(), "路径段 :x 无字面节点，落参数分支绑定段原文");
     }
@@ -585,7 +585,7 @@ class RestRadixTreeTest {
     void getAndExistHitLiteralPatternWithEmptyParams() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/a/b", 1);
-        RestRadixTree.MatchResult<Integer> hit = tree.get("/a/b");
+        RouteTree.Result<Integer> hit = tree.get("/a/b");
         assertEquals(1, hit.value());
         assertEquals(Map.of(), hit.params(), "精确字面命中无参数绑定");
         assertTrue(tree.exist("/a/b"));
@@ -595,7 +595,7 @@ class RestRadixTreeTest {
     void getRetrievesParamPatternByExactTextOnly() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
         tree.put("/a/:b/a", 1);
-        RestRadixTree.MatchResult<Integer> hit = tree.get("/a/:b/a");
+        RouteTree.Result<Integer> hit = tree.get("/a/:b/a");
         assertEquals(1, hit.value(), "冒号段作为普通字符串与注册模式逐段比对");
         assertEquals(Map.of(), hit.params(), "精确取值不做参数绑定");
         assertTrue(tree.exist("/a/:b/a"));
@@ -636,13 +636,52 @@ class RestRadixTreeTest {
                 assertThrows(IllegalArgumentException.class, () -> tree.exist(null)).getMessage());
     }
 
-    // ---------- 不支持的读方法 ----------
+    // ---------- match 单命中委托 ----------
 
     @Test
-    void unsupportedReadMethodsThrow() {
+    void matchSingleHitDelegatesToMatchAny() {
         RestRadixTree<Integer> tree = new RestRadixTree<>();
-        assertEquals("The rest radix tree does not support the match operation",
-                assertThrows(UnsupportedOperationException.class, () -> tree.match("/a")).getMessage());
+        tree.put("/user/:id", 1);
+        RouteTree.Result<Integer> hit = tree.match("/user/42");
+        assertEquals(1, hit.value(), "match 委托 matchAny，命中与择优同口径");
+        assertEquals(Map.of("id", "42"), hit.params());
+        assertNull(tree.match("/nope"), "无命中返回 null");
+    }
+
+    @Test
+    void matchEqualsMatchAnyAcrossEdgePaths() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        tree.put("/a/b", 1);
+        tree.put("/user/:id", 2);
+        tree.put("/:x/:y/b", 3);
+        for (String path : List.of("/a/b", "/a/b/", "//a//b//", "/user/42", "/user/42/",
+                "/x/y/b", "/x/y", "/", "//", "/a", "/a/c", "a/b", "", "/:x/:y/b")) {
+            assertEquals(tree.matchAny(path), tree.match(path),
+                    "match 与 matchAny 逐路径等值, path=" + path);
+        }
+        assertEquals("The path argument was null",
+                assertThrows(IllegalArgumentException.class, () -> tree.match(null)).getMessage());
+    }
+
+    @Test
+    void matchEqualsMatchAnyWithFastPathEnabled() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        tree.put("/a", 1);
+        tree.put("/:x/b", 2);
+        for (String path : List.of("/a", "/a/", "//a//", "/q/b", "/q", "/x/b", "/nope", "/")) {
+            assertEquals(tree.matchAny(path), tree.match(path),
+                    "开启快表后 match 仍与 matchAny 逐路径等值, path=" + path);
+        }
+    }
+
+    @Test
+    void matchResultIsRecordValuedWithImmutableParams() {
+        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        tree.put("/user/:id", 1);
+        RouteTree.Result<Integer> hit = tree.match("/user/42");
+        assertThrows(UnsupportedOperationException.class, () -> hit.params().put("k", "v"),
+                "match 侧结果参数绑定同样不可变");
+        assertEquals(hit, tree.matchAny("/user/42"), "记录按值相等，两通道结果无差别");
     }
 
     // ---------- remove 折叠 ----------

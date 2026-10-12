@@ -5,8 +5,8 @@ import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.router.info.autobind.*;
-import top.turboweb.struct.radix.RadixTree;
 import top.turboweb.struct.radix.RestRadixTree;
+import top.turboweb.struct.radix.RouteTree;
 
 import java.net.URLDecoder;
 import java.util.*;
@@ -23,9 +23,9 @@ import java.util.stream.Collectors;
  */
 public class RestRouterHandlerManager implements RouteHandlerManager {
 
-    private final RadixTree<RestRadixTree.MatchResult<RouteHandler>> routeHandlerRadixTree;
+    private final RouteTree<RouteHandler> routeHandlerRadixTree;
 
-    private RestRouterHandlerManager(RadixTree<RestRadixTree.MatchResult<RouteHandler>> routeHandlerRadixTree) {
+    private RestRouterHandlerManager(RouteTree<RouteHandler> routeHandlerRadixTree) {
         this.routeHandlerRadixTree = routeHandlerRadixTree;
     }
 
@@ -48,7 +48,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
         if (path.contains("?")) {
             path = path.substring(0, path.indexOf("?"));
         }
-        RestRadixTree.MatchResult<RouteHandler> matched = this.routeHandlerRadixTree.matchAny(path);
+        RouteTree.Result<RouteHandler> matched = this.routeHandlerRadixTree.match(path);
         if (matched == null) {
             // 与注解路由同口径:未匹配按路由不匹配错误码抛出,由异常处理器转 404
             throw new RouteHandlerException(

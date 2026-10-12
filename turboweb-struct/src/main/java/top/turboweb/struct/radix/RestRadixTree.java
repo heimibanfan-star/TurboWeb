@@ -20,46 +20,23 @@ import java.util.regex.Pattern;
  * 参数作为兄弟参数分支共存，同名参数复用同一参数节点；
  * matchAny 穷举全部可行分支收集全部命中，按类型签名升序取最小（签名逐位记段类型，
  * 字面 0 参数 1，最小即在最先分型的段位上字面量优先，与 put 冲突检测的字面量优先口径一致），
- * 命中返回携带参数绑定的 {@link MatchResult}。构造器可开启查询优化：
+ * 命中返回携带参数绑定的 {@link RouteTree.Result}；match 单命中委托 matchAny。构造器可开启查询优化：
  * 纯字面量模式进入哈希快表，匹配先查快表未果再走树，对外语义不变。
  * get 与 exist 按注册模式原文精确匹配：归一化后逐段以段原文比对，不解析参数
  * ——冒号段视为普通字符串、须与同名参数边对齐，普通段只走字面边，不做通配绑定，
- * 命中返回空参数绑定；match 与本实现的单命中语义不符，抛出
- * UnsupportedOperationException；
- * {@link #toReadView()} 返回只读视图并将本树封存为只读，封存后 put 与 remove 一律抛出
- * IllegalStateException。
+ * 命中返回空参数绑定；
+ * {@link #toReadView()} 返回只读视图（仅暴露 match）并将本树封存为只读，封存后 put 与 remove
+ * 一律抛出 IllegalStateException。
  * <p>非并发安全：不加锁，写操作不做原子性保证。
  *
  * @param <O> 值类型
  */
-public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>> {
-
-    /**
-     * 匹配命中结果：命中模式上注册的值与路径参数绑定。
-     *
-     * @param <O>    值类型
-     * @param value  命中模式上注册的值
-     * @param params 路径参数绑定（参数名到路径段），不可变
-     */
-    public record MatchResult<O>(O value, Map<String, String> params) {
-
-        /**
-         * 归一参数绑定为不可变映射。
-         */
-        public MatchResult {
-            params = Map.copyOf(params);
-        }
-    }
+public class RestRadixTree<O> implements RouteTree<O> {
 
     /**
      * 参数名规则：字母或下划线开头，后续为字母、数字或下划线。
      */
     private static final Pattern PARAM_NAME_PATTERN = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
-
-    /**
-     * 不支持方法（match）抛出的异常消息，主体与只读视图共用同一来源。
-     */
-    private static final String MATCH_NOT_SUPPORTED = "The rest radix tree does not support the match operation";
 
     /**
      * 只读封存后写操作抛出的异常消息。
@@ -98,7 +75,7 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     /**
      * 只读视图缓存：首次 {@link #toReadView()} 创建，此后复用同一实例。
      */
-    private RadixTree<MatchResult<O>> readView;
+    private RouteTree<O> readView;
 
     /**
      * 只读封存标记：{@link #toReadView()} 调用起置真，此后所有写操作拒绝。
@@ -134,10 +111,9 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
      * @return 命中结果；键未注册时返回 null
      * @throws IllegalArgumentException key 为 null
      */
-    @Override
-    public MatchResult<O> get(CharSequence key) {
+    public Result<O> get(CharSequence key) {
         O value = exactPatternValue(key);
-        return value == null ? null : new MatchResult<>(value, new HashMap<>());
+        return value == null ? null : new Result<>(value, new HashMap<>());
     }
 
     /**
@@ -148,17 +124,19 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
      * @return 键已注册返回 true，否则返回 false
      * @throws IllegalArgumentException key 为 null
      */
-    @Override
     public boolean exist(CharSequence key) {
         return exactPatternValue(key) != null;
     }
 
     /**
-     * 不支持多命中收集，恒抛 UnsupportedOperationException。
+     * 单命中匹配：委托 {@link #matchAny(CharSequence)}，命中与择优口径与其完全一致。
+     *
+     * @param key 目标键，不得为 null
+     * @return 命中结果；无命中时返回 null
      */
     @Override
-    public Set<MatchResult<O>> match(CharSequence key) {
-        throw new UnsupportedOperationException(MATCH_NOT_SUPPORTED);
+    public Result<O> match(CharSequence key) {
+        return matchAny(key);
     }
 
     /**
@@ -168,8 +146,7 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
      * 命中结果；路径不以 {@code /} 开头或未命中返回 null，
      * path 为 null 时抛 IllegalArgumentException。
      */
-    @Override
-    public MatchResult<O> matchAny(CharSequence path) {
+    public Result<O> matchAny(CharSequence path) {
         if (path == null) {
             throw new IllegalArgumentException("The path argument was null");
         }
@@ -181,7 +158,7 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
         if (literalPaths != null) {
             O literal = literalPaths.get(String.join("/", segments));
             if (literal != null) {
-                return new MatchResult<>(literal, new HashMap<>());
+                return new Result<>(literal, new HashMap<>());
             }
         }
         List<Hit<O>> hits = new ArrayList<>();
@@ -317,7 +294,7 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
      *
      * @return 只读视图
      */
-    public RadixTree<MatchResult<O>> toReadView() {
+    public RouteTree<O> toReadView() {
         readViewSealed.set(true);
         if (readView == null) {
             readView = new ReadView();
@@ -338,7 +315,7 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
                       boolean[] types, List<Hit<O>> hits) {
         if (index == segments.size()) {
             if (node.value != null) {
-                hits.add(new Hit<>(new MatchResult<>(node.value, params), types.clone()));
+                hits.add(new Hit<>(new Result<>(node.value, params), types.clone()));
             }
             return;
         }
@@ -359,7 +336,7 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     /**
      * 命中候选：命中结果与克隆留存的类型签名，供按签名升序择优。
      */
-    private record Hit<O>(MatchResult<O> result, boolean[] signature) {
+    private record Hit<O>(Result<O> result, boolean[] signature) {
     }
 
     /**
@@ -501,31 +478,15 @@ public class RestRadixTree<O> implements RadixTree<RestRadixTree.MatchResult<O>>
     }
 
     /**
-     * 只读视图：matchAny、get、exist 均委托给外部实例，match 与外部实例同样
-     * 抛出 UnsupportedOperationException；封存（{@link RestRadixTree#toReadView()}）
+     * 只读视图：match 委托给外部实例；封存（{@link RestRadixTree#toReadView()}）
      * 前注册的内容对本视图可见（活视图，非快照），封存后外部实例拒绝一切写操作。
      * 仅能经 {@link RestRadixTree#toReadView()} 获得。
      */
-    private final class ReadView implements RadixTree<MatchResult<O>> {
+    private final class ReadView implements RouteTree<O> {
 
         @Override
-        public MatchResult<O> get(CharSequence key) {
-            return RestRadixTree.this.get(key);
-        }
-
-        @Override
-        public boolean exist(CharSequence key) {
-            return RestRadixTree.this.exist(key);
-        }
-
-        @Override
-        public Set<MatchResult<O>> match(CharSequence key) {
-            throw new UnsupportedOperationException(MATCH_NOT_SUPPORTED);
-        }
-
-        @Override
-        public MatchResult<O> matchAny(CharSequence path) {
-            return RestRadixTree.this.matchAny(path);
+        public Result<O> match(CharSequence key) {
+            return RestRadixTree.this.match(key);
         }
     }
 }

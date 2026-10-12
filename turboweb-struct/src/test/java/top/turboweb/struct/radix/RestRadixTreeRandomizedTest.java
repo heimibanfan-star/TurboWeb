@@ -71,7 +71,8 @@ class RestRadixTreeRandomizedTest {
     private void assertMatchEquals(ReferenceTrie reference, RestRadixTree<Integer> tree,
                                    String path, String tag, int op) {
         ReferenceHit expected = reference.match(path);
-        RestRadixTree.MatchResult<Integer> actual = tree.matchAny(path);
+        RouteTree.Result<Integer> actual = tree.matchAny(path);
+        assertEquals(actual, tree.match(path), tag + " match 委托与 matchAny 等值, path=" + path + ", op=" + op);
         if (expected == null) {
             assertNull(actual, tag + " match 应未命中, path=" + path + ", op=" + op);
             return;
