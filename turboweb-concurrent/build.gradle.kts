@@ -1,6 +1,10 @@
 /*
  * 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
  */
+plugins {
+    // 版本由根构建脚本的 plugins 块统一声明，此处按坐标启用（与 turboweb-struct 先例一致）
+    id("info.solidsoft.pitest")
+}
 
 dependencies {
     // 本模块只消费 netty 的内部日志门面（InternalLogger），netty-common 即够，不背 codec-http 编解码整包
@@ -16,3 +20,54 @@ dependencies {
 }
 
 description = "turboweb-concurrent"
+
+// 覆盖率闸：作用域仅 VirtualThreadResource 抽象基类与受限/非受限两实现及嵌套类型。
+// 基类单列一条规则：线程启动失败补偿的 catch 三行（归还、重抛）测试不可达
+// （start() 无法按需失败，类保持 final 不设注入缝，属已裁决口径），线覆盖下限 0.70；
+// 两实现维持 LINE+BRANCH 双 1.00 不放松。既有 ThreadPool/ElasticThreadPool 维持无闸口径不扩面
+tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.named("test"))
+    violationRules {
+        rule {
+            element = "CLASS"
+            includes = listOf("*.VirtualThreadResource*")
+            limit {
+                counter = "LINE"
+                minimum = "0.70".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                minimum = "1.00".toBigDecimal()
+            }
+        }
+        rule {
+            element = "CLASS"
+            includes = listOf("*LimitedVirtualThreadResource*", "*UnlimitedVirtualThreadResource*")
+            limit {
+                counter = "LINE"
+                minimum = "1.00".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                minimum = "1.00".toBigDecimal()
+            }
+        }
+    }
+}
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}
+
+// 变异作用域同样只钉这套类（基类、两实现、嵌套类型）；
+// 阈值按"可达变异全杀"设定：线程启动失败补偿分支的 2 枚归还调用变异测试不可达、计为
+// no-coverage，分数上限即 38/40=95%，阈值钉 94；其余正确性可达变异要求全部击杀
+// （实测 Test strength 100%）。pitest 任务独立红绿不接 check（与全仓口径一致）
+configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
+    pitestVersion.set("1.30.0")
+    junit5PluginVersion.set("1.2.3")
+    // 本仓存在顶满超时的并发用例，默认 1.2 倍超时窗会误判，放宽
+    timeoutFactor.set(4.toBigDecimal())
+    targetClasses.set(listOf("top.turboweb.concurrent.thread.*VirtualThreadResource*"))
+    // 分数上限 95（38/40，2 枚 no-coverage 即上述补偿归还调用），可达变异要求全杀
+    mutationThreshold.set(94)
+}
