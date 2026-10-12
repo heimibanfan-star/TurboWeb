@@ -66,7 +66,7 @@
 ## 6. 索引维护
 
 - 后台守护进程负责增量同步；若刚做大范围改动、怀疑索引滞后，手动执行 `codegraph sync`。
-- 模块重命名、目录移动、增删模块等结构性变更后，执行 `codegraph index` 全量重建（例：`turboweb-websocket` → `turboweb-websocket-core`）。
+- 模块重命名、目录移动、增删模块等结构性变更后，执行 `codegraph index` 全量重建（例：`turboweb-websocket-core` → `turboweb-websocket`）。
 - 索引被残留锁阻塞时使用 `codegraph unlock <路径>`；守护进程管理用 `codegraph daemon`。
 - 升级 `codegraph upgrade` 仅在用户同意后执行，不自动升级。
 
@@ -92,7 +92,7 @@
 - **原因**：提交会写入版本历史，属于难以无痕撤销的对仓库操作；自动提交会产生用户未审的提交粒度与信息，事后整理反而制造更多历史噪音。
 - 提交说明**主题行**格式：`操作(模块): 中文描述信息`，如 `fix(http-server): 修复了某个bug`
   - 操作：`feat` / `fix` / `docs` / `refactor` / `test` / `chore` 等既有类型；
-  - 模块：受影响的子模块短名（`commons`、`http-server`、`websocket-core` 等）或文档域（`测试报告`、`项目规范` 等）。
+  - 模块：受影响的子模块短名（`commons`、`http-server`、`websocket` 等）或文档域（`测试报告`、`项目规范` 等）。
 - 提交说明（主题与正文）**不得携带特殊符号**，只用普通文字与基础标点（汉字、字母、数字、空格、换行，以及中英文逗号、句号、冒号、分号、顿号、括号、引号这类常规标点）。典型禁项：
   - 反引号：bash 会对 -m 参数做命令替换，历史上含反引号的提交说明曾被命令替换静默吞掉内容；
   - 箭头、勾选框、几何与装饰字符（如此类：→ ↑ ≈ ☐ ✅ ★）；

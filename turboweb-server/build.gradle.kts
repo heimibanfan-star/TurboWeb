@@ -17,8 +17,8 @@ dependencies {
     api(libs.reactor.core)
     // 参数绑定与路由注解由 turboweb-rest-api 提供
     api(project(":turboweb-rest-api"))
-    // 聚合turboweb-websocket-core模块
-    api(project(":turboweb-websocket-core"))
+    // 聚合turboweb-websocket模块
+    api(project(":turboweb-websocket"))
     implementation(project(":turboweb-struct"))
     // Gradle 9 不再自带 platform launcher；BOM 复用既有的 junit-jupiter 版本号，不引入第二个需要手工同步的版本
     testImplementation(platform(libs.junit.bom))

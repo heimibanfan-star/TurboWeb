@@ -11,4 +11,4 @@ dependencies {
     api(libs.netty.codec.http)
 }
 
-description = "turboweb-websocket-core"
+description = "turboweb-websocket"
