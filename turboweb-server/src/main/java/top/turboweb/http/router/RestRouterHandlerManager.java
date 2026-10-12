@@ -5,7 +5,7 @@ import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.router.info.autobind.*;
-import top.turboweb.struct.radix.RestRadixTree;
+import top.turboweb.struct.radix.RestRouteTree;
 import top.turboweb.struct.radix.RouteTree;
 
 import java.net.URLDecoder;
@@ -318,12 +318,12 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
                     })
                     .collect(Collectors.groupingBy(RouteHandlerMetaInfo::url));
             // 构建基数树
-            RestRadixTree<RouteHandler> restRadixTree = new RestRadixTree<>();
+            RestRouteTree<RouteHandler> restRouteTree = new RestRouteTree<>();
             routeMetaInfoMap.forEach((url, metaInfos) -> {
                 RouteHandler routeHandler = new RouteHandler(metaInfos, parsers);
-                restRadixTree.put(routeHandler.path(), routeHandler);
+                restRouteTree.put(routeHandler.path(), routeHandler);
             });
-            return new RestRouterHandlerManager(restRadixTree.toReadView());
+            return new RestRouterHandlerManager(restRouteTree.toReadView());
         }
 
     }

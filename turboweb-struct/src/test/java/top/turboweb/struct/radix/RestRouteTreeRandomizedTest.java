@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * <p>参照 matchAny 取"字面 0 参数 1"类型签名最小的首个候选（在最先分型的段位上
  * 字面量优先），与实现的穷举择优 DFS 等价。
  */
-class RestRadixTreeRandomizedTest {
+class RestRouteTreeRandomizedTest {
 
     private static final List<String> PATTERN_LITERALS = List.of("a", "b", "c");
     private static final List<String> PARAM_NAMES = List.of("x", "y", "z");
@@ -43,7 +43,7 @@ class RestRadixTreeRandomizedTest {
 
     private void replay(boolean fastPath, long seed) {
         Random random = new Random(seed);
-        RestRadixTree<Integer> tree = new RestRadixTree<>(fastPath);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(fastPath);
         ReferenceTrie reference = new ReferenceTrie();
         for (int op = 0; op < OPERATIONS_PER_ROUND; op++) {
             String pattern = randomPattern(random);
@@ -68,7 +68,7 @@ class RestRadixTreeRandomizedTest {
         }
     }
 
-    private void assertMatchEquals(ReferenceTrie reference, RestRadixTree<Integer> tree,
+    private void assertMatchEquals(ReferenceTrie reference, RestRouteTree<Integer> tree,
                                    String path, String tag, int op) {
         ReferenceHit expected = reference.match(path);
         RouteTree.Result<Integer> actual = tree.matchAny(path);

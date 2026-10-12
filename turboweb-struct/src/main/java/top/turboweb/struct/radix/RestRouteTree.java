@@ -1,9 +1,12 @@
 package top.turboweb.struct.radix;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +34,7 @@ import java.util.regex.Pattern;
  *
  * @param <O> 值类型
  */
-public class RestRadixTree<O> implements RouteTree<O> {
+public class RestRouteTree<O> implements RouteTree<O> {
 
     /**
      * 参数名规则：字母或下划线开头，后续为字母、数字或下划线。
@@ -85,7 +88,7 @@ public class RestRadixTree<O> implements RouteTree<O> {
     /**
      * 构造未开启查询优化的空树，全部模式按原逻辑进树。
      */
-    public RestRadixTree() {
+    public RestRouteTree() {
         this(false);
     }
 
@@ -96,7 +99,7 @@ public class RestRadixTree<O> implements RouteTree<O> {
      *                        删除的任何对外语义（纯字面量模式与含参模式在参数位必然
      *                        分叉不歧义，快表内重复注册即其唯一冲突形态）
      */
-    public RestRadixTree(boolean literalFastPath) {
+    public RestRouteTree(boolean literalFastPath) {
         this.root = new Node<>();
         this.literalPaths = literalFastPath ? new HashMap<>() : null;
     }
@@ -162,7 +165,7 @@ public class RestRadixTree<O> implements RouteTree<O> {
             }
         }
         List<Hit<O>> hits = new ArrayList<>();
-        walk(root, segments, 0, new HashMap<>(), new boolean[segments.size()], hits);
+        walk(root, segments, hits);
         if (hits.isEmpty()) {
             return null;
         }
@@ -198,7 +201,7 @@ public class RestRadixTree<O> implements RouteTree<O> {
             throw new IllegalArgumentException("The value argument was null");
         }
         List<String> segments = parseSegments(pattern);
-        if (literalPaths != null && segments.stream().noneMatch(RestRadixTree::isParamSegment)) {
+        if (literalPaths != null && segments.stream().noneMatch(RestRouteTree::isParamSegment)) {
             String key = String.join("/", segments);
             if (literalPaths.containsKey(key)) {
                 throw new IllegalArgumentException("Path pattern '" + pattern + "' is already registered");
@@ -206,7 +209,7 @@ public class RestRadixTree<O> implements RouteTree<O> {
             literalPaths.put(key, value);
             return;
         }
-        String conflict = findConflict(root, segments, 0, new StringBuilder());
+        String conflict = findConflict(root, segments);
         if (conflict != null) {
             throw new IllegalArgumentException(conflict.equals(pattern)
                     ? "Path pattern '" + pattern + "' is already registered"
@@ -225,31 +228,77 @@ public class RestRadixTree<O> implements RouteTree<O> {
      * 逐支对齐下探（一支走穷即回溯改试下一支）；字面量与参数同槽不比对，字面量优先
      * 不歧义；逐段对齐走到新模式尽头且节点有值，即与既有注册冲突，返回自根重建的
      * 该既有模式串（与新模式相同即重复注册，不同即歧义路径）；
-     * 全部分支走穷无对齐命中返回 null。path 为自根累积的模式前缀。
+     * 全部分支走穷无对齐命中返回 null；既有模式串由自根累积的段前缀重建，随回溯撤销。
      */
-    private String findConflict(Node<O> node, List<String> segments, int index, StringBuilder path) {
-        if (index == segments.size()) {
-            return node.value == null ? null : path.toString();
-        }
-        String segment = segments.get(index);
-        int mark = path.length();
-        if (isParamSegment(segment)) {
-            for (Map.Entry<String, Node<O>> entry : node.params.entrySet()) {
-                path.append("/:").append(entry.getKey());
-                String conflict = findConflict(entry.getValue(), segments, index + 1, path);
-                if (conflict != null) {
-                    return conflict;
+    private String findConflict(Node<O> start, List<String> segments) {
+        int size = segments.size();
+        StringBuilder path = new StringBuilder();
+        Deque<ConflictFrame<O>> stack = new ArrayDeque<>();
+        stack.push(new ConflictFrame<>(start, 0, path.length()));
+        boolean childFailed = false;
+        while (!stack.isEmpty()) {
+            ConflictFrame<O> frame = stack.peek();
+            if (childFailed) {
+                childFailed = false;
+                if (isParamSegment(segments.get(frame.index))) {
+                    path.setLength(frame.mark);
+                } else {
+                    stack.pop();
+                    childFailed = true;
+                    continue;
                 }
-                path.setLength(mark);
             }
-            return null;
+            if (frame.index == size) {
+                if (frame.node.value != null) {
+                    return path.toString();
+                }
+                stack.pop();
+                childFailed = true;
+                continue;
+            }
+            String segment = segments.get(frame.index);
+            if (isParamSegment(segment)) {
+                if (frame.paramIt == null) {
+                    frame.paramIt = frame.node.params.entrySet().iterator();
+                }
+                if (!frame.paramIt.hasNext()) {
+                    stack.pop();
+                    childFailed = true;
+                    continue;
+                }
+                Map.Entry<String, Node<O>> entry = frame.paramIt.next();
+                path.append("/:").append(entry.getKey());
+                stack.push(new ConflictFrame<>(entry.getValue(), frame.index + 1, path.length()));
+                continue;
+            }
+            Node<O> literal = frame.node.literals.get(segment);
+            if (literal == null) {
+                stack.pop();
+                childFailed = true;
+                continue;
+            }
+            path.append('/').append(segment);
+            stack.push(new ConflictFrame<>(literal, frame.index + 1, path.length()));
         }
-        Node<O> literal = node.literals.get(segment);
-        if (literal == null) {
-            return null;
+        return null;
+    }
+
+    /**
+     * findConflict 显式栈帧：记本层节点与段下标、参数边迭代游标，mark 为本层进入时
+     * 模式前缀的长度基线（子支走穷后据此回退累积串）。
+     */
+    private static final class ConflictFrame<O> {
+
+        private final Node<O> node;
+        private final int index;
+        private final int mark;
+        private Iterator<Map.Entry<String, Node<O>>> paramIt;
+
+        private ConflictFrame(Node<O> node, int index, int mark) {
+            this.node = node;
+            this.index = index;
+            this.mark = mark;
         }
-        path.append('/').append(segment);
-        return findConflict(literal, segments, index + 1, path);
     }
 
     /**
@@ -266,7 +315,7 @@ public class RestRadixTree<O> implements RouteTree<O> {
         ensureNotSealed();
         checkKeyNotNull(pattern);
         List<String> segments = parseSegments(pattern);
-        if (literalPaths != null && segments.stream().noneMatch(RestRadixTree::isParamSegment)) {
+        if (literalPaths != null && segments.stream().noneMatch(RestRouteTree::isParamSegment)) {
             return literalPaths.remove(String.join("/", segments)) != null;
         }
         List<Node<O>> path = new ArrayList<>();
@@ -311,25 +360,70 @@ public class RestRadixTree<O> implements RouteTree<O> {
      * 局部 Map，命中封装副本、未命中撤销绑定整体丢弃，匹配对树无副作用。
      * types 为当前路径的段类型轨迹。
      */
-    private void walk(Node<O> node, List<String> segments, int index, Map<String, String> params,
-                      boolean[] types, List<Hit<O>> hits) {
-        if (index == segments.size()) {
-            if (node.value != null) {
-                hits.add(new Hit<>(new Result<>(node.value, params), types.clone()));
+    private void walk(Node<O> start, List<String> segments, List<Hit<O>> hits) {
+        int size = segments.size();
+        Map<String, String> params = new HashMap<>();
+        boolean[] types = new boolean[size];
+        Deque<WalkFrame<O>> stack = new ArrayDeque<>();
+        stack.push(new WalkFrame<>(start, 0));
+        boolean childReturned = false;
+        while (!stack.isEmpty()) {
+            WalkFrame<O> frame = stack.peek();
+            if (childReturned) {
+                childReturned = false;
+                if (frame.undoKey != null) {
+                    params.remove(frame.undoKey);
+                }
             }
-            return;
+            if (frame.index == size) {
+                if (frame.node.value != null) {
+                    hits.add(new Hit<>(new Result<>(frame.node.value, params), types.clone()));
+                }
+                stack.pop();
+                childReturned = true;
+                continue;
+            }
+            String segment = segments.get(frame.index);
+            if (!frame.literalDone) {
+                frame.literalDone = true;
+                Node<O> literal = frame.node.literals.get(segment);
+                if (literal != null) {
+                    types[frame.index] = false;
+                    stack.push(new WalkFrame<>(literal, frame.index + 1));
+                    continue;
+                }
+            }
+            if (frame.paramIt == null) {
+                frame.paramIt = frame.node.params.entrySet().iterator();
+            }
+            if (frame.paramIt.hasNext()) {
+                Map.Entry<String, Node<O>> entry = frame.paramIt.next();
+                types[frame.index] = true;
+                params.put(entry.getKey(), segment);
+                frame.undoKey = entry.getKey();
+                stack.push(new WalkFrame<>(entry.getValue(), frame.index + 1));
+                continue;
+            }
+            stack.pop();
+            childReturned = true;
         }
-        String segment = segments.get(index);
-        Node<O> literal = node.literals.get(segment);
-        if (literal != null) {
-            types[index] = false;
-            walk(literal, segments, index + 1, params, types, hits);
-        }
-        for (Map.Entry<String, Node<O>> entry : node.params.entrySet()) {
-            types[index] = true;
-            params.put(entry.getKey(), segment);
-            walk(entry.getValue(), segments, index + 1, params, types, hits);
-            params.remove(entry.getKey());
+    }
+
+    /**
+     * walk 显式栈帧：记本层子分支遍历进度——字面边是否已试、参数边迭代游标、
+     * 最近一次下钻所绑定参数边的键（子层返回后据此撤销绑定）。
+     */
+    private static final class WalkFrame<O> {
+
+        private final Node<O> node;
+        private final int index;
+        private boolean literalDone;
+        private Iterator<Map.Entry<String, Node<O>>> paramIt;
+        private String undoKey;
+
+        private WalkFrame(Node<O> node, int index) {
+            this.node = node;
+            this.index = index;
         }
     }
 
@@ -478,15 +572,15 @@ public class RestRadixTree<O> implements RouteTree<O> {
     }
 
     /**
-     * 只读视图：match 委托给外部实例；封存（{@link RestRadixTree#toReadView()}）
+     * 只读视图：match 委托给外部实例；封存（{@link RestRouteTree#toReadView()}）
      * 前注册的内容对本视图可见（活视图，非快照），封存后外部实例拒绝一切写操作。
-     * 仅能经 {@link RestRadixTree#toReadView()} 获得。
+     * 仅能经 {@link RestRouteTree#toReadView()} 获得。
      */
     private final class ReadView implements RouteTree<O> {
 
         @Override
         public Result<O> match(CharSequence key) {
-            return RestRadixTree.this.match(key);
+            return RestRouteTree.this.match(key);
         }
     }
 }

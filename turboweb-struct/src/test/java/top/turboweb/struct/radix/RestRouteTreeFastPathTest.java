@@ -11,16 +11,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link RestRadixTree} 查询优化开关（构造器 boolean 参数）：开启时纯字面量模式
+ * {@link RestRouteTree} 查询优化开关（构造器 boolean 参数）：开启时纯字面量模式
  * 进入哈希快表，匹配先查快表（键为归一化后的段序列）未果再走树；未开启时全部
  * 模式按原逻辑进树。两种模式对外的注册、冲突、匹配与删除语义完全一致，
  * 字面量对参数的字面量优先口径同样经由快表命中保持。
  */
-class RestRadixTreeFastPathTest {
+class RestRouteTreeFastPathTest {
 
     @Test
     void literalPatternMatchesThroughFastPath() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/a", 1);
         RouteTree.Result<Integer> hit = tree.matchAny("/a");
         assertEquals(1, hit.value());
@@ -29,7 +29,7 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathGetAndExistReadThroughMap() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/a/b", 1);
         tree.put("/:x/b", 2);
         assertEquals(1, tree.get("//a//b/").value(), "快表键与匹配同口径归一化，get 直接取回");
@@ -45,7 +45,7 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathDuplicateRegistrationRejected() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/a", 1);
         assertEquals("Path pattern '/a' is already registered",
                 assertThrows(IllegalArgumentException.class, () -> tree.put("/a", 2)).getMessage());
@@ -54,14 +54,14 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathKeyNormalizesLikeTreeMatch() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/a/b", 1);
         assertEquals(1, tree.matchAny("//a//b/").value(), "快表键与树匹配同口径归一化");
     }
 
     @Test
     void literalFastPathLiteralWinsOverParamSibling() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/:x", 2);
         tree.put("/a", 1);
         assertEquals(1, tree.matchAny("/a").value(), "字面量命中优先于参数分支");
@@ -72,7 +72,7 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathLiteralWinsOverParamAtDeeperAlignment() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/a/:x", 2);
         tree.put("/a/b", 1);
         assertEquals(1, tree.matchAny("/a/b").value(), "深层对齐时字面量同样优先");
@@ -83,7 +83,7 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathKeepsParamConflictDetection() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/:x/b", 1);
         assertEquals("Ambiguous path pattern '/:y/b' conflicts with existing pattern '/:x/b'",
                 assertThrows(IllegalArgumentException.class, () -> tree.put("/:y/b", 2)).getMessage(),
@@ -92,7 +92,7 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathRemoveDeletesLiteralAndAllowsReregister() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/a", 1);
         assertTrue(tree.remove("/a"));
         assertNull(tree.matchAny("/a"), "删除后快表与树均无残留");
@@ -102,14 +102,14 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathRemoveUnknownReturnsFalse() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         assertFalse(tree.remove("/missing"));
         assertFalse(tree.remove("/:x/b"), "未注册的含参模式同样返回 false");
     }
 
     @Test
     void literalFastPathMixedPatternStillRemovedViaTree() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/:x/b", 1);
         assertTrue(tree.remove("/:x/b"));
         assertNull(tree.matchAny("/a/b"), "含参模式删除后树侧摘除");
@@ -119,7 +119,7 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathColonLedPathBindsAsParamNotLiteralKey() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/a", 1);
         tree.put("/:x", 2);
         assertNull(tree.matchAny("/:literal/nowhere"),
@@ -131,7 +131,7 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathValueNullStillRejectedBeforeRouting() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         assertEquals("The value argument was null",
                 assertThrows(IllegalArgumentException.class, () -> tree.put("/a", null)).getMessage());
         assertNull(tree.matchAny("/a"), "拒收后未注册");
@@ -139,7 +139,7 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void literalFastPathInteractsWithSeal() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(true);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(true);
         tree.put("/a", 1);
         RouteTree<Integer> view = tree.toReadView();
         assertThrows(IllegalStateException.class, () -> tree.put("/b", 2),
@@ -150,7 +150,7 @@ class RestRadixTreeFastPathTest {
 
     @Test
     void disabledFastPathKeepsTreeLogicForAllPatterns() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>(false);
+        RestRouteTree<Integer> tree = new RestRouteTree<>(false);
         tree.put("/a", 1);
         tree.put("/:x", 2);
         assertEquals(1, tree.matchAny("/a").value());

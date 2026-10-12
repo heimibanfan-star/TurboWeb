@@ -13,16 +13,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link RestRadixTree} 只读视图 ReadView：同一实例缓存、match 委托
+ * {@link RestRouteTree} 只读视图 ReadView：同一实例缓存、match 委托
  * 外部实例（含 null 校验同源）、toReadView 封存写侧与封存后读方法
  * （put / remove 一律抛 IllegalStateException，封存前注册的内容对视图可见，
  * 外部实例 get / exist 仍可用）。
  */
-class RestRadixTreeReadViewTest {
+class RestRouteTreeReadViewTest {
 
     @Test
     void toReadViewReturnsSameInstanceOnRepeatedCalls() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RestRouteTree<Integer> tree = new RestRouteTree<>();
         tree.put("/a", 1);
         RouteTree<Integer> view = tree.toReadView();
         assertSame(view, tree.toReadView());
@@ -32,7 +32,7 @@ class RestRadixTreeReadViewTest {
 
     @Test
     void readViewDelegatesMatchWithValueAndParams() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RestRouteTree<Integer> tree = new RestRouteTree<>();
         tree.put("/user/:id", 1);
         RouteTree<Integer> view = tree.toReadView();
         RouteTree.Result<Integer> hit = view.match("/user/42");
@@ -42,7 +42,7 @@ class RestRadixTreeReadViewTest {
 
     @Test
     void writeOperationsAfterToReadViewAreRejected() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RestRouteTree<Integer> tree = new RestRouteTree<>();
         tree.put("/a", 1);
         RouteTree<Integer> view = tree.toReadView();
         assertEquals("The rest radix tree does not allow write operations after toReadView()",
@@ -54,7 +54,7 @@ class RestRadixTreeReadViewTest {
 
     @Test
     void sealedWriteRejectionPrecedesArgumentValidation() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RestRouteTree<Integer> tree = new RestRouteTree<>();
         RouteTree<Integer> view = tree.toReadView();
         assertThrows(IllegalStateException.class, () -> tree.put(null, 1),
                 "封存先于参数校验");
@@ -65,7 +65,7 @@ class RestRadixTreeReadViewTest {
 
     @Test
     void readViewBacktracksAndNormalizesLikeWriteSide() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RestRouteTree<Integer> tree = new RestRouteTree<>();
         tree.put("/user/admin", 1);
         tree.put("/:param/posts", 2);
         RouteTree<Integer> view = tree.toReadView();
@@ -75,7 +75,7 @@ class RestRadixTreeReadViewTest {
 
     @Test
     void readViewMatchEqualsOwnerAcrossEdgePaths() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RestRouteTree<Integer> tree = new RestRouteTree<>();
         tree.put("/a/b", 1);
         tree.put("/user/:id", 2);
         RouteTree<Integer> view = tree.toReadView();
@@ -87,7 +87,7 @@ class RestRadixTreeReadViewTest {
 
     @Test
     void readViewRejectsNullPathLikeWriteSide() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RestRouteTree<Integer> tree = new RestRouteTree<>();
         RouteTree<Integer> view = tree.toReadView();
         assertEquals("The path argument was null",
                 assertThrows(IllegalArgumentException.class, () -> view.match(null)).getMessage());
@@ -95,7 +95,7 @@ class RestRadixTreeReadViewTest {
 
     @Test
     void ownerGetAndExistRemainAfterSealing() {
-        RestRadixTree<Integer> tree = new RestRadixTree<>();
+        RestRouteTree<Integer> tree = new RestRouteTree<>();
         tree.put("/a", 1);
         tree.put("/user/:id", 2);
         tree.toReadView();
