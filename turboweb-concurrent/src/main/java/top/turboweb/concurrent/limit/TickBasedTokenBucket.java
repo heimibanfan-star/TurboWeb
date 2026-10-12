@@ -1,4 +1,4 @@
-package top.turboweb.commons.limit;
+package top.turboweb.concurrent.limit;
 
 import java.io.Closeable;
 import java.io.IOException;

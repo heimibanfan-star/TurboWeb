@@ -1,4 +1,4 @@
-package top.turboweb.commons.lock;
+package top.turboweb.concurrent.lock;
 
 import java.util.concurrent.locks.ReentrantLock;
 

@@ -1,4 +1,4 @@
-package top.turboweb.commons.lock;
+package top.turboweb.concurrent.lock;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -3,7 +3,7 @@ package top.turboweb.http.core.session;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.lock.Locks;
-import top.turboweb.commons.lock.SegmentLock;
+import top.turboweb.concurrent.lock.SegmentLock;
 
 import java.util.Iterator;
 import java.util.Map;

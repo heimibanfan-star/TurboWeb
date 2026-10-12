@@ -1,4 +1,4 @@
-package top.turboweb.commons.limit;
+package top.turboweb.concurrent.limit;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;

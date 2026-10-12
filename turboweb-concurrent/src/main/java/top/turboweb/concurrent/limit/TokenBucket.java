@@ -1,4 +1,4 @@
-package top.turboweb.commons.limit;
+package top.turboweb.concurrent.limit;
 
 /**
  * 令牌桶接口
