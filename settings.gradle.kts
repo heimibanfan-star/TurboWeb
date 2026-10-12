@@ -15,3 +15,4 @@ include(":turboweb-http-server")
 
 include("turboweb-struct")
 include("turboweb-rest-api")
+include("turboweb-concurrent")

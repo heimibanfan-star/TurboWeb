@@ -1,4 +1,4 @@
-package top.turboweb.commons.utils.thread;
+package top.turboweb.concurrent.thread;
 
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 线程池抽象。
  * <p>
- * 统一 TurboWeb 内部各类专用线程池（磁盘操作、弹性扩容等）的对外契约：提交任务并返回是否被接受、
+ * 统一 TurboWeb 内部各类专用线程池（如弹性线程池 {@link ElasticThreadPool}）的对外契约：提交任务并返回是否被接受、
  * 关闭与终止等待。与 {@link java.util.concurrent.ExecutorService} 不同，本接口只保留框架实际需要
  * 的能力，不暴露 {@code submit}/{@code invokeAll} 一族。
  * <p>

@@ -1,8 +1,7 @@
-package top.turboweb.commons.utils.thread;
+package top.turboweb.concurrent.thread;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.testkit.Awaits;
 
 import java.lang.reflect.Field;
 import java.util.concurrent.BlockingQueue;
@@ -10,6 +9,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -20,6 +20,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 弹性线程池：参数校验、提交语义、背压返回 false、关闭不丢任务。
  */
 class ElasticThreadPoolTest {
+
+    /** 轮询间隔：足够小以捕捉毫秒级状态翻转，足够大以免空转。 */
+    private static final long POLL_INTERVAL_MILLIS = 5L;
+
+    /**
+     * 把"等到条件成立"写成有截止时间的轮询：条件一成立立刻返回 true；
+     * 返回 false 表示整个窗口内条件始终不成立——这正是负向断言需要的证据。
+     */
+    private static boolean awaitUntil(BooleanSupplier condition, long deadlineMillis) {
+        long deadline = System.nanoTime() + deadlineMillis * 1_000_000L;
+        while (System.nanoTime() < deadline) {
+            if (condition.getAsBoolean()) {
+                return true;
+            }
+            try {
+                Thread.sleep(POLL_INTERVAL_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        // 出界前最后一次确认，避免"恰好在 deadline 上成立"被判成没成立
+        return condition.getAsBoolean();
+    }
 
     /** 读私有缓冲队列长度，只为把"搬运线程已取走手上任务"变成可断言的观测点。 */
     private static int cacheSize(ElasticThreadPool pool) {
@@ -118,7 +142,7 @@ class ElasticThreadPoolTest {
         assertTrue(pool.execute(blocker));
 
         assertTrue(pool.execute(executed::incrementAndGet), "第 4 个任务应进缓冲队列");
-        assertTrue(Awaits.awaitUntil(() -> cacheSize(pool) == 0, 2_000),
+        assertTrue(awaitUntil(() -> cacheSize(pool) == 0, 2_000),
                 "搬运线程必须已把它取走并卡在退避重试里——这是缓冲队列腾空的观测点");
         assertTrue(pool.execute(executed::incrementAndGet), "缓冲 1/2");
         assertTrue(pool.execute(executed::incrementAndGet), "缓冲 2/2");

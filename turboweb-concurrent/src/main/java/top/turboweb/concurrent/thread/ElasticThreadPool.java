@@ -1,4 +1,4 @@
-package top.turboweb.commons.utils.thread;
+package top.turboweb.concurrent.thread;
 
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
@@ -13,8 +13,8 @@ import java.util.concurrent.locks.LockSupport;
 /**
  * 弹性线程池，实现 {@link ThreadPool}。
  * <p>
- * 结构参考 {@link DiskOpeThreadUtils}，由核心执行器 {@link ThreadPoolExecutor} 与一个二级缓冲队列
- * {@code cacheQueue} 组成，另有一条虚拟哨兵线程负责把缓冲队列中的任务搬运进执行器：
+ * 由核心执行器 {@link ThreadPoolExecutor} 与一个二级缓冲队列 {@code cacheQueue} 组成，
+ * 另有一条虚拟哨兵线程负责把缓冲队列中的任务搬运进执行器：
  * <ul>
  *   <li>核心线程数固定为1，核心队列（{@link ArrayBlockingQueue}）积压时按最大线程数扩容，
  *   空闲线程按存活时间回收（核心线程同样允许超时回收），即"弹性"所在；</li>
@@ -22,8 +22,8 @@ import java.util.concurrent.locks.LockSupport;
  *   <li>搬运时执行器若仍拒绝（核心队列依旧满），按指数退避重试，避免空转。</li>
  * </ul>
  * <p>
- * 与 {@link DiskOpeThreadUtils} 的静态全局单例不同，本类是<b>实例</b>：不持有任何全局状态，
- * 构造即完成初始化、无需外部 init，参数由调用方经构造器指定，一份JVM内可并存多个互不干扰的池。
+ * 本类以<b>实例</b>为使用单位：队列、执行器与搬运线程均归属各实例，不共享全局任务状态，
+ * 构造即完成初始化，参数由调用方经构造器指定，同一JVM内可并存多个互不干扰的池。
  *
  * <pre>{@code
  * ThreadPool pool = new ElasticThreadPool(

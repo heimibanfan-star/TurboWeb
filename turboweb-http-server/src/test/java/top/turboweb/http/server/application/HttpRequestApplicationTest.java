@@ -4,7 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.serializer.JacksonJsonSerializer;
 import top.turboweb.commons.utils.resource.ScopedResource;
-import top.turboweb.commons.utils.thread.ThreadPool;
+import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
