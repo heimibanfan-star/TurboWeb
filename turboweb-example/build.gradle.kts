@@ -8,7 +8,7 @@
 dependencies {
     api(project(":turboweb-framework"))
     api(libs.logback.classic)
-    api(project(":turboweb-http-client"))
+    api(project(":turboweb-client"))
     testImplementation(libs.junit.jupiter)
 }
 

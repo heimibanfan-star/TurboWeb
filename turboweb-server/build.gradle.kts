@@ -6,7 +6,7 @@
 
 // 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
-    api(project(":turboweb-commons"))
+    api(project(":turboweb-common"))
     // 线程池契约与弹性实现由 turboweb-concurrent 提供；ThreadPool 出现在本模块公开签名（调度器与响应策略构造参数），用 api 暴露
     api(project(":turboweb-concurrent"))
     // 服务器线程模型直接使用 netty（http/websocketx 与 http2 编解码），响应写出使用 reactor-core，均不涉 reactor-netty 本体；媒体类型与 URI 查询解析由仓内 core.constant 与 core.helper 自实现

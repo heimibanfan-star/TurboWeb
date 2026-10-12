@@ -6,7 +6,7 @@
 
 // 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
-    api(project(":turboweb-commons"))
+    api(project(":turboweb-common"))
     // 本模块只消费 netty（buffer/channel/websocketx 帧），codec-http 传递闭包恰好覆盖
     api(libs.netty.codec.http)
 }

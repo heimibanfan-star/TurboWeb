@@ -143,8 +143,8 @@
 - 变异测试一律走 PITest 插件（`info.solidsoft.pitest`，根构建脚本只对**有测试源码**的模块授予：commons、http-server），**禁止手工改写生产代码做变异再跑测试的验证方式**——手工变异点位有限、不可复现、无法记账；PIT 自动生成变异体、逐个执行、机器评分，分数可比较、报告可留证。
 - **评分口径 = 变异分数（被测试杀死的变异体数 / 有效变异体总数），要求超过 0.95**。行覆盖只回答"这行跑过没有"，变异分数回答"这行跑过而且改动会被断言逮住"——后者才是测试用例可靠性的量尺。
 - 运行入口（pitest 任务**不接入 check**：变异一轮分钟级，check 冷跑口径保持不变）：
-  - `./gradlew :turboweb-commons:pitest`
-  - `./gradlew :turboweb-http-server:pitest`
+  - `./gradlew :turboweb-common:pitest`
+  - `./gradlew :turboweb-server:pitest`
 - 变异作用域与覆盖率闸分母同形：commons 为 gateClasses 九包（由该列表推导），http-server 整模块零排除。
 - 构建门槛 `mutationThreshold` **暂不钉线**：先跑基线拿真实分数，随用例补充自基线逐步抬升，终点 95。
 - 增删改用例当日的使用法：跑 pitest，看 `build/reports/pitest/<时间戳>/index.html` 的 survivor 清单——survivor 即"代码被执行过但改动不被断言逮住"的精确补例清单，逐条补强后复跑对账分数。
