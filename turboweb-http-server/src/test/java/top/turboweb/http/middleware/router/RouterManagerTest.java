@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.exception.TurboRequestException;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
@@ -89,10 +89,10 @@ class RouterManagerTest {
     void invokeThrowsRouterNotMatchWhenNothingMatches() {
         TestRouterManager manager = new TestRouterManager();
 
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> manager.invoke(ctx(HttpMethod.GET, "/nope")));
 
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
         assertNotNull(ex.getMessage());
     }
 
@@ -130,10 +130,10 @@ class RouterManagerTest {
         TestRouterManager manager = new TestRouterManager();
         manager.container.getExactRouterInfo().addRouter("GET", "/boom", THROWS_CHECKED);
 
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> manager.invoke(ctx(HttpMethod.GET, "/boom")));
 
-        assertEquals(TurboRouterException.ROUTER_INVOKE_ERROR, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_INVOKE_ERROR, ex.getCode());
         assertInstanceOf(IOException.class, ex.getCause());
     }
 

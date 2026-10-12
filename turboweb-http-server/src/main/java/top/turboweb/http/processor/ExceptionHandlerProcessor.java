@@ -4,7 +4,7 @@ import io.netty.handler.codec.http.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.commons.utils.base.ErrorStrGenerator;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.handler.ExceptionHandlerDefinition;
@@ -119,7 +119,7 @@ public class ExceptionHandlerProcessor extends Processor {
      * @return HTTP 响应
      */
     private HttpResponse defaultExceptionHandler(Throwable e) {
-        if (e instanceof TurboRouterException turboRouterException && TurboRouterException.ROUTER_NOT_MATCH.equals(turboRouterException.getCode())) {
+        if (e instanceof RouteHandlerException turboRouterException && RouteHandlerException.ROUTER_NOT_MATCH.equals(turboRouterException.getCode())) {
             // 生成异常信息
             String errMessage = ErrorStrGenerator.errHtml(404, e.getMessage());
             return buildErrResponse(errMessage, HttpResponseStatus.NOT_FOUND);

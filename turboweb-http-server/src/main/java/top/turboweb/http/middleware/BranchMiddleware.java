@@ -2,7 +2,7 @@ package top.turboweb.http.middleware;
 
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.http.context.HttpContext;
 
@@ -73,13 +73,13 @@ public abstract class BranchMiddleware extends Middleware {
      *
      * @param ctx HTTP 请求上下文
      * @return 处理结果对象
-     * @throws TurboRouterException 当分支不存在时抛出
+     * @throws RouteHandlerException 当分支不存在时抛出
      */
     @Override
     public Object invoke(HttpContext ctx) {
         String branchKey = getBranchKey(ctx);
         if (!middlewareChains.containsKey(branchKey)) {
-            throw new TurboRouterException("The branch " + branchKey + " does not exist", TurboRouterException.ROUTER_NOT_MATCH);
+            throw new RouteHandlerException("The branch " + branchKey + " does not exist", RouteHandlerException.ROUTER_NOT_MATCH);
         }
         return middlewareChains.get(branchKey).invoke(ctx);
     }

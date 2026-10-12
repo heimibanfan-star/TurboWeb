@@ -2,7 +2,7 @@ package top.turboweb.http.middleware;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.testkit.RecordingMiddleware;
@@ -199,16 +199,16 @@ class MiddlewareTypesTest {
     }
 
     @Test
-    @DisplayName("invoke 遇到未注册的分支键抛 TurboRouterException(ROUTER_NOT_MATCH)")
+    @DisplayName("invoke 遇到未注册的分支键抛 RouteHandlerException(ROUTER_NOT_MATCH)")
     void invokeUnknownBranchThrowsRouterNotMatch() {
         List<String> events = new ArrayList<>();
         FixedBranch branch = new FixedBranch("missing");
         branch.addMiddleware("a", new ChainProbe("a1", events, "A"));
         branch.init(branch);
 
-        TurboRouterException ex =
-                assertThrows(TurboRouterException.class, () -> branch.invoke(null));
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        RouteHandlerException ex =
+                assertThrows(RouteHandlerException.class, () -> branch.invoke(null));
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
         assertTrue(ex.getMessage().contains("missing"), ex.getMessage());
     }
 
@@ -220,9 +220,9 @@ class MiddlewareTypesTest {
         branch.addMiddleware("a", new ChainProbe("a1", events, "A"));
 
         // middlewareChains 只在 init 里写入，注册本身不等于可路由
-        TurboRouterException ex =
-                assertThrows(TurboRouterException.class, () -> branch.invoke(null));
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        RouteHandlerException ex =
+                assertThrows(RouteHandlerException.class, () -> branch.invoke(null));
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test

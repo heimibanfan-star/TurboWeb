@@ -4,7 +4,7 @@ import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
@@ -82,10 +82,10 @@ class VersionRouterManagerTest {
         TestVersionManager manager = new TestVersionManager();
         manager.addRouterManager("v1", new StubRouterManager("V1"));
 
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> manager.addRouterManager("v1", new StubRouterManager("V1-dup")));
 
-        assertEquals(TurboRouterException.ROUTER_REPEAT, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_REPEAT, ex.getCode());
         assertTrue(ex.getMessage().contains("v1"), ex.getMessage());
     }
 
@@ -107,10 +107,10 @@ class VersionRouterManagerTest {
         TestVersionManager manager = new TestVersionManager();
         manager.addRouterManager("v1", new StubRouterManager("V1"));
 
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> manager.invoke(ctx("v9")));
 
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
         assertTrue(ex.getMessage().contains("v9"),
                 "未匹配版本的异常消息应带上请求的版本号: " + ex.getMessage());
     }
@@ -119,10 +119,10 @@ class VersionRouterManagerTest {
     void invokeOnEmptyManagersThrowsRouterNotMatch() {
         TestVersionManager manager = new TestVersionManager();
 
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> manager.invoke(ctx("v1")));
 
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test

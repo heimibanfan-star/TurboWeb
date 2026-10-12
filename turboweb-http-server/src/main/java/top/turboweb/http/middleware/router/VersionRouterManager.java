@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router;
 
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.router.container.RouterContainer;
@@ -58,7 +58,7 @@ public abstract class VersionRouterManager extends RouterManager{
          * @param version       版本号（如 "v1"、"v2"）
          * @param routerManager 路由管理器实例
          * @throws IllegalArgumentException 当尝试添加另一个 {@code VersionRouterManager} 时抛出
-         * @throws TurboRouterException     当版本号重复注册时抛出
+         * @throws RouteHandlerException     当版本号重复注册时抛出
          */
         private void addRouterManager(String version, RouterManager routerManager) {
             // 禁止添加版本控制路由管理器
@@ -67,7 +67,7 @@ public abstract class VersionRouterManager extends RouterManager{
             }
             // 判断版本是否重复
             if (routers.containsKey(version)) {
-                throw new TurboRouterException("The version of RouterManager is repeated: " + version, TurboRouterException.ROUTER_REPEAT);
+                throw new RouteHandlerException("The version of RouterManager is repeated: " + version, RouteHandlerException.ROUTER_REPEAT);
             }
             // 添加路由管理器
             routers.put(version, routerManager);
@@ -102,7 +102,7 @@ public abstract class VersionRouterManager extends RouterManager{
      * @param version       版本号（如 "v1"、"v2"）
      * @param routerManager 路由管理器实例
      * @throws IllegalArgumentException 当添加的实例为 {@code VersionRouterManager} 时抛出
-     * @throws TurboRouterException     当版本号重复注册时抛出
+     * @throws RouteHandlerException     当版本号重复注册时抛出
      */
     public void addRouterManager(String version, RouterManager routerManager) {
         managers.addRouterManager(version, routerManager);
@@ -113,18 +113,18 @@ public abstract class VersionRouterManager extends RouterManager{
      * <p>
      * 该方法会调用子类实现的 {@link #getRouterManager(HttpContext, Managers)}，
      * 根据请求上下文确定版本号，并找到对应的 {@link RouterManager}。
-     * 若未找到匹配版本，将抛出 {@link TurboRouterException}。
+     * 若未找到匹配版本，将抛出 {@link RouteHandlerException}。
      * </p>
      *
      * @param ctx HTTP 请求上下文
      * @return 路由处理结果
-     * @throws TurboRouterException 当找不到对应版本的 {@link RouterManager} 时抛出
+     * @throws RouteHandlerException 当找不到对应版本的 {@link RouterManager} 时抛出
      */
     @Override
     public final Object invoke(HttpContext ctx) {
         RouterManager routerManager = getRouterManager(ctx, managers);
         if (routerManager == null) {
-            throw new TurboRouterException("The version of RouterManager is not found: " + ctx.query("version"), TurboRouterException.ROUTER_NOT_MATCH);
+            throw new RouteHandlerException("The version of RouterManager is not found: " + ctx.query("version"), RouteHandlerException.ROUTER_NOT_MATCH);
         }
         return routerManager.invoke(ctx);
     }

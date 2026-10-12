@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.http.handler.anno.ExceptionHandler;
 import top.turboweb.http.handler.anno.ExceptionResponseStatus;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.commons.serializer.JacksonJsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.handler.DefaultExceptionHandlerMatcher;
@@ -107,7 +107,7 @@ class ExceptionHandlerProcessorTest {
     @DisplayName("无命中且为 ROUTER_NOT_MATCH：返回 404 而不是 500")
     void routerNotMatchWithoutHandlerBecomes404() {
         ExceptionHandlerProcessor processor = processor();
-        chainTo(processor, new TurboRouterException("no route", TurboRouterException.ROUTER_NOT_MATCH));
+        chainTo(processor, new RouteHandlerException("no route", RouteHandlerException.ROUTER_NOT_MATCH));
 
         FullHttpResponse response = (FullHttpResponse) processor.invoke(request(), null);
 

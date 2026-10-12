@@ -3,7 +3,7 @@ package top.turboweb.http.router;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.router.info.autobind.ParameterBinder;
 import top.turboweb.http.middleware.router.info.autobind.ParameterInfoParser;
@@ -99,7 +99,7 @@ public class RouteHandler {
      *
      * @param context 请求上下文
      * @return 目标方法的返回值
-     * @throws TurboRouterException 请求方式与已登记的均不匹配,错误码为 ROUTER_NOT_MATCH
+     * @throws RouteHandlerException 请求方式与已登记的均不匹配,错误码为 ROUTER_NOT_MATCH
      * @throws Throwable 目标方法抛出的异常原样透传
      */
     public Object handle(HttpContext context) throws Throwable {
@@ -112,7 +112,7 @@ public class RouteHandler {
             }
         }
         // 无匹配的请求方式,按路由不匹配错误码抛出
-        throw new TurboRouterException("not found route:" + httpMethod.name() + " " + request.uri(), TurboRouterException.ROUTER_NOT_MATCH);
+        throw new RouteHandlerException("not found route:" + httpMethod.name() + " " + request.uri(), RouteHandlerException.ROUTER_NOT_MATCH);
     }
 
     /**

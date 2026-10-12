@@ -1,9 +1,9 @@
-package top.turboweb.commons.exception;
+package top.turboweb.http.exception;
 
 /**
  * 路由相关的异常
  */
-public class TurboRouterException extends RuntimeException {
+public class RouteHandlerException extends RuntimeException {
 
     public static final Integer ROUTER_NOT_MATCH = 10001;
     public static final Integer ROUTER_REPEAT = 10002;
@@ -11,12 +11,12 @@ public class TurboRouterException extends RuntimeException {
 
     private final Integer code;
 
-    public TurboRouterException(String message, Integer code) {
+    public RouteHandlerException(String message, Integer code) {
         super(message);
         this.code = code;
     }
 
-    public TurboRouterException(Throwable e, Integer code) {
+    public RouteHandlerException(Throwable e, Integer code) {
         super(e);
         this.code = code;
     }

@@ -2,7 +2,7 @@ package top.turboweb.http.middleware.router.info;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 
 import java.util.Map;
 
@@ -59,28 +59,28 @@ class RouterInfoTest {
     @Test
     void nullMethodIsRejectedOnAdd() {
         TrieRouterInfo info = new TrieRouterInfo();
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> info.addRouter(null, "/a", definition()));
         assertEquals("不支持的方法:", ex.getMessage());
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test
     void unsupportedMethodIsRejectedOnAdd() {
         TrieRouterInfo info = new TrieRouterInfo();
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> info.addRouter("HEAD", "/a", definition()));
         assertEquals("不支持的方法:HEAD", ex.getMessage());
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test
     void duplicateStaticPathRaisesRouterRepeat() {
         TrieRouterInfo info = new TrieRouterInfo();
         info.addRouter("GET", "/a", definition());
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> info.addRouter("GET", "/a", definition()));
-        assertEquals(TurboRouterException.ROUTER_REPEAT, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_REPEAT, ex.getCode());
         assertInstanceOf(IllegalArgumentException.class, ex.getCause(),
                 "重复是底层 trie 的 insert 抛 IAE 后再由容器包装成 ROUTER_REPEAT");
     }
@@ -92,9 +92,9 @@ class RouterInfoTest {
         RouterDefinition first = definition();
         info.addRouter("GET", "/u/{id}", first);
         // commons F1 修复后 trie 判重改用归一化键并抛 IAE，容器照静态路径的同一通道包成 ROUTER_REPEAT。
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> info.addRouter("GET", "/u/{id}", definition()));
-        assertEquals(TurboRouterException.ROUTER_REPEAT, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_REPEAT, ex.getCode());
         assertInstanceOf(IllegalArgumentException.class, ex.getCause());
         assertSame(first, info.getPathTrie("GET").match("/u/9").value, "被拒绝的注册不得顶掉原定义");
     }
@@ -102,8 +102,8 @@ class RouterInfoTest {
     @Test
     void getPathTrieWithUnsupportedMethodRaisesRouterNotMatch() {
         TrieRouterInfo info = new TrieRouterInfo();
-        TurboRouterException ex = assertThrows(TurboRouterException.class, () -> info.getPathTrie("HEAD"));
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class, () -> info.getPathTrie("HEAD"));
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
         assertEquals("不支持的方法:HEAD", ex.getMessage());
     }
 
@@ -111,21 +111,21 @@ class RouterInfoTest {
     @DisplayName("HS-13 回归：getPathTrie(null) 归一空串后按不支持方法抛 ROUTER_NOT_MATCH")
     void getPathTrieWithNullMethodRaisesRouterNotMatch() {
         TrieRouterInfo info = new TrieRouterInfo();
-        TurboRouterException ex = assertThrows(TurboRouterException.class, () -> info.getPathTrie(null));
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class, () -> info.getPathTrie(null));
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
         assertEquals("不支持的方法:", ex.getMessage(), "空值与 addRouter 的守卫同款归一后入消息");
     }
 
     @Test
-    @DisplayName("HS-14 回归：不支持的方法在两个容器四个抛出点统一抛 TurboRouterException(ROUTER_NOT_MATCH)")
+    @DisplayName("HS-14 回归：不支持的方法在两个容器四个抛出点统一抛 RouteHandlerException(ROUTER_NOT_MATCH)")
     void unsupportedMethodUsesUnifiedExceptionAcrossContainers() {
-        assertInstanceOf(TurboRouterException.class, assertThrows(RuntimeException.class,
+        assertInstanceOf(RouteHandlerException.class, assertThrows(RuntimeException.class,
                 () -> new ExactRouterInfo().getRouterDefinition("HEAD")));
-        assertInstanceOf(TurboRouterException.class, assertThrows(RuntimeException.class,
+        assertInstanceOf(RouteHandlerException.class, assertThrows(RuntimeException.class,
                 () -> new ExactRouterInfo().addRouter("HEAD", "/a", definition())));
-        assertInstanceOf(TurboRouterException.class, assertThrows(RuntimeException.class,
+        assertInstanceOf(RouteHandlerException.class, assertThrows(RuntimeException.class,
                 () -> new TrieRouterInfo().getPathTrie("HEAD")));
-        assertInstanceOf(TurboRouterException.class, assertThrows(RuntimeException.class,
+        assertInstanceOf(RouteHandlerException.class, assertThrows(RuntimeException.class,
                 () -> new TrieRouterInfo().addRouter("HEAD", "/a", definition())));
     }
 
@@ -152,9 +152,9 @@ class RouterInfoTest {
     void exactDuplicatePathRaisesRouterRepeatWithMessage() {
         ExactRouterInfo info = new ExactRouterInfo();
         info.addRouter("get", "/a", definition());
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> info.addRouter("GET", "/a", definition()));
-        assertEquals(TurboRouterException.ROUTER_REPEAT, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_REPEAT, ex.getCode());
         assertEquals("路由重复: method:GET, path:/a", ex.getMessage(), "方法名先大写化再入消息");
     }
 
@@ -172,20 +172,20 @@ class RouterInfoTest {
     @Test
     void unsupportedMethodIsRejectedForAddAndGet() {
         ExactRouterInfo info = new ExactRouterInfo();
-        TurboRouterException fromAdd = assertThrows(TurboRouterException.class,
+        RouteHandlerException fromAdd = assertThrows(RouteHandlerException.class,
                 () -> info.addRouter("HEAD", "/a", definition()));
         assertEquals("不支持的方法:HEAD", fromAdd.getMessage());
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, fromAdd.getCode());
-        assertThrows(TurboRouterException.class, () -> info.getRouterDefinition("HEAD"));
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, fromAdd.getCode());
+        assertThrows(RouteHandlerException.class, () -> info.getRouterDefinition("HEAD"));
     }
 
     @Test
     void nullMethodIsTreatedAsUnsupported() {
         ExactRouterInfo info = new ExactRouterInfo();
-        TurboRouterException ex = assertThrows(TurboRouterException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> info.getRouterDefinition(null));
         assertEquals("不支持的方法:", ex.getMessage());
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test

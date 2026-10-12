@@ -2,7 +2,7 @@ package top.turboweb.http.middleware.router.container;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.middleware.router.info.RouterDefinition;
 
 import java.util.HashMap;
@@ -75,8 +75,8 @@ class DefaultRouterContainerTest {
     @Test
     void exactMatchUnsupportedMethodThrowsRouterNotMatch() {
         DefaultRouterContainer c = new DefaultRouterContainer();
-        TurboRouterException ex = assertThrows(TurboRouterException.class, () -> c.exactMatch("HEAD", "/a"));
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class, () -> c.exactMatch("HEAD", "/a"));
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test
@@ -104,8 +104,8 @@ class DefaultRouterContainerTest {
     @Test
     void trieMatchUnsupportedMethodThrowsRouterNotMatch() {
         DefaultRouterContainer c = new DefaultRouterContainer();
-        TurboRouterException ex = assertThrows(TurboRouterException.class, () -> c.trieMatch("HEAD", "/a"));
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, ex.getCode());
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class, () -> c.trieMatch("HEAD", "/a"));
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
     }
 
     @Test

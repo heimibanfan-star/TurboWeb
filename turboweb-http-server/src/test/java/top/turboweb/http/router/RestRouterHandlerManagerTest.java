@@ -4,7 +4,7 @@ import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.rest.param.PathParam;
@@ -139,24 +139,24 @@ class RestRouterHandlerManagerTest {
     @Test
     void unmatchedVerbOnKnownPathThrowsRouterNotMatch() {
         RouteHandlerManager manager = built(new PingController());
-        TurboRouterException error = assertThrows(TurboRouterException.class,
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.PUT, "/ping")), "路径命中但请求方式无对应调用器仍按路由不匹配处理");
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, error.getCode());
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, error.getCode());
     }
 
     @Test
     void unmatchedPathThrowsRouterNotMatchWithMessage() {
         RouteHandlerManager manager = built(new PingController());
-        TurboRouterException error = assertThrows(TurboRouterException.class,
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.GET, "/nope")), "路由找不到按路由不匹配错误码抛出,由异常处理器转 404");
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, error.getCode());
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, error.getCode());
         assertEquals("router not found: GET /nope", error.getMessage(), "消息含请求方式与 uri,与原注解路由口径一致");
     }
 
     @Test
     void notFoundMessageKeepsQueryStringOfOriginalUri() {
         RouteHandlerManager manager = built(new PingController());
-        TurboRouterException error = assertThrows(TurboRouterException.class,
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.POST, "/nope?x=1")));
         assertEquals("router not found: POST /nope?x=1", error.getMessage(), "消息用原始 uri,查询串不参与匹配但仍呈现");
     }
@@ -255,9 +255,9 @@ class RestRouterHandlerManagerTest {
     @Test
     void nullListIsTreatedAsNoRegistration() {
         RouteHandlerManager manager = new RestRouterHandlerManager.Builder().registerRoute((List<Object>) null).build();
-        TurboRouterException error = assertThrows(TurboRouterException.class,
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.GET, "/ping")), "没有任何注册时一切请求都是路由找不到");
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, error.getCode());
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, error.getCode());
     }
 
     @Test
@@ -319,9 +319,9 @@ class RestRouterHandlerManagerTest {
     @Test
     void checkedExceptionFromTargetIsWrappedAsInvokeError() {
         RouteHandlerManager manager = built(new ThrowingController());
-        TurboRouterException error = assertThrows(TurboRouterException.class,
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.GET, "/io")), "非运行时异常按调用错误码包装");
-        assertEquals(TurboRouterException.ROUTER_INVOKE_ERROR, error.getCode());
+        assertEquals(RouteHandlerException.ROUTER_INVOKE_ERROR, error.getCode());
         IOException cause = assertInstanceOf(IOException.class, error.getCause());
         assertEquals("io-fail", cause.getMessage(), "包装保留原因");
     }

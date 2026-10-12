@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info;
 
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 
 import java.util.*;
 
@@ -30,7 +30,7 @@ public class ExactRouterInfo {
         method = Optional.ofNullable(method).orElse("").toUpperCase();
         Map<String, RouterDefinition> stringRouterDefinitionMap = routerStrategy.get(method);
         if (Objects.isNull(stringRouterDefinitionMap)) {
-            throw new TurboRouterException("不支持的方法:" + method, TurboRouterException.ROUTER_NOT_MATCH);
+            throw new RouteHandlerException("不支持的方法:" + method, RouteHandlerException.ROUTER_NOT_MATCH);
         }
         return stringRouterDefinitionMap;
     }
@@ -45,11 +45,11 @@ public class ExactRouterInfo {
         method = Optional.ofNullable(method).orElse("").toUpperCase();
         Map<String, RouterDefinition> stringRouterDefinitionMap = routerStrategy.get(method);
         if (Objects.isNull(stringRouterDefinitionMap)) {
-            throw new TurboRouterException("不支持的方法:" + method, TurboRouterException.ROUTER_NOT_MATCH);
+            throw new RouteHandlerException("不支持的方法:" + method, RouteHandlerException.ROUTER_NOT_MATCH);
         }
         // 判断路径是否存在
         if (stringRouterDefinitionMap.containsKey(path)) {
-            throw new TurboRouterException("路由重复: method:%s, path:%s".formatted(method, path), TurboRouterException.ROUTER_REPEAT);
+            throw new RouteHandlerException("路由重复: method:%s, path:%s".formatted(method, path), RouteHandlerException.ROUTER_REPEAT);
         }
         stringRouterDefinitionMap.put(path, routerDefinition);
     }

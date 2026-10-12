@@ -1,6 +1,6 @@
 package top.turboweb.http.middleware.router.info;
 
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.commons.struct.trie.RestUrlTrie;
 
 import java.util.Map;
@@ -35,13 +35,13 @@ public class TrieRouterInfo {
         // 获取路由定义
         RestUrlTrie<RouterDefinition> pathTrie = routerStrategy.get(method.toUpperCase());
         if (pathTrie == null) {
-            throw new TurboRouterException("不支持的方法:" + method, TurboRouterException.ROUTER_NOT_MATCH);
+            throw new RouteHandlerException("不支持的方法:" + method, RouteHandlerException.ROUTER_NOT_MATCH);
         }
         // 尝试添加路由
         try {
             pathTrie.insert(path, routerDefinition);
         } catch (Exception e) {
-            throw new TurboRouterException(e, TurboRouterException.ROUTER_REPEAT);
+            throw new RouteHandlerException(e, RouteHandlerException.ROUTER_REPEAT);
         }
     }
 
@@ -55,7 +55,7 @@ public class TrieRouterInfo {
         method = Optional.ofNullable(method).orElse("");
         RestUrlTrie<RouterDefinition> routerDefinitionPathTrie = routerStrategy.get(method.toUpperCase());
         if (routerDefinitionPathTrie == null) {
-            throw new TurboRouterException("不支持的方法:" + method, TurboRouterException.ROUTER_NOT_MATCH);
+            throw new RouteHandlerException("不支持的方法:" + method, RouteHandlerException.ROUTER_NOT_MATCH);
         }
         return routerDefinitionPathTrie;
     }

@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.router.info.autobind.ParameterBinder;
@@ -171,10 +171,10 @@ class RouteHandlerTest {
     void routeNotMatchThrowsWithCodeAndMessage() {
         EchoController controller = new EchoController();
         RouteHandler handler = new RouteHandler(List.of(meta("/x", controller, HttpMethod.GET, "getHandler")), List.of());
-        TurboRouterException error = assertThrows(TurboRouterException.class,
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> handler.handle(ctx(HttpMethod.PUT, "/x")));
         assertEquals("not found route:PUT /x", error.getMessage(), "错误消息含请求方式与 uri");
-        assertEquals(TurboRouterException.ROUTER_NOT_MATCH, error.getCode(), "无匹配请求方式走路由不匹配错误码");
+        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, error.getCode(), "无匹配请求方式走路由不匹配错误码");
     }
 
     @Test

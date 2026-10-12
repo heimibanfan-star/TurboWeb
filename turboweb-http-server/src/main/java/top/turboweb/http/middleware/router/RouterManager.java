@@ -3,7 +3,7 @@ package top.turboweb.http.middleware.router;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.exception.TurboRequestException;
-import top.turboweb.commons.exception.TurboRouterException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.router.container.RouterContainer;
@@ -24,9 +24,9 @@ public abstract class RouterManager extends Middleware {
         RouterDefinition routerDefinition = matchDefinition(ctx);
         // 如果没有路由定义信息，抛出异常
         if (routerDefinition == null) {
-            throw new TurboRouterException(
+            throw new RouteHandlerException(
                     String.format("router not found: %s %s", ctx.getRequest().method().name(), ctx.getRequest().uri()),
-                    TurboRouterException.ROUTER_NOT_MATCH
+                    RouteHandlerException.ROUTER_NOT_MATCH
             );
         }
         // 调用路由定义
@@ -36,7 +36,7 @@ public abstract class RouterManager extends Middleware {
             if (e instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             } else {
-                throw new TurboRouterException(e, TurboRouterException.ROUTER_INVOKE_ERROR);
+                throw new RouteHandlerException(e, RouteHandlerException.ROUTER_INVOKE_ERROR);
             }
         }
     }
