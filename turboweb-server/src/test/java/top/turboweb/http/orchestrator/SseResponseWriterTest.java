@@ -14,13 +14,14 @@ import top.turboweb.serializer.JacksonJsonSerializer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link SseResponseWriter} 的行为锚：SseResponse 写头并触发回调（结果可监听）、
- * 内部发射器仅初始化（结果不可监听、无凭据）、错型经模板兜底 500，与旧 SSE 策略语义一致。
+ * 内部发射器仅初始化（结果不可监听、无凭据）、错型经模板兜底记日志并关闭连接，与旧 SSE 策略语义一致。
  */
 class SseResponseWriterTest {
 
@@ -58,7 +59,7 @@ class SseResponseWriterTest {
     }
 
     @Test
-    void wrongTypeIsCaughtByTemplateAndWrittenAs500() {
+    void wrongTypeIsCaughtByTemplateAndClosesConnection() {
         EmbeddedChannel channel = new EmbeddedChannel();
         DefaultFullHttpResponse plain =
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
@@ -66,12 +67,13 @@ class SseResponseWriterTest {
         ResponseWriter.WriteResult result = new SseResponseWriter()
                 .write(plain, new InternalConnectSession(channel));
 
-        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
-        assertTrue(result.channelFuture().isSuccess(), "模板方法把类型异常兜成错误响应写回");
-        DefaultFullHttpResponse err = (DefaultFullHttpResponse) channel.readOutbound();
-        assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
+        assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                "写出异常无凭据，结果不可监听");
+        assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
+        assertNull(channel.readOutbound(), "兜底不再写出错误页");
+        channel.runPendingTasks();
+        assertFalse(channel.isActive(), "写出异常必须关闭连接");
         plain.release();
-        err.release();
         channel.finishAndReleaseAll();
     }
 }

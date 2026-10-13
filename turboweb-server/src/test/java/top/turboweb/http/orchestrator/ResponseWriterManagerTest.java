@@ -15,6 +15,7 @@ import top.turboweb.http.core.response.ResponseCall;
 import top.turboweb.http.testkit.Stubs;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -23,10 +24,11 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * {@link ResponseWriterManager} 的行为锚：三级选择次序
  * （响应经 ResponseCall 声明写出器类型——内置表优先、自定义表其次、默认写出器兜底）、
- * 自定义写出器登记规则（系统内置类型拒登、同类重复拒登、登记即注入线程池）,
- * 以及装配期线程池非空约束。
+ * 构造期自定义登记规则（列表按写出器类收集为不可变表：系统内置类型拒登、
+ * 同类重复拒登、null 列表与 null 元素拒登、构造即注入线程池），
+ * 以及装配期线程池与列表非空约束。
  * 选择结果经各写出器互异的写出副作用甄别：忽略不可监听且零出站、
- * 默认补齐 Content-Length、自定义只置标记、Reactor 类型在平台线程被虚拟线程契约兜成 500。
+ * 默认补齐 Content-Length、自定义只置标记、Reactor 类型在平台线程被虚拟线程契约拒绝并关闭连接。
  */
 class ResponseWriterManagerTest {
 
@@ -71,7 +73,7 @@ class ResponseWriterManagerTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         CallResponse response = new CallResponse(IgnoredResponseWriter.class);
 
-        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool(), List.of())
                 .write(response, new InternalConnectSession(channel));
 
         assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
@@ -86,7 +88,7 @@ class ResponseWriterManagerTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         CallResponse response = new CallResponse(MarkingWriter.class);
 
-        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool(), List.of())
                 .write(response, new InternalConnectSession(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
@@ -98,18 +100,17 @@ class ResponseWriterManagerTest {
     }
 
     @Test
-    void registeredCustomWriterIsSelectedByDeclaration() {
+    void constructorCustomWriterIsSelectedByDeclaration() {
         EmbeddedChannel channel = new EmbeddedChannel();
-        ResponseWriterManager manager = new ResponseWriterManager(Stubs.threadPool());
         MarkingWriter writer = new MarkingWriter();
-        manager.addResponseWriter(writer);
+        ResponseWriterManager manager = new ResponseWriterManager(Stubs.threadPool(), List.of(writer));
 
         ResponseWriter.WriteResult result = manager.write(
                 new CallResponse(MarkingWriter.class), new InternalConnectSession(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
         assertTrue(result.channelFuture().isSuccess());
-        assertTrue(writer.wasWritten(), "声明类型命中自定义表即由登记的写出器写出");
+        assertTrue(writer.wasWritten(), "声明类型命中构造期登记的自定义写出器");
         assertNull(channel.readOutbound(), "自定义写出器不落任何出站帧，默认路径则会写出响应");
         channel.finishAndReleaseAll();
     }
@@ -121,7 +122,7 @@ class ResponseWriterManagerTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         response.content().writeCharSequence("abc", StandardCharsets.UTF_8);
 
-        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool(), List.of())
                 .write(response, new InternalConnectSession(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
@@ -133,26 +134,26 @@ class ResponseWriterManagerTest {
     }
 
     @Test
-    void declaredReactorWriterOnPlatformThreadIsRejectedAs500() {
-        // 默认路径会把该响应按 200 原样写出；出站出现 500 错误页
-        // 即证明声明类型命中内置表的 Reactor 写出器（其虚拟线程契约被模板兜底）
+    void declaredReactorWriterOnPlatformThreadClosesConnection() {
+        // 平台线程直调被虚拟线程契约拒绝，模板兜底关闭连接且不再写出错误页；
+        // 默认路径会按 200 原样写出且连接存活，以此甄别声明命中内置表的 Reactor 写出器
         EmbeddedChannel channel = new EmbeddedChannel();
         CallResponse response = new CallResponse(ReactorResponseWriter.class);
 
-        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool(), List.of())
                 .write(response, new InternalConnectSession(channel));
 
-        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
-        assertTrue(result.channelFuture().isSuccess(), "模板兜底的 500 页写出应成功");
-        DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, channel.readOutbound());
-        assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
-        err.release();
+        assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                "写出异常无凭据，结果不可监听");
+        assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
+        assertNull(channel.readOutbound(), "兜底不再写出错误页，默认路径则会写出响应");
+        channel.runPendingTasks();
+        assertFalse(channel.isActive(), "写出异常必须关闭连接");
         channel.finishAndReleaseAll();
     }
 
     @Test
-    void registeringBuiltinWriterIsRejected() {
-        ResponseWriterManager manager = new ResponseWriterManager(Stubs.threadPool());
+    void constructorRejectsBuiltinWriterInList() {
         List<ResponseWriter> builtins = List.of(
                 new SseResponseWriter(),
                 new FileStreamResponseWriter(),
@@ -163,48 +164,49 @@ class ResponseWriterManagerTest {
                 new IgnoredResponseWriter());
         for (ResponseWriter builtin : builtins) {
             IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,
-                    () -> manager.addResponseWriter(builtin),
+                    () -> new ResponseWriterManager(Stubs.threadPool(), List.of(builtin)),
                     builtin.getClass().getSimpleName() + " 为系统内置写出器，不得登记");
             assertEquals("不能注册系统内置的响应写出器:" + builtin.getClass().getName(), thrown.getMessage());
         }
     }
 
     @Test
-    void duplicateRegistrationIsRejected() {
-        ResponseWriterManager manager = new ResponseWriterManager(Stubs.threadPool());
-        manager.addResponseWriter(new MarkingWriter());
-
-        IllegalArgumentException again = assertThrows(IllegalArgumentException.class,
-                () -> manager.addResponseWriter(new MarkingWriter()));
-        assertEquals("响应写出器不能重复注册:" + MarkingWriter.class.getName(), again.getMessage());
-
+    void constructorRejectsDuplicateWriterClass() {
         // 重复判定按写出器类进行：同类不同实例同样拒登
-        assertThrows(IllegalArgumentException.class, () -> manager.addResponseWriter(new MarkingWriter()));
+        IllegalArgumentException again = assertThrows(IllegalArgumentException.class,
+                () -> new ResponseWriterManager(Stubs.threadPool(),
+                        List.of(new MarkingWriter(), new MarkingWriter())));
+        assertEquals("响应写出器不能重复注册:" + MarkingWriter.class.getName(), again.getMessage());
     }
 
     @Test
-    void registeredWriterReceivesThreadPoolInjection() {
+    void constructorInjectsThreadPoolIntoAllWriters() {
         ThreadPool pool = Stubs.directExecutorThreadPool();
-        ResponseWriterManager manager = new ResponseWriterManager(pool);
         MarkingWriter writer = new MarkingWriter();
 
-        manager.addResponseWriter(writer);
+        new ResponseWriterManager(pool, List.of(writer));
 
-        assertSame(pool, writer.injectedPool(), "登记时必须把磁盘IO线程池注入自定义写出器");
+        assertSame(pool, writer.injectedPool(), "构造期必须把磁盘IO线程池注入自定义写出器");
     }
 
     @Test
-    void addResponseWriterRejectsNull() {
-        ResponseWriterManager manager = new ResponseWriterManager(Stubs.threadPool());
+    void constructorRejectsNullWriterElement() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
-                () -> manager.addResponseWriter(null));
+                () -> new ResponseWriterManager(Stubs.threadPool(), Arrays.asList((ResponseWriter) null)));
         assertEquals("响应写出器不能为null", thrown.getMessage());
+    }
+
+    @Test
+    void constructorRejectsNullWriterList() {
+        NullPointerException thrown = assertThrows(NullPointerException.class,
+                () -> new ResponseWriterManager(Stubs.threadPool(), null));
+        assertEquals("自定义写出器列表不能为null", thrown.getMessage());
     }
 
     @Test
     void constructorRejectsNullThreadPool() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
-                () -> new ResponseWriterManager(null));
+                () -> new ResponseWriterManager(null, List.of()));
         assertEquals("磁盘IO线程池不能为null", thrown.getMessage());
     }
 }

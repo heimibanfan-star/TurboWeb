@@ -27,7 +27,7 @@ public interface ResponseWriter {
     enum WriteType {
         /** 可监听：写出产生了完成凭据，凭据本身携带写出的成败终态。 */
         LISTENABLE,
-        /** 不可监听：写出未产生凭据（如忽略写出、SSE 发射器仅初始化）。 */
+        /** 不可监听：写出未产生凭据（如忽略写出、SSE 发射器仅初始化、写出异常已关闭连接）。 */
         NOT_LISTENABLE
     }
 
@@ -64,7 +64,7 @@ public interface ResponseWriter {
 
     /**
      * 注入磁盘IO线程池，供需要调度磁盘读取任务的写出器（文件流响应）使用；
-     * 不消费线程池的写出器存储后不使用，装配与登记期可统一调用。
+     * 不消费线程池的写出器存储后不使用，构造期可统一调用。
      *
      * @param threadPool 磁盘IO线程池
      */

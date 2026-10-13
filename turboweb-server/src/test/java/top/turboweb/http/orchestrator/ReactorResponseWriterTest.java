@@ -29,7 +29,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * {@link ReactorResponseWriter} 的写出路径行为锚（复刻旧 Reactor 策略用例面）。
  * doWrite 首行钉死虚拟线程契约，全部经 write 在自起虚拟线程里执行、
  * join(5000) 等返回值——流由 Flux.just/error 驱动、通道是 EmbeddedChannel，链路同步可断言。
- * 写出结果恒可监听，promise 的成败终态经凭据反映。
+ * 正常与置败路径可监听，promise 的成败终态经凭据反映；
+ * 类型错配与契约拒绝异常走模板兜底：记录日志、关闭连接、返回不可监听结果。
  */
 class ReactorResponseWriterTest {
 
@@ -134,28 +135,29 @@ class ReactorResponseWriterTest {
     }
 
     @Test
-    @DisplayName("虚拟线程里喂错类型：IAE 被模板兜成 500 错误页")
-    void wrongTypeOnVirtualThreadGives500() throws InterruptedException {
+    @DisplayName("虚拟线程里喂错类型：IAE 走模板兜底，关连接返回不可监听")
+    void wrongTypeOnVirtualThreadClosesConnection() throws InterruptedException {
         DefaultFullHttpResponse plain =
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = writeOnVirtualThread(
                     new ReactorResponseWriter(), plain, new InternalConnectSession(channel));
-            assertTrue(result.channelFuture().isSuccess());
-            List<Object> out = drain(channel);
-            DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out.get(0));
-            assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
+            assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                    "写出异常无凭据，结果不可监听");
+            assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
+            assertEquals(0, drain(channel).size(), "兜底不再写出错误页");
+            channel.runPendingTasks();
+            assertFalse(channel.isActive(), "写出异常必须关闭连接");
             plain.release();
-            err.release();
         } finally {
             channel.finishAndReleaseAll();
         }
     }
 
     @Test
-    @DisplayName("平台线程直接调用：虚拟线程断言被模板兜成 500")
-    void platformThreadIsRejectedAs500() {
+    @DisplayName("平台线程直接调用：虚拟线程断言走模板兜底，关连接返回不可监听")
+    void platformThreadIsRejectedAndClosesConnection() {
         ByteBuf z = buf("z"); // 断言先于订阅抛出，该缓冲只能测试侧回收
         ReactorResponse resp = new ReactorResponse(Flux.just(z));
         EmbeddedChannel channel = new EmbeddedChannel();
@@ -163,13 +165,12 @@ class ReactorResponseWriterTest {
             // 就在当前（JUnit 平台）线程直调 write，不自起虚拟线程
             ResponseWriter.WriteResult result = new ReactorResponseWriter()
                     .write(resp, new InternalConnectSession(channel));
-            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
-            assertTrue(result.channelFuture().isSuccess(), "模板 catch 的返回 future 是 500 页写出 future，应成功");
-            List<Object> out = drain(channel);
-            assertEquals(1, out.size(), "唯一出站帧 = 模板兜底的错误页（断言若被删除会先写出响应头）");
-            DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out.get(0));
-            assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
-            err.release();
+            assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                    "写出异常无凭据，结果不可监听");
+            assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
+            assertEquals(0, drain(channel).size(), "兜底不再写出错误页（断言若被删除会先写出响应头）");
+            channel.runPendingTasks();
+            assertFalse(channel.isActive(), "写出异常必须关闭连接");
         } finally {
             ReferenceCountUtil.release(z);
             channel.finishAndReleaseAll();

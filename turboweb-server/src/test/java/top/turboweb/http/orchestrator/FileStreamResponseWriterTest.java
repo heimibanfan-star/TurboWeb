@@ -180,20 +180,21 @@ class FileStreamResponseWriterTest {
     }
 
     @Test
-    @DisplayName("非 FileStreamResponse 走模板兜底：500 错误页，不抛穿")
-    void wrongTypeIsCaughtByTemplateAndWrittenAs500() {
+    @DisplayName("非 FileStreamResponse 走模板兜底：记日志关连接，不抛穿")
+    void wrongTypeIsCaughtByTemplateAndClosesConnection() {
         DefaultFullHttpResponse plain =
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
                     .write(plain, new InternalConnectSession(channel));
-            assertTrue(result.channelFuture().isSuccess(), "模板方法把 IAE 兜成错误响应写回");
-            Object[] out = drain(channel);
-            DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out[0]);
-            assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
+            assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                    "写出异常无凭据，结果不可监听");
+            assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
+            assertNull(channel.readOutbound(), "兜底不再写出错误页");
+            channel.runPendingTasks();
+            assertFalse(channel.isActive(), "写出异常必须关闭连接");
             plain.release();
-            err.release();
         } finally {
             channel.finishAndReleaseAll();
         }

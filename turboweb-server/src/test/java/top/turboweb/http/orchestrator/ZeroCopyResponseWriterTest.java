@@ -90,43 +90,42 @@ class ZeroCopyResponseWriterTest {
     }
 
     @Test
-    @DisplayName("虚拟线程里喂错类型：IAE 被模板兜成 500 错误页")
-    void wrongTypeOnVirtualThreadGives500() throws Exception {
+    @DisplayName("虚拟线程里喂错类型：IAE 走模板兜底，关连接返回不可监听")
+    void wrongTypeOnVirtualThreadClosesConnection() throws Exception {
         DefaultFullHttpResponse plain =
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = writeOnVirtualThread(
                     new ZeroCopyResponseWriter(), plain, new InternalConnectSession(channel));
-            assertTrue(result.channelFuture().isSuccess());
-            List<Object> out = drain(channel);
-            assertEquals(1, out.size());
-            DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out.get(0));
-            assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
+            assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                    "写出异常无凭据，结果不可监听");
+            assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
+            assertEquals(0, drain(channel).size(), "兜底不再写出错误页");
+            channel.runPendingTasks();
+            assertFalse(channel.isActive(), "写出异常必须关闭连接");
             plain.release();
-            err.release();
         } finally {
             channel.finishAndReleaseAll();
         }
     }
 
     @Test
-    @DisplayName("平台线程直接调用：虚拟线程断言被模板兜成 500")
-    void platformThreadIsRejectedAs500() throws Exception {
+    @DisplayName("平台线程直接调用：虚拟线程断言走模板兜底，关连接返回不可监听")
+    void platformThreadIsRejectedAndClosesConnection() throws Exception {
         ZeroCopyResponse resp = newResponse();
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             // 就在当前（JUnit 平台）线程直调，不自起虚拟线程
             ResponseWriter.WriteResult result = new ZeroCopyResponseWriter()
                     .write(resp, new InternalConnectSession(channel));
-            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
-            assertTrue(result.channelFuture().isSuccess(), "模板 catch 的返回 future 是 500 页写出 future，应成功");
-            List<Object> out = drain(channel);
-            assertEquals(1, out.size(), "唯一出站帧 = 模板兜底的错误页（断言若被删除会先写出响应头）");
-            DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out.get(0));
-            assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
+            assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                    "写出异常无凭据，结果不可监听");
+            assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
+            assertEquals(0, drain(channel).size(), "兜底不再写出错误页（断言若被删除会先写出响应头）");
+            channel.runPendingTasks();
+            assertFalse(channel.isActive(), "写出异常必须关闭连接");
             ReferenceCountUtil.release(resp.getFileRegion()); // 未写出，测试侧回收
-            err.release();
         } finally {
             channel.finishAndReleaseAll();
         }

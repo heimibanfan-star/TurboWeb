@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * {@link AsyncFileResponseWriter} 的行为锚：返回可监听结果携头写出凭据、AIO 环在后台线程完成后
- * 落结束帧并关文件通道、错型经模板兜底 500。
+ * 落结束帧并关文件通道、错型经模板兜底记日志并关闭连接。
  * AIO 环复用同一直分隔缓冲（写出即视为消费），EmbeddedChannel 收集语义下逐块内容不可靠，
  * 故只钉终态形状（出现内容帧 + LAST + 通道关闭），不校验字节序列。
  */
@@ -96,20 +96,21 @@ class AsyncFileResponseWriterTest {
     }
 
     @Test
-    @DisplayName("非 AsyncFileResponse 走模板兜底：500 错误页，不抛穿")
-    void wrongTypeIsCaughtByTemplateAndWrittenAs500() {
+    @DisplayName("非 AsyncFileResponse 走模板兜底：记日志关连接，不抛穿")
+    void wrongTypeIsCaughtByTemplateAndClosesConnection() {
         EmbeddedChannel channel = new EmbeddedChannel();
         DefaultFullHttpResponse plain =
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         try {
             ResponseWriter.WriteResult result = new AsyncFileResponseWriter()
                     .write(plain, new InternalConnectSession(channel));
-            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
-            assertTrue(result.channelFuture().isSuccess(), "模板方法把类型异常兜成错误响应写回");
-            DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, channel.readOutbound());
-            assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
+            assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                    "写出异常无凭据，结果不可监听");
+            assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
+            assertNull(channel.readOutbound(), "兜底不再写出错误页");
+            channel.runPendingTasks();
+            assertFalse(channel.isActive(), "写出异常必须关闭连接");
             plain.release();
-            err.release();
         } finally {
             channel.finishAndReleaseAll();
         }
