@@ -7,8 +7,6 @@ import top.turboweb.http.core.response.HttpResult;
 import top.turboweb.http.exception.ExceptionHandlerException;
 import top.turboweb.http.exception.RouteHandlerException;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
@@ -131,26 +129,7 @@ public class ExceptionHandlerManager {
      * @return 404 状态码的 {@link HttpResult}，其数据为字符串，生成响应时按 text/html 输出
      */
     private Object notFoundHandleResult(Throwable throwable) {
-        String message = throwable.getMessage() == null ? throwable.getClass().getName() : throwable.getMessage();
-        String content = """
-                <!DOCTYPE html>
-                <html lang="zh-CN">
-                <head>
-                    <meta charset="utf-8">
-                    <title>TurboWeb Error</title>
-                    <style>
-                        body { font-family: Consolas, "Courier New", monospace; margin: 2em; }
-                        h1 { color: #c0392b; }
-                        .error-message { font-size: 1.1em; }
-                    </style>
-                </head>
-                <body>
-                    <h1>404 Not Found</h1>
-                    <p class="error-message">异常信息：%s</p>
-                </body>
-                </html>
-                """.formatted(htmlEscape(message));
-        return HttpResult.create(404, content);
+        return HttpResult.create(404, ExceptionMessageHelper.notFoundMessage(throwable));
     }
 
     /**
@@ -163,53 +142,7 @@ public class ExceptionHandlerManager {
      */
     private Object errorHandleResult(Throwable throwable) {
         log.error("服务器异常", throwable);
-        StringWriter writer = new StringWriter();
-        try (PrintWriter printWriter = new PrintWriter(writer)) {
-            throwable.printStackTrace(printWriter);
-        }
-        String content = """
-                <!DOCTYPE html>
-                <html lang="zh-CN">
-                <head>
-                    <meta charset="utf-8">
-                    <title>TurboWeb Error</title>
-                    <style>
-                        body { font-family: Consolas, "Courier New", monospace; margin: 2em; }
-                        h1 { color: #c0392b; }
-                        .error-type { font-size: 1.1em; }
-                        pre { background-color: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 1em; overflow-x: auto; }
-                    </style>
-                </head>
-                <body>
-                    <h1>500 Internal Server Error</h1>
-                    <p class="error-type">异常类型：%s</p>
-                    <pre>%s</pre>
-                </body>
-                </html>
-                """.formatted(throwable.getClass().getName(), htmlEscape(writer.toString()));
-        return HttpResult.err(content);
-    }
-
-    /**
-     * 对文本做 HTML 实体转义，使异常栈等外来文本可安全嵌入页面正文。
-     *
-     * @param text 待转义文本
-     * @return 转义后的文本
-     */
-    private static String htmlEscape(String text) {
-        StringBuilder builder = new StringBuilder(text.length() + 16);
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            switch (c) {
-                case '&' -> builder.append("&amp;");
-                case '<' -> builder.append("&lt;");
-                case '>' -> builder.append("&gt;");
-                case '"' -> builder.append("&quot;");
-                case '\'' -> builder.append("&#39;");
-                default -> builder.append(c);
-            }
-        }
-        return builder.toString();
+        return HttpResult.err(ExceptionMessageHelper.errorMessage(throwable));
     }
 
     /**
