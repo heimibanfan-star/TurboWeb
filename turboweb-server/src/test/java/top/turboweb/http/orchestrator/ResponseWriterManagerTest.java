@@ -25,8 +25,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * {@link ResponseWriterManager} 的行为锚：三级选择次序
  * （响应经 ResponseCall 声明写出器类型——内置表优先、自定义表其次、默认写出器兜底）、
  * 构造期自定义登记规则（列表按写出器类收集为不可变表：系统内置类型拒登、
- * 同类重复拒登、null 列表与 null 元素拒登、构造即注入线程池），
- * 以及装配期线程池与列表非空约束。
+ * 同类重复拒登、null 列表与 null 元素拒登、构造即注入线程池、
+ * 已注入实例跨管理器复用被拒），以及装配期线程池与列表非空约束。
  * 选择结果经各写出器互异的写出副作用甄别：忽略不可监听且零出站、
  * 默认补齐 Content-Length、自定义只置标记、Reactor 类型在平台线程被虚拟线程契约拒绝并关闭连接。
  */
@@ -187,6 +187,20 @@ class ResponseWriterManagerTest {
         new ResponseWriterManager(pool, List.of(writer));
 
         assertSame(pool, writer.injectedPool(), "构造期必须把磁盘IO线程池注入自定义写出器");
+    }
+
+    @Test
+    void sameCustomWriterInstanceAcrossTwoManagersIsRejected() {
+        // 注入护栏在写出器侧生效：同一实例传入第二个管理器即构造失败, 而非静默沿用首个池
+        MarkingWriter writer = new MarkingWriter();
+        ThreadPool first = Stubs.threadPool();
+        new ResponseWriterManager(first, List.of(writer));
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class,
+                () -> new ResponseWriterManager(Stubs.directExecutorThreadPool(), List.of(writer)),
+                "同一写出器实例不得注入两个管理器");
+        assertEquals("磁盘IO线程池已注入, 不能重复注入", thrown.getMessage());
+        assertSame(first, writer.injectedPool(), "被拒的第二个管理器不得覆写首次注入的线程池");
     }
 
     @Test

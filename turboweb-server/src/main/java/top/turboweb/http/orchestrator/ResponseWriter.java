@@ -65,8 +65,11 @@ public interface ResponseWriter {
     /**
      * 注入磁盘IO线程池，供需要调度磁盘读取任务的写出器（文件流响应）使用；
      * 不消费线程池的写出器存储后不使用，构造期可统一调用。
+     * 注入按实例一次性生效：同一写出器实例重复注入抛
+     * {@link IllegalStateException}（继承 {@link AbstractResponseWriter} 的写出器由基类提供该护栏）。
      *
      * @param threadPool 磁盘IO线程池
+     * @throws IllegalStateException 本实例已注入过线程池，不能重复注入
      */
     void injectThreadPool(ThreadPool threadPool);
 

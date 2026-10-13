@@ -7,6 +7,8 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.core.connect.InternalConnectSession;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * 响应写出器抽象基类：封装统一的异常处理与线程池注入。
  * <p>
@@ -16,18 +18,32 @@ import top.turboweb.http.core.connect.InternalConnectSession;
  * </p>
  * <p>
  * 磁盘IO线程池经 {@link #injectThreadPool} 统一存储于本基类字段，
- * 仅文件流类写出器在写出时消费它，其余写出器忽略即可。
+ * 仅文件流类写出器在写出时消费它，其余写出器忽略即可；
+ * 注入状态由原子布尔维护，同一写出器实例仅可注入一次，重复注入被拒绝。
  * </p>
  */
 public abstract class AbstractResponseWriter implements ResponseWriter {
 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(AbstractResponseWriter.class);
 
-    /** 磁盘IO线程池，构造期经 injectThreadPool 注入；本写出器不负责其生命周期。 */
+    /** 磁盘IO线程池，构造期经 injectThreadPool 注入一次；本写出器不负责其生命周期。 */
     protected ThreadPool threadPool;
 
+    /** 线程池注入状态：注入成功即置位，用于拒绝同一实例的重复注入。 */
+    private final AtomicBoolean threadPoolInjected = new AtomicBoolean(false);
+
+    /**
+     * 注入磁盘IO线程池：CAS 先置位再赋值，同一实例仅首次注入生效；
+     * 竞态或误用下的后续调用抛异常，不会覆写已注入的线程池。
+     *
+     * @param threadPool 磁盘IO线程池
+     * @throws IllegalStateException 本实例已注入过线程池，不能重复注入
+     */
     @Override
     public void injectThreadPool(ThreadPool threadPool) {
+        if (!threadPoolInjected.compareAndSet(false, true)) {
+            throw new IllegalStateException("磁盘IO线程池已注入, 不能重复注入");
+        }
         this.threadPool = threadPool;
     }
 

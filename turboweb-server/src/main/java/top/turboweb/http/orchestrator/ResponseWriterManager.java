@@ -63,6 +63,7 @@ public class ResponseWriterManager {
      * @param customerWriters 自定义写出器列表，按写出器具体类登记为不可变表，不能为null、元素不能为null
      * @throws NullPointerException     线程池或列表为null、列表元素为null
      * @throws IllegalArgumentException 列表含系统内置写出器类，或同一写出器类出现多次
+     * @throws IllegalStateException    自定义写出器实例已注入过线程池（同一实例传入过其他管理器）
      */
     public ResponseWriterManager(ThreadPool threadPool, List<ResponseWriter> customerWriters) {
         Objects.requireNonNull(threadPool, "磁盘IO线程池不能为null");
