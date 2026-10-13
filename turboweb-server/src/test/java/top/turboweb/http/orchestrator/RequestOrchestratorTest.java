@@ -50,7 +50,8 @@ import static org.junit.jupiter.api.Assertions.fail;
  * CORS 来源处理流程的响应头写出契约；以及消费流程契约——
  * 入口参数判空、中间件结果转化写出与请求释放、挂载的响应元信息不回填响应、
  * OPTIONS 预检空 200 不进链、未注册异常落 500 兜底页、路由未匹配落 404 页、
- * 注册处理器返回值透传写出、异常响应同样带 CORS 头、提交被拒写出 429 并释放请求。
+ * 注册处理器返回值透传写出、异常响应同样带 CORS 头、提交被拒写出 429 并释放请求；
+ * 另锚请求日志文案的格式化契约——耗时按阈值分毫秒与微秒两档、写出状态措辞。
  */
 class RequestOrchestratorTest {
 
@@ -494,6 +495,33 @@ class RequestOrchestratorTest {
         } finally {
             hold.countDown();
         }
+    }
+
+    // 第十三批锚：请求日志文案格式化——阈值 1000000 纳秒以上按毫秒计、以下（含恰好 1 毫秒）按微秒计，
+    // 状态措辞 success/fail，与旧线调度器输出逐字一致。
+    @Test
+    void requestLogMessageUsesMillisAboveOneMillisecond() {
+        assertEquals("GET /api/item cost:2ms state:success",
+                RequestOrchestrator.buildRequestLogMessage("GET", "/api/item", 2_500_000L, true));
+        assertEquals("GET /api/item cost:1ms state:success",
+                RequestOrchestrator.buildRequestLogMessage("GET", "/api/item", 1_000_001L, true),
+                "恰超阈值按毫秒计（整除取商）");
+    }
+
+    @Test
+    void requestLogMessageUsesMicrosecondsUpToOneMillisecond() {
+        assertEquals("GET /api/item cost:1000us state:success",
+                RequestOrchestrator.buildRequestLogMessage("GET", "/api/item", 1_000_000L, true),
+                "恰好 1 毫秒走微秒档（旧线阈值为严格大于）");
+        assertEquals("GET /api/item cost:500us state:success",
+                RequestOrchestrator.buildRequestLogMessage("GET", "/api/item", 500_000L, true));
+    }
+
+    @Test
+    void requestLogMessageMarksFailStateOnUnsuccessfulWrite() {
+        assertEquals("POST /submit cost:12us state:fail",
+                RequestOrchestrator.buildRequestLogMessage("POST", "/submit", 12_345L, false),
+                "微秒整除取商、失败措辞 fail");
     }
 
     /** 返回固定结果并记录是否被进入的链成员。 */

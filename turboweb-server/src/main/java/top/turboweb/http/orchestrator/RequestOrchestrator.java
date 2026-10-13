@@ -5,6 +5,8 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.lock.Locks;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
 import top.turboweb.http.core.connect.ConnectSession;
@@ -42,13 +44,17 @@ import java.util.Objects;
  * {@link #doOrchestrate} 在任务线程内执行完整编排——OPTIONS 预检不进中间件链、
  * 直接以空正文 200 携带 CORS 响应头应答，其余请求执行中间件链并经结果转化链
  * 产出响应，过程中抛出的异常交由异常处理器管理器产出处理结果后转化，
- * 响应统一经 CORS 来源处理后写出，请求在写出提交后释放（含异常路径）。
+ * 响应统一经 CORS 来源处理后写出，请求在写出提交后释放（含异常路径）；
+ * 写出可监听时挂接完成回调以 DEBUG 级打印请求日志（方法、URI、耗时、写出成败），
+ * 展示与否由日志级别控制，不可监听写出不记录。
  * {@link #handleCorsHeaders} 亦可独立调用。
  * </p>
  * <p><b>线程安全性：</b>实例设计为单例共享，可在任意线程调用。</p>
  */
 public class RequestOrchestrator {
 
+    /** 请求日志记录器，走 netty 标准日志通道，DEBUG 级输出。 */
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(RequestOrchestrator.class);
     /** 中间件链链头，请求处理流程的入口组件。 */
     private final Middleware middleware;
     /** 虚拟线程资源，承载请求任务的线程创建与限流。 */
@@ -92,9 +98,11 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 编排请求入口：把请求提交到虚拟线程资源，获取资源后在任务线程内执行
-     * {@link #doOrchestrate}；任务被拒时（资源耗尽且不允许排队或排队失败）
+     * 编排请求入口：取起始时刻后把请求提交到虚拟线程资源，获取资源后在任务线程内
+     * 执行 {@link #doOrchestrate}；任务被拒时（资源耗尽且不允许排队或排队失败）
      * 不经中间件链与 CORS 处理，直接写出 HTTP 429 响应并释放请求。
+     * 正常与拒绝两路写出均可监听时挂接完成回调打印 DEBUG 级请求日志，
+     * 耗时自本入口起始时刻起算、含任务提交前的排队等待。
      *
      * @param request        完整的 HTTP 请求，不能为 null
      * @param connectSession 当前连接会话，不能为 null，响应经其通道写出
@@ -103,11 +111,13 @@ public class RequestOrchestrator {
     public void orchestrate(FullHttpRequest request, ConnectSession connectSession) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(connectSession, "connect session must not be null");
+        long startTime = System.nanoTime();
         virtualThreadResource.run(
-                () -> doOrchestrate(request, connectSession),
+                () -> doOrchestrate(request, connectSession, startTime),
                 rejectionThread -> {
                     try {
-                        responseWriterManager.write(toManyRequestsResponse(), connectSession);
+                        attachRequestLog(request, startTime,
+                                responseWriterManager.write(toManyRequestsResponse(), connectSession));
                     } finally {
                         request.release();
                     }
@@ -120,8 +130,9 @@ public class RequestOrchestrator {
      * 经结果转化链转化为响应，链执行或转化过程中抛出的异常交由
      * {@link ExceptionHandlerManager#handle(Throwable)} 产出处理结果后再转化；
      * 正常与异常响应统一经 {@link #handleCorsHeaders} 写出 CORS 头后交
-     * {@link ResponseWriterManager#write} 写出。请求在写出提交后释放，
-     * 异常上抛路径同样释放。
+     * {@link ResponseWriterManager#write} 写出。写出可监听时挂接完成回调，
+     * 以 DEBUG 级打印请求日志（方法、URI、自起点耗时、写出成败），展示与否由日志级别控制，
+     * 不可监听写出不记录。请求在写出提交后释放，异常上抛路径同样释放。
      *
      * @param request        完整的 HTTP 请求，不能为 null
      * @param connectSession 当前连接会话，不能为 null，响应经其通道写出
@@ -129,6 +140,20 @@ public class RequestOrchestrator {
      * @throws NullPointerException 任一参数为 null
      */
     public ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, ConnectSession connectSession) {
+        return doOrchestrate(request, connectSession, System.nanoTime());
+    }
+
+    /**
+     * 编排流程实体，起点时刻由调用方给定（{@link #orchestrate} 传入提交前取的时刻，
+     * 使直调与经调度提交两路的耗时口径一致）。
+     *
+     * @param request        完整的 HTTP 请求
+     * @param connectSession 当前连接会话
+     * @param startTime      请求起始时刻（纳秒），请求日志耗时起算点
+     * @return 写出结果，永不为 null
+     */
+    private ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, ConnectSession connectSession,
+                                                     long startTime) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(connectSession, "connect session must not be null");
         try {
@@ -145,10 +170,32 @@ public class RequestOrchestrator {
                 }
                 handleCorsHeaders(request, response);
             }
-            return responseWriterManager.write(response, connectSession);
+            return attachRequestLog(request, startTime, responseWriterManager.write(response, connectSession));
         } finally {
             request.release();
         }
+    }
+
+    /**
+     * 写出后挂接请求日志：写出可监听时先把请求方法取成字符串，再在完成凭据上注册回调，
+     * 回调内以 DEBUG 级输出方法、URI、耗时（回调时刻减起点）与写出成败；
+     * 回调触发时请求已释放，故回调不触碰请求对象。不可监听写出无完成凭据，
+     * 不挂接、不记录。
+     *
+     * @param request     请求对象，挂接时尚未释放，仅用于取方法字面量
+     * @param startTime   请求起始时刻（纳秒）
+     * @param writeResult 写出结果
+     * @return 原样返回写出结果，便于流程内联
+     */
+    private ResponseWriter.WriteResult attachRequestLog(FullHttpRequest request, long startTime,
+                                                        ResponseWriter.WriteResult writeResult) {
+        if (writeResult.writeType() == ResponseWriter.WriteType.LISTENABLE) {
+            String method = request.method().name();
+            String uri = request.uri();
+            writeResult.channelFuture().addListener(future -> log.debug(
+                    buildRequestLogMessage(method, uri, System.nanoTime() - startTime, future.isSuccess())));
+        }
+        return writeResult;
     }
 
     /**
@@ -264,6 +311,25 @@ public class RequestOrchestrator {
         response.content().writeCharSequence(msg, StandardCharsets.UTF_8);
         response.headers().add("Content-Length", msg.length());
         return response;
+    }
+
+    /**
+     * 构建请求日志文案：内容只用英文与 ASCII 字符，避免控制台编码乱码，
+     * 依次为请求方法、URI、耗时与响应发送状态；耗时超过 1 毫秒（1000000 纳秒）
+     * 按毫秒计，否则按微秒计，整除取商。
+     *
+     * @param method    请求方法名
+     * @param uri       请求 URI
+     * @param costNanos 执行耗时（纳秒）
+     * @param isSuccess 响应是否成功发送
+     * @return 渲染后的日志文案
+     */
+    static String buildRequestLogMessage(String method, String uri, long costNanos, boolean isSuccess) {
+        String state = isSuccess ? "success" : "fail";
+        if (costNanos > 1000000) {
+            return method + " " + uri + " cost:" + (costNanos / 1000000) + "ms state:" + state;
+        }
+        return method + " " + uri + " cost:" + (costNanos / 1000) + "us state:" + state;
     }
 
     /**
