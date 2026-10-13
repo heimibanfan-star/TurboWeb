@@ -18,9 +18,9 @@ import java.util.Queue;
  * 处理器持有连接级状态（缓冲队列与处理中标记），不能跨channel复用，
  * 由 {@link top.turboweb.http.server.application.HttpRequestApplication} 在装配每条管道时新建独立实例。
  */
-public class RequestSerializerHandler extends ChannelDuplexHandler {
+public class RequestSerializerChannelHandler extends ChannelDuplexHandler {
 
-    private static final InternalLogger log = InternalLoggerFactory.getInstance(RequestSerializerHandler.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(RequestSerializerChannelHandler.class);
     private final Queue<FullHttpRequest> cacheRequest = new LinkedList<>();
     private boolean isProcessing = false;
 
@@ -45,7 +45,7 @@ public class RequestSerializerHandler extends ChannelDuplexHandler {
             if (isProcessing) {
                 int maxCacheRequestNum = 8;
                 if (cacheRequest.size() >= maxCacheRequestNum) {
-                    log.warn("RequestSerializerHandler cacheRequest is full");
+                    log.warn("RequestSerializerChannelHandler cacheRequest is full");
                     ctx.close();
                 }
                 cacheRequest.add(fullHttpRequest);

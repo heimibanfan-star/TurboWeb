@@ -9,7 +9,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
+import top.turboweb.websocket.dispatch.WebSocketDispatcherChannelHandler;
 import top.turboweb.websocket.handler.WebSocketHandler;
 import top.turboweb.websocket.info.WebSocketConnectInfo;
 import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
@@ -19,12 +19,12 @@ import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
  * <p>
  * 参考 top.turboweb.websocket.init.PathWebSocketPreInit 与 top.turboweb.core.dispatch.HttpProtocolDispatcher
  * 中的handleInitWebSocket逻辑，改为pipeline中独立的后置handler实现：
- * 与纯http的 {@link HttpRequestSchedulerHandler} 配套使用，处理器把携带Upgrade头的http升级协议请求向后转发，
+ * 与纯http的 {@link HttpRequestSchedulerChannelHandler} 配套使用，处理器把携带Upgrade头的http升级协议请求向后转发，
  * 由本handler完成websocket的协议升级：
  * <ul>
  *     <li>websocket升级协议请求（GET方法、Connection头包含upgrade且Upgrade为websocket）且uri匹配路径表达式：
  *     向pipeline追加 {@link WebSocketServerProtocolHandler} 与
- *     {@link WebSocketDispatcherHandler}，并存储连接信息到 {@link WebSocketConnectInfoContainer}，
+ *     {@link WebSocketDispatcherChannelHandler}，并存储连接信息到 {@link WebSocketConnectInfoContainer}，
  *     完成websocket的协议升级；</li>
  *     <li>其余请求（普通http误转发、其他升级协议、路径不匹配的websocket升级）：本handler不处理，
  *     retain后继续向后转发，由pipeline后续处理器决定。</li>
@@ -36,14 +36,14 @@ import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
  * {@link top.turboweb.http.server.application.WebSocketApplication} 装配并跨channel复用。
  *
  * <pre>{@code
- * WebSocketInitHandler webSocketInitHandler = WebSocketInitHandler.builder()
+ * WebSocketInitChannelHandler webSocketInitHandler = WebSocketInitChannelHandler.builder()
  *         .websocketPath("/ws/.*")
  *         .webSocketHandler(myWebSocketHandler)
  *         .build();
  * }</pre>
  */
 @ChannelHandler.Sharable
-public class WebSocketInitHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     /**
      * websocket处理的路径表达式
@@ -53,15 +53,15 @@ public class WebSocketInitHandler extends SimpleChannelInboundHandler<FullHttpRe
     /**
      * 处理websocket的handler
      */
-    private final WebSocketDispatcherHandler webSocketDispatcherHandler;
+    private final WebSocketDispatcherChannelHandler webSocketDispatcherHandler;
 
-    private WebSocketInitHandler(Builder builder) {
+    private WebSocketInitChannelHandler(Builder builder) {
         this.websocketPath = builder.websocketPath;
         if (builder.useForkJoin) {
-            this.webSocketDispatcherHandler = new WebSocketDispatcherHandler(
+            this.webSocketDispatcherHandler = new WebSocketDispatcherChannelHandler(
                     builder.webSocketHandler, true, builder.forkJoinThreadNum);
         } else {
-            this.webSocketDispatcherHandler = new WebSocketDispatcherHandler(builder.webSocketHandler);
+            this.webSocketDispatcherHandler = new WebSocketDispatcherChannelHandler(builder.webSocketHandler);
         }
     }
 
@@ -130,7 +130,7 @@ public class WebSocketInitHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     /**
-     * 销毁本handler持有的执行资源：委托内部的 {@link WebSocketDispatcherHandler} 关闭其私有的
+     * 销毁本handler持有的执行资源：委托内部的 {@link WebSocketDispatcherChannelHandler} 关闭其私有的
      * 消息处理线程池（虚拟线程模式下使用全局共享池，不会被关闭）。由
      * {@link top.turboweb.http.server.application.WebSocketApplication#close()} 发起，重复调用为幂等操作。
      */
@@ -139,7 +139,7 @@ public class WebSocketInitHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     /**
-     * {@link WebSocketInitHandler} 的建造者，链式方法校验非法参数立即抛出 {@link IllegalArgumentException}。
+     * {@link WebSocketInitChannelHandler} 的建造者，链式方法校验非法参数立即抛出 {@link IllegalArgumentException}。
      */
     public static final class Builder {
 
@@ -203,14 +203,14 @@ public class WebSocketInitHandler extends SimpleChannelInboundHandler<FullHttpRe
         /**
          * 构建websocket初始化handler
          */
-        public WebSocketInitHandler build() {
+        public WebSocketInitChannelHandler build() {
             if (websocketPath == null || websocketPath.isBlank()) {
                 throw new IllegalArgumentException("websocketPath不能为空");
             }
             if (webSocketHandler == null) {
                 throw new IllegalArgumentException("webSocketHandler不能为空");
             }
-            return new WebSocketInitHandler(this);
+            return new WebSocketInitChannelHandler(this);
         }
     }
 }

@@ -4,7 +4,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.commons.utils.resource.ScopedResource;
-import top.turboweb.http.server.handler.WebSocketInitHandler;
+import top.turboweb.http.server.handler.WebSocketInitChannelHandler;
 import top.turboweb.websocket.handler.WebSocketHandler;
 
 import java.util.Objects;
@@ -18,7 +18,7 @@ import java.util.Objects;
  * 对内通过 {@link Builder} 在构建期一次性完成路径表达式、业务处理器与消息处理线程模型的校验与装配。
  * <p>
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
- * 注册时须排在http应用之后（接收 {@link top.turboweb.http.server.handler.HttpRequestSchedulerHandler}
+ * 注册时须排在http应用之后（接收 {@link top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler}
  * 向后转发的websocket升级协议请求）。
  * <p>
  * 装配期创建的可关闭资源不在本类中逐个持有，而是统一登记进本应用持有的
@@ -42,7 +42,7 @@ public class WebSocketApplication implements Application {
      * websocket初始化handler，构建期装配好的无状态单例（{@code @Sharable}），
      * 负责接收升级协议请求完成websocket协议升级，内部持有websocket分发处理器
      */
-    private final WebSocketInitHandler webSocketInitHandler;
+    private final WebSocketInitChannelHandler webSocketInitHandler;
 
     /**
      * 应用的资源作用域：装配期由 {@link Builder#build()} 登记的初始化handler销毁适配器在此，
@@ -50,7 +50,7 @@ public class WebSocketApplication implements Application {
      */
     private final ScopedResource scopedResource;
 
-    public WebSocketApplication(WebSocketInitHandler webSocketInitHandler, ScopedResource scopedResource) {
+    public WebSocketApplication(WebSocketInitChannelHandler webSocketInitHandler, ScopedResource scopedResource) {
         this.webSocketInitHandler = Objects.requireNonNull(webSocketInitHandler, "websocket初始化handler不能为null");
         this.scopedResource = Objects.requireNonNull(scopedResource, "资源作用域不能为null");
     }
@@ -81,7 +81,7 @@ public class WebSocketApplication implements Application {
      * 默认使用虚拟线程处理websocket消息，链式方法校验非法参数立即抛出
      * {@link IllegalArgumentException}。
      * <p>
-     * {@link #build()} 完成校验后按线程模型创建 {@link WebSocketInitHandler} 单例，
+     * {@link #build()} 完成校验后按线程模型创建 {@link WebSocketInitChannelHandler} 单例，
      * 把它的销毁适配器登记进新建的资源作用域，一并装配进应用实例。
      */
     public static class Builder {
@@ -133,7 +133,7 @@ public class WebSocketApplication implements Application {
 
         /**
          * 构建应用：校验路径表达式与业务处理器均已配置，按线程模型创建
-         * {@link WebSocketInitHandler} 单例（未设置线程数时使用虚拟线程），
+         * {@link WebSocketInitChannelHandler} 单例（未设置线程数时使用虚拟线程），
          * 将其销毁适配器登记进新建的资源作用域后一并装配进应用实例
          */
         public WebSocketApplication build() {
@@ -144,7 +144,7 @@ public class WebSocketApplication implements Application {
             if (webSocketHandler == null) {
                 throw new IllegalArgumentException("webSocketHandler不能为空");
             }
-            WebSocketInitHandler.Builder initHandlerBuilder = WebSocketInitHandler.builder()
+            WebSocketInitChannelHandler.Builder initHandlerBuilder = WebSocketInitChannelHandler.builder()
                     .websocketPath(websocketPath)
                     .webSocketHandler(webSocketHandler);
             if (forkJoinThreadNum > 0) {
@@ -153,7 +153,7 @@ public class WebSocketApplication implements Application {
             } else {
                 log.info("websocket消息处理线程模型：虚拟线程");
             }
-            WebSocketInitHandler webSocketInitHandler = initHandlerBuilder.build();
+            WebSocketInitChannelHandler webSocketInitHandler = initHandlerBuilder.build();
             // 初始化handler的销毁适配器登记进应用的资源作用域，应用关闭时释放分发处理器的线程池
             ScopedResource scopedResource = new ScopedResource();
             scopedResource.register(() -> {

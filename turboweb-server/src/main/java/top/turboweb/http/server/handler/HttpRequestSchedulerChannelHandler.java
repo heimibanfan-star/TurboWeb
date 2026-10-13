@@ -24,20 +24,20 @@ import top.turboweb.http.scheduler.HttpScheduler;
  * {@link top.turboweb.http.server.application.HttpRequestApplication} 装配并跨channel复用。
  *
  * <pre>{@code
- * HttpRequestSchedulerHandler schedulerHandler = HttpRequestSchedulerHandler.builder()
+ * HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
  *         .httpScheduler(httpScheduler)
  *         .build();
  * }</pre>
  */
 @ChannelHandler.Sharable
-public class HttpRequestSchedulerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     /**
      * http调度器
      */
     private final HttpScheduler httpScheduler;
 
-    private HttpRequestSchedulerHandler(Builder builder) {
+    private HttpRequestSchedulerChannelHandler(Builder builder) {
         this.httpScheduler = builder.httpScheduler;
     }
 
@@ -66,7 +66,7 @@ public class HttpRequestSchedulerHandler extends SimpleChannelInboundHandler<Ful
     }
 
     /**
-     * {@link HttpRequestSchedulerHandler} 的建造者，链式方法校验非法参数立即抛出 {@link IllegalArgumentException}。
+     * {@link HttpRequestSchedulerChannelHandler} 的建造者，链式方法校验非法参数立即抛出 {@link IllegalArgumentException}。
      */
     public static final class Builder {
 
@@ -91,11 +91,11 @@ public class HttpRequestSchedulerHandler extends SimpleChannelInboundHandler<Ful
         /**
          * 构建处理器对象，只处理http请求，默认没有websocket
          */
-        public HttpRequestSchedulerHandler build() {
+        public HttpRequestSchedulerChannelHandler build() {
             if (httpScheduler == null) {
                 throw new IllegalArgumentException("httpScheduler不能为空");
             }
-            return new HttpRequestSchedulerHandler(this);
+            return new HttpRequestSchedulerChannelHandler(this);
         }
     }
 }

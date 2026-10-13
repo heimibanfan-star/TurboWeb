@@ -4,7 +4,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
+import top.turboweb.websocket.dispatch.WebSocketDispatcherChannelHandler;
 
 /**
  * 路径处理的初始化器
@@ -12,9 +12,9 @@ import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
 public class PathWebSocketPreInit implements WebSocketPreInit {
 
     private final String path;
-    private final WebSocketDispatcherHandler webSocketDispatcherHandler;
+    private final WebSocketDispatcherChannelHandler webSocketDispatcherHandler;
 
-    public PathWebSocketPreInit(String path, WebSocketDispatcherHandler webSocketDispatcherHandler) {
+    public PathWebSocketPreInit(String path, WebSocketDispatcherChannelHandler webSocketDispatcherHandler) {
         this.path = path;
         this.webSocketDispatcherHandler = webSocketDispatcherHandler;
     }

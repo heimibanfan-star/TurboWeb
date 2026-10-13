@@ -23,8 +23,8 @@ import top.turboweb.http.processor.convertor.HttpResponseConverter;
 import top.turboweb.http.scheduler.HttpScheduler;
 import top.turboweb.http.scheduler.VirtualThreadHttpScheduler;
 import top.turboweb.http.server.config.HttpConfig;
-import top.turboweb.http.server.handler.HttpRequestSchedulerHandler;
-import top.turboweb.http.server.handler.RequestSerializerHandler;
+import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
+import top.turboweb.http.server.handler.RequestSerializerChannelHandler;
 import top.turboweb.http.core.session.DefaultSessionManagerHolder;
 import top.turboweb.http.core.session.MemorySessionManager;
 import top.turboweb.http.core.session.SessionManager;
@@ -66,7 +66,7 @@ public class HttpRequestApplication implements Application {
 
     /**
      * 是否开启连接级请求串行化（来源为 {@link HttpConfig#isSerializePerConnection()}），
-     * 开启后每条连接的pipeline中先加入 {@link RequestSerializerHandler}，
+     * 开启后每条连接的pipeline中先加入 {@link RequestSerializerChannelHandler}，
      * 保证同一连接的请求按到达顺序被处理
      */
     private final boolean requestSerial;
@@ -75,7 +75,7 @@ public class HttpRequestApplication implements Application {
      * http请求调度处理器，构建期装配好的无状态单例（{@code @Sharable}），
      * 负责把请求转交给内部http调度器执行处理器责任链
      */
-    private final HttpRequestSchedulerHandler httpRequestSchedulerHandler;
+    private final HttpRequestSchedulerChannelHandler httpRequestSchedulerHandler;
 
     /**
      * 应用的资源作用域：装配期由 {@link Builder#build()} 创建的磁盘IO线程池、中间件链销毁适配器
@@ -85,7 +85,7 @@ public class HttpRequestApplication implements Application {
     private final ScopedResource scopedResource;
 
     public HttpRequestApplication(boolean requestSerial,
-                                  HttpRequestSchedulerHandler httpRequestSchedulerHandler,
+                                  HttpRequestSchedulerChannelHandler httpRequestSchedulerHandler,
                                   ScopedResource scopedResource) {
         this.requestSerial = requestSerial;
         this.httpRequestSchedulerHandler = httpRequestSchedulerHandler;
@@ -100,7 +100,7 @@ public class HttpRequestApplication implements Application {
     @Override
     public void configure(ChannelPipeline pipeline) {
         if (this.requestSerial) {
-            pipeline.addLast(new RequestSerializerHandler());
+            pipeline.addLast(new RequestSerializerChannelHandler());
         }
         pipeline.addLast(httpRequestSchedulerHandler);
         log.debug("连接[{}]装配http应用处理器完成，请求串行化: {}",
@@ -346,7 +346,7 @@ public class HttpRequestApplication implements Application {
             } else {
                 log.info("http调度器限流未开启");
             }
-            HttpRequestSchedulerHandler schedulerHandler = HttpRequestSchedulerHandler.builder()
+            HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
                     .httpScheduler(httpScheduler)
                     .build();
             log.info("http请求应用装配完成，连接级请求串行化: {}, 请求日志: {}",

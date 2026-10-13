@@ -4,8 +4,8 @@ import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.utils.resource.ScopedResource;
 import top.turboweb.commons.utils.thread.VirtualThreads;
-import top.turboweb.http.server.handler.WebSocketInitHandler;
-import top.turboweb.websocket.dispatch.WebSocketDispatcherHandler;
+import top.turboweb.http.server.handler.WebSocketInitChannelHandler;
+import top.turboweb.websocket.dispatch.WebSocketDispatcherChannelHandler;
 import top.turboweb.websocket.handler.WebSocketHandler;
 import top.turboweb.websocket.session.WebSocketSession;
 
@@ -71,7 +71,7 @@ class WebSocketApplicationTest {
                 () -> new WebSocketApplication(null, new ScopedResource()));
         assertEquals("websocket初始化handler不能为null", ex1.getMessage());
 
-        WebSocketInitHandler handler = WebSocketInitHandler.builder()
+        WebSocketInitChannelHandler handler = WebSocketInitChannelHandler.builder()
                 .websocketPath("/ws/.*")
                 .webSocketHandler(HANDLER)
                 .build();
@@ -131,11 +131,11 @@ class WebSocketApplicationTest {
         handlerField.setAccessible(true);
         Object initHandler = handlerField.get(app);
 
-        Field dispatcherField = WebSocketInitHandler.class.getDeclaredField("webSocketDispatcherHandler");
+        Field dispatcherField = WebSocketInitChannelHandler.class.getDeclaredField("webSocketDispatcherHandler");
         dispatcherField.setAccessible(true);
         Object dispatcher = dispatcherField.get(initHandler);
 
-        Field poolField = WebSocketDispatcherHandler.class.getDeclaredField("POOL");
+        Field poolField = WebSocketDispatcherChannelHandler.class.getDeclaredField("POOL");
         poolField.setAccessible(true);
         return (ExecutorService) poolField.get(dispatcher);
     }

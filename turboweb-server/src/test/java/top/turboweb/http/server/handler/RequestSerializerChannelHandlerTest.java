@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 引用计数断言只用带体夹具（postJson）——无体请求的 EmptyByteBuf 引用计数恒 1，
  * 拿它断言释放是空转（Netty 4.2.12 EmptyByteBuf:1012-1044、DefaultFullHttpRequest:119-149）。
  */
-class RequestSerializerHandlerTest {
+class RequestSerializerChannelHandlerTest {
 
     /** 记录进出双方向的末端替身；入站记录即释放（末端消费），出站原样传递。 */
     private static final class Fwd extends ChannelDuplexHandler {
@@ -62,7 +62,7 @@ class RequestSerializerHandlerTest {
 
     private void start() {
         fwd = new Fwd();
-        channel = new EmbeddedChannel(new RequestSerializerHandler(), fwd);
+        channel = new EmbeddedChannel(new RequestSerializerChannelHandler(), fwd);
     }
 
     @AfterEach
@@ -173,8 +173,8 @@ class RequestSerializerHandlerTest {
     @DisplayName("HS-24 回归：非本 channel 事件循环调用 channelRead 时移交回事件循环，不在调用线程触碰状态")
     void offEventLoopCallIsHandedBackToEventLoop() throws Exception {
         start();
-        ChannelHandlerContext realCtx = channel.pipeline().context(RequestSerializerHandler.class);
-        RequestSerializerHandler serializer = (RequestSerializerHandler) realCtx.handler();
+        ChannelHandlerContext realCtx = channel.pipeline().context(RequestSerializerChannelHandler.class);
+        RequestSerializerChannelHandler serializer = (RequestSerializerChannelHandler) realCtx.handler();
         // EmbeddedChannel 的派发恒已在环内，环外分支从管线进不去：
         // 代理伪造 eventLoop 与 channel 上下文，inEventLoop 由开关控制、execute 入队由测试显式驱动
         AtomicBoolean onLoop = new AtomicBoolean(false);

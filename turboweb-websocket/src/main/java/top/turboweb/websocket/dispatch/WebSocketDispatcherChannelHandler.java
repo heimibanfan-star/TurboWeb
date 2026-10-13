@@ -24,9 +24,9 @@ import java.util.concurrent.ForkJoinPool;
  * 处理websocket的handler
  */
 @ChannelHandler.Sharable
-public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
+public class WebSocketDispatcherChannelHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
-    private static final InternalLogger log = InternalLoggerFactory.getInstance(WebSocketDispatcherHandler.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(WebSocketDispatcherChannelHandler.class);
     private final Map<String, WebSocketSession> sessionMap = new ConcurrentHashMap<>(1024);
     private final WebSocketHandler webSocketHandler;
     private final ExecutorService POOL;
@@ -36,11 +36,11 @@ public class WebSocketDispatcherHandler extends SimpleChannelInboundHandler<WebS
      */
     private final boolean ownExecutor;
 
-    public WebSocketDispatcherHandler(WebSocketHandler webSocketHandler) {
+    public WebSocketDispatcherChannelHandler(WebSocketHandler webSocketHandler) {
         this(webSocketHandler, false, 0);
     }
 
-    public WebSocketDispatcherHandler(WebSocketHandler webSocketHandler, boolean useForkJoin, int threadNum) {
+    public WebSocketDispatcherChannelHandler(WebSocketHandler webSocketHandler, boolean useForkJoin, int threadNum) {
         if (threadNum <= 0) {
             threadNum = Runtime.getRuntime().availableProcessors();
         }
