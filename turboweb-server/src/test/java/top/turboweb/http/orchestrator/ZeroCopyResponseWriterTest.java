@@ -1,6 +1,5 @@
 package top.turboweb.http.orchestrator;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -36,10 +35,10 @@ class ZeroCopyResponseWriterTest {
     Path tempDir;
 
     /** 在虚拟线程里跑 body，返回其结果；超时未返回即红。 */
-    private static ChannelFuture writeOnVirtualThread(ResponseWriter writer,
-                                                      HttpResponse response,
-                                                      InternalConnectSession session) throws InterruptedException {
-        AtomicReference<ChannelFuture> box = new AtomicReference<>();
+    private static ResponseWriter.WriteResult writeOnVirtualThread(ResponseWriter writer,
+                                                                   HttpResponse response,
+                                                                   InternalConnectSession session) throws InterruptedException {
+        AtomicReference<ResponseWriter.WriteResult> box = new AtomicReference<>();
         AtomicReference<Throwable> err = new AtomicReference<>();
         Thread t = Thread.ofVirtual().start(() -> {
             try {
@@ -75,9 +74,10 @@ class ZeroCopyResponseWriterTest {
         ZeroCopyResponse resp = newResponse();
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = writeOnVirtualThread(
+            ResponseWriter.WriteResult result = writeOnVirtualThread(
                     new ZeroCopyResponseWriter(), resp, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess());
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+            assertTrue(result.channelFuture().isSuccess());
             List<Object> out = drain(channel);
             assertEquals(3, out.size(), "头、文件区、结束帧三段");
             assertSame(resp, out.get(0));
@@ -96,9 +96,9 @@ class ZeroCopyResponseWriterTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = writeOnVirtualThread(
+            ResponseWriter.WriteResult result = writeOnVirtualThread(
                     new ZeroCopyResponseWriter(), plain, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess());
+            assertTrue(result.channelFuture().isSuccess());
             List<Object> out = drain(channel);
             assertEquals(1, out.size());
             DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out.get(0));
@@ -117,9 +117,10 @@ class ZeroCopyResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             // 就在当前（JUnit 平台）线程直调，不自起虚拟线程
-            ChannelFuture f = new ZeroCopyResponseWriter()
+            ResponseWriter.WriteResult result = new ZeroCopyResponseWriter()
                     .write(resp, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess(), "模板 catch 的返回 future 是 500 页写出 future，应成功");
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+            assertTrue(result.channelFuture().isSuccess(), "模板 catch 的返回 future 是 500 页写出 future，应成功");
             List<Object> out = drain(channel);
             assertEquals(1, out.size(), "唯一出站帧 = 模板兜底的错误页（断言若被删除会先写出响应头）");
             DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out.get(0));

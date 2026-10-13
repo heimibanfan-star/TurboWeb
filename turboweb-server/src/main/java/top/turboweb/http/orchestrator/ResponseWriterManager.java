@@ -1,6 +1,5 @@
 package top.turboweb.http.orchestrator;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.core.connect.ConnectSession;
@@ -30,7 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * <ul>
  *     <li>响应经 {@link ResponseCall} 声明写出器类型，内置表按类型直接命中。</li>
  *     <li>默认写出器兜底，避免空指针与未声明响应类型问题。</li>
- *     <li>支持启用响应限流（仅影响 {@link ReactorResponseWriter}）。</li>
+ *     <li>写出结果以 {@link ResponseWriter.WriteResult} 返回凭据状态与完成凭据，
+ *         上游按状态判断即可，无须对凭据做空值检查。</li>
  *     <li>磁盘IO线程池由构造器注入，装配与登记期经 injectThreadPool 交给
  *         {@link FileStreamResponseWriter} 等写出器调度文件分块读取。</li>
  * </ul>
@@ -52,26 +52,15 @@ public class ResponseWriterManager {
     private final ResponseWriter DEFAULT_RESPONSE_WRITER;
 
     /**
-     * 构造响应写出器管理器（不限流）。
-     *
-     * @param threadPool 磁盘IO线程池，注入 {@link FileStreamResponseWriter} 用于调度文件分块读取，不能为null
-     * @throws NullPointerException 线程池为null
-     */
-    public ResponseWriterManager(ThreadPool threadPool) {
-        this(threadPool, false);
-    }
-
-    /**
      * 构造响应写出器管理器。
      * <p>
      * 初始化时将所有内置写出器按具体类登记到内置表，并统一注入磁盘IO线程池。
      * </p>
      *
-     * @param threadPool  磁盘IO线程池，注入 {@link FileStreamResponseWriter} 用于调度文件分块读取，不能为null
-     * @param enableLimit 是否启用响应限流（仅影响 {@link ReactorResponseWriter}）
+     * @param threadPool 磁盘IO线程池，注入 {@link FileStreamResponseWriter} 用于调度文件分块读取，不能为null
      * @throws NullPointerException 线程池为null
      */
-    public ResponseWriterManager(ThreadPool threadPool, boolean enableLimit) {
+    public ResponseWriterManager(ThreadPool threadPool) {
         this.threadPool = Objects.requireNonNull(threadPool, "磁盘IO线程池不能为null");
         internalResponseWriter = Map.of(
                 SseResponseWriter.class, new SseResponseWriter(),
@@ -79,7 +68,7 @@ public class ResponseWriterManager {
                 DefaultResponseWriter.class, new DefaultResponseWriter(),
                 AsyncFileResponseWriter.class, new AsyncFileResponseWriter(),
                 ZeroCopyResponseWriter.class, new ZeroCopyResponseWriter(),
-                ReactorResponseWriter.class, new ReactorResponseWriter(enableLimit),
+                ReactorResponseWriter.class, new ReactorResponseWriter(),
                 IgnoredResponseWriter.class, new IgnoredResponseWriter()
         );
         DEFAULT_RESPONSE_WRITER = internalResponseWriter.get(DefaultResponseWriter.class);
@@ -114,15 +103,16 @@ public class ResponseWriterManager {
      * <p>
      * 路由次序：响应实现 {@link ResponseCall} 时先按声明类型查内置表，命中即用；
      * 未命中查自定义登记表；仍未匹配落默认写出器兜底。
-     * 写出结果（写出的完成凭据）返回给调用方，
-     * 所选写出器无凭据时（如忽略写出器）返回 {@code null}，调用方应做空值检查。
+     * 写出结果（凭据状态与完成凭据）返回给调用方：
+     * 可监听时凭据非空、可挂接监听；不可监听时（如忽略写出器）凭据为 {@code null}，
+     * 调用方按状态判断即可，无须对凭据做空值检查。
      *
      * @param response 响应对象（可能实现 {@link ResponseCall} 声明写出器类型）
      * @param session  当前连接的会话上下文
-     * @return 写出的完成凭据；写出器无凭据时为 {@code null}
+     * @return 写出结果，永不为null
      * @throws ClassCastException 会话不是内部连接会话实现时
      */
-    public ChannelFuture write(HttpResponse response, ConnectSession session) {
+    public ResponseWriter.WriteResult write(HttpResponse response, ConnectSession session) {
         ResponseWriter responseWriter = null;
         if (response instanceof ResponseCall responseCall) {
             // 获取响应声明的写出器类型

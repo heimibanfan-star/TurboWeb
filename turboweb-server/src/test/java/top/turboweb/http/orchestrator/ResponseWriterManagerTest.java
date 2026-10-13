@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * （响应经 ResponseCall 声明写出器类型——内置表优先、自定义表其次、默认写出器兜底）、
  * 自定义写出器登记规则（系统内置类型拒登、同类重复拒登、登记即注入线程池）,
  * 以及装配期线程池非空约束。
- * 选择结果经各写出器互异的写出副作用甄别：忽略返回 null 且零出站、
+ * 选择结果经各写出器互异的写出副作用甄别：忽略不可监听且零出站、
  * 默认补齐 Content-Length、自定义只置标记、Reactor 类型在平台线程被虚拟线程契约兜成 500。
  */
 class ResponseWriterManagerTest {
@@ -71,10 +71,12 @@ class ResponseWriterManagerTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         CallResponse response = new CallResponse(IgnoredResponseWriter.class);
 
-        ChannelFuture future = new ResponseWriterManager(Stubs.threadPool())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool())
                 .write(response, new InternalConnectSession(channel));
 
-        assertNull(future, "内置忽略写出器命中：无写出凭据");
+        assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                "内置忽略写出器命中：结果不可监听");
+        assertNull(result.channelFuture(), "不可监听结果无写出凭据");
         assertNull(channel.readOutbound(), "默认路径会写出响应帧，此处必须为空");
         channel.finishAndReleaseAll();
     }
@@ -84,10 +86,11 @@ class ResponseWriterManagerTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         CallResponse response = new CallResponse(MarkingWriter.class);
 
-        ChannelFuture future = new ResponseWriterManager(Stubs.threadPool())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool())
                 .write(response, new InternalConnectSession(channel));
 
-        assertTrue(future.isSuccess());
+        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+        assertTrue(result.channelFuture().isSuccess());
         assertEquals("0", response.headers().get(HttpHeaderNames.CONTENT_LENGTH),
                 "声明类型未登记即走默认写出器（补齐 Content-Length）");
         assertSame(response, channel.readOutbound());
@@ -101,10 +104,11 @@ class ResponseWriterManagerTest {
         MarkingWriter writer = new MarkingWriter();
         manager.addResponseWriter(writer);
 
-        ChannelFuture future = manager.write(
+        ResponseWriter.WriteResult result = manager.write(
                 new CallResponse(MarkingWriter.class), new InternalConnectSession(channel));
 
-        assertTrue(future.isSuccess());
+        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+        assertTrue(result.channelFuture().isSuccess());
         assertTrue(writer.wasWritten(), "声明类型命中自定义表即由登记的写出器写出");
         assertNull(channel.readOutbound(), "自定义写出器不落任何出站帧，默认路径则会写出响应");
         channel.finishAndReleaseAll();
@@ -117,10 +121,11 @@ class ResponseWriterManagerTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         response.content().writeCharSequence("abc", StandardCharsets.UTF_8);
 
-        ChannelFuture future = new ResponseWriterManager(Stubs.threadPool())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool())
                 .write(response, new InternalConnectSession(channel));
 
-        assertTrue(future.isSuccess());
+        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+        assertTrue(result.channelFuture().isSuccess());
         assertEquals("3", response.headers().get(HttpHeaderNames.CONTENT_LENGTH),
                 "未实现 ResponseCall 的响应由默认写出器兜底");
         assertSame(response, channel.readOutbound());
@@ -134,10 +139,11 @@ class ResponseWriterManagerTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         CallResponse response = new CallResponse(ReactorResponseWriter.class);
 
-        ChannelFuture future = new ResponseWriterManager(Stubs.threadPool(), true)
+        ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool())
                 .write(response, new InternalConnectSession(channel));
 
-        assertTrue(future.isSuccess(), "模板兜底的 500 页写出应成功");
+        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+        assertTrue(result.channelFuture().isSuccess(), "模板兜底的 500 页写出应成功");
         DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, channel.readOutbound());
         assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
         err.release();
@@ -153,7 +159,7 @@ class ResponseWriterManagerTest {
                 new DefaultResponseWriter(),
                 new AsyncFileResponseWriter(),
                 new ZeroCopyResponseWriter(),
-                new ReactorResponseWriter(false),
+                new ReactorResponseWriter(),
                 new IgnoredResponseWriter());
         for (ResponseWriter builtin : builtins) {
             IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,
@@ -200,6 +206,5 @@ class ResponseWriterManagerTest {
         NullPointerException thrown = assertThrows(NullPointerException.class,
                 () -> new ResponseWriterManager(null));
         assertEquals("磁盘IO线程池不能为null", thrown.getMessage());
-        assertThrows(NullPointerException.class, () -> new ResponseWriterManager(null, true));
     }
 }

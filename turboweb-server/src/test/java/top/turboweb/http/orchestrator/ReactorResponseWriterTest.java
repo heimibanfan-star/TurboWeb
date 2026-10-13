@@ -29,14 +29,15 @@ import static org.junit.jupiter.api.Assertions.*;
  * {@link ReactorResponseWriter} 的写出路径行为锚（复刻旧 Reactor 策略用例面）。
  * doWrite 首行钉死虚拟线程契约，全部经 write 在自起虚拟线程里执行、
  * join(5000) 等返回值——流由 Flux.just/error 驱动、通道是 EmbeddedChannel，链路同步可断言。
+ * 写出结果恒可监听，promise 的成败终态经凭据反映。
  */
 class ReactorResponseWriterTest {
 
     /** 在虚拟线程里跑 body，返回其结果；超时未返回即红（不拖死 worker：守护语义由 join 上界保证）。 */
-    private static ChannelFuture writeOnVirtualThread(ResponseWriter writer,
-                                                      HttpResponse response,
-                                                      InternalConnectSession session) throws InterruptedException {
-        AtomicReference<ChannelFuture> box = new AtomicReference<>();
+    private static ResponseWriter.WriteResult writeOnVirtualThread(ResponseWriter writer,
+                                                                   HttpResponse response,
+                                                                   InternalConnectSession session) throws InterruptedException {
+        AtomicReference<ResponseWriter.WriteResult> box = new AtomicReference<>();
         AtomicReference<Throwable> err = new AtomicReference<>();
         Thread t = Thread.ofVirtual().start(() -> {
             try {
@@ -71,8 +72,9 @@ class ReactorResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         InternalConnectSession session = new InternalConnectSession(channel);
         try {
-            ChannelFuture f = writeOnVirtualThread(new ReactorResponseWriter(false), resp, session);
-            assertTrue(f.isSuccess());
+            ResponseWriter.WriteResult result = writeOnVirtualThread(new ReactorResponseWriter(), resp, session);
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+            assertTrue(result.channelFuture().isSuccess());
             assertEquals("chunked", resp.headers().get(HttpHeaderNames.TRANSFER_ENCODING));
             assertEquals("keep-alive", resp.headers().get(HttpHeaderNames.CONNECTION));
             List<Object> out = drain(channel);
@@ -90,20 +92,6 @@ class ReactorResponseWriterTest {
     }
 
     @Test
-    @DisplayName("enableLimit=true：promise 同步完成后 latch 立即放行，返回值不变")
-    void enableLimitReturnsAfterPromiseDoneOnSameFuture() throws InterruptedException {
-        ReactorResponse resp = new ReactorResponse(Flux.just(buf("x")));
-        EmbeddedChannel channel = new EmbeddedChannel();
-        InternalConnectSession session = new InternalConnectSession(channel);
-        try {
-            ChannelFuture f = writeOnVirtualThread(new ReactorResponseWriter(true), resp, session);
-            assertTrue(f.isSuccess(), "限流路径等待的正是同一 promise");
-        } finally {
-            channel.finishAndReleaseAll();
-        }
-    }
-
-    @Test
     @DisplayName("流异常：promise 失败于原异常，close 任务经 runPendingTasks 关掉通道")
     void fluxErrorFailsPromiseAndClosesSession() throws InterruptedException {
         IllegalStateException boom = new IllegalStateException("boom");
@@ -111,8 +99,10 @@ class ReactorResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         InternalConnectSession session = new InternalConnectSession(channel);
         try {
-            ChannelFuture f = writeOnVirtualThread(new ReactorResponseWriter(false), resp, session);
-            assertSame(boom, f.cause());
+            ResponseWriter.WriteResult result = writeOnVirtualThread(new ReactorResponseWriter(), resp, session);
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType(),
+                    "置败的 promise 仍是可监听凭据");
+            assertSame(boom, result.channelFuture().cause());
             channel.runPendingTasks(); // session.close() 排入 eventLoop
             assertFalse(channel.isActive());
         } finally {
@@ -129,7 +119,8 @@ class ReactorResponseWriterTest {
         InternalConnectSession session = new InternalConnectSession(channel);
         channel.close().sync();
         try {
-            ChannelFuture f = writeOnVirtualThread(new ReactorResponseWriter(false), resp, session);
+            ResponseWriter.WriteResult result = writeOnVirtualThread(new ReactorResponseWriter(), resp, session);
+            ChannelFuture f = result.channelFuture();
             assertFalse(f.isSuccess(), "写头失败必须走置败分支");
             // pending promise 同样 isSuccess()==false——必须钉终态与真实 cause，
             // 否则删掉置败本用例仍绿。
@@ -149,9 +140,9 @@ class ReactorResponseWriterTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = writeOnVirtualThread(
-                    new ReactorResponseWriter(false), plain, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess());
+            ResponseWriter.WriteResult result = writeOnVirtualThread(
+                    new ReactorResponseWriter(), plain, new InternalConnectSession(channel));
+            assertTrue(result.channelFuture().isSuccess());
             List<Object> out = drain(channel);
             DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out.get(0));
             assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
@@ -170,9 +161,10 @@ class ReactorResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             // 就在当前（JUnit 平台）线程直调 write，不自起虚拟线程
-            ChannelFuture f = new ReactorResponseWriter(false)
+            ResponseWriter.WriteResult result = new ReactorResponseWriter()
                     .write(resp, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess(), "模板 catch 的返回 future 是 500 页写出 future，应成功");
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+            assertTrue(result.channelFuture().isSuccess(), "模板 catch 的返回 future 是 500 页写出 future，应成功");
             List<Object> out = drain(channel);
             assertEquals(1, out.size(), "唯一出站帧 = 模板兜底的错误页（断言若被删除会先写出响应头）");
             DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out.get(0));

@@ -39,19 +39,20 @@ public abstract class AbstractResponseWriter implements ResponseWriter {
      * 执行响应写出的模板方法。
      * <p>
      * 此方法会捕获所有子类写出中的异常，并自动发送 500 错误响应；
-     * 子类的写出结果（可能为 {@code null}）原样返回。
+     * 子类返回的写出凭据非空时翻译为可监听结果，为空（无凭据写出）翻译为不可监听结果。
      *
      * @param httpResponse 响应对象
      * @param session      当前请求关联的连接会话
-     * @return 异步操作结果（可能为空，调用方应进行空指针检查）
+     * @return 写出结果，永不为null；是否可监听凭 {@link WriteResult#writeType()} 判断，无须空值检查
      */
     @Override
-    public ChannelFuture write(HttpResponse httpResponse, InternalConnectSession session) {
+    public WriteResult write(HttpResponse httpResponse, InternalConnectSession session) {
         try {
-            return doWrite(httpResponse, session);
+            ChannelFuture future = doWrite(httpResponse, session);
+            return future == null ? WriteResult.notListenable() : WriteResult.listenable(future);
         } catch (Throwable e) {
             // 发送错误响应
-            return session.getChannel().writeAndFlush(buildErrResponse(e));
+            return WriteResult.listenable(session.getChannel().writeAndFlush(buildErrResponse(e)));
         }
     }
 
@@ -59,12 +60,14 @@ public abstract class AbstractResponseWriter implements ResponseWriter {
      * 执行具体响应写出逻辑的抽象方法。
      * <p>
      * 子类应在此方法中实现响应数据的写入与发送逻辑，
-     * 并根据异步结果返回 {@link ChannelFuture}。
+     * 并根据异步结果返回 {@link ChannelFuture}；
+     * 无写出凭的场景（如忽略写出、发射器仅初始化）返回 {@code null}，
+     * 由 {@link #write} 模板统一翻译为不可监听结果。
      * </p>
      *
      * @param response 响应对象
      * @param session  当前连接会话
-     * @return 响应写入的异步监听对象
+     * @return 响应写入的异步监听对象；无凭据时为 {@code null}
      */
     protected abstract ChannelFuture doWrite(HttpResponse response, InternalConnectSession session);
 

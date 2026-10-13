@@ -1,6 +1,5 @@
 package top.turboweb.http.orchestrator;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpContent;
@@ -24,7 +23,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * {@link AsyncFileResponseWriter} 的行为锚：返回头写出凭据、AIO 环在后台线程完成后
+ * {@link AsyncFileResponseWriter} 的行为锚：返回可监听结果携头写出凭据、AIO 环在后台线程完成后
  * 落结束帧并关文件通道、错型经模板兜底 500。
  * AIO 环复用同一直分隔缓冲（写出即视为消费），EmbeddedChannel 收集语义下逐块内容不可靠，
  * 故只钉终态形状（出现内容帧 + LAST + 通道关闭），不校验字节序列。
@@ -69,15 +68,16 @@ class AsyncFileResponseWriterTest {
     }
 
     @Test
-    @DisplayName("正常 AIO 流：返回头写出凭据，后台完成后落 LAST 并关文件通道")
+    @DisplayName("正常 AIO 流：返回可监听结果携头写出凭据，后台完成后落 LAST 并关文件通道")
     void headerFutureReturnedAndStreamCompletesAsynchronously() throws Exception {
         AsyncFileResponse resp = newResponse(2);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = new AsyncFileResponseWriter()
+            ResponseWriter.WriteResult result = new AsyncFileResponseWriter()
                     .write(resp, new InternalConnectSession(channel));
             assertSame(resp, channel.readOutbound(), "第一个出站必须是响应头本身");
-            assertTrue(f.isSuccess(), "返回值即响应头写出的凭据");
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+            assertTrue(result.channelFuture().isSuccess(), "凭据即响应头写出的结果");
             List<Object> out = awaitLastContent(channel);
             assertInstanceOf(LastHttpContent.class, out.get(out.size() - 1));
             assertTrue(out.stream().anyMatch(m -> m instanceof DefaultHttpContent), "应出现内容分块");
@@ -102,9 +102,10 @@ class AsyncFileResponseWriterTest {
         DefaultFullHttpResponse plain =
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         try {
-            ChannelFuture f = new AsyncFileResponseWriter()
+            ResponseWriter.WriteResult result = new AsyncFileResponseWriter()
                     .write(plain, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess(), "模板方法把类型异常兜成错误响应写回");
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+            assertTrue(result.channelFuture().isSuccess(), "模板方法把类型异常兜成错误响应写回");
             DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, channel.readOutbound());
             assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
             plain.release();
@@ -121,10 +122,11 @@ class AsyncFileResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         channel.close().sync();
         try {
-            ChannelFuture f = new AsyncFileResponseWriter()
+            ResponseWriter.WriteResult result = new AsyncFileResponseWriter()
                     .write(resp, new InternalConnectSession(channel));
-            assertTrue(f.isDone());
-            assertFalse(f.isSuccess(), "头写失败必须原样反映在返回凭据上");
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType(), "写失败仍有凭据可监听");
+            assertTrue(result.channelFuture().isDone());
+            assertFalse(result.channelFuture().isSuccess(), "头写失败必须原样反映在返回凭据上");
             channel.runPendingTasks();
             assertNull(channel.readOutbound(), "写头失败不得有出站消息");
         } finally {

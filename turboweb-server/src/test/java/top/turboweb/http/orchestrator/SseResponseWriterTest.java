@@ -1,6 +1,5 @@
 package top.turboweb.http.orchestrator;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
@@ -20,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link SseResponseWriter} 的行为锚：SseResponse 写头并触发回调、
- * 内部发射器仅初始化并返回 null、错型经模板兜底 500，与旧 SSE 策略语义一致。
+ * {@link SseResponseWriter} 的行为锚：SseResponse 写头并触发回调（结果可监听）、
+ * 内部发射器仅初始化（结果不可监听、无凭据）、错型经模板兜底 500，与旧 SSE 策略语义一致。
  */
 class SseResponseWriterTest {
 
@@ -34,23 +33,26 @@ class SseResponseWriterTest {
                 HttpResponseStatus.OK, new DefaultHttpHeaders(), session, new JacksonJsonSerializer());
         response.setSseCallback(connectSession -> callbackRan.set(true));
 
-        ChannelFuture future = new SseResponseWriter().write(response, session);
+        ResponseWriter.WriteResult result = new SseResponseWriter().write(response, session);
 
-        assertTrue(future.isSuccess(), "返回的应是响应头写出的凭据");
+        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+        assertTrue(result.channelFuture().isSuccess(), "返回的应是响应头写出的凭据");
         assertTrue(callbackRan.get(), "写头后必须触发 SSE 回调");
         assertSame(response, channel.readOutbound());
         channel.finishAndReleaseAll();
     }
 
     @Test
-    void internalEmitterIsInitializedAndReturnsNullFuture() {
+    void internalEmitterIsInitializedAndReturnsNotListenableResult() {
         EmbeddedChannel channel = new EmbeddedChannel();
         InternalConnectSession session = new InternalConnectSession(channel);
         InternalSseEmitter emitter = new InternalSseEmitter(session, 10);
 
-        ChannelFuture future = new SseResponseWriter().write(emitter, session);
+        ResponseWriter.WriteResult result = new SseResponseWriter().write(emitter, session);
 
-        assertNull(future, "发射器分支无写出凭据");
+        assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
+                "发射器分支无写出凭据，结果不可监听");
+        assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
         assertSame(emitter, channel.readOutbound(), "initSse 必须已发出响应头");
         channel.finishAndReleaseAll();
     }
@@ -61,10 +63,11 @@ class SseResponseWriterTest {
         DefaultFullHttpResponse plain =
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
-        ChannelFuture future = new SseResponseWriter()
+        ResponseWriter.WriteResult result = new SseResponseWriter()
                 .write(plain, new InternalConnectSession(channel));
 
-        assertTrue(future.isSuccess(), "模板方法把类型异常兜成错误响应写回");
+        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+        assertTrue(result.channelFuture().isSuccess(), "模板方法把类型异常兜成错误响应写回");
         DefaultFullHttpResponse err = (DefaultFullHttpResponse) channel.readOutbound();
         assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());
         plain.release();

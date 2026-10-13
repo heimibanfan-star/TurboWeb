@@ -1,7 +1,6 @@
 package top.turboweb.http.orchestrator;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpContent;
@@ -31,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * {@link FileStreamResponseWriter} 的写出路径行为锚（复刻旧文件流策略用例面）：
  * 分块 generate→背压 request→DefaultHttpContent→LAST。
- * 线程池经 injectThreadPool 注入同步替身，整条链在调用线程上跑完，返回值即终态；
+ * 线程池经 injectThreadPool 注入同步替身，整条链在调用线程上跑完，返回凭据即终态；
  * 拒绝型替身钉"忙即取消"。通道为 EmbeddedChannel，不碰真实 socket。
  */
 class FileStreamResponseWriterTest {
@@ -91,9 +90,10 @@ class FileStreamResponseWriterTest {
         FileStreamResponse resp = response(write("a.txt", "hello"), 2, 0, 5);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = newWriter(Stubs.directExecutorThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
                     .write(resp, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess());
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+            assertTrue(result.channelFuture().isSuccess());
             Object[] out = drain(channel);
             assertSame(resp, out[0], "第一个出站必须是响应头本身");
             assertEquals("hello", concatBody(out), "三块 2+2+1 拼回原文");
@@ -111,9 +111,9 @@ class FileStreamResponseWriterTest {
         FileStreamResponse resp = response(write("e.txt", ""), 2, 0, 0);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = newWriter(Stubs.directExecutorThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
                     .write(resp, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess());
+            assertTrue(result.channelFuture().isSuccess());
             Object[] out = drain(channel);
             assertEquals(2, out.length, "只有头与 LAST");
             assertInstanceOf(LastHttpContent.class, out[1]);
@@ -131,9 +131,9 @@ class FileStreamResponseWriterTest {
         FileStreamResponse resp = response(write("o.txt", "hello"), 8, 2, 3);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = newWriter(Stubs.directExecutorThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
                     .write(resp, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess());
+            assertTrue(result.channelFuture().isSuccess());
             Object[] out = drain(channel);
             assertEquals("llo", concatBody(out), "修复形状：窗口起点即物理偏移，不再从文件头错位读");
             releaseAll(out);
@@ -148,9 +148,10 @@ class FileStreamResponseWriterTest {
         FileStreamResponse resp = response(write("r.txt", "hello"), 2, 0, 5);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = newWriter(Stubs.rejectingThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.rejectingThreadPool())
                     .write(resp, new InternalConnectSession(channel));
-            assertInstanceOf(TurboFileException.class, f.cause());
+            assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType(), "取消置败仍有凭据可监听");
+            assertInstanceOf(TurboFileException.class, result.channelFuture().cause());
             Object[] out = drain(channel);
             assertEquals(1, out.length, "拒绝发生在首块之前，仅有头");
             assertFalse(resp.getFileChannel().isOpen());
@@ -166,9 +167,9 @@ class FileStreamResponseWriterTest {
         FileStreamResponse resp = response(write("m.txt", "hello"), 2, 0, 5);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = newWriter(Stubs.firstRunRestRejectingThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.firstRunRestRejectingThreadPool())
                     .write(resp, new InternalConnectSession(channel));
-            assertInstanceOf(TurboFileException.class, f.cause());
+            assertInstanceOf(TurboFileException.class, result.channelFuture().cause());
             Object[] out = drain(channel);
             assertEquals(2, out.length, "头 + 一个内容块，然后取消");
             assertEquals("he", concatBody(out));
@@ -185,9 +186,9 @@ class FileStreamResponseWriterTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ChannelFuture f = newWriter(Stubs.directExecutorThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
                     .write(plain, new InternalConnectSession(channel));
-            assertTrue(f.isSuccess(), "模板方法把 IAE 兜成错误响应写回");
+            assertTrue(result.channelFuture().isSuccess(), "模板方法把 IAE 兜成错误响应写回");
             Object[] out = drain(channel);
             DefaultFullHttpResponse err = assertInstanceOf(DefaultFullHttpResponse.class, out[0]);
             assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, err.status());

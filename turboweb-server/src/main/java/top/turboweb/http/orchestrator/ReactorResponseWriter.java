@@ -12,9 +12,6 @@ import top.turboweb.commons.utils.thread.ThreadAssert;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.core.response.ReactorResponse;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
 /**
  * 基于 Reactor 的响应式 HTTP 输出写出器。
  * <p>
@@ -26,27 +23,15 @@ import java.util.concurrent.TimeUnit;
  * 仅允许在虚拟线程（Virtual Thread）中执行，通过
  * {@link ThreadAssert#assertIsVirtualThread()} 进行约束。
  *
- * <p><b>限流等待：</b></p>
- * 构造参数 {@code enableLimit} 开启时，写出前以计数器卡住当前虚拟线程，
- * 直至整个响应流的写出凭据到达终态或等待预算（60 秒）耗尽。
- *
  * @see ReactorResponse
  */
 public class ReactorResponseWriter extends AbstractResponseWriter {
-
-    private final boolean enableLimit;
-
-    private static final long MAX_WAIT_SECONDS = 60;
-
-    public ReactorResponseWriter(boolean enableLimit) {
-        this.enableLimit = enableLimit;
-    }
 
     /**
      * 执行 Reactor 响应处理逻辑。
      * <p>
      * 先写出响应头（chunked 传输编码 + keep-alive），头写成功后订阅响应体流逐块推送；
-     * 头写失败则置败并关闭连接。开启限流时在当前虚拟线程等待写出终态。
+     * 头写失败则置败并关闭连接。
      *
      * @param response 响应对象，必须为 {@link ReactorResponse}
      * @param session  当前连接会话，封装了 Netty 的通道信息
@@ -67,16 +52,6 @@ public class ReactorResponseWriter extends AbstractResponseWriter {
                             session.close();
                         }
                     });
-            // 判断是否开启限流
-            if (enableLimit) {
-                CountDownLatch latch = new CountDownLatch(1);
-                promise.addListener(f -> latch.countDown());
-                // 卡住虚拟线程
-                try {
-                    boolean ignore = latch.await(MAX_WAIT_SECONDS, TimeUnit.SECONDS);
-                } catch (InterruptedException ignore) {
-                }
-            }
             return promise;
         } else {
             throw new IllegalArgumentException("Invalid response type:" + response.getClass().getName());
