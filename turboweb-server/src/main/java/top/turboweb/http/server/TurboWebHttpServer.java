@@ -17,7 +17,7 @@ import top.turboweb.http.server.application.Application;
 import top.turboweb.http.server.channel.ServerChannelInitializer;
 import top.turboweb.http.server.channel.TurboWebNioServerSocketChannel;
 import top.turboweb.http.server.config.ServerConfig;
-import top.turboweb.http.server.handler.ConnectLimiter;
+import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
 import top.turboweb.http.server.manager.ApplicationManager;
 
 import java.util.Objects;
@@ -248,7 +248,7 @@ public final class TurboWebHttpServer implements AutoCloseable {
             this.serverChannel = new NioServerSocketChannel();
         }
         // 连接限流器：服务器级单例（@Sharable），此处一次性创建，跨全部连接复用
-        ConnectLimiter connectLimiter = new ConnectLimiter(
+        ConnectLimiterChannelHandler connectLimiter = new ConnectLimiterChannelHandler(
                 serverConfig.getMaxConnect(), serverConfig.getIoThreadNum(), serverConfig.getCpuNum());
         // 装配bootstrap
         ServerBootstrap bootstrap = new ServerBootstrap();

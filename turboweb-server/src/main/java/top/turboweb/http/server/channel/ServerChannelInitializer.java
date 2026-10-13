@@ -17,7 +17,7 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.server.config.ServerConfig;
-import top.turboweb.http.server.handler.ConnectLimiter;
+import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
 import top.turboweb.http.server.manager.ApplicationManager;
 
 import java.util.Objects;
@@ -49,7 +49,7 @@ import java.util.Objects;
  * 并发调用；三个字段均为final且只读，装配过程无共享可变状态。
  *
  * <pre>{@code
- * ConnectLimiter limiter = new ConnectLimiter(maxConnect, ioThreadNum, cpuNum);
+ * ConnectLimiterChannelHandler limiter = new ConnectLimiterChannelHandler(maxConnect, ioThreadNum, cpuNum);
  * bootstrap.childHandler(new ServerChannelInitializer(applicationManager, limiter, serverConfig));
  * }</pre>
  */
@@ -65,7 +65,7 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
     /**
      * 服务器级连接限流器单例，由服务器启动时创建（跨连接复用，装配时addFirst置于管道最前）
      */
-    private final ConnectLimiter connectLimiter;
+    private final ConnectLimiterChannelHandler connectLimiter;
 
     /**
      * 服务器配置（不可变），限流之外的全部装配参数（ssl、聚合器长度、http2设置）均取自本配置
@@ -79,7 +79,7 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
      * @param connectLimiter     服务器级连接限流器单例
      * @param serverConfig       服务器配置
      */
-    public ServerChannelInitializer(ApplicationManager applicationManager, ConnectLimiter connectLimiter, ServerConfig serverConfig) {
+    public ServerChannelInitializer(ApplicationManager applicationManager, ConnectLimiterChannelHandler connectLimiter, ServerConfig serverConfig) {
         this.applicationManager = Objects.requireNonNull(applicationManager, "应用管理器不能为null");
         this.connectLimiter = Objects.requireNonNull(connectLimiter, "连接限流器不能为null");
         this.serverConfig = Objects.requireNonNull(serverConfig, "ServerConfig不能为null");
@@ -93,7 +93,7 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
     protected void initChannel(Channel ch) {
         ChannelPipeline pipeline = ch.pipeline();
         // 限流：服务器级单例，置于管道最前（先于ssl与编解码监听连接生命周期）
-        if (pipeline.get(ConnectLimiter.class) == null) {
+        if (pipeline.get(ConnectLimiterChannelHandler.class) == null) {
             pipeline.addFirst(connectLimiter);
         }
         // ssl：上下文可共享，SslHandler每连接新建独立实例（未配置ssl上下文时不装配）

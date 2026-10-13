@@ -16,7 +16,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@link top.turboweb.http.server.channel.ServerChannelInitializer} 装配到每条管道首位。
  */
 @ChannelHandler.Sharable
-public class ConnectLimiter extends ChannelInboundHandlerAdapter {
+public class ConnectLimiterChannelHandler extends ChannelInboundHandlerAdapter {
 
     private interface Counter {
 
@@ -109,7 +109,7 @@ public class ConnectLimiter extends ChannelInboundHandlerAdapter {
 
     private final Counter counter;
 
-    public ConnectLimiter(int maxConnect, int ioThreadNum, int cpuNum) {
+    public ConnectLimiterChannelHandler(int maxConnect, int ioThreadNum, int cpuNum) {
         if (ioThreadNum < 1 || cpuNum < 1) {
             throw new IllegalArgumentException("ioThreadNum and cpuNum must be greater than 1");
         }

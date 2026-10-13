@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.commons.utils.resource.ScopedResource;
 import top.turboweb.http.server.application.Application;
 import top.turboweb.http.server.config.ServerConfig;
-import top.turboweb.http.server.handler.ConnectLimiter;
+import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
 import top.turboweb.http.server.manager.ApplicationManager;
 
 import java.util.ArrayList;
@@ -69,7 +69,7 @@ class ServerChannelInitializerTest {
     @DisplayName("构造参数为null立即抛NPE")
     void constructorRejectsNulls() {
         ApplicationManager manager = new ApplicationManager();
-        ConnectLimiter limiter = new ConnectLimiter(10, 1, 4);
+        ConnectLimiterChannelHandler limiter = new ConnectLimiterChannelHandler(10, 1, 4);
         ServerConfig config = plainHttp11Config();
 
         assertThrows(NullPointerException.class, () -> new ServerChannelInitializer(null, limiter, config));
@@ -84,7 +84,7 @@ class ServerChannelInitializerTest {
         ApplicationManager manager = new ApplicationManager();
         manager.addLast(new MarkerApplication("marker", events));
         ServerChannelInitializer initializer =
-                new ServerChannelInitializer(manager, new ConnectLimiter(10, 1, 4), plainHttp11Config());
+                new ServerChannelInitializer(manager, new ConnectLimiterChannelHandler(10, 1, 4), plainHttp11Config());
 
         EmbeddedChannel channel = new EmbeddedChannel(initializer);
         try {
@@ -94,7 +94,7 @@ class ServerChannelInitializerTest {
             assertEquals(List.of("configure:marker"), events, "应用管理器必须在协议层之后被委托");
 
             List<Class<?>> classes = handlerClasses(channel);
-            int limiterIndex = classes.indexOf(ConnectLimiter.class);
+            int limiterIndex = classes.indexOf(ConnectLimiterChannelHandler.class);
             int codecIndex = classes.indexOf(HttpServerCodec.class);
             // aggregator 与 codec 成对出现，按 configureHttp11 顺序 codec 在前
             assertTrue(limiterIndex == 0, "限流器必须是管道首位，实际管道: " + classes);
