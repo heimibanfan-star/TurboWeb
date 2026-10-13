@@ -1,0 +1,140 @@
+package top.turboweb.http.orchestrator;
+
+import io.netty.channel.ChannelFuture;
+import io.netty.handler.codec.http.HttpResponse;
+import top.turboweb.concurrent.thread.ThreadPool;
+import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.response.ResponseCall;
+
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * 响应写出器管理器：按响应声明的写出器类型选择写出器并执行写出。
+ * <p>
+ * 构造期将全部内置 {@link ResponseWriter} 实现按具体类登记到内置表，
+ * 并把磁盘IO线程池统一注入各内置写出器（仅文件流写出器实际消费）。
+ * 自定义登记表供使用方经 {@link #addResponseWriter} 登记专属写出器：
+ * 系统内置写出器类型拒登，同一写出器类重复登记拒登，登记成功即注入线程池。
+ * </p>
+ * <p>
+ * 写出按三级次序路由：响应实现 {@link ResponseCall} 时按其声明的写出器类型
+ * 先查内置表，命中即用；内置表未命中查自定义登记表；
+ * 仍未匹配或响应未实现该接口时，落默认写出器 {@link DefaultResponseWriter} 兜底，
+ * 确保响应链不会中断。
+ * </p>
+ *
+ * <p><b>特性：</b></p>
+ * <ul>
+ *     <li>响应经 {@link ResponseCall} 声明写出器类型，内置表按类型直接命中。</li>
+ *     <li>默认写出器兜底，避免空指针与未声明响应类型问题。</li>
+ *     <li>支持启用响应限流（仅影响 {@link ReactorResponseWriter}）。</li>
+ *     <li>磁盘IO线程池由构造器注入，装配与登记期经 injectThreadPool 交给
+ *         {@link FileStreamResponseWriter} 等写出器调度文件分块读取。</li>
+ * </ul>
+ */
+public class ResponseWriterManager {
+
+    private final ThreadPool threadPool;
+
+    /**
+     * 内置写出器登记表：写出器具体类到实例，构造期一次登记、只读。
+     */
+    private final Map<Class<? extends ResponseWriter>, ResponseWriter> internalResponseWriter;
+    /**
+     * 自定义写出器登记表：写出器具体类到实例，经 addResponseWriter 登记生效；
+     * 内置声明类型未命中时按该表认领响应写出。
+     */
+    private final Map<Class<? extends ResponseWriter>, ResponseWriter> customerResponseWriter = new ConcurrentHashMap<>();
+    /** 默认写出器实例，即内置表 {@link DefaultResponseWriter} 类的登记项，所有未匹配路径的共同兜底。 */
+    private final ResponseWriter DEFAULT_RESPONSE_WRITER;
+
+    /**
+     * 构造响应写出器管理器（不限流）。
+     *
+     * @param threadPool 磁盘IO线程池，注入 {@link FileStreamResponseWriter} 用于调度文件分块读取，不能为null
+     * @throws NullPointerException 线程池为null
+     */
+    public ResponseWriterManager(ThreadPool threadPool) {
+        this(threadPool, false);
+    }
+
+    /**
+     * 构造响应写出器管理器。
+     * <p>
+     * 初始化时将所有内置写出器按具体类登记到内置表，并统一注入磁盘IO线程池。
+     * </p>
+     *
+     * @param threadPool  磁盘IO线程池，注入 {@link FileStreamResponseWriter} 用于调度文件分块读取，不能为null
+     * @param enableLimit 是否启用响应限流（仅影响 {@link ReactorResponseWriter}）
+     * @throws NullPointerException 线程池为null
+     */
+    public ResponseWriterManager(ThreadPool threadPool, boolean enableLimit) {
+        this.threadPool = Objects.requireNonNull(threadPool, "磁盘IO线程池不能为null");
+        internalResponseWriter = Map.of(
+                SseResponseWriter.class, new SseResponseWriter(),
+                FileStreamResponseWriter.class, new FileStreamResponseWriter(),
+                DefaultResponseWriter.class, new DefaultResponseWriter(),
+                AsyncFileResponseWriter.class, new AsyncFileResponseWriter(),
+                ZeroCopyResponseWriter.class, new ZeroCopyResponseWriter(),
+                ReactorResponseWriter.class, new ReactorResponseWriter(enableLimit),
+                IgnoredResponseWriter.class, new IgnoredResponseWriter()
+        );
+        DEFAULT_RESPONSE_WRITER = internalResponseWriter.get(DefaultResponseWriter.class);
+        internalResponseWriter.values().forEach(writer -> writer.injectThreadPool(this.threadPool));
+    }
+
+    /**
+     * 登记自定义响应写出器。
+     * <p>
+     * 登记键为写出器实例的具体类：系统内置写出器类拒登；
+     * 同一写出器类重复登记（含不同实例）拒登。
+     * 登记成功后立即注入磁盘IO线程池。
+     *
+     * @param responseWriter 自定义写出器实例，不能为null
+     * @throws NullPointerException     写出器为null
+     * @throws IllegalArgumentException 写出器类为系统内置类型，或该类已登记过
+     */
+    public void addResponseWriter(ResponseWriter responseWriter) {
+        Objects.requireNonNull(responseWriter, "响应写出器不能为null");
+        Class<? extends ResponseWriter> writerType = responseWriter.getClass();
+        if (internalResponseWriter.containsKey(writerType)) {
+            throw new IllegalArgumentException("不能注册系统内置的响应写出器:" + writerType.getName());
+        }
+        if (customerResponseWriter.putIfAbsent(writerType, responseWriter) != null) {
+            throw new IllegalArgumentException("响应写出器不能重复注册:" + writerType.getName());
+        }
+        responseWriter.injectThreadPool(threadPool);
+    }
+
+    /**
+     * 选择写出器并写出响应。
+     * <p>
+     * 路由次序：响应实现 {@link ResponseCall} 时先按声明类型查内置表，命中即用；
+     * 未命中查自定义登记表；仍未匹配落默认写出器兜底。
+     * 写出结果（写出的完成凭据）返回给调用方，
+     * 所选写出器无凭据时（如忽略写出器）返回 {@code null}，调用方应做空值检查。
+     *
+     * @param response 响应对象（可能实现 {@link ResponseCall} 声明写出器类型）
+     * @param session  当前连接的会话上下文
+     * @return 写出的完成凭据；写出器无凭据时为 {@code null}
+     * @throws ClassCastException 会话不是内部连接会话实现时
+     */
+    public ChannelFuture write(HttpResponse response, ConnectSession session) {
+        ResponseWriter responseWriter = null;
+        if (response instanceof ResponseCall responseCall) {
+            // 获取响应声明的写出器类型
+            Class<? extends ResponseWriter> writerType = responseCall.getWriterType();
+            responseWriter = internalResponseWriter.get(writerType);
+            if (responseWriter == null) {
+                responseWriter = customerResponseWriter.get(writerType);
+            }
+        }
+        if (responseWriter == null) {
+            responseWriter = DEFAULT_RESPONSE_WRITER;
+        }
+        return responseWriter.write(response, (InternalConnectSession) session);
+    }
+}
