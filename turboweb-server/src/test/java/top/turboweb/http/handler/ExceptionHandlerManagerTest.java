@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.core.response.HttpResult;
 import top.turboweb.http.exception.ExceptionHandlerException;
+import top.turboweb.http.exception.RouteHandlerException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -182,6 +183,39 @@ class ExceptionHandlerManagerTest {
         assertTrue(body.contains("&quot;quote&quot;"), body);
         assertTrue(body.contains("&#39;apos&#39;"), body);
         assertFalse(body.contains("<b>"), "转义后不得残留可执行的原始标签");
+    }
+
+    @Test
+    @DisplayName("路由未匹配异常无处理器命中时兜底 404，消息经 HTML 转义")
+    void routerNotMatchWithoutHandlerFallsBackToNotFound() {
+        ExceptionHandlerManager manager = new ExceptionHandlerManager(Set.of());
+
+        Object result = manager.handle(new RouteHandlerException(
+                "router not found: GET /missing<b>", RouteHandlerException.ROUTER_NOT_MATCH));
+
+        assertInstanceOf(HttpResult.class, result, "404 兜底应构建 HttpResult 对象");
+        HttpResponse response = ((HttpResult<?>) result).createResponse(null);
+        assertEquals(HttpResponseStatus.NOT_FOUND, response.status());
+        String contentType = response.headers().get(HttpHeaderNames.CONTENT_TYPE);
+        assertNotNull(contentType);
+        assertTrue(contentType.startsWith("text/html"), contentType);
+        String body = ((FullHttpResponse) response).content().toString(StandardCharsets.UTF_8);
+        assertTrue(body.contains("404 Not Found"), body);
+        assertTrue(body.contains("router not found: GET /missing&lt;b&gt;"), body);
+        assertFalse(body.contains("<b>"), "转义后不得残留可执行的原始标签");
+    }
+
+    @Test
+    @DisplayName("其余错误码的路由异常无处理器命中时仍兜底 500")
+    void otherRouterErrorCodeStillFallsBackToServerError() {
+        ExceptionHandlerManager manager = new ExceptionHandlerManager(Set.of());
+
+        Object result = manager.handle(new RouteHandlerException(
+                new IllegalStateException("invoke-fail"), RouteHandlerException.ROUTER_INVOKE_ERROR));
+
+        assertServerError(result,
+                "500 Internal Server Error",
+                "invoke-fail");
     }
 
     @Test
