@@ -83,7 +83,7 @@ public class ExceptionHandlerManager {
         try {
             return invoker.invoke(throwable);
         } catch (Throwable handlerFailure) {
-            log.error("异常处理器执行失败", handlerFailure);
+            log.error("Failed to execute exception handler", handlerFailure);
             return errorHandleResult(throwable);
         }
     }
@@ -139,7 +139,7 @@ public class ExceptionHandlerManager {
      * @return 500 状态码的 {@link HttpResult}，其数据为字符串，生成响应时按 text/html 输出
      */
     private Object errorHandleResult(Throwable throwable) {
-        log.error("服务器异常", throwable);
+        log.error("Server error", throwable);
         return HttpResult.err(ExceptionMessageHelper.errorMessage(throwable));
     }
 
@@ -174,7 +174,7 @@ public class ExceptionHandlerManager {
                         bindHandle(method, instance),
                         (Class<? extends Throwable>) parameterType);
                 if (invokers.putIfAbsent(invoker.exceptionClass(), invoker) != null) {
-                    throw new ExceptionHandlerException("重复的异常处理器类型：" + parameterType.getName());
+                    throw new ExceptionHandlerException("Duplicate exception handler type: " + parameterType.getName());
                 }
             }
         }

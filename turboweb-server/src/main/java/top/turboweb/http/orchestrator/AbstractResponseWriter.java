@@ -42,7 +42,7 @@ public abstract class AbstractResponseWriter implements ResponseWriter {
     @Override
     public void injectThreadPool(ThreadPool threadPool) {
         if (!threadPoolInjected.compareAndSet(false, true)) {
-            throw new IllegalStateException("磁盘IO线程池已注入, 不能重复注入");
+            throw new IllegalStateException("The disk IO thread pool has already been injected and can not be injected again");
         }
         this.threadPool = threadPool;
     }
@@ -65,7 +65,7 @@ public abstract class AbstractResponseWriter implements ResponseWriter {
             return future == null ? WriteResult.notListenable() : WriteResult.listenable(future);
         } catch (Throwable e) {
             // 写出异常不可预知且无法恢复: 记录日志并关闭连接, 本次写出无凭据可监听
-            log.error("响应写出异常, 关闭连接", e);
+            log.error("Error writing response, closing connection", e);
             session.close();
             return WriteResult.notListenable();
         }

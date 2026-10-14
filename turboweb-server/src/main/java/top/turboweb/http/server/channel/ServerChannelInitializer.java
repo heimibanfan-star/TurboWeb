@@ -80,9 +80,9 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
      * @param serverConfig       服务器配置
      */
     public ServerChannelInitializer(ApplicationManager applicationManager, ConnectLimiterChannelHandler connectLimiter, ServerConfig serverConfig) {
-        this.applicationManager = Objects.requireNonNull(applicationManager, "应用管理器不能为null");
-        this.connectLimiter = Objects.requireNonNull(connectLimiter, "连接限流器不能为null");
-        this.serverConfig = Objects.requireNonNull(serverConfig, "ServerConfig不能为null");
+        this.applicationManager = Objects.requireNonNull(applicationManager, "The application manager must not be null");
+        this.connectLimiter = Objects.requireNonNull(connectLimiter, "The connection limiter must not be null");
+        this.serverConfig = Objects.requireNonNull(serverConfig, "The ServerConfig must not be null");
     }
 
     /**
@@ -121,7 +121,7 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
             // http/1.1：编解码每连接新建，聚合器最大内容长度取服务器配置，随后委托应用管理器装配应用
             configureHttp11(pipeline);
         }
-        log.debug("连接[{}]装配基础处理器与应用完成（http2: {}）",
+        log.debug("Base handlers and applications assembled for connection [{}] (http2: {})",
                 pipeline.channel().id().asShortText(), serverConfig.isEnableHttp2());
     }
 

@@ -35,7 +35,7 @@ public class QueryParameterParser extends AbstractParameterParser {
                 Object arg = converter.convert(ctx.query(name));
                 // 规则判断
                 if (nonNull && arg == null) {
-                    throw new ParameterValidationException(List.of(name + "不能为null"));
+                    throw new ParameterValidationException(List.of(name + " must not be null"));
                 } else {
                     return arg;
                 }

@@ -362,7 +362,7 @@ class FullHttpContextTest {
     void loadJsonOnBlankBodyYieldsEmptyBean() {
         FullHttpRequest req = Requests.postJson("/json", "");
         try {
-            // getJsonContent 把空体规整成 "{}"，因此不会抛 "json请求体为空"
+            // getJsonContent 把空体规整成 "{}"，因此不会抛 "JSON request body is empty"
             QueryBean bean = context(req).loadJson(QueryBean.class);
             assertNull(bean.getName());
             assertEquals(0, bean.getAge());

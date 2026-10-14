@@ -208,7 +208,7 @@ public class FileStreamResponseWriter extends AbstractResponseWriter {
         try {
             response.getFileChannel().close();
         } catch (IOException e) {
-            log.error("关闭文件通道时出现错误", e);
+            log.error("Error closing file channel", e);
         }
     }
 

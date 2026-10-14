@@ -44,7 +44,7 @@ class HttpConfigTest {
     void sessionCheckTimeFloor() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().sessionCheckTime(999L));
-        assertEquals("sessionCheckTime必须大于等于1000", ex.getMessage());
+        assertEquals("sessionCheckTime must be >= 1000", ex.getMessage());
         assertThrows(IllegalArgumentException.class, () -> HttpConfig.builder().sessionCheckTime(0L));
         // 判据 `< 1000`：边界 1000 合法（含），消息与 javadoc 同口径"大于等于1000"
         assertDoesNotThrow(() -> HttpConfig.builder().sessionCheckTime(1000L));
@@ -55,35 +55,35 @@ class HttpConfigTest {
     void sessionCheckThresholdFloor() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().sessionCheckThreshold(0L));
-        assertEquals("sessionCheckThreshold必须大于0", ex.getMessage());
+        assertEquals("sessionCheckThreshold must be > 0", ex.getMessage());
         assertThrows(IllegalArgumentException.class, () -> HttpConfig.builder().sessionCheckThreshold(-1L));
         assertDoesNotThrow(() -> HttpConfig.builder().sessionCheckThreshold(1L));
     }
 
     @Test
-    @DisplayName("HS-2 回归：httpSchedulerLimitCount 校验消息为中文口径（大于等于0）")
+    @DisplayName("HS-2 回归：httpSchedulerLimitCount 校验消息文案口径（大于等于0）")
     void httpSchedulerLimitCountNonNegative() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().httpSchedulerLimitCount(-1));
-        assertEquals("httpSchedulerLimitCount必须大于等于0", ex.getMessage());
+        assertEquals("httpSchedulerLimitCount must be >= 0", ex.getMessage());
         assertDoesNotThrow(() -> HttpConfig.builder().httpSchedulerLimitCount(0));
     }
 
     @Test
-    @DisplayName("HS-2 回归：httpSchedulerLimitCacheThread 校验消息为中文口径（大于等于0）")
+    @DisplayName("HS-2 回归：httpSchedulerLimitCacheThread 校验消息文案口径（大于等于0）")
     void httpSchedulerLimitCacheThreadNonNegative() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().httpSchedulerLimitCacheThread(-1));
-        assertEquals("httpSchedulerLimitCacheThread必须大于等于0", ex.getMessage());
+        assertEquals("httpSchedulerLimitCacheThread must be >= 0", ex.getMessage());
         assertDoesNotThrow(() -> HttpConfig.builder().httpSchedulerLimitCacheThread(0));
     }
 
     @Test
-    @DisplayName("HS-2 回归：httpSchedulerLimitTimeout 校验消息为中文口径（大于等于0）")
+    @DisplayName("HS-2 回归：httpSchedulerLimitTimeout 校验消息文案口径（大于等于0）")
     void httpSchedulerLimitTimeoutNonNegative() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().httpSchedulerLimitTimeout(-1L));
-        assertEquals("httpSchedulerLimitTimeout必须大于等于0", ex.getMessage());
+        assertEquals("httpSchedulerLimitTimeout must be >= 0", ex.getMessage());
         assertDoesNotThrow(() -> HttpConfig.builder().httpSchedulerLimitTimeout(0L));
     }
 
@@ -92,7 +92,7 @@ class HttpConfigTest {
     void diskOpeThreadCacheQueueFloor() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().diskOpeThreadCacheQueue(0));
-        assertEquals("diskOpeThreadCacheQueue必须大于0", ex.getMessage());
+        assertEquals("diskOpeThreadCacheQueue must be > 0", ex.getMessage());
         assertDoesNotThrow(() -> HttpConfig.builder().diskOpeThreadCacheQueue(1));
     }
 
@@ -101,7 +101,7 @@ class HttpConfigTest {
     void diskOpeThreadCoreQueueFloor() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().diskOpeThreadCoreQueue(0));
-        assertEquals("diskOpeThreadCoreQueue必须大于0", ex.getMessage());
+        assertEquals("diskOpeThreadCoreQueue must be > 0", ex.getMessage());
         assertDoesNotThrow(() -> HttpConfig.builder().diskOpeThreadCoreQueue(1));
     }
 
@@ -110,7 +110,7 @@ class HttpConfigTest {
     void diskOpeThreadMaxThreadNumFloor() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> HttpConfig.builder().diskOpeThreadMaxThreadNum(0));
-        assertEquals("diskOpeThreadMaxThreadNum必须大于0", ex.getMessage());
+        assertEquals("diskOpeThreadMaxThreadNum must be > 0", ex.getMessage());
         assertDoesNotThrow(() -> HttpConfig.builder().diskOpeThreadMaxThreadNum(1));
     }
 

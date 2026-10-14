@@ -209,7 +209,7 @@ public final class HttpConfig {
          */
         public Builder sessionCheckTime(long sessionCheckTime) {
             if (sessionCheckTime < 1000) {
-                throw new IllegalArgumentException("sessionCheckTime必须大于等于1000");
+                throw new IllegalArgumentException("sessionCheckTime must be >= 1000");
             }
             this.sessionCheckTime = sessionCheckTime;
             return this;
@@ -232,7 +232,7 @@ public final class HttpConfig {
          */
         public Builder sessionCheckThreshold(long sessionCheckThreshold) {
             if (sessionCheckThreshold < 1) {
-                throw new IllegalArgumentException("sessionCheckThreshold必须大于0");
+                throw new IllegalArgumentException("sessionCheckThreshold must be > 0");
             }
             this.sessionCheckThreshold = sessionCheckThreshold;
             return this;
@@ -255,7 +255,7 @@ public final class HttpConfig {
          */
         public Builder httpSchedulerLimitCount(int httpSchedulerLimitCount) {
             if (httpSchedulerLimitCount < 0) {
-                throw new IllegalArgumentException("httpSchedulerLimitCount必须大于等于0");
+                throw new IllegalArgumentException("httpSchedulerLimitCount must be >= 0");
             }
             this.httpSchedulerLimitCount = httpSchedulerLimitCount;
             return this;
@@ -268,7 +268,7 @@ public final class HttpConfig {
          */
         public Builder httpSchedulerLimitCacheThread(int httpSchedulerLimitCacheThread) {
             if (httpSchedulerLimitCacheThread < 0) {
-                throw new IllegalArgumentException("httpSchedulerLimitCacheThread必须大于等于0");
+                throw new IllegalArgumentException("httpSchedulerLimitCacheThread must be >= 0");
             }
             this.httpSchedulerLimitCacheThread = httpSchedulerLimitCacheThread;
             return this;
@@ -281,7 +281,7 @@ public final class HttpConfig {
          */
         public Builder httpSchedulerLimitTimeout(long httpSchedulerLimitTimeout) {
             if (httpSchedulerLimitTimeout < 0) {
-                throw new IllegalArgumentException("httpSchedulerLimitTimeout必须大于等于0");
+                throw new IllegalArgumentException("httpSchedulerLimitTimeout must be >= 0");
             }
             this.httpSchedulerLimitTimeout = httpSchedulerLimitTimeout;
             return this;
@@ -294,7 +294,7 @@ public final class HttpConfig {
          */
         public Builder diskOpeThreadCacheQueue(int diskOpeThreadCacheQueue) {
             if (diskOpeThreadCacheQueue < 1) {
-                throw new IllegalArgumentException("diskOpeThreadCacheQueue必须大于0");
+                throw new IllegalArgumentException("diskOpeThreadCacheQueue must be > 0");
             }
             this.diskOpeThreadCacheQueue = diskOpeThreadCacheQueue;
             return this;
@@ -307,7 +307,7 @@ public final class HttpConfig {
          */
         public Builder diskOpeThreadCoreQueue(int diskOpeThreadCoreQueue) {
             if (diskOpeThreadCoreQueue < 1) {
-                throw new IllegalArgumentException("diskOpeThreadCoreQueue必须大于0");
+                throw new IllegalArgumentException("diskOpeThreadCoreQueue must be > 0");
             }
             this.diskOpeThreadCoreQueue = diskOpeThreadCoreQueue;
             return this;
@@ -320,7 +320,7 @@ public final class HttpConfig {
          */
         public Builder diskOpeThreadMaxThreadNum(int diskOpeThreadMaxThreadNum) {
             if (diskOpeThreadMaxThreadNum < 1) {
-                throw new IllegalArgumentException("diskOpeThreadMaxThreadNum必须大于0");
+                throw new IllegalArgumentException("diskOpeThreadMaxThreadNum must be > 0");
             }
             this.diskOpeThreadMaxThreadNum = diskOpeThreadMaxThreadNum;
             return this;

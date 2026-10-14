@@ -207,7 +207,7 @@ public final class ServerConfig {
          */
         public Builder maxContentLength(int maxContentLength) {
             if (maxContentLength < 1024) {
-                throw new IllegalArgumentException("maxContentLength必须大于等于1024");
+                throw new IllegalArgumentException("maxContentLength must be >= 1024");
             }
             this.maxContentLength = maxContentLength;
             return this;

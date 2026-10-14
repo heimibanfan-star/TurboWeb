@@ -66,8 +66,8 @@ public class ResponseWriterManager {
      * @throws IllegalStateException    自定义写出器实例已注入过线程池（同一实例传入过其他管理器）
      */
     public ResponseWriterManager(ThreadPool threadPool, List<ResponseWriter> customerWriters) {
-        Objects.requireNonNull(threadPool, "磁盘IO线程池不能为null");
-        Objects.requireNonNull(customerWriters, "自定义写出器列表不能为null");
+        Objects.requireNonNull(threadPool, "The disk IO thread pool must not be null");
+        Objects.requireNonNull(customerWriters, "The custom writer list must not be null");
         // 全部初始化（建表、校验、注入线程池）先在局部变量上完成，后赋值 final 字段
         Map<Class<? extends ResponseWriter>, ResponseWriter> internalTable = Map.of(
                 SseResponseWriter.class, new SseResponseWriter(),
@@ -100,13 +100,13 @@ public class ResponseWriterManager {
             List<ResponseWriter> customerWriters, Set<Class<? extends ResponseWriter>> builtinTypes) {
         Map<Class<? extends ResponseWriter>, ResponseWriter> table = new LinkedHashMap<>();
         for (ResponseWriter responseWriter : customerWriters) {
-            Objects.requireNonNull(responseWriter, "响应写出器不能为null");
+            Objects.requireNonNull(responseWriter, "The response writer must not be null");
             Class<? extends ResponseWriter> writerType = responseWriter.getClass();
             if (builtinTypes.contains(writerType)) {
-                throw new IllegalArgumentException("不能注册系统内置的响应写出器:" + writerType.getName());
+                throw new IllegalArgumentException("Can not register a built-in response writer: " + writerType.getName());
             }
             if (table.putIfAbsent(writerType, responseWriter) != null) {
-                throw new IllegalArgumentException("响应写出器不能重复注册:" + writerType.getName());
+                throw new IllegalArgumentException("Duplicate response writer registration: " + writerType.getName());
             }
         }
         return Map.copyOf(table);

@@ -123,25 +123,25 @@ public class HttpCorsConfig {
 
         /** 设置允许的跨域源。 */
         public Builder allowedOrigins(List<String> allowedOrigins) {
-            this.allowedOrigins = List.copyOf(Objects.requireNonNull(allowedOrigins, "allowedOrigins 不能为 null"));
+            this.allowedOrigins = List.copyOf(Objects.requireNonNull(allowedOrigins, "allowedOrigins must not be null"));
             return this;
         }
 
         /** 设置允许的跨域请求方法。 */
         public Builder allowedMethods(List<String> allowedMethods) {
-            this.allowedMethods = List.copyOf(Objects.requireNonNull(allowedMethods, "allowedMethods 不能为 null"));
+            this.allowedMethods = List.copyOf(Objects.requireNonNull(allowedMethods, "allowedMethods must not be null"));
             return this;
         }
 
         /** 设置允许的请求头。 */
         public Builder allowedHeaders(List<String> allowedHeaders) {
-            this.allowedHeaders = List.copyOf(Objects.requireNonNull(allowedHeaders, "allowedHeaders 不能为 null"));
+            this.allowedHeaders = List.copyOf(Objects.requireNonNull(allowedHeaders, "allowedHeaders must not be null"));
             return this;
         }
 
         /** 设置可暴露的响应头。 */
         public Builder exposedHeaders(List<String> exposedHeaders) {
-            this.exposedHeaders = List.copyOf(Objects.requireNonNull(exposedHeaders, "exposedHeaders 不能为 null"));
+            this.exposedHeaders = List.copyOf(Objects.requireNonNull(exposedHeaders, "exposedHeaders must not be null"));
             return this;
         }
 

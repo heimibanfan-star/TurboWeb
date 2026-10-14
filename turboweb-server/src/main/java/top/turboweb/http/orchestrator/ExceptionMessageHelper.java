@@ -26,7 +26,7 @@ public class ExceptionMessageHelper {
         String message = throwable.getMessage() == null ? throwable.getClass().getName() : throwable.getMessage();
         return """
                 <!DOCTYPE html>
-                <html lang="zh-CN">
+                <html lang="en">
                 <head>
                     <meta charset="utf-8">
                     <title>TurboWeb Error</title>
@@ -38,7 +38,7 @@ public class ExceptionMessageHelper {
                 </head>
                 <body>
                     <h1>404 Not Found</h1>
-                    <p class="error-message">异常信息：%s</p>
+                    <p class="error-message">Exception message: %s</p>
                 </body>
                 </html>
                 """.formatted(htmlEscape(message));
@@ -58,7 +58,7 @@ public class ExceptionMessageHelper {
         }
         return """
                 <!DOCTYPE html>
-                <html lang="zh-CN">
+                <html lang="en">
                 <head>
                     <meta charset="utf-8">
                     <title>TurboWeb Error</title>
@@ -71,7 +71,7 @@ public class ExceptionMessageHelper {
                 </head>
                 <body>
                     <h1>500 Internal Server Error</h1>
-                    <p class="error-type">异常类型：%s</p>
+                    <p class="error-type">Exception type: %s</p>
                     <pre>%s</pre>
                 </body>
                 </html>

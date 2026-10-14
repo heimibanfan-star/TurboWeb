@@ -216,7 +216,7 @@ class RestRouterHandlerManagerTest {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> new RestRouterHandlerManager.Builder().registerRoute(new RootController()).build(),
                 "各级都提不出段的根路由在合并环节即拒,不再撞基数树的空段异常、也不静默 404");
-        assertTrue(error.getMessage().contains("不支持根路径路由"), "拒绝来自路径合并,消息可归因");
+        assertTrue(error.getMessage().contains("root path routing is not supported"), "拒绝来自路径合并,消息可归因");
     }
 
     @Test

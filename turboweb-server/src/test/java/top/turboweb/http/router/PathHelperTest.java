@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PathHelperTest {
 
-    private static final String ROOT_MESSAGE_PREFIX = "非法路径，不支持根路径路由: ";
+    private static final String ROOT_MESSAGE_PREFIX = "Illegal path, root path routing is not supported: ";
 
     @Test
     void noSegmentLeftIsIllegalRootPath() {
@@ -104,14 +104,14 @@ class PathHelperTest {
     void consecutiveSlashesInPrefixIsIllegalPath() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> PathHelper.mergePath("/api//", "users"));
-        assertEquals("非法路径，不允许出现连续的“/”: /api//", ex.getMessage(), "连续斜杠拒绝而非折叠，异常带非法入参原文");
+        assertEquals("Illegal path, consecutive slashes are not allowed: /api//", ex.getMessage(), "连续斜杠拒绝而非折叠，异常带非法入参原文");
     }
 
     @Test
     void consecutiveSlashesInChildIsIllegalPath() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> PathHelper.mergePath("/api", "//users"));
-        assertEquals("非法路径，不允许出现连续的“/”: //users", ex.getMessage(), "子路径一侧同样拒绝");
+        assertEquals("Illegal path, consecutive slashes are not allowed: //users", ex.getMessage(), "子路径一侧同样拒绝");
     }
 
     @Test
@@ -135,7 +135,7 @@ class PathHelperTest {
     void consecutiveSlashesRejectedEvenWhenResultWouldBeRoot() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> PathHelper.mergePath("//", "//"));
-        assertEquals("非法路径，不允许出现连续的“/”: //", ex.getMessage(),
+        assertEquals("Illegal path, consecutive slashes are not allowed: //", ex.getMessage(),
                 "逐段结构校验先于根路径判定,两种非法各报各的");
     }
 

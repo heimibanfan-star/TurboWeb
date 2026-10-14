@@ -89,7 +89,7 @@ class SseEmitterTest {
         emitter.send("b");
 
         SseBufferException ex = assertThrows(SseBufferException.class, () -> emitter.send("c"));
-        assertEquals("消息缓存已满", ex.getMessage());
+        assertEquals("The message cache is full", ex.getMessage());
         assertEquals(2, emitter.cachedCount(), "被拒绝的消息不得进入缓存");
     }
 

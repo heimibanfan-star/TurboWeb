@@ -41,7 +41,7 @@ public class DefaultSessionManagerHolder implements SessionManagerHolder {
             maxNotUseTime,
             checkForSessionNums
         );
-        log.info("session管理器初始化成功:{}", sessionManager.sessionManagerName());
+        log.info("Session manager initialized: {}", sessionManager.sessionManagerName());
     }
 
     /**

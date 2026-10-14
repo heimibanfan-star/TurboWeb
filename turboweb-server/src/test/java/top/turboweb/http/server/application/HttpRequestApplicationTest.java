@@ -55,7 +55,7 @@ class HttpRequestApplicationTest {
     void npeWhenScopedResourceIsNull() {
         NullPointerException ex = assertThrows(NullPointerException.class,
                 () -> new HttpRequestApplication(false, null, null));
-        assertEquals("资源作用域不能为null", ex.getMessage());
+        assertEquals("The resource scope must not be null", ex.getMessage());
     }
 
     @Test
@@ -82,7 +82,7 @@ class HttpRequestApplicationTest {
                 .middleware(new RecordingMiddleware("b", events));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, builder::build);
-        assertTrue(ex.getMessage().startsWith("中间件重复注册:"), ex.getMessage());
+        assertTrue(ex.getMessage().startsWith("Duplicate middleware registration: "), ex.getMessage());
     }
 
     // ---------- 路由调用中间件在链尾的两态 ----------
@@ -278,7 +278,7 @@ class HttpRequestApplicationTest {
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, builder::build,
                 "F5 修复回归：Builder 以原子布尔一次性门拒绝重复 build");
-        assertEquals("Builder 已构建过应用，不能重复 build()", ex.getMessage());
+        assertEquals("build() can only be called once on the same Builder", ex.getMessage());
 
         assertEquals(List.of("init:mw"), events,
                 "第二次 build 在进入装配前即被拒绝，未对同一中间件二次 init");

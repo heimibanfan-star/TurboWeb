@@ -106,14 +106,14 @@ class FileStreamResponseTest {
         Path missing = tempDir.resolve("nope.txt");
         ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new FileStreamResponse(missing.toFile()));
-        assertEquals("文件不存在," + missing.toFile().getAbsolutePath(), ex.getMessage());
+        assertEquals("File does not exist: " + missing.toFile().getAbsolutePath(), ex.getMessage());
     }
 
     @Test
     void directoryThrows() {
         ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new FileStreamResponse(tempDir.toFile()));
-        assertEquals("文件是文件夹," + tempDir.toFile().getAbsolutePath(), ex.getMessage());
+        assertEquals("File is a directory: " + tempDir.toFile().getAbsolutePath(), ex.getMessage());
     }
 
     @Test

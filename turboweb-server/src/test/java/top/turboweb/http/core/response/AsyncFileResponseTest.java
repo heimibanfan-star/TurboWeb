@@ -76,6 +76,6 @@ class AsyncFileResponseTest {
         Path missing = tempDir.resolve("nope.bin");
         ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new AsyncFileResponse(missing.toFile()));
-        assertEquals("文件不存在," + missing.toFile().getAbsolutePath(), ex.getMessage());
+        assertEquals("File does not exist: " + missing.toFile().getAbsolutePath(), ex.getMessage());
     }
 }

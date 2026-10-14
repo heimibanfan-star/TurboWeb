@@ -89,7 +89,7 @@ class RouteHandlerMetaInfoHelperTest {
     void multipleVerbAnnotationsOnOneMethodThrow() {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> RouteHandlerMetaInfoHelper.parse("", new MultiVerbController(), MultiVerbController.class));
-        assertEquals("路由方法 hello 同时标注了多个请求方式注解", error.getMessage());
+        assertEquals("Route method hello declares multiple request method annotations", error.getMessage());
     }
 
     @Test
@@ -104,7 +104,7 @@ class RouteHandlerMetaInfoHelperTest {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> RouteHandlerMetaInfoHelper.parse("", new RootController(), RootController.class),
                 "前缀、类路径、方法路径都提不出段,合并退化成根路径,不受支持");
-        assertTrue(error.getMessage().contains("不支持根路径路由"), "异常由路径合并透出,文案归路径助手");
+        assertTrue(error.getMessage().contains("root path routing is not supported"), "异常由路径合并透出,文案归路径助手");
     }
 
     @Test
@@ -189,7 +189,7 @@ class RouteHandlerMetaInfoHelperTest {
     void nullRouteInstanceThrows() {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> RouteHandlerMetaInfoHelper.parse("/x", null, VerbController.class));
-        assertEquals("路由处理器实例不能为空", error.getMessage());
+        assertEquals("The route handler instance must not be null", error.getMessage());
         assertThrows(IllegalArgumentException.class,
                 () -> RouteHandlerMetaInfoHelper.parse(null, null, null), "实例判空先于类回落");
     }
@@ -267,7 +267,7 @@ class RouteHandlerMetaInfoHelperTest {
     void tripleVerbAnnotationCountAlsoRejected() {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> RouteHandlerMetaInfoHelper.parse("", new TripleVerbController(), TripleVerbController.class));
-        assertEquals("路由方法 triple 同时标注了多个请求方式注解", error.getMessage(), "三个注解同样落入多动词拒绝");
+        assertEquals("Route method triple declares multiple request method annotations", error.getMessage(), "三个注解同样落入多动词拒绝");
     }
 
     @Test

@@ -20,7 +20,7 @@ class ExceptionMessageHelperTest {
 
         assertTrue(html.contains("<!DOCTYPE html>"), "404 页必须是完整 HTML 文档");
         assertTrue(html.contains("<h1>404 Not Found</h1>"), "404 页必须带 404 标题");
-        assertTrue(html.contains("<p class=\"error-message\">异常信息：a&amp;&lt;&gt;&quot;&#39;b</p>"),
+        assertTrue(html.contains("<p class=\"error-message\">Exception message: a&amp;&lt;&gt;&quot;&#39;b</p>"),
                 "五种 HTML 实体都必须转义后嵌入消息段落");
         assertFalse(html.contains("a<>"), "原始尖括号不得透传给浏览器");
     }
@@ -29,7 +29,7 @@ class ExceptionMessageHelperTest {
     void notFoundMessageFallsBackToClassNameWhenMessageIsNull() {
         String html = ExceptionMessageHelper.notFoundMessage(new IllegalStateException());
 
-        assertTrue(html.contains("<p class=\"error-message\">异常信息：java.lang.IllegalStateException</p>"),
+        assertTrue(html.contains("<p class=\"error-message\">Exception message: java.lang.IllegalStateException</p>"),
                 "消息为 null 时以异常类名兜底展示");
     }
 
@@ -40,7 +40,7 @@ class ExceptionMessageHelperTest {
         String html = ExceptionMessageHelper.errorMessage(boom);
 
         assertTrue(html.contains("<h1>500 Internal Server Error</h1>"), "500 页必须带 500 标题");
-        assertTrue(html.contains("异常类型：java.lang.RuntimeException</p>"), "类型段落必须展示异常全限定类名");
+        assertTrue(html.contains("Exception type: java.lang.RuntimeException</p>"), "类型段落必须展示异常全限定类名");
         assertTrue(html.contains("&lt;script&gt;boom"), "栈首行的消息必须经 HTML 转义");
         assertFalse(html.contains("<script>"), "原始脚本标签不得透传给浏览器");
         assertTrue(html.contains("at top.turboweb.http.orchestrator.ExceptionMessageHelperTest."),

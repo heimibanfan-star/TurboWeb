@@ -159,7 +159,7 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 		cacheLock.lock();
 		try {
 			if (messageCache.size() >= maxMessageCache) {
-				throw new SseBufferException("消息缓存已满");
+				throw new SseBufferException("The message cache is full");
 			}
 			// 放入消息
 			messageCache.add(message);

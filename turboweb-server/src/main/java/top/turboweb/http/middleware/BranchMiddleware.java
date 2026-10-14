@@ -186,7 +186,7 @@ public abstract class BranchMiddleware extends Middleware {
                 try {
                     middleware.destroy();
                 } catch (Exception e) {
-                    log.error("分支中间件销毁异常: {}", middleware.getClass().getName(), e);
+                    log.error("Error destroying branch middleware: {}", middleware.getClass().getName(), e);
                 }
             }
         }

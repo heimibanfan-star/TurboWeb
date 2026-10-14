@@ -51,8 +51,8 @@ public class WebSocketApplication implements Application {
     private final ScopedResource scopedResource;
 
     public WebSocketApplication(WebSocketInitChannelHandler webSocketInitHandler, ScopedResource scopedResource) {
-        this.webSocketInitHandler = Objects.requireNonNull(webSocketInitHandler, "websocket初始化handler不能为null");
-        this.scopedResource = Objects.requireNonNull(scopedResource, "资源作用域不能为null");
+        this.webSocketInitHandler = Objects.requireNonNull(webSocketInitHandler, "The websocket init handler must not be null");
+        this.scopedResource = Objects.requireNonNull(scopedResource, "The resource scope must not be null");
     }
 
     /**
@@ -71,7 +71,7 @@ public class WebSocketApplication implements Application {
     @Override
     public void configure(ChannelPipeline pipeline) {
         pipeline.addLast(webSocketInitHandler);
-        log.debug("连接[{}]装配websocket应用处理器完成",
+        log.debug("Websocket application handlers assembled for connection [{}]",
                 pipeline.channel().id().asShortText());
     }
 
@@ -115,7 +115,7 @@ public class WebSocketApplication implements Application {
          * {@link NullPointerException}
          */
         public Builder handler(WebSocketHandler webSocketHandler) {
-            this.webSocketHandler = Objects.requireNonNull(webSocketHandler, "webSocketHandler不能为null");
+            this.webSocketHandler = Objects.requireNonNull(webSocketHandler, "webSocketHandler must not be null");
             return this;
         }
 
@@ -137,30 +137,30 @@ public class WebSocketApplication implements Application {
          * 将其销毁适配器登记进新建的资源作用域后一并装配进应用实例
          */
         public WebSocketApplication build() {
-            log.info("开始装配websocket应用...");
+            log.info("Assembling websocket application...");
             if (websocketPath == null || websocketPath.isBlank()) {
-                throw new IllegalArgumentException("websocketPath不能为空");
+                throw new IllegalArgumentException("websocketPath can not be blank");
             }
             if (webSocketHandler == null) {
-                throw new IllegalArgumentException("webSocketHandler不能为空");
+                throw new IllegalArgumentException("webSocketHandler can not be null");
             }
             WebSocketInitChannelHandler.Builder initHandlerBuilder = WebSocketInitChannelHandler.builder()
                     .websocketPath(websocketPath)
                     .webSocketHandler(webSocketHandler);
             if (forkJoinThreadNum > 0) {
                 initHandlerBuilder.forkJoinThreadNum(forkJoinThreadNum);
-                log.info("websocket消息处理线程模型：ForkJoinPool，线程数 {}", forkJoinThreadNum);
+                log.info("Websocket message thread model: ForkJoinPool with {} threads", forkJoinThreadNum);
             } else {
-                log.info("websocket消息处理线程模型：虚拟线程");
+                log.info("Websocket message thread model: virtual threads");
             }
             WebSocketInitChannelHandler webSocketInitHandler = initHandlerBuilder.build();
             // 初始化handler的销毁适配器登记进应用的资源作用域，应用关闭时释放分发处理器的线程池
             ScopedResource scopedResource = new ScopedResource();
             scopedResource.register(() -> {
                 webSocketInitHandler.destroy();
-                log.info("websocket应用已关闭");
+                log.info("Websocket application closed");
             });
-            log.info("websocket应用装配完成，路径表达式 {}", websocketPath);
+            log.info("Websocket application assembled, path pattern {}", websocketPath);
             return new WebSocketApplication(webSocketInitHandler, scopedResource);
         }
 

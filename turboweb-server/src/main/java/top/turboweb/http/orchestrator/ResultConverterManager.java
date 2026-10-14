@@ -119,7 +119,7 @@ public class ResultConverterManager {
                 return converted.httpResponse();
             }
         }
-        throw new IllegalStateException("结果转化链未产出响应, 末位兜底环节应恒认领");
+        throw new IllegalStateException("The result converter chain produced no response; the final fallback converter should always claim it");
     }
 
     /**

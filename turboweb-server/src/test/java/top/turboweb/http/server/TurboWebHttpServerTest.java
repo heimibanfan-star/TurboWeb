@@ -62,7 +62,7 @@ class TurboWebHttpServerTest {
         NullPointerException ex = assertThrows(NullPointerException.class,
                 () -> new TurboWebHttpServer((ServerConfig) null));
 
-        assertEquals("ServerConfig不能为null", ex.getMessage());
+        assertEquals("The ServerConfig must not be null", ex.getMessage());
     }
 
     @Test

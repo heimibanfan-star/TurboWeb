@@ -166,7 +166,7 @@ class ResponseWriterManagerTest {
             IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,
                     () -> new ResponseWriterManager(Stubs.threadPool(), List.of(builtin)),
                     builtin.getClass().getSimpleName() + " 为系统内置写出器，不得登记");
-            assertEquals("不能注册系统内置的响应写出器:" + builtin.getClass().getName(), thrown.getMessage());
+            assertEquals("Can not register a built-in response writer: " + builtin.getClass().getName(), thrown.getMessage());
         }
     }
 
@@ -176,7 +176,7 @@ class ResponseWriterManagerTest {
         IllegalArgumentException again = assertThrows(IllegalArgumentException.class,
                 () -> new ResponseWriterManager(Stubs.threadPool(),
                         List.of(new MarkingWriter(), new MarkingWriter())));
-        assertEquals("响应写出器不能重复注册:" + MarkingWriter.class.getName(), again.getMessage());
+        assertEquals("Duplicate response writer registration: " + MarkingWriter.class.getName(), again.getMessage());
     }
 
     @Test
@@ -199,7 +199,7 @@ class ResponseWriterManagerTest {
         IllegalStateException thrown = assertThrows(IllegalStateException.class,
                 () -> new ResponseWriterManager(Stubs.directExecutorThreadPool(), List.of(writer)),
                 "同一写出器实例不得注入两个管理器");
-        assertEquals("磁盘IO线程池已注入, 不能重复注入", thrown.getMessage());
+        assertEquals("The disk IO thread pool has already been injected and can not be injected again", thrown.getMessage());
         assertSame(first, writer.injectedPool(), "被拒的第二个管理器不得覆写首次注入的线程池");
     }
 
@@ -207,20 +207,20 @@ class ResponseWriterManagerTest {
     void constructorRejectsNullWriterElement() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
                 () -> new ResponseWriterManager(Stubs.threadPool(), Arrays.asList((ResponseWriter) null)));
-        assertEquals("响应写出器不能为null", thrown.getMessage());
+        assertEquals("The response writer must not be null", thrown.getMessage());
     }
 
     @Test
     void constructorRejectsNullWriterList() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
                 () -> new ResponseWriterManager(Stubs.threadPool(), null));
-        assertEquals("自定义写出器列表不能为null", thrown.getMessage());
+        assertEquals("The custom writer list must not be null", thrown.getMessage());
     }
 
     @Test
     void constructorRejectsNullThreadPool() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
                 () -> new ResponseWriterManager(null, List.of()));
-        assertEquals("磁盘IO线程池不能为null", thrown.getMessage());
+        assertEquals("The disk IO thread pool must not be null", thrown.getMessage());
     }
 }

@@ -38,7 +38,7 @@ class AbstractResponseWriterTest {
 
         IllegalStateException thrown = assertThrows(IllegalStateException.class,
                 () -> writer.injectThreadPool(Stubs.directExecutorThreadPool()));
-        assertEquals("磁盘IO线程池已注入, 不能重复注入", thrown.getMessage());
+        assertEquals("The disk IO thread pool has already been injected and can not be injected again", thrown.getMessage());
     }
 
     @Test

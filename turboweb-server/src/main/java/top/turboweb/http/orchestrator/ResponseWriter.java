@@ -48,7 +48,7 @@ public interface ResponseWriter {
          * @throws NullPointerException 凭据为null
          */
         public static WriteResult listenable(ChannelFuture channelFuture) {
-            Objects.requireNonNull(channelFuture, "可监听写出结果必须携带凭据");
+            Objects.requireNonNull(channelFuture, "A listenable write result must carry a channel future");
             return new WriteResult(WriteType.LISTENABLE, channelFuture);
         }
 

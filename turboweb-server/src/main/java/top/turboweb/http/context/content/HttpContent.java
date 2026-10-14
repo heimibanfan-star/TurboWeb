@@ -169,12 +169,12 @@ public class HttpContent {
                 try {
                     value = attribute.getValue();
                     if (name == null || name.isBlank()) {
-                        log.error("form表单中出现空name：key:{}, value: {}", name, value);
+                        log.error("Empty name found in form attribute, key: {}, value: {}", name, value);
                         continue;
                     }
                 } catch (IOException e) {
-                    log.error("解析失败", e);
-                    throw new RequestParseException("解析请求体失败");
+                    log.error("Failed to parse form data", e);
+                    throw new RequestParseException("Failed to parse request body");
                 }
                 // 加入到集合中
                 formParams.computeIfAbsent(name, k -> new ArrayList<>(1)).add(value);
@@ -183,7 +183,7 @@ public class HttpContent {
                     // 获取文件名
                     String name = fileUpload.getName();
                     if (name == null || name.isBlank()) {
-                        log.error("文件上传出现空的name：name:{}", name);
+                        log.error("Empty name found in file upload, name: {}", name);
                     }
                     // 存入请求信息中
                     formFiles.computeIfAbsent(name, k -> new ArrayList<>(1)).add(fileUpload);

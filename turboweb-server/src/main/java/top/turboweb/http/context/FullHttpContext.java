@@ -211,7 +211,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 						.add(param.getValue());
 			}
 		} catch (Exception e) {
-			log.error("解析url参数失败", e);
+			log.error("Failed to parse URL parameters", e);
 		}
 		return paramsForSearch;
 	}
@@ -381,7 +381,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		// 获取json请求体
 		String jsonContent = httpContent.getJsonContent();
 		if (jsonContent == null) {
-			throw new RequestParseException("json请求体为空");
+			throw new RequestParseException("JSON request body is empty");
 		}
 		// 序列化对象
 		return jsonSerializer.jsonToBean(jsonContent, beanType);

@@ -41,7 +41,7 @@ public class PathHelper {
         }
         if (segments.isEmpty()) {
             // 逐段结构校验已在上方走完,走到这里说明各级都无路径段,即根路径
-            throw new IllegalArgumentException("非法路径，不支持根路径路由: " + Arrays.toString(paths));
+            throw new IllegalArgumentException("Illegal path, root path routing is not supported: " + Arrays.toString(paths));
         }
         return String.join("", segments);
     }
@@ -58,7 +58,7 @@ public class PathHelper {
             return ROOT;
         }
         if (path.contains(ROOT + ROOT)) {
-            throw new IllegalArgumentException("非法路径，不允许出现连续的“/”: " + path);
+            throw new IllegalArgumentException("Illegal path, consecutive slashes are not allowed: " + path);
         }
         if (!path.startsWith(ROOT)) {
             path = ROOT + path;

@@ -35,7 +35,7 @@ public class RouteHandlerMetaInfoHelper {
      */
     public static List<RouteHandlerMetaInfo> parse(String baseUrl, Object routeInstance, Class<?> targetClass) {
         if (routeInstance == null) {
-            throw new IllegalArgumentException("路由处理器实例不能为空");
+            throw new IllegalArgumentException("The route handler instance must not be null");
         }
         Class<?> routeClass = targetClass != null ? targetClass : routeInstance.getClass();
         String classPath = routeClass.isAnnotationPresent(Route.class)
@@ -76,7 +76,7 @@ public class RouteHandlerMetaInfoHelper {
                 continue;
             }
             if (hits > 1) {
-                throw new IllegalArgumentException("路由方法 " + method.getName() + " 同时标注了多个请求方式注解");
+                throw new IllegalArgumentException("Route method " + method.getName() + " declares multiple request method annotations");
             }
             // 三级一次合并:中间结果退化成根路径不算非法,只有最终结果退化成根路径才拒
             String url = PathHelper.mergePath(baseUrl, classPath, path);

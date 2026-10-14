@@ -48,14 +48,14 @@ public class ExceptionHandlerInvoker {
     public Object invoke(Throwable throwable) {
         if (!this.exceptionClass.isInstance(throwable)) {
             throw new ExceptionHandlerException(String.format(
-                    "异常处理器绑定 %s，不支持处理: %s",
+                    "The exception handler is bound to %s and can not handle: %s",
                     this.exceptionClass.getName(),
                     throwable == null ? "null" : throwable.getClass().getName()));
         }
         try {
             return this.methodHandle.invoke(throwable);
         } catch (Throwable e) {
-            throw new ExceptionHandlerException("异常处理器执行失败", e);
+            throw new ExceptionHandlerException("Failed to execute exception handler", e);
         }
     }
 

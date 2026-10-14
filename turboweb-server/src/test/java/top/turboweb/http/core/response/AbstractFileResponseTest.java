@@ -74,7 +74,7 @@ class AbstractFileResponseTest {
         ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new ProbeFileResponse(HttpResponseStatus.OK, missing.toFile(), StandardCharsets.UTF_8));
 
-        assertEquals("文件不存在," + missing.toFile().getAbsolutePath(), ex.getMessage());
+        assertEquals("File does not exist: " + missing.toFile().getAbsolutePath(), ex.getMessage());
     }
 
     @Test
@@ -82,7 +82,7 @@ class AbstractFileResponseTest {
         ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new ProbeFileResponse(HttpResponseStatus.OK, tempDir.toFile(), StandardCharsets.UTF_8));
 
-        assertEquals("文件是文件夹," + tempDir.toFile().getAbsolutePath(), ex.getMessage());
+        assertEquals("File is a directory: " + tempDir.toFile().getAbsolutePath(), ex.getMessage());
     }
 
     @Test

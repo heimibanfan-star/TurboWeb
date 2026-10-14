@@ -42,7 +42,7 @@ class WebSocketApplicationTest {
     void handlerRejectsNull() {
         NullPointerException ex = assertThrows(NullPointerException.class,
                 () -> new WebSocketApplication.Builder().handler(null));
-        assertEquals("webSocketHandler不能为null", ex.getMessage());
+        assertEquals("webSocketHandler must not be null", ex.getMessage());
     }
 
     @Test
@@ -55,21 +55,21 @@ class WebSocketApplicationTest {
     void buildWithoutPathIsRejected() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new WebSocketApplication.Builder().handler(HANDLER).build());
-        assertEquals("websocketPath不能为空", ex.getMessage());
+        assertEquals("websocketPath can not be blank", ex.getMessage());
     }
 
     @Test
     void buildWithoutHandlerIsRejected() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new WebSocketApplication.Builder().path("/ws/.*").build());
-        assertEquals("webSocketHandler不能为空", ex.getMessage());
+        assertEquals("webSocketHandler can not be null", ex.getMessage());
     }
 
     @Test
     void constructorRejectsNullArguments() {
         NullPointerException ex1 = assertThrows(NullPointerException.class,
                 () -> new WebSocketApplication(null, new ScopedResource()));
-        assertEquals("websocket初始化handler不能为null", ex1.getMessage());
+        assertEquals("The websocket init handler must not be null", ex1.getMessage());
 
         WebSocketInitChannelHandler handler = WebSocketInitChannelHandler.builder()
                 .websocketPath("/ws/.*")
@@ -77,7 +77,7 @@ class WebSocketApplicationTest {
                 .build();
         NullPointerException ex2 = assertThrows(NullPointerException.class,
                 () -> new WebSocketApplication(handler, null));
-        assertEquals("资源作用域不能为null", ex2.getMessage());
+        assertEquals("The resource scope must not be null", ex2.getMessage());
     }
 
     @Test

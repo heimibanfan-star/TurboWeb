@@ -123,9 +123,9 @@ class ApplicationManagerTest {
         ApplicationManager manager = new ApplicationManager();
 
         NullPointerException first = assertThrows(NullPointerException.class, () -> manager.addFirst(null));
-        assertEquals("应用不能为null", first.getMessage());
+        assertEquals("The application must not be null", first.getMessage());
         NullPointerException last = assertThrows(NullPointerException.class, () -> manager.addLast(null));
-        assertEquals("应用不能为null", last.getMessage());
+        assertEquals("The application must not be null", last.getMessage());
     }
 
     @Test

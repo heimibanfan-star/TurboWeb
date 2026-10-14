@@ -43,7 +43,7 @@ public class ApplicationManager implements AutoCloseable {
      * 将应用插到应用列表头部（装配时最先执行），应用为null立即抛出 {@link NullPointerException}
      */
     public ApplicationManager addFirst(Application application) {
-        Objects.requireNonNull(application, "应用不能为null");
+        Objects.requireNonNull(application, "The application must not be null");
         this.applications.addFirst(application);
         return this;
     }
@@ -52,7 +52,7 @@ public class ApplicationManager implements AutoCloseable {
      * 将应用追加到应用列表尾部（装配时最后执行），应用为null立即抛出 {@link NullPointerException}
      */
     public ApplicationManager addLast(Application application) {
-        Objects.requireNonNull(application, "应用不能为null");
+        Objects.requireNonNull(application, "The application must not be null");
         this.applications.addLast(application);
         return this;
     }
@@ -87,7 +87,7 @@ public class ApplicationManager implements AutoCloseable {
             try {
                 application.close();
             } catch (Exception e) {
-                log.error("应用关闭异常: {}", application.getClass().getName(), e);
+                log.error("Error closing application: {}", application.getClass().getName(), e);
             }
         }
     }

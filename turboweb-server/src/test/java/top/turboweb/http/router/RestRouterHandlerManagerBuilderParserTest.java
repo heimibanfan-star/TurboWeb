@@ -196,7 +196,7 @@ class RestRouterHandlerManagerBuilderParserTest {
         RestRouterHandlerManager.Builder builder = new RestRouterHandlerManager.Builder();
         NullPointerException beforeError = assertThrows(NullPointerException.class,
                 () -> builder.registerParameterParserBefore(null, new AlphaParser()));
-        assertEquals("目标解析器不能为空", beforeError.getMessage());
+        assertEquals("The target parser must not be null", beforeError.getMessage());
         assertThrows(NullPointerException.class,
                 () -> builder.registerParameterParserAfter(null, new AlphaParser()));
         assertThrows(NullPointerException.class,

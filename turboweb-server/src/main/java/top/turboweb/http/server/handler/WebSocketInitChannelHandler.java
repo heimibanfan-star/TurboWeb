@@ -205,10 +205,10 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
          */
         public WebSocketInitChannelHandler build() {
             if (websocketPath == null || websocketPath.isBlank()) {
-                throw new IllegalArgumentException("websocketPath不能为空");
+                throw new IllegalArgumentException("websocketPath can not be blank");
             }
             if (webSocketHandler == null) {
-                throw new IllegalArgumentException("webSocketHandler不能为空");
+                throw new IllegalArgumentException("webSocketHandler can not be null");
             }
             return new WebSocketInitChannelHandler(this);
         }

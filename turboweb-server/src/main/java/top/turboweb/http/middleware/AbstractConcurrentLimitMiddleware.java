@@ -50,7 +50,7 @@ public abstract class AbstractConcurrentLimitMiddleware extends Middleware{
         }
         Map<String, ConcurrentLimit> atomicIntegerMap = concurrentLimitMap.get(httpMethodName);
         if (atomicIntegerMap.containsKey(prefix)) {
-            log.warn("并发控制策略已存在,方法:{},前缀:{}", httpMethodName, prefix);
+            log.warn("Concurrent limit strategy already exists, method: {}, prefix: {}", httpMethodName, prefix);
         }
         ConcurrentLimit concurrentLimit = new ConcurrentLimit(limit);
         atomicIntegerMap.put(prefix, concurrentLimit);

@@ -221,7 +221,7 @@ public class MemorySessionManager implements SessionManager {
             ReentrantReadWriteLock.WriteLock writeLock = Locks.SESSION_LOCK.writeLock();
             writeLock.lock();
             try {
-                log.debug("session垃圾回收器触发");
+                log.debug("Session garbage collector triggered");
                 Iterator<Map.Entry<String, MemorySessionMap>> iterator = sessionContainer.entrySet().iterator();
                 while (iterator.hasNext()) {
                     Map.Entry<String, MemorySessionMap> entry = iterator.next();
@@ -235,7 +235,7 @@ public class MemorySessionManager implements SessionManager {
             } finally {
                 writeLock.unlock();
                 long end = System.currentTimeMillis();
-                log.info("session垃圾回收器检查结束，耗时：{}ms", end - start);
+                log.info("Session garbage collector check finished in {} ms", end - start);
             }
         }, checkTime, checkTime, TimeUnit.MILLISECONDS);
     }

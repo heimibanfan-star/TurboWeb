@@ -244,7 +244,7 @@ class ParamInfoParsersTest {
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("queryNonNull"));
         ParameterValidationException ex = assertThrows(ParameterValidationException.class,
                 () -> b.bindParameter(stub.ctx()));
-        assertEquals(List.of("q不能为null"), ex.getErrorMsg());
+        assertEquals(List.of("q must not be null"), ex.getErrorMsg());
     }
 
     @Test

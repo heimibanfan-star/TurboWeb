@@ -93,7 +93,7 @@ public class HttpRequestApplication implements Application {
                                   ScopedResource scopedResource) {
         this.requestSerial = requestSerial;
         this.httpRequestSchedulerHandler = httpRequestSchedulerHandler;
-        this.scopedResource = Objects.requireNonNull(scopedResource, "资源作用域不能为null");
+        this.scopedResource = Objects.requireNonNull(scopedResource, "The resource scope must not be null");
     }
 
 
@@ -107,7 +107,7 @@ public class HttpRequestApplication implements Application {
             pipeline.addLast(new RequestSerializerChannelHandler());
         }
         pipeline.addLast(httpRequestSchedulerHandler);
-        log.debug("连接[{}]装配http应用处理器完成，请求串行化: {}",
+        log.debug("Http application handlers assembled for connection [{}], request serialization: {}",
                 pipeline.channel().id().asShortText(), this.requestSerial);
     }
 
@@ -142,10 +142,10 @@ public class HttpRequestApplication implements Application {
             try {
                 middleware.destroy();
             } catch (Exception e) {
-                log.error("中间件销毁异常: {}", middleware.getClass().getName(), e);
+                log.error("Error destroying middleware: {}", middleware.getClass().getName(), e);
             }
         }
-        log.info("中间件链销毁完成，共 {} 个", chain.size());
+        log.info("Middleware chain destroyed, {} middleware components in total", chain.size());
     }
 
     /**
@@ -218,7 +218,7 @@ public class HttpRequestApplication implements Application {
          * {@link NullPointerException}
          */
         public Builder exceptionHandlerManager(ExceptionHandlerManager exceptionHandlerManager) {
-            Objects.requireNonNull(exceptionHandlerManager, "异常处理器管理器不能为空");
+            Objects.requireNonNull(exceptionHandlerManager, "The exception handler manager must not be null");
             this.exceptionHandlerManager = exceptionHandlerManager;
             return this;
         }
@@ -236,7 +236,7 @@ public class HttpRequestApplication implements Application {
          * 替换session管理器，装配时与session参数打包为会话管理器持有者
          */
         public Builder sessionManager(SessionManager sessionManager) {
-            Objects.requireNonNull(sessionManager, "session管理器不能为空");
+            Objects.requireNonNull(sessionManager, "The session manager must not be null");
             this.sessionManager = sessionManager;
             return this;
         }
@@ -245,7 +245,7 @@ public class HttpRequestApplication implements Application {
          * 替换json序列化器；未显式设置结果转化器管理器时，用它补全默认结果转化器管理器
          */
         public Builder jsonSerializer(JsonSerializer jsonSerializer) {
-            Objects.requireNonNull(jsonSerializer, "json序列化器不能为null");
+            Objects.requireNonNull(jsonSerializer, "The json serializer must not be null");
             this.jsonSerializer = jsonSerializer;
             return this;
         }
@@ -257,7 +257,7 @@ public class HttpRequestApplication implements Application {
         public Builder middleware(Middleware... middlewares) {
             this.middlewares.addAll(
                     Stream.of(middlewares)
-                            .peek(middleware -> Objects.requireNonNull(middleware, "中间件不能为null"))
+                            .peek(middleware -> Objects.requireNonNull(middleware, "The middleware must not be null"))
                             .toList()
             );
             return this;
@@ -267,7 +267,7 @@ public class HttpRequestApplication implements Application {
          * 设置跨域配置（编排器按其对响应写出CORS头），传null立即抛出 {@link NullPointerException}
          */
         public Builder corsConfig(HttpCorsConfig corsConfig) {
-            Objects.requireNonNull(corsConfig, "cors配置不能为null");
+            Objects.requireNonNull(corsConfig, "The cors config must not be null");
             this.corsConfig = corsConfig;
             return this;
         }
@@ -277,7 +277,7 @@ public class HttpRequestApplication implements Application {
          * {@link NullPointerException}
          */
         public Builder resultConverterManager(ResultConverterManager resultConverterManager) {
-            Objects.requireNonNull(resultConverterManager, "结果转化器管理器不能为null");
+            Objects.requireNonNull(resultConverterManager, "The result converter manager must not be null");
             this.resultConverterManager = resultConverterManager;
             return this;
         }
@@ -287,7 +287,7 @@ public class HttpRequestApplication implements Application {
          * {@link NullPointerException}
          */
         public Builder responseWriterManager(ResponseWriterManager responseWriterManager) {
-            Objects.requireNonNull(responseWriterManager, "响应写出器管理器不能为null");
+            Objects.requireNonNull(responseWriterManager, "The response writer manager must not be null");
             this.responseWriterManager = responseWriterManager;
             return this;
         }
@@ -296,7 +296,7 @@ public class HttpRequestApplication implements Application {
          * 整体替换应用纯参数配置（串行化开关、session回收与虚拟线程限流参数等），不能为null
          */
         public Builder config(HttpConfig config) {
-            Objects.requireNonNull(config, "HttpConfig不能为null");
+            Objects.requireNonNull(config, "The HttpConfig must not be null");
             this.httpConfig = config;
             return this;
         }
@@ -315,9 +315,9 @@ public class HttpRequestApplication implements Application {
          */
         public HttpRequestApplication build() {
             if (!built.compareAndSet(false, true)) {
-                throw new IllegalStateException("Builder 已构建过应用，不能重复 build()");
+                throw new IllegalStateException("build() can only be called once on the same Builder");
             }
-            log.info("开始装配http请求应用...");
+            log.info("Assembling http request application...");
             // 应用持有的资源作用域：装配期创建的可关闭资源逐个登记进来，关闭时按登记顺序统一释放
             ScopedResource scopedResource = new ScopedResource();
             // 串联并初始化中间件链：链头为哨兵，存在路由处理器管理器时路由调用中间件追加链尾
@@ -330,7 +330,7 @@ public class HttpRequestApplication implements Application {
                     httpConfig.getDiskOpeThreadCoreQueue(),
                     httpConfig.getDiskOpeThreadMaxThreadNum()
             );
-            log.info("磁盘IO线程池创建完成：缓冲队列 {}, 核心队列 {}, 最大线程数 {}",
+            log.info("Disk IO thread pool created: cache queue {}, core queue {}, max threads {}",
                     httpConfig.getDiskOpeThreadCacheQueue(),
                     httpConfig.getDiskOpeThreadCoreQueue(),
                     httpConfig.getDiskOpeThreadMaxThreadNum());
@@ -359,7 +359,7 @@ public class HttpRequestApplication implements Application {
             HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
                     .orchestrator(orchestrator)
                     .build();
-            log.info("http请求应用装配完成，连接级请求串行化: {}", httpConfig.isSerializePerConnection());
+            log.info("Http request application assembled, per-connection request serialization: {}", httpConfig.isSerializePerConnection());
             return new HttpRequestApplication(
                     httpConfig.isSerializePerConnection(),
                     schedulerHandler,
@@ -381,7 +381,7 @@ public class HttpRequestApplication implements Application {
             Set<Class<? extends Middleware>> registeredMiddlewares = new HashSet<>();
             for (Middleware middleware : middlewares) {
                 if (registeredMiddlewares.contains(middleware.getClass())) {
-                    throw new IllegalStateException("中间件重复注册:" + middleware.getClass());
+                    throw new IllegalStateException("Duplicate middleware registration: " + middleware.getClass());
                 }
                 tail.setNext(middleware);
                 tail = middleware;
@@ -403,8 +403,8 @@ public class HttpRequestApplication implements Application {
                 next.lockMiddleware();
                 next = next.getNext();
             }
-            log.info("中间件链装配完成：业务中间件 {} 个{}，已全部初始化并锁定",
-                    middlewares.size(), routeHandlerManager != null ? "，路由调用中间件已追加链尾" : "，无路由处理器管理器");
+            log.info("Middleware chain assembled: {} business middleware(s){}, all initialized and locked",
+                    middlewares.size(), routeHandlerManager != null ? ", with route handler invoke middleware appended at the tail" : ", without a route handler manager");
             return sentinel;
         }
 
@@ -417,7 +417,7 @@ public class HttpRequestApplication implements Application {
          */
         private VirtualThreadResource createVirtualThreadResource() {
             if (httpConfig.isEnableHttpSchedulerLimit()) {
-                log.info("虚拟线程限流已开启：限流数量 {}, 最大挂起线程数 {}, 挂起超时 {} ms",
+                log.info("Virtual thread limit enabled: limit count {}, max suspended threads {}, suspend timeout {} ms",
                         httpConfig.getHttpSchedulerLimitCount(),
                         httpConfig.getHttpSchedulerLimitCacheThread(),
                         httpConfig.getHttpSchedulerLimitTimeout());
@@ -428,7 +428,7 @@ public class HttpRequestApplication implements Application {
                         VIRTUAL_THREAD_NAME,
                         false);
             }
-            log.info("虚拟线程限流未开启，请求任务直接新建虚拟线程执行");
+            log.info("Virtual thread limit disabled, request tasks execute directly in newly created virtual threads");
             return new UnlimitedVirtualThreadResource(VIRTUAL_THREAD_NAME);
         }
 
@@ -443,7 +443,7 @@ public class HttpRequestApplication implements Application {
                     httpConfig.getSessionCheckTime(),
                     httpConfig.getSessionMaxNotUseTime(),
                     httpConfig.getSessionCheckThreshold());
-            log.info("session管理器装配完成：{}，检查间隔 {} ms，最大不活跃时间 {} ms，检查阈值 {}",
+            log.info("Session manager assembled: {}, check interval {} ms, max inactive time {} ms, check threshold {}",
                     this.sessionManager.getClass().getSimpleName(),
                     httpConfig.getSessionCheckTime(),
                     httpConfig.getSessionMaxNotUseTime(),

@@ -93,7 +93,7 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
          */
         public HttpRequestSchedulerChannelHandler build() {
             if (requestOrchestrator == null) {
-                throw new IllegalArgumentException("requestOrchestrator不能为空");
+                throw new IllegalArgumentException("requestOrchestrator can not be null");
             }
             return new HttpRequestSchedulerChannelHandler(this);
         }

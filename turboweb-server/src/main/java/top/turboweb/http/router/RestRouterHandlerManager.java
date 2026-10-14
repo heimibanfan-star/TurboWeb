@@ -281,13 +281,13 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @throws IllegalArgumentException targetParser 的 class 未注册
          */
         private int indexOfRegisteredParser(ParameterParser targetParser) {
-            Objects.requireNonNull(targetParser, "目标解析器不能为空");
+            Objects.requireNonNull(targetParser, "The target parser must not be null");
             for (int index = 0; index < this.parsers.size(); index++) {
                 if (Objects.equals(this.parsers.get(index).getClass(), targetParser.getClass())) {
                     return index;
                 }
             }
-            throw new IllegalArgumentException("目标解析器未注册: " + targetParser.getClass());
+            throw new IllegalArgumentException("The target parser is not registered: " + targetParser.getClass());
         }
 
         private void validateBeforeRegisterParameterParser(ParameterParser toRegisteredParser) {

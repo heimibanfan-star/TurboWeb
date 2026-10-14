@@ -60,13 +60,13 @@ public abstract class AbstractFileResponse extends DefaultHttpResponse {
 	 */
 	private void fileVerify(File file) {
 		if (!file.exists()) {
-			throw new ResponseHandleException("文件不存在," + file.getAbsolutePath());
+			throw new ResponseHandleException("File does not exist: " + file.getAbsolutePath());
 		}
 		if (file.isDirectory()) {
-			throw new ResponseHandleException("文件是文件夹," + file.getAbsolutePath());
+			throw new ResponseHandleException("File is a directory: " + file.getAbsolutePath());
 		}
 		if (!file.canRead()) {
-			throw new ResponseHandleException("文件不可读," + file.getAbsolutePath());
+			throw new ResponseHandleException("File is not readable: " + file.getAbsolutePath());
 		}
 	}
 

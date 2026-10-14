@@ -138,7 +138,7 @@ public final class TurboWebHttpServer implements AutoCloseable {
      */
     public TurboWebHttpServer(ServerConfig serverConfig) {
         this.applicationManager = new ApplicationManager();
-        this.serverConfig = Objects.requireNonNull(serverConfig, "ServerConfig不能为null");
+        this.serverConfig = Objects.requireNonNull(serverConfig, "The ServerConfig must not be null");
     }
 
     /**
@@ -175,7 +175,7 @@ public final class TurboWebHttpServer implements AutoCloseable {
      */
     private void checkNotStarted() {
         if (this.serverBootstrap != null) {
-            throw new IllegalStateException("应用必须在服务器启动前注册");
+            throw new IllegalStateException("Applications must be registered before the server starts");
         }
     }
 
