@@ -3,15 +3,25 @@ package top.turboweb.http.server.application;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.serializer.JacksonJsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.commons.utils.resource.ScopedResource;
+import top.turboweb.concurrent.thread.ElasticThreadPool;
+import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.ThreadPool;
+import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
+import top.turboweb.concurrent.thread.VirtualThreadResource;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.middleware.router.RouterManager;
-import top.turboweb.http.middleware.router.container.RouterContainer;
-import top.turboweb.http.processor.convertor.DefaultHttpResponseConverter;
+import top.turboweb.http.middleware.SentinelMiddleware;
+import top.turboweb.http.orchestrator.ExceptionHandlerManager;
+import top.turboweb.http.orchestrator.HttpCorsConfig;
+import top.turboweb.http.orchestrator.RequestOrchestrator;
+import top.turboweb.http.orchestrator.ResponseWriterManager;
+import top.turboweb.http.orchestrator.ResultConverterManager;
+import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.server.config.HttpConfig;
+import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
 import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
 
@@ -19,20 +29,23 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link HttpRequestApplication.Builder} 的装配契约与资源作用域（spec §5 server/application 行）。
+ * {@link HttpRequestApplication.Builder} 的编排器装配契约与资源作用域（spec §5 server/application 行）。
  *
- * <p>build() 会创建 ElasticThreadPool（搬运虚拟线程），但本类每条用例都显式注入不启动
- * session GC 线程的 {@link NoopSessionManager}，并在断言后关闭应用；不断言任何线程终止。
+ * <p>build() 会创建磁盘IO弹性线程池并按限流参数创建虚拟线程资源，但本类每条用例都显式注入
+ * 不启动 session GC 线程的 {@link NoopSessionManager}，并在断言后关闭应用；不断言任何线程终止。
+ * 装配完成的编排器藏在应用持有的调度处理器里，组件身份断言经反射取证（与 {@code diskPoolOf}
+ * 同一类取证手段）。
  */
 class HttpRequestApplicationTest {
 
@@ -50,10 +63,14 @@ class HttpRequestApplicationTest {
         HttpRequestApplication.Builder builder = new HttpRequestApplication.Builder();
         assertThrows(NullPointerException.class, () -> builder.sessionManager(null));
         assertThrows(NullPointerException.class, () -> builder.jsonSerializer(null));
-        assertThrows(NullPointerException.class, () -> builder.cors(null));
+        assertThrows(NullPointerException.class, () -> builder.corsConfig(null));
+        assertThrows(NullPointerException.class, () -> builder.exceptionHandlerManager(null));
+        assertThrows(NullPointerException.class, () -> builder.resultConverterManager(null));
+        assertThrows(NullPointerException.class, () -> builder.responseWriterManager(null));
         assertThrows(NullPointerException.class, () -> builder.config(null));
         assertThrows(NullPointerException.class, () -> builder.middleware((Middleware) null));
-        assertThrows(NullPointerException.class, () -> builder.exceptionHandler((Object) null));
+        // 路由处理器管理器传null合法：表示无路由，不创建路由调用中间件
+        builder.routeHandlerManager(null);
     }
 
     @Test
@@ -68,10 +85,10 @@ class HttpRequestApplicationTest {
         assertTrue(ex.getMessage().startsWith("中间件重复注册:"), ex.getMessage());
     }
 
-    // ---------- 路由管理器在链尾的三态 ----------
+    // ---------- 路由调用中间件在链尾的两态 ----------
 
     @Test
-    void routerManagerNullLeavesChainTailAtLastMiddleware() {
+    void routeHandlerManagerNullLeavesChainTailAtLastMiddleware() {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
         HttpRequestApplication app = new HttpRequestApplication.Builder()
@@ -79,25 +96,29 @@ class HttpRequestApplicationTest {
                 .middleware(mw)
                 .build();
 
-        assertNull(mw.getNext(), "routerManager==null 时链尾就是最后一个业务中间件，其后无路由节点");
+        assertNull(mw.getNext(), "routeHandlerManager==null 时链尾就是最后一个业务中间件，其后无路由节点");
         app.close();
     }
 
     @Test
-    void routerManagerIsAppendedAtChainTail() {
+    void routeHandlerInvokeMiddlewareAppendedAtChainTail() {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
-        TestRouterManager router = new TestRouterManager(events);
+        TestRouteHandlerManager router = new TestRouteHandlerManager(events);
         HttpRequestApplication app = new HttpRequestApplication.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(mw)
-                .routerManager(router)
+                .routeHandlerManager(router)
                 .build();
 
-        assertSame(router, mw.getNext(), "路由管理器追加在最后一个业务中间件之后");
-        assertNull(router.getNext(), "路由管理器位于链尾，其后不得再有节点");
+        Middleware routeMiddleware = mw.getNext();
+        assertNotNull(routeMiddleware, "存在路由处理器管理器时必须创建路由调用中间件追加在链尾");
+        assertEquals("RouteHandlerInvokeMiddleware", routeMiddleware.getClass().getSimpleName());
+        assertNull(routeMiddleware.getNext(), "路由调用中间件位于链尾，其后不得再有节点");
+        assertSame("route-result", routeMiddleware.invoke(null),
+                "路由调用中间件把上下文交给管理器handle，其返回结果原样作为链结果");
+        assertTrue(events.contains("handle:router"), "handle必须被路由调用中间件转交给路由处理器管理器");
         app.close();
-        assertTrue(events.contains("destroy:router"), "链尾的路由管理器也必须被销毁");
     }
 
     // ---------- 资源作用域：登记顺序即释放顺序 ----------
@@ -156,30 +177,90 @@ class HttpRequestApplicationTest {
         app.close();
     }
 
-    // ---------- 全量 setter 生效 + cors 消费者确实被调用 ----------
+    // ---------- 全量 setter 直通编排器 ----------
 
     @Test
-    void allSettersAreAppliedDuringBuild() {
+    void allSettersAreAppliedDuringBuild() throws Exception {
         List<String> events = new ArrayList<>();
-        AtomicBoolean corsApplied = new AtomicBoolean(false);
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
-        TestRouterManager router = new TestRouterManager(events);
+        TestRouteHandlerManager router = new TestRouteHandlerManager(events);
+        JsonSerializer serializer = new JacksonJsonSerializer();
+        HttpCorsConfig corsConfig = HttpCorsConfig.builder().build();
+        ExceptionHandlerManager exceptionHandlerManager = new ExceptionHandlerManager(Set.of());
+        ResultConverterManager resultConverterManager = new ResultConverterManager(serializer);
+        ThreadPool extraPool = new ElasticThreadPool(1, 1, 1);
+        ResponseWriterManager responseWriterManager = new ResponseWriterManager(extraPool, List.of());
+        try {
+            HttpRequestApplication app = new HttpRequestApplication.Builder()
+                    .exceptionHandlerManager(exceptionHandlerManager)
+                    .sessionManager(new NoopSessionManager())
+                    .routeHandlerManager(router)
+                    .jsonSerializer(serializer)
+                    .resultConverterManager(resultConverterManager)
+                    .responseWriterManager(responseWriterManager)
+                    .corsConfig(corsConfig)
+                    .config(HttpConfig.builder().serializePerConnection(true).build())
+                    .middleware(mw)
+                    .build();
 
+            RequestOrchestrator orchestrator = orchestratorOf(app);
+            assertSame(corsConfig, componentOf(orchestrator, "corsConfig"),
+                    "用户传入的cors配置原样进入编排器");
+            assertSame(exceptionHandlerManager, componentOf(orchestrator, "exceptionHandlerManager"),
+                    "用户传入的异常处理器管理器原样进入编排器");
+            assertSame(resultConverterManager, componentOf(orchestrator, "resultConverterManager"),
+                    "用户传入的结果转化器管理器原样进入编排器");
+            assertSame(responseWriterManager, componentOf(orchestrator, "responseWriterManager"),
+                    "用户传入的响应写出器管理器原样进入编排器");
+            assertSame(serializer, componentOf(orchestrator, "jsonSerializer"),
+                    "用户传入的json序列化器原样进入编排器");
+            Middleware head = (Middleware) componentOf(orchestrator, "middleware");
+            assertInstanceOf(SentinelMiddleware.class, head, "编排器的中间件组件是链头哨兵");
+            assertSame(mw, head.getNext(), "业务中间件紧随哨兵");
+            assertEquals("RouteHandlerInvokeMiddleware", mw.getNext().getClass().getSimpleName(),
+                    "路由调用中间件追加在链尾");
+            assertNull(mw.getNext().getNext(), "路由调用中间件之后无节点");
+            app.close();
+        } finally {
+            extraPool.close();
+        }
+    }
+
+    @Test
+    void unpassedComponentsFallBackToDefaults() throws Exception {
         HttpRequestApplication app = new HttpRequestApplication.Builder()
-                .exceptionHandler(new Object())
                 .sessionManager(new NoopSessionManager())
-                .routerManager(router)
-                .jsonSerializer(new JacksonJsonSerializer())
-                .responseConverter(new DefaultHttpResponseConverter(new JacksonJsonSerializer()))
-                .cors(config -> corsApplied.set(true))
-                .config(HttpConfig.builder().serializePerConnection(true).build())
-                .middleware(mw)
                 .build();
-
-        assertTrue(corsApplied.get(), "build() 必须把 cors 消费者作用到 CorsProcessor.Config 上");
-        assertSame(router, mw.getNext());
+        RequestOrchestrator orchestrator = orchestratorOf(app);
+        for (String component : List.of("middleware", "virtualThreadResource", "responseWriterManager",
+                "resultConverterManager", "corsConfig", "exceptionHandlerManager",
+                "sessionManagerHolder", "jsonSerializer")) {
+            assertNotNull(componentOf(orchestrator, component), "八组件之 " + component + " 装配后不可为null");
+        }
+        assertInstanceOf(UnlimitedVirtualThreadResource.class,
+                componentOf(orchestrator, "virtualThreadResource"),
+                "默认配置未启用限流，虚拟线程资源为非受限实现");
+        assertTrue(((HttpCorsConfig) componentOf(orchestrator, "corsConfig")).isAnyOrigin(),
+                "cors配置默认取通配配置");
         app.close();
-        assertTrue(events.contains("destroy:router"));
+    }
+
+    // ---------- 虚拟线程资源按配置创建 ----------
+
+    @Test
+    void virtualThreadResourceIsCreatedFromConfig() throws Exception {
+        HttpRequestApplication limited = new HttpRequestApplication.Builder()
+                .sessionManager(new NoopSessionManager())
+                .config(HttpConfig.builder()
+                        .enableHttpSchedulerLimit(true)
+                        .httpSchedulerLimitCount(2)
+                        .build())
+                .build();
+        VirtualThreadResource resource =
+                (VirtualThreadResource) componentOf(orchestratorOf(limited), "virtualThreadResource");
+        assertInstanceOf(LimitedVirtualThreadResource.class, resource,
+                "启用限流时应用按配置创建受限虚拟线程资源");
+        limited.close();
     }
 
     // ---------- 缺陷候选实测裁决 ----------
@@ -233,6 +314,27 @@ class HttpRequestApplicationTest {
     // ---------- 夹具 ----------
 
     /**
+     * 取出应用装配完成的请求编排器：应用持有调度处理器、处理器持有编排器，两级均为私有字段，
+     * L1 只能反射读取（与 {@code diskPoolOf} 同一类取证手段）。字段一旦改名，相关用例会以
+     * {@code NoSuchFieldException} 变红，届时同步更新即可。
+     */
+    private static RequestOrchestrator orchestratorOf(HttpRequestApplication app) throws Exception {
+        Field handlerField = HttpRequestApplication.class.getDeclaredField("httpRequestSchedulerHandler");
+        handlerField.setAccessible(true);
+        Object handler = handlerField.get(app);
+        Field orchestratorField = HttpRequestSchedulerChannelHandler.class.getDeclaredField("requestOrchestrator");
+        orchestratorField.setAccessible(true);
+        return (RequestOrchestrator) orchestratorField.get(handler);
+    }
+
+    /** 反射读取编排器指定名称的私有组件字段值。 */
+    private static Object componentOf(RequestOrchestrator orchestrator, String fieldName) throws Exception {
+        Field field = RequestOrchestrator.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(orchestrator);
+    }
+
+    /**
      * 从应用资源作用域里取出磁盘IO线程池：{@code ScopedResource} 不暴露已登记资源，
      * L1 只能反射读它私有的 {@code registedResource}（与 commons 阶段读 {@code GlobalConfig}
      * 私有静态的手法是同一类取证手段）。字段一旦改名，本用例会以
@@ -275,29 +377,19 @@ class HttpRequestApplicationTest {
         }
     }
 
-    /** 记录 init/destroy 的测试路由管理器，仅用于断言它在链尾及其销毁。 */
-    private static final class TestRouterManager extends RouterManager {
+    /** 记录 handle 调用并返回固定标记的路由处理器管理器，用于断言链尾包装与直通。 */
+    private static final class TestRouteHandlerManager implements RouteHandlerManager {
 
         private final List<String> events;
 
-        TestRouterManager(List<String> events) {
+        TestRouteHandlerManager(List<String> events) {
             this.events = events;
         }
 
         @Override
-        protected RouterContainer getRouterContainer() {
-            return null;
-        }
-
-        @Override
-        public void init(Middleware chain) {
-            super.init(chain);
-            events.add("init:router");
-        }
-
-        @Override
-        public void destroy() {
-            events.add("destroy:router");
+        public Object handle(HttpContext context) {
+            events.add("handle:router");
+            return "route-result";
         }
     }
 

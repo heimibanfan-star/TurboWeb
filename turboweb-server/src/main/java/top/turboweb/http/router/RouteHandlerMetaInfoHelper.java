@@ -1,7 +1,6 @@
 package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.HttpMethod;
-import top.turboweb.http.middleware.router.container.PathHelper;
 import top.turboweb.rest.route.Delete;
 import top.turboweb.rest.route.Get;
 import top.turboweb.rest.route.Patch;

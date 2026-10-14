@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  * 任何用例若意外走到未覆盖的入口会立刻暴露，而不是静默拿到 {@code null} 让断言失去意义。
  * <p>
  * {@link #threadPool()} 返回不启动任何线程的空实现，仅用于满足
- * {@code FileStreamResponseStrategy} 构造器对非 null 线程池的要求；L1 用例不会真提交任务。
+ * {@code ResponseWriterManager} 构造器对非 null 磁盘IO线程池的要求；L1 用例不会真提交任务。
  * <p>
  * L2 用例可要求线程池同步执行：{@link #directExecutorThreadPool()} 在调用线程直接跑完
  * 背压链，{@link #rejectingThreadPool()} / {@link #firstRunRestRejectingThreadPool()}

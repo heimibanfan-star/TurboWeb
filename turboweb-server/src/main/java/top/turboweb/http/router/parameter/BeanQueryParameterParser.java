@@ -1,0 +1,50 @@
+package top.turboweb.http.router.parameter;
+
+import top.turboweb.rest.param.BeanQuery;
+import top.turboweb.http.context.HttpContext;
+
+import java.lang.reflect.Parameter;
+
+/**
+ * 查询模型映射为实体的参数解析器
+ */
+public class BeanQueryParameterParser extends AbstractParameterParser{
+
+
+    /**
+     * 查询参数映射为实体的绑定器
+     */
+    private record QueryModelParameterBinder(
+            Class<?> type,
+            boolean validate,
+            Class<?>[] groups
+    ) implements ParameterParser.Binder {
+
+        @Override
+        public Object bindParameter(HttpContext ctx) {
+            if (!validate) {
+                return ctx.loadQuery(type);
+            } else {
+                if (groups == null || groups.length == 0) {
+                    return ctx.loadValidQuery(type);
+                } else {
+                    return ctx.loadValidQuery(type, groups);
+                }
+            }
+        }
+    }
+
+
+    @Override
+    protected ParameterParser.Binder doParse(Parameter parameter) {
+        if (!parameter.isAnnotationPresent(BeanQuery.class)) {
+            return null;
+        }
+        BeanQuery queryModel = parameter.getAnnotation(BeanQuery.class);
+        return new QueryModelParameterBinder(
+                parameter.getType(),
+                queryModel.value(),
+                queryModel.groups()
+        );
+    }
+}

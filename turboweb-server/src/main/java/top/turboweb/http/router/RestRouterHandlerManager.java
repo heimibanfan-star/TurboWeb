@@ -4,7 +4,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.middleware.router.info.autobind.*;
+import top.turboweb.http.router.parameter.*;
 import top.turboweb.struct.radix.RestRouteTree;
 import top.turboweb.struct.radix.RouteTree;
 
@@ -83,7 +83,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
         private static final String SPLIT_PATH = "/";
         private final String baseUrl;
         private final Map<Class<?>, Object> routeInstanceMap = new HashMap<>();
-        private final LinkedList<ParameterInfoParser> parsers = new LinkedList<>();
+        private final LinkedList<ParameterParser> parsers = new LinkedList<>();
 
         /**
          * 构建路由注册器
@@ -101,13 +101,13 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
             }
             this.baseUrl = baseUrl;
             // 注册默认的参数解析器
-            parsers.add(new InternTypeParamInfoParser());
-            parsers.add(new RestParameterInfoParser());
-            parsers.add(new QueryParameterInfoParser());
-            parsers.add(new UploadParameterInfoParser());
-            parsers.add(new QueryModelParameterInfoParser());
-            parsers.add(new FormModelParameterInfoParser());
-            parsers.add(new JsonModelParameterInfoParser());
+            parsers.add(new InternTypeParameterParser());
+            parsers.add(new PathParameterParser());
+            parsers.add(new QueryParameterParser());
+            parsers.add(new UploadParameterParser());
+            parsers.add(new BeanQueryParameterParser());
+            parsers.add(new BeanFormParameterParser());
+            parsers.add(new BeanJsonParameterParser());
         }
 
         /**
@@ -185,11 +185,11 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param toRemoveParsers 待剔除的解析器,按其 class 匹配表中的实例
          * @return 本构建器
          */
-        public Builder removeParameterParser(ParameterInfoParser... toRemoveParsers) {
-            Iterator<ParameterInfoParser> iterator = this.parsers.iterator();
+        public Builder removeParameterParser(ParameterParser... toRemoveParsers) {
+            Iterator<ParameterParser> iterator = this.parsers.iterator();
             while (iterator.hasNext()) {
-                ParameterInfoParser parser = iterator.next();
-                for (ParameterInfoParser toRemoveParser : toRemoveParsers) {
+                ParameterParser parser = iterator.next();
+                for (ParameterParser toRemoveParser : toRemoveParsers) {
                     if (toRemoveParser != null && Objects.equals(toRemoveParser.getClass(), parser.getClass())) {
                         iterator.remove();
                         break;
@@ -207,7 +207,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @throws NullPointerException toRegisteredParser 为 null
          * @throws IllegalArgumentException 同 class 的解析器已注册
          */
-        public Builder registerParameterParserFirst(ParameterInfoParser toRegisteredParser) {
+        public Builder registerParameterParserFirst(ParameterParser toRegisteredParser) {
             validateBeforeRegisterParameterParser(toRegisteredParser);
             this.parsers.addFirst(toRegisteredParser);
             return this;
@@ -221,7 +221,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @throws NullPointerException toRegisteredParser 为 null
          * @throws IllegalArgumentException 同 class 的解析器已注册
          */
-        public Builder registerParameterParserLast(ParameterInfoParser toRegisteredParser) {
+        public Builder registerParameterParserLast(ParameterParser toRegisteredParser) {
             validateBeforeRegisterParameterParser(toRegisteredParser);
             this.parsers.addLast(toRegisteredParser);
             return this;
@@ -235,7 +235,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param toRegisteredParser 待注册的解析器,不能为 null
          * @return 本构建器
          */
-        public Builder registerParameterParserBefore(ParameterInfoParser targetParser, ParameterInfoParser toRegisteredParser) {
+        public Builder registerParameterParserBefore(ParameterParser targetParser, ParameterParser toRegisteredParser) {
             validateBeforeRegisterParameterParser(toRegisteredParser);
             int index = indexOfRegisteredParser(targetParser);
             this.parsers.add(index, toRegisteredParser);
@@ -250,7 +250,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param toRegisteredParser 待注册的解析器,不能为 null
          * @return 本构建器
          */
-        public Builder registerParameterParserAfter(ParameterInfoParser targetParser, ParameterInfoParser toRegisteredParser) {
+        public Builder registerParameterParserAfter(ParameterParser targetParser, ParameterParser toRegisteredParser) {
             validateBeforeRegisterParameterParser(toRegisteredParser);
             int index = indexOfRegisteredParser(targetParser);
             this.parsers.add(index + 1, toRegisteredParser);
@@ -265,7 +265,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param toRegisteredParser 替换进来的解析器,不能为 null
          * @return 本构建器
          */
-        public Builder registerParameterParser(ParameterInfoParser targetParser, ParameterInfoParser toRegisteredParser) {
+        public Builder registerParameterParser(ParameterParser targetParser, ParameterParser toRegisteredParser) {
             validateBeforeRegisterParameterParser(toRegisteredParser);
             int index = indexOfRegisteredParser(targetParser);
             this.parsers.remove(index);
@@ -280,7 +280,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @throws NullPointerException     targetParser 为 null
          * @throws IllegalArgumentException targetParser 的 class 未注册
          */
-        private int indexOfRegisteredParser(ParameterInfoParser targetParser) {
+        private int indexOfRegisteredParser(ParameterParser targetParser) {
             Objects.requireNonNull(targetParser, "目标解析器不能为空");
             for (int index = 0; index < this.parsers.size(); index++) {
                 if (Objects.equals(this.parsers.get(index).getClass(), targetParser.getClass())) {
@@ -290,8 +290,8 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
             throw new IllegalArgumentException("目标解析器未注册: " + targetParser.getClass());
         }
 
-        private void validateBeforeRegisterParameterParser(ParameterInfoParser toRegisteredParser) {
-            Objects.requireNonNull(toRegisteredParser, "ParameterInfoParser must not be null");
+        private void validateBeforeRegisterParameterParser(ParameterParser toRegisteredParser) {
+            Objects.requireNonNull(toRegisteredParser, "ParameterParser must not be null");
             boolean exist = this.parsers.stream().anyMatch(parser -> Objects.equals(
                     toRegisteredParser.getClass(), parser.getClass())
             );

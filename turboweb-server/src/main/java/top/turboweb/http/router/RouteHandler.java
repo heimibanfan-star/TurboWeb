@@ -5,8 +5,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.middleware.router.info.autobind.ParameterBinder;
-import top.turboweb.http.middleware.router.info.autobind.ParameterInfoParser;
+import top.turboweb.http.router.parameter.ParameterParser;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -19,7 +18,7 @@ import java.util.*;
  */
 public class RouteHandler {
 
-    private static final ParameterBinder DEFAULT_PARAMETER_BINDER = ctx -> null;
+    private static final ParameterParser.Binder DEFAULT_PARAMETER_BINDER = ctx -> null;
     private final String path;
 
     private final RouteHandlerInvoker[] invokers;
@@ -33,7 +32,7 @@ public class RouteHandler {
      * @throws NullPointerException parsers 为 null
      * @throws TurboRouterDefinitionCreateException 目标方法不可访问导致展开失败
      */
-    public RouteHandler(List<RouteHandlerMetaInfo> metaInfos, List<ParameterInfoParser> parsers) {
+    public RouteHandler(List<RouteHandlerMetaInfo> metaInfos, List<ParameterParser> parsers) {
         if (metaInfos == null || metaInfos.isEmpty()) {
             throw new IllegalArgumentException("RouteHandlerMetaInfo must not be empty");
         }
@@ -53,7 +52,7 @@ public class RouteHandler {
             }
             Method method = metaInfo.method();
             // 获取参数绑定器
-            ParameterBinder[] binders = parseBinders(method, parsers);
+            ParameterParser.Binder[] binders = parseBinders(method, parsers);
             try {
                 // 展开方法句柄
                 MethodHandle methodHandle = MethodHandles.lookup().unreflect(method).bindTo(metaInfo.instance()).asSpreader(Object[].class, method.getParameterCount());
@@ -74,13 +73,13 @@ public class RouteHandler {
      * @return 与形参一一对应的绑定器数组;无人认领的参数取缺省绑定器,其绑定值为 null,
      *          原始类型形参因此会在调用时拆箱失败
      */
-    private ParameterBinder[] parseBinders(Method method, List<ParameterInfoParser> parsers) {
+    private ParameterParser.Binder[] parseBinders(Method method, List<ParameterParser> parsers) {
         Parameter[] parameters = method.getParameters();
-        ParameterBinder[] binders = new ParameterBinder[parameters.length];
+        ParameterParser.Binder[] binders = new ParameterParser.Binder[parameters.length];
         for (int i = 0; i < parameters.length; i++) {
-            ParameterBinder binder = null;
+            ParameterParser.Binder binder = null;
             // 依次解析所有的参数
-            for (ParameterInfoParser parser : parsers) {
+            for (ParameterParser parser : parsers) {
                 binder = parser.parse(parameters[i]);
                 if (binder != null) {
                     break;

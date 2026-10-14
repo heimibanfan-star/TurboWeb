@@ -6,15 +6,15 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import top.turboweb.http.core.connect.InternalConnectSession;
-import top.turboweb.http.scheduler.HttpScheduler;
+import top.turboweb.http.orchestrator.RequestOrchestrator;
 
 /**
  * http请求调度处理器（纯http版本，不可变）。
  * <p>
  * 参考 top.turboweb.core.dispatch.HttpProtocolDispatcher 实现，区别在于本处理器内部
- * 不聚合任何websocket相关的处理器，只专注于把http请求送进调度器：
+ * 不聚合任何websocket相关的处理器，只专注于把http请求送进请求编排器：
  * <ul>
- *     <li>普通http请求：封装连接会话对象后交给 {@link HttpScheduler} 调度执行；</li>
+ *     <li>普通http请求：封装连接会话对象后交给 {@link RequestOrchestrator} 编排执行；</li>
  *     <li>http升级协议请求（携带Upgrade头，如websocket握手）：不在本处理器处理，
  *     retain后继续向后转发，由pipeline中后续的处理器完成协议升级。</li>
  * </ul>
@@ -25,7 +25,7 @@ import top.turboweb.http.scheduler.HttpScheduler;
  *
  * <pre>{@code
  * HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
- *         .httpScheduler(httpScheduler)
+ *         .orchestrator(requestOrchestrator)
  *         .build();
  * }</pre>
  */
@@ -33,12 +33,12 @@ import top.turboweb.http.scheduler.HttpScheduler;
 public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     /**
-     * http调度器
+     * 请求编排器
      */
-    private final HttpScheduler httpScheduler;
+    private final RequestOrchestrator requestOrchestrator;
 
     private HttpRequestSchedulerChannelHandler(Builder builder) {
-        this.httpScheduler = builder.httpScheduler;
+        this.requestOrchestrator = builder.requestOrchestrator;
     }
 
     /**
@@ -62,7 +62,7 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
         // 封装连接的会话对象
         InternalConnectSession connectSession = new InternalConnectSession(channelHandlerContext.channel());
         // 执行异步任务
-        httpScheduler.execute(fullHttpRequest, connectSession);
+        requestOrchestrator.orchestrate(fullHttpRequest, connectSession);
     }
 
     /**
@@ -70,21 +70,21 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
      */
     public static final class Builder {
 
-        private HttpScheduler httpScheduler;
+        private RequestOrchestrator requestOrchestrator;
 
         private Builder() {
         }
 
         /**
-         * 设置http调度器
+         * 设置请求编排器
          *
-         * @param httpScheduler http调度器，不能为null
+         * @param requestOrchestrator 请求编排器，不能为null
          */
-        public Builder httpScheduler(HttpScheduler httpScheduler) {
-            if (httpScheduler == null) {
-                throw new IllegalArgumentException("httpScheduler can not be null");
+        public Builder orchestrator(RequestOrchestrator requestOrchestrator) {
+            if (requestOrchestrator == null) {
+                throw new IllegalArgumentException("requestOrchestrator can not be null");
             }
-            this.httpScheduler = httpScheduler;
+            this.requestOrchestrator = requestOrchestrator;
             return this;
         }
 
@@ -92,8 +92,8 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
          * 构建处理器对象，只处理http请求，默认没有websocket
          */
         public HttpRequestSchedulerChannelHandler build() {
-            if (httpScheduler == null) {
-                throw new IllegalArgumentException("httpScheduler不能为空");
+            if (requestOrchestrator == null) {
+                throw new IllegalArgumentException("requestOrchestrator不能为空");
             }
             return new HttpRequestSchedulerChannelHandler(this);
         }

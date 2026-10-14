@@ -8,8 +8,8 @@ import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.middleware.router.info.autobind.ParameterBinder;
-import top.turboweb.http.middleware.router.info.autobind.ParameterInfoParser;
+import top.turboweb.http.router.parameter.ParameterParser.Binder;
+import top.turboweb.http.router.parameter.ParameterParser;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -100,15 +100,15 @@ class RouteHandlerTest {
                 null, null, null, null);
     }
 
-    private static final ParameterInfoParser REJECTING = parameter -> null;
+    private static final ParameterParser REJECTING = parameter -> null;
 
     /** 认领所有参数,绑定值为前缀加认领顺序下标 */
-    private static ParameterInfoParser claiming(String prefix) {
-        return new ParameterInfoParser() {
+    private static ParameterParser claiming(String prefix) {
+        return new ParameterParser() {
             private final AtomicInteger counter = new AtomicInteger();
 
             @Override
-            public ParameterBinder parse(Parameter parameter) {
+            public ParameterParser.Binder parse(Parameter parameter) {
                 int current = counter.getAndIncrement();
                 return ctx -> prefix + current;
             }
@@ -212,7 +212,7 @@ class RouteHandlerTest {
     @Test
     void firstClaimingParserWinsAndLaterParsersSkipped() throws Throwable {
         EchoController controller = new EchoController();
-        ParameterInfoParser exploding = parameter -> {
+        ParameterParser exploding = parameter -> {
             throw new AssertionError("已被认领的参数不应继续向后解析");
         };
         RouteHandler handler = new RouteHandler(

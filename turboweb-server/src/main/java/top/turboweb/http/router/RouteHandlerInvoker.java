@@ -2,7 +2,7 @@ package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.HttpMethod;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.middleware.router.info.autobind.ParameterBinder;
+import top.turboweb.http.router.parameter.ParameterParser;
 
 import java.lang.invoke.MethodHandle;
 import java.util.Objects;
@@ -11,7 +11,7 @@ public class RouteHandlerInvoker {
 
     private final HttpMethod httpMethod;
     private final MethodHandle methodHandle;
-    private final ParameterBinder[] binders;
+    private final ParameterParser.Binder[] binders;
 
     /**
      * 构造单一请求方式下的路由调用器
@@ -24,11 +24,11 @@ public class RouteHandlerInvoker {
     public RouteHandlerInvoker(
             HttpMethod httpMethod,
             MethodHandle methodHandle,
-            ParameterBinder[] binders
+            ParameterParser.Binder[] binders
     ) {
         Objects.requireNonNull(httpMethod, "HttpMethod must not be null");
         Objects.requireNonNull(methodHandle, "MethodHandle must not be null");
-        Objects.requireNonNull(binders, "ParameterBinder[] must not be null");
+        Objects.requireNonNull(binders, "Binder[] must not be null");
         this.httpMethod = httpMethod;
         this.methodHandle = methodHandle;
         this.binders = binders;
