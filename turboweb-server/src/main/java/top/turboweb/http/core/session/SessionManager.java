@@ -1,5 +1,7 @@
 package top.turboweb.http.core.session;
 
+import java.util.function.Function;
+
 /**
  * 会话管理器核心接口，定义会话的创建、属性操作、过期管理及垃圾回收等功能。
  * <p>
@@ -101,4 +103,16 @@ public interface SessionManager {
      * @param sessionId 会话的唯一标识（非空）
      */
     void expireAt(String sessionId);
+
+    /**
+     * 会话安全作用域：在与会话垃圾回收互斥的临界区内执行回调，进入前取得互斥读侧、
+     * 回调结束或抛出后必定释放，回调收到的入参即本管理器。同一线程可重入本作用域，
+     * 内层退出只解除本层，互斥保持到最外层作用域退出。无共享状态、无垃圾回收的
+     * 实现可直接执行回调不施加互斥。
+     *
+     * @param action 在互斥作用域内执行的回调，接收本管理器
+     * @param <T>    回调返回值类型
+     * @return 回调的返回值，原样透传给调用方
+     */
+    <T> T sessionSafeScope(Function<SessionManager, T> action);
 }

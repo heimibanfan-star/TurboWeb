@@ -7,12 +7,10 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.commons.lock.Locks;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.DefaultHttpCookieManager;
 import top.turboweb.http.core.cookie.HttpCookieManager;
-import top.turboweb.http.core.session.BackHoleSessionManager;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.SessionManager;
@@ -241,8 +239,9 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 启动中间件链：会话管理器非黑洞实现（空操作、无会话回收）时对会话锁加读锁，
-     * 与会话垃圾回收的写锁互斥保证并发安全，随后执行链逻辑；黑洞实现无共享状态不加锁。
+     * 启动中间件链：把链执行整体放入会话管理器的会话安全作用域——链执行期与会话
+     * 垃圾回收的互斥由管理器在作用域内收口，作用域退出时自动释放；无共享状态的
+     * 管理器实现直接透传执行回调。
      *
      * @param request        请求对象
      * @param connectSession 当前连接会话
@@ -250,15 +249,8 @@ public class RequestOrchestrator {
      */
     private HttpResponse startMiddleware(FullHttpRequest request, ConnectSession connectSession) {
         SessionManager sessionManager = sessionManagerHolder.getSessionManager();
-        if (sessionManager instanceof BackHoleSessionManager) {
-            return executeMiddleware(request, connectSession, sessionManager);
-        }
-        Locks.SESSION_LOCK.readLock().lock();
-        try {
-            return executeMiddleware(request, connectSession, sessionManager);
-        } finally {
-            Locks.SESSION_LOCK.readLock().unlock();
-        }
+        return sessionManager.sessionSafeScope(manager ->
+                executeMiddleware(request, connectSession, manager));
     }
 
     /**

@@ -2,7 +2,6 @@ package top.turboweb.http.core.session;
 
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.commons.lock.Locks;
 import top.turboweb.concurrent.lock.SegmentLock;
 
 import java.util.Iterator;
@@ -12,6 +11,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 
 /**
  * 基于内存的会话管理器实现，适用于单机环境下的会话存储与管理。
@@ -24,6 +24,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class MemorySessionManager implements SessionManager {
 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(MemorySessionManager.class);
+
+    /**
+     * 本实例的请求处理与垃圾回收互斥读写锁：请求路径经 {@link #sessionSafeScope(Function)} 持读侧，
+     * 垃圾回收清扫持写侧；采用公平模式，读密集时写侧（回收）不被饿死。
+     */
+    private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock(true);
 
     /**
      * 会话容器，键为sessionId，值为会话属性的映射对象（{@link MemorySessionMap}）。
@@ -187,7 +193,8 @@ public class MemorySessionManager implements SessionManager {
      * 1. 当会话总数达到{@code sessionNumThreshold}时，触发清理；
      * 2. 遍历所有会话，移除已过期的会话（超过{@code maxNotUseTime}未使用）；
      * 3. 对未过期的会话，清理其内部已过期的属性。
-     * 清理过程使用全局写锁（{@link Locks#SESSION_LOCK}）保证线程安全，避免并发修改冲突。
+     * 清理过程持本实例写锁，与 {@link #sessionSafeScope(Function)} 作用域持有的读锁互斥，
+     * 保证线程安全、避免并发修改冲突。
      * </p>
      *
      * @param checkTime          垃圾回收的检查间隔时间（单位：毫秒）
@@ -218,7 +225,7 @@ public class MemorySessionManager implements SessionManager {
             }
             long start = System.currentTimeMillis();
             // 获取session的写锁
-            ReentrantReadWriteLock.WriteLock writeLock = Locks.SESSION_LOCK.writeLock();
+            ReentrantReadWriteLock.WriteLock writeLock = readWriteLock.writeLock();
             writeLock.lock();
             try {
                 log.debug("Session garbage collector triggered");
@@ -263,6 +270,17 @@ public class MemorySessionManager implements SessionManager {
         MemorySessionMap sessionMap = sessionContainer.get(sessionId);
         if (sessionMap != null) {
             sessionMap.expireAt();
+        }
+    }
+
+    @Override
+    public <T> T sessionSafeScope(Function<SessionManager, T> action) {
+        ReentrantReadWriteLock.ReadLock readLock = readWriteLock.readLock();
+        readLock.lock();
+        try {
+            return action.apply(this);
+        } finally {
+            readLock.unlock();
         }
     }
 }

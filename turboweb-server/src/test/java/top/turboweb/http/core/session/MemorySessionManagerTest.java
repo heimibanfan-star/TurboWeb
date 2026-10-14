@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -26,7 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@link MemorySessionManager} 的会话 CRUD、并发创建、GC 启动守卫与过期回收。
  *
  * <p>过期回收的“该不该回收”是确定量（注入 maxNotUseTime=-1 使会话必然过期）；
- * 只有“等调度器跑第一轮”依赖真实时钟——这是本任务唯一一条真实时间用例，代价见方法注释。
+ * 只有“等调度器跑第一轮”依赖真实时钟——依赖调度器的用例均以有界轮询等待，不做
+ * sleep 猜计数、不断言线程终止。
  */
 class MemorySessionManagerTest {
 
@@ -111,7 +113,7 @@ class MemorySessionManagerTest {
     }
 
     @Test
-    @DisplayName("回收：阈值到点后，已过期会话被移除（本任务唯一依赖真实时钟的用例）")
+    @DisplayName("回收：阈值到点后，已过期会话被移除")
     void sessionGcRemovesExpiredSession() {
         // 代价说明：注入 checkTime=10ms 的极小检查间隔，用有界轮询等调度器首次触发。
         // “该不该回收”是确定量——会话在构造函数里 expireAt 记时，注入 maxNotUseTime=-1 使其必然过期；
@@ -146,10 +148,97 @@ class MemorySessionManagerTest {
         assertFalse(names.contains("stop"), "不应存在 stop 入口");
     }
 
+    @Test
+    @DisplayName("安全作用域持在本实例读锁上：可重入且逐层解除、写侧全程互斥")
+    void safeScopeSharesReadersAndExcludesWriter() throws Exception {
+        MemorySessionManager manager = new MemorySessionManager();
+        ReentrantReadWriteLock instanceLock = readWriteLockOf(manager);
+
+        manager.sessionSafeScope(outer -> {
+            // 同一线程可重入：内层作用域直接执行，不阻塞不抛
+            manager.sessionSafeScope(inner -> {
+                assertFalse(instanceLock.writeLock().tryLock(),
+                        "嵌套作用域持有期间本实例写锁不可获得——GC 写侧与作用域互斥正是这条通路");
+                return null;
+            });
+            // 内层已退出、外层仍持读锁
+            assertFalse(instanceLock.writeLock().tryLock(), "内层退出后外层仍持读锁，写侧依旧不可获得");
+            return null;
+        });
+
+        assertTrue(instanceLock.writeLock().tryLock(), "外层退出后写侧即可获得");
+        instanceLock.writeLock().unlock();
+    }
+
+    @Test
+    @DisplayName("GC 每轮重新获得写锁：第二批过期会话同样被回收")
+    void sessionGcReacquiresWriteLockEachCycle() throws Exception {
+        MemorySessionManager manager = new MemorySessionManager();
+        assertTrue(manager.createSessionMap("first"));
+        manager.sessionGC(10L, -1L, 1L);
+
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (manager.exist("first") && System.nanoTime() < deadline) {
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+        }
+        assertFalse(manager.exist("first"), "首轮回收应移除过期会话");
+
+        assertTrue(manager.createSessionMap("second"));
+        deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (manager.exist("second") && System.nanoTime() < deadline) {
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+        }
+        assertFalse(manager.exist("second"), "若上一轮退出时未释放写锁，本轮将永久阻塞，第二个会话永远收不掉");
+
+        // 同线程重入会把"删掉 unlock()"的变异伪装成照常回收（持锁计数只增不减仍自锁自解），
+        // 必须换另一线程取证写锁真被释放：写锁若被 GC 线程滞留，本线程永远进不了读侧。
+        ReentrantReadWriteLock instanceLock = readWriteLockOf(manager);
+        boolean readerAdmitted = false;
+        long admitDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!readerAdmitted && System.nanoTime() < admitDeadline) {
+            if (instanceLock.readLock().tryLock()) {
+                readerAdmitted = true;
+            } else {
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(5));
+            }
+        }
+        assertTrue(readerAdmitted, "GC 每轮退出必须释放写锁，否则其他线程永久无法进入读侧");
+        instanceLock.readLock().unlock();
+    }
+
+    @Test
+    @DisplayName("安全作用域内 GC 移不掉过期会话，作用域退出后恢复回收")
+    void sessionGcWaitsForSafeScopeExit() {
+        MemorySessionManager manager = new MemorySessionManager();
+        assertTrue(manager.createSessionMap("expired"));
+        manager.setAttr("expired", "k", "v");
+
+        manager.sessionSafeScope(scope -> {
+            manager.sessionGC(10L, -1L, 1L);
+            // 放行调度器多轮触发：GC 的写锁申请被作用域读锁阻塞，回收进不了临界区
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(300));
+            assertTrue(manager.exist("expired"), "作用域持有期间 GC 拿不到写锁，会话不应被移除");
+            return null;
+        });
+
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (manager.exist("expired") && System.nanoTime() < deadline) {
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+        }
+        assertFalse(manager.exist("expired"), "作用域退出后 GC 获得写锁，回收照常执行");
+    }
+
     /** 只读反射：isStartGC 是 private final AtomicBoolean，无公共 getter，只能读标志位本身。 */
     private static boolean readStartGc(MemorySessionManager manager) throws Exception {
         Field field = MemorySessionManager.class.getDeclaredField("isStartGC");
         field.setAccessible(true);
         return ((AtomicBoolean) field.get(manager)).get();
+    }
+
+    /** 只读反射：readWriteLock 是 private final 字段，公共 API 不给锁对象，互斥取证只能读本实例锁。 */
+    private static ReentrantReadWriteLock readWriteLockOf(MemorySessionManager manager) throws Exception {
+        Field field = MemorySessionManager.class.getDeclaredField("readWriteLock");
+        field.setAccessible(true);
+        return (ReentrantReadWriteLock) field.get(manager);
     }
 }

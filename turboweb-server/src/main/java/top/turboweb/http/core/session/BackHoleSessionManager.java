@@ -1,5 +1,7 @@
 package top.turboweb.http.core.session;
 
+import java.util.function.Function;
+
 /**
  * 黑洞会话管理器，是{@link SessionManager}接口的空实现，用于完全禁用会话功能的场景。
  * <p>
@@ -53,5 +55,10 @@ public class BackHoleSessionManager implements SessionManager{
 
     @Override
     public void expireAt(String sessionId) {
+    }
+
+    @Override
+    public <T> T sessionSafeScope(Function<SessionManager, T> action) {
+        return action.apply(this);
     }
 }

@@ -4,6 +4,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.exception.HttpSessionException;
 
+import java.util.function.Function;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -204,6 +206,11 @@ class DefaultHttpSessionTest {
         public void expireAt(String sessionId) {
             expireAtCalls++;
             lastExpireAtId = sessionId;
+        }
+
+        @Override
+        public <T> T sessionSafeScope(Function<SessionManager, T> action) {
+            return action.apply(this);
         }
     }
 }

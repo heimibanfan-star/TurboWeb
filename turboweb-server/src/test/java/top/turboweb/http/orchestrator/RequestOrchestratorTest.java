@@ -19,6 +19,7 @@ import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.core.session.BackHoleSessionManager;
+import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
@@ -26,8 +27,10 @@ import top.turboweb.http.testkit.Stubs;
 import top.turboweb.serializer.JacksonJsonSerializer;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -413,6 +416,69 @@ class RequestOrchestratorTest {
         channel.finishAndReleaseAll();
     }
 
+    /** 按指定链头与会话管理器实例装配九组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
+    private static RequestOrchestrator orchestratorWithChainAndManager(Middleware chain, SessionManager manager) {
+        return RequestOrchestrator.builder()
+                .middleware(chain)
+                .virtualThreadResource(new UnlimitedVirtualThreadResource("test-token-flow"))
+                .responseWriterManager(new ResponseWriterManager(Stubs.threadPool(), List.of()))
+                .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer()))
+                .corsConfig(HttpCorsConfig.builder().build())
+                .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
+                .sessionManagerHolder(() -> manager)
+                .jsonSerializer(new JacksonJsonSerializer())
+                .defaultCharset(StandardCharsets.UTF_8)
+                .build();
+    }
+
+    @Test
+    void safeScopeWrapsChainExecutionAndExitsAfter() {
+        List<String> events = new ArrayList<>();
+        RequestOrchestrator orchestrator = orchestratorWithChainAndManager(
+                new EventRecordingMiddleware(events), new ScopeRecordingSessionManager(events));
+        EmbeddedChannel channel = new EmbeddedChannel();
+        FullHttpRequest request = requestWith(HttpMethod.GET, null);
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        assertEquals(List.of("enter", "chain", "exit"), events,
+                "编排器把链执行整体放入会话管理器的安全作用域，链结果产出后作用域退出");
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void safeScopeExitsWhenChainThrows() {
+        List<String> events = new ArrayList<>();
+        ThrowingMiddleware chain = new ThrowingMiddleware(new IllegalStateException("boom"));
+        RequestOrchestrator orchestrator = orchestratorWithChainAndManager(
+                chain, new ScopeRecordingSessionManager(events));
+        EmbeddedChannel channel = new EmbeddedChannel();
+        FullHttpRequest request = requestWith(HttpMethod.GET, null);
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        assertEquals(List.of("enter", "exit"), events,
+                "链抛出异常时作用域同样先退出再进入异常处理路径，兜底页不泄漏读锁");
+        FullHttpResponse written = channel.readOutbound();
+        assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, written.getStatus());
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void optionsPreflightDoesNotEnterSafeScope() {
+        List<String> events = new ArrayList<>();
+        FixedResultMiddleware chain = new FixedResultMiddleware("must-not-be-written");
+        RequestOrchestrator orchestrator = orchestratorWithChainAndManager(
+                chain, new ScopeRecordingSessionManager(events));
+        EmbeddedChannel channel = new EmbeddedChannel();
+        FullHttpRequest request = requestWith(HttpMethod.OPTIONS, "https://a.com");
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        assertTrue(events.isEmpty(), "OPTIONS 预检不进 startMiddleware，不进入安全作用域");
+        channel.finishAndReleaseAll();
+    }
+
     @Test
     void attachedResponseMetaIsNotAppliedToResponse() {
         RequestOrchestrator orchestrator = flowOrchestrator(new MetaAttachingMiddleware(), new ExceptionHandlerManager(Set.of()));
@@ -567,6 +633,85 @@ class RequestOrchestratorTest {
         assertEquals("POST /submit cost:12us state:fail",
                 RequestOrchestrator.buildRequestLogMessage("POST", "/submit", 12_345L, false),
                 "微秒整除取商、失败措辞 fail");
+    }
+
+    /** 链成员：进链时记录 chain 事件并返回固定字符串。 */
+    private static class EventRecordingMiddleware extends Middleware {
+        private final List<String> events;
+
+        EventRecordingMiddleware(List<String> events) {
+            this.events = events;
+        }
+
+        @Override
+        public Object invoke(HttpContext ctx) {
+            events.add("chain");
+            return "hello";
+        }
+    }
+
+    /** 记录安全作用域进出次序的会话管理器桩；其余方法不被编排流程触发，留空实现。 */
+    private static class ScopeRecordingSessionManager implements SessionManager {
+        private final List<String> events;
+
+        ScopeRecordingSessionManager(List<String> events) {
+            this.events = events;
+        }
+
+        @Override
+        public <T> T sessionSafeScope(Function<SessionManager, T> action) {
+            events.add("enter");
+            try {
+                return action.apply(this);
+            } finally {
+                events.add("exit");
+            }
+        }
+
+        @Override
+        public void setAttr(String sessionId, String key, Object value) {
+        }
+
+        @Override
+        public void setAttr(String sessionId, String key, Object value, long timeout) {
+        }
+
+        @Override
+        public Object getAttr(String sessionId, String key) {
+            return null;
+        }
+
+        @Override
+        public <T> T getAttr(String sessionId, String key, Class<T> clazz) {
+            return null;
+        }
+
+        @Override
+        public void remAttr(String sessionId, String key) {
+        }
+
+        @Override
+        public boolean exist(String sessionId) {
+            return false;
+        }
+
+        @Override
+        public boolean createSessionMap(String sessionId) {
+            return false;
+        }
+
+        @Override
+        public void sessionGC(long checkTime, long maxNotUseTime, long sessionNumThreshold) {
+        }
+
+        @Override
+        public String sessionManagerName() {
+            return "token recording session manager";
+        }
+
+        @Override
+        public void expireAt(String sessionId) {
+        }
     }
 
     /** 返回固定结果并记录是否被进入的链成员。 */

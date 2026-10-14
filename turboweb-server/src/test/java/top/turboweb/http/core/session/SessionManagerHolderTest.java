@@ -3,6 +3,8 @@ package top.turboweb.http.core.session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.function.Function;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -84,6 +86,11 @@ class SessionManagerHolderTest {
 
         @Override
         public void expireAt(String sessionId) {
+        }
+
+        @Override
+        public <T> T sessionSafeScope(Function<SessionManager, T> action) {
+            return action.apply(this);
         }
     }
 }

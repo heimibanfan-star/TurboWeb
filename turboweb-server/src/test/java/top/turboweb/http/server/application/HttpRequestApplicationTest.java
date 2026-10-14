@@ -29,6 +29,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -420,8 +421,8 @@ class HttpRequestApplicationTest {
     }
 
     /**
-     * 空实现的 session 管理器：{@code sessionGC} 不启动任何后台线程，使 L1 用例不触碰
-     * JVM 级的 {@code Locks.SESSION_LOCK} 与 session GC 线程。
+     * 空实现的 session 管理器：{@code sessionGC} 不启动任何后台线程，
+     * 会话安全作用域直接透传回调，使 L1 用例不触碰 session GC 线程与互斥等待。
      */
     private static final class NoopSessionManager implements SessionManager {
 
@@ -468,6 +469,11 @@ class HttpRequestApplicationTest {
 
         @Override
         public void expireAt(String sessionId) {
+        }
+
+        @Override
+        public <T> T sessionSafeScope(Function<SessionManager, T> action) {
+            return action.apply(this);
         }
     }
 }

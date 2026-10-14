@@ -11,7 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link BackHoleSessionManager} 的空实现契约：写操作无副作用、查询返回固定值、
- * 会话永远“创建成功但不存在”。spec §5 的“跳过读写锁”在当前源码里就是这个空壳。
+ * 会话永远“创建成功但不存在”。spec §5 的“跳过读写锁”在当前源码里就是这个空壳，
+ * 其安全作用域直接透传回调。
  */
 class BackHoleSessionManagerTest {
 
@@ -42,5 +43,12 @@ class BackHoleSessionManagerTest {
     @DisplayName("名称标识固定为 backHole session manager")
     void nameIsFixed() {
         assertEquals("backHole session manager", manager.sessionManagerName());
+    }
+
+    @Test
+    @DisplayName("安全作用域透传回调：不施加互斥，返回值原样传出")
+    void safeScopeRunsActionDirectly() {
+        assertEquals("backHole session manager", manager.sessionSafeScope(SessionManager::sessionManagerName),
+                "回调收到本管理器，返回值原样透传");
     }
 }
