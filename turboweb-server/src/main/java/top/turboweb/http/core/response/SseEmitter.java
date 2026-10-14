@@ -2,7 +2,7 @@ package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
 import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.commons.exception.TurboSseException;
+import top.turboweb.http.exception.SseBufferException;
 import top.turboweb.http.orchestrator.ResponseWriter;
 import top.turboweb.http.orchestrator.SseResponseWriter;
 
@@ -153,13 +153,13 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 	 * 保存消息到缓存。
 	 *
 	 * @param message 消息内容
-	 * @throws TurboSseException 当缓存已满时抛出异常
+	 * @throws SseBufferException 当缓存已满时抛出异常
 	 */
 	private void saveMessageToCache(String message) {
 		cacheLock.lock();
 		try {
 			if (messageCache.size() >= maxMessageCache) {
-				throw new TurboSseException("消息缓存已满");
+				throw new SseBufferException("消息缓存已满");
 			}
 			// 放入消息
 			messageCache.add(message);

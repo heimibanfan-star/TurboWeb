@@ -6,8 +6,8 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookieManager;
-import top.turboweb.commons.exception.TurboArgsValidationException;
-import top.turboweb.commons.exception.TurboParamParseException;
+import top.turboweb.http.exception.ParameterValidationException;
+import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.commons.utils.base.ValidationUtils;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.helper.UrlHelper;
@@ -72,7 +72,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	/**
 	 * 校验对象参数合法性。
 	 * <p>
-	 * 若存在校验错误，将抛出 {@link TurboArgsValidationException}。
+	 * 若存在校验错误，将抛出 {@link ParameterValidationException}。
 	 *
 	 * @param obj 待校验对象
 	 */
@@ -80,7 +80,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	public void validate(Object obj) {
 		List<String> errorMsg = ValidationUtils.validate(obj);
 		if (!errorMsg.isEmpty()) {
-			throw new TurboArgsValidationException(errorMsg);
+			throw new ParameterValidationException(errorMsg);
 		}
 	}
 
@@ -94,7 +94,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	public void validate(Object obj, Class<?>... groups) {
 		List<String> errorMsg = ValidationUtils.validate(obj, groups);
 		if (!errorMsg.isEmpty()) {
-			throw new TurboArgsValidationException(errorMsg);
+			throw new ParameterValidationException(errorMsg);
 		}
 	}
 
@@ -127,7 +127,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	 *
 	 * @param name 参数名
 	 * @return 整型值
-	 * @throws TurboParamParseException 转换失败时抛出
+	 * @throws RequestParseException 转换失败时抛出
 	 */
 	@Override
 	public Integer paramInt(String name) {
@@ -138,7 +138,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		try {
 			return Integer.parseInt(param);
 		} catch (NumberFormatException e) {
-			throw new TurboParamParseException(e);
+			throw new RequestParseException(e);
 		}
 	}
 
@@ -154,7 +154,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		try {
 			return Long.parseLong(param);
 		} catch (NumberFormatException e) {
-			throw new TurboParamParseException(e);
+			throw new RequestParseException(e);
 		}
 	}
 
@@ -374,14 +374,14 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	/**
 	 * 反序列化 JSON 请求体为对象。
 	 *
-	 * @throws TurboParamParseException 当请求体为空时抛出
+	 * @throws RequestParseException 当请求体为空时抛出
 	 */
 	@Override
 	public <T> T loadJson(Class<T> beanType) {
 		// 获取json请求体
 		String jsonContent = httpContent.getJsonContent();
 		if (jsonContent == null) {
-			throw new TurboParamParseException("json请求体为空");
+			throw new RequestParseException("json请求体为空");
 		}
 		// 序列化对象
 		return jsonSerializer.jsonToBean(jsonContent, beanType);

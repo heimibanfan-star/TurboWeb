@@ -11,8 +11,8 @@ import top.turboweb.rest.param.BeanQuery;
 import top.turboweb.rest.param.PathParam;
 import top.turboweb.rest.param.QueryParam;
 import top.turboweb.rest.param.UploadParam;
-import top.turboweb.commons.exception.TurboArgsValidationException;
-import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
+import top.turboweb.http.exception.ParameterValidationException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
@@ -203,7 +203,7 @@ class ParamInfoParsersTest {
 
     @Test
     void queryUnsupportedCollectionTypeThrows() {
-        TurboRouterDefinitionCreateException ex = assertThrows(TurboRouterDefinitionCreateException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> new QueryParameterParser().parse(parameter("queryUnsupportedCollection")));
         assertEquals("not support type of collection:java.util.Collection", ex.getMessage());
     }
@@ -242,7 +242,7 @@ class ParamInfoParsersTest {
     void queryNonNullRejectsMissingValue() {
         Stub stub = new Stub().returning("query", null);
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("queryNonNull"));
-        TurboArgsValidationException ex = assertThrows(TurboArgsValidationException.class,
+        ParameterValidationException ex = assertThrows(ParameterValidationException.class,
                 () -> b.bindParameter(stub.ctx()));
         assertEquals(List.of("q不能为null"), ex.getErrorMsg());
     }
@@ -360,7 +360,7 @@ class ParamInfoParsersTest {
         // 声明元素类型与 FileUpload 不符 → 不认领
         assertNull(new UploadParameterParser().parse(parameter("uploadStringList")));
         // List/Set 之外的裸集合类型 → 注册期异常，与查询侧同款
-        TurboRouterDefinitionCreateException ex = assertThrows(TurboRouterDefinitionCreateException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> new UploadParameterParser().parse(parameter("uploadRawCollection")));
         assertEquals("not support type of collection:java.util.Collection", ex.getMessage());
     }

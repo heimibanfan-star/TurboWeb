@@ -4,7 +4,6 @@ import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
@@ -253,7 +252,7 @@ class RouteHandlerTest {
     @Test
     void inaccessiblePrivateMethodWrappedInDefinitionCreateException() {
         EchoController controller = new EchoController();
-        TurboRouterDefinitionCreateException error = assertThrows(TurboRouterDefinitionCreateException.class,
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> new RouteHandler(List.of(rawPrivateMeta("/x", controller, HttpMethod.GET, "hidden")), List.of()));
         assertInstanceOf(IllegalAccessException.class, error.getCause(), "展开失败包装为路由定义创建异常并保留原因");
     }

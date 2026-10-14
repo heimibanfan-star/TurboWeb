@@ -1,7 +1,7 @@
 package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
-import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.http.core.constant.ContentType;
 
 import java.io.File;
@@ -56,17 +56,17 @@ public abstract class AbstractFileResponse extends DefaultHttpResponse {
 	 * 校验文件有效性
 	 *
 	 * @param file 文件对象
-	 * @throws TurboFileException 如果文件不存在、为文件夹或不可读
+	 * @throws ResponseHandleException 如果文件不存在、为文件夹或不可读
 	 */
 	private void fileVerify(File file) {
 		if (!file.exists()) {
-			throw new TurboFileException("文件不存在," + file.getAbsolutePath());
+			throw new ResponseHandleException("文件不存在," + file.getAbsolutePath());
 		}
 		if (file.isDirectory()) {
-			throw new TurboFileException("文件是文件夹," + file.getAbsolutePath());
+			throw new ResponseHandleException("文件是文件夹," + file.getAbsolutePath());
 		}
 		if (!file.canRead()) {
-			throw new TurboFileException("文件不可读," + file.getAbsolutePath());
+			throw new ResponseHandleException("文件不可读," + file.getAbsolutePath());
 		}
 	}
 

@@ -3,7 +3,7 @@ package top.turboweb.http.core.response;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.commons.utils.thread.WorkStealThreadUtils;
 import top.turboweb.http.orchestrator.AsyncFileResponseWriter;
 import top.turboweb.http.orchestrator.ResponseWriter;
@@ -78,7 +78,7 @@ public class AsyncFileResponse extends AbstractFileResponse implements ResponseC
             );
             fileSize = asynchronousFileChannel.size();
         } catch (IOException e) {
-            throw new TurboFileException(e);
+            throw new ResponseHandleException(e);
         }
         // 设置响应头
         this.headers().set(HttpHeaderNames.CONTENT_LENGTH, fileSize);

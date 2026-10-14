@@ -149,7 +149,7 @@ class PathHelperTest {
     @Test
     void questionMarkIsNotRejectedHere() {
         assertEquals("/api/x?", PathHelper.mergePath("/api", "/x?"),
-                "问号由调用方另行校验并抛 TurboRouterDefinitionCreateException，本类只规整斜杠");
+                "问号由调用方另行校验，本类只规整斜杠");
     }
 
     @Test

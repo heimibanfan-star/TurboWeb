@@ -2,7 +2,6 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.commons.exception.TurboExceptionHandlerException;
 import top.turboweb.http.core.response.HttpResult;
 import top.turboweb.http.exception.ExceptionHandlerException;
 import top.turboweb.http.exception.RouteHandlerException;
@@ -54,8 +53,7 @@ public class ExceptionHandlerManager {
      *
      * @param handlers 异常处理器实例集合，不能为 null
      * @throws NullPointerException          handlers 为 null
-     * @throws ExceptionHandlerException     存在两个相同异常类型的处理方法
-     * @throws TurboExceptionHandlerException 方法句柄不可访问
+     * @throws ExceptionHandlerException 存在两个相同异常类型的处理方法,或方法句柄不可访问
      */
     public ExceptionHandlerManager(Set<Object> handlers) {
         this.handlers = parseHandlers(Objects.requireNonNull(handlers, "handlers must not be null"));
@@ -156,8 +154,7 @@ public class ExceptionHandlerManager {
      *
      * @param instances 异常处理器实例集合
      * @return 不可变的异常类型映射表
-     * @throws ExceptionHandlerException     存在两个相同异常类型的处理方法
-     * @throws TurboExceptionHandlerException 方法句柄不可访问
+     * @throws ExceptionHandlerException 存在两个相同异常类型的处理方法,或方法句柄不可访问
      */
     @SuppressWarnings("unchecked")
     private static Map<Class<? extends Throwable>, ExceptionHandlerInvoker> parseHandlers(Set<Object> instances) {
@@ -193,7 +190,7 @@ public class ExceptionHandlerManager {
      * @param method   异常处理方法
      * @param instance 方法所属实例
      * @return 可调用句柄
-     * @throws TurboExceptionHandlerException 方法不可访问
+     * @throws ExceptionHandlerException 方法不可访问
      */
     private static MethodHandle bindHandle(Method method, Object instance) {
         try {
@@ -203,7 +200,7 @@ public class ExceptionHandlerManager {
             }
             return methodHandle;
         } catch (IllegalAccessException e) {
-            throw new TurboExceptionHandlerException(e);
+            throw new ExceptionHandlerException(e);
         }
     }
 }

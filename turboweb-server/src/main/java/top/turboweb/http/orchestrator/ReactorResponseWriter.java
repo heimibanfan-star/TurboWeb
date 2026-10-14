@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.*;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
-import top.turboweb.commons.exception.TurboReactiveException;
+import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.commons.utils.thread.ThreadAssert;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.core.response.ReactorResponse;
@@ -156,7 +156,7 @@ public class ReactorResponseWriter extends AbstractResponseWriter {
         @Override
         protected void hookOnCancel() {
             // 当流被取消时触发设置promise回调
-            promise.setFailure(new TurboReactiveException("Stream cancelled"));
+            promise.setFailure(new ResponseHandleException("Stream cancelled"));
             // 关闭当前连接的channel
             connectSession.close();
         }

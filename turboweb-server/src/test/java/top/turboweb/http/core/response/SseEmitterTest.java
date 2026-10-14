@@ -3,7 +3,7 @@ package top.turboweb.http.core.response;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpUtil;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboSseException;
+import top.turboweb.http.exception.SseBufferException;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.orchestrator.SseResponseWriter;
 import top.turboweb.http.testkit.RecordingConnectSession;
@@ -88,7 +88,7 @@ class SseEmitterTest {
         emitter.send("a");
         emitter.send("b");
 
-        TurboSseException ex = assertThrows(TurboSseException.class, () -> emitter.send("c"));
+        SseBufferException ex = assertThrows(SseBufferException.class, () -> emitter.send("c"));
         assertEquals("消息缓存已满", ex.getMessage());
         assertEquals(2, emitter.cachedCount(), "被拒绝的消息不得进入缓存");
     }
@@ -96,7 +96,7 @@ class SseEmitterTest {
     @Test
     void zeroCapacityRejectsFirstMessage() {
         ProbeEmitter emitter = new ProbeEmitter(new RecordingConnectSession(), 0);
-        assertThrows(TurboSseException.class, () -> emitter.send("a"));
+        assertThrows(SseBufferException.class, () -> emitter.send("a"));
     }
 
     @Test

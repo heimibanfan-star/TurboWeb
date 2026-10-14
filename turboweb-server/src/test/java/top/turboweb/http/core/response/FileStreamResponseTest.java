@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.http.orchestrator.FileStreamResponseWriter;
 
 import java.io.IOException;
@@ -104,14 +104,14 @@ class FileStreamResponseTest {
     @Test
     void nonexistentFileThrowsWithoutOpeningChannel() {
         Path missing = tempDir.resolve("nope.txt");
-        TurboFileException ex = assertThrows(TurboFileException.class,
+        ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new FileStreamResponse(missing.toFile()));
         assertEquals("文件不存在," + missing.toFile().getAbsolutePath(), ex.getMessage());
     }
 
     @Test
     void directoryThrows() {
-        TurboFileException ex = assertThrows(TurboFileException.class,
+        ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new FileStreamResponse(tempDir.toFile()));
         assertEquals("文件是文件夹," + tempDir.toFile().getAbsolutePath(), ex.getMessage());
     }

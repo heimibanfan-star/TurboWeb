@@ -2,7 +2,6 @@ package top.turboweb.http.handler;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboExceptionHandlerException;
 import top.turboweb.http.exception.ExceptionHandlerException;
 import top.turboweb.http.orchestrator.ExceptionHandlerInvoker;
 
@@ -140,14 +139,14 @@ class ExceptionHandlerInvokerTest {
     }
 
     @Test
-    @DisplayName("处理器抛运行时异常包装为 TurboExceptionHandlerException，原异常留作 cause")
+    @DisplayName("处理器抛运行时异常包装为 ExceptionHandlerException，原异常留作 cause")
     void handlerRuntimeExceptionIsWrapped() {
         Recorder recorder = new Recorder();
         MethodHandle handle = bound(recorder, "rethrow", String.class, RuntimeException.class);
         ExceptionHandlerInvoker invoker =
                 new ExceptionHandlerInvoker(handle, RuntimeException.class);
 
-        TurboExceptionHandlerException ex = assertThrows(TurboExceptionHandlerException.class,
+        ExceptionHandlerException ex = assertThrows(ExceptionHandlerException.class,
                 () -> invoker.invoke(new RuntimeException("in")));
 
         assertInstanceOf(IllegalArgumentException.class, ex.getCause());
@@ -155,14 +154,14 @@ class ExceptionHandlerInvokerTest {
     }
 
     @Test
-    @DisplayName("处理器抛受检异常同样包装为 TurboExceptionHandlerException")
+    @DisplayName("处理器抛受检异常同样包装为 ExceptionHandlerException")
     void handlerCheckedExceptionIsWrapped() {
         Recorder recorder = new Recorder();
         MethodHandle handle = bound(recorder, "throwChecked", String.class, RuntimeException.class);
         ExceptionHandlerInvoker invoker =
                 new ExceptionHandlerInvoker(handle, RuntimeException.class);
 
-        TurboExceptionHandlerException ex = assertThrows(TurboExceptionHandlerException.class,
+        ExceptionHandlerException ex = assertThrows(ExceptionHandlerException.class,
                 () -> invoker.invoke(new RuntimeException("in")));
 
         assertInstanceOf(CheckedFailure.class, ex.getCause(), "受检抛出不得逃逸出包装");

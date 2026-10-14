@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboHttpParseException;
+import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Requests;
 
 import java.nio.charset.Charset;
@@ -72,10 +72,10 @@ class HttpContentTest {
         FullHttpRequest plain = Requests.postJson("/x", "abc");
         FullHttpRequest unclosed = Requests.postJson("/x", "{\"a\":1");
         try {
-            TurboHttpParseException ex =
-                    assertThrows(TurboHttpParseException.class, () -> new HttpContent(plain).getJsonContent());
+            RequestParseException ex =
+                    assertThrows(RequestParseException.class, () -> new HttpContent(plain).getJsonContent());
             assertEquals("The request body is not a valid json", ex.getMessage());
-            assertThrows(TurboHttpParseException.class, () -> new HttpContent(unclosed).getJsonContent());
+            assertThrows(RequestParseException.class, () -> new HttpContent(unclosed).getJsonContent());
         } finally {
             Requests.release(plain);
             Requests.release(unclosed);
@@ -87,10 +87,10 @@ class HttpContentTest {
         FullHttpRequest none = Requests.get("/x");
         FullHttpRequest text = Requests.raw(HttpMethod.POST, "/x", "text/plain", "hi", Charset.forName("UTF-8"));
         try {
-            TurboHttpParseException ex =
-                    assertThrows(TurboHttpParseException.class, () -> new HttpContent(none).getJsonContent());
+            RequestParseException ex =
+                    assertThrows(RequestParseException.class, () -> new HttpContent(none).getJsonContent());
             assertEquals("contentType is not application/json", ex.getMessage());
-            assertThrows(TurboHttpParseException.class, () -> new HttpContent(text).getJsonContent());
+            assertThrows(RequestParseException.class, () -> new HttpContent(text).getJsonContent());
         } finally {
             Requests.release(none);
             Requests.release(text);
@@ -149,10 +149,10 @@ class HttpContentTest {
         FullHttpRequest json = Requests.postJson("/x", "{}");
         FullHttpRequest none = Requests.get("/x");
         try {
-            TurboHttpParseException ex =
-                    assertThrows(TurboHttpParseException.class, () -> new HttpContent(json).getFormParams());
+            RequestParseException ex =
+                    assertThrows(RequestParseException.class, () -> new HttpContent(json).getFormParams());
             assertEquals("contentType is not application/x-www-form-urlencoded or multipart/form-data", ex.getMessage());
-            assertThrows(TurboHttpParseException.class, () -> new HttpContent(none).getFormParams());
+            assertThrows(RequestParseException.class, () -> new HttpContent(none).getFormParams());
         } finally {
             Requests.release(json);
             Requests.release(none);
@@ -163,8 +163,8 @@ class HttpContentTest {
     void formFilesAreRejectedForNonMultipart() {
         FullHttpRequest req = Requests.postForm("/x", "a=1");
         try {
-            TurboHttpParseException ex =
-                    assertThrows(TurboHttpParseException.class, () -> new HttpContent(req).getFormFiles());
+            RequestParseException ex =
+                    assertThrows(RequestParseException.class, () -> new HttpContent(req).getFormFiles());
             assertEquals("contentType is not multipart/form-data", ex.getMessage());
         } finally {
             Requests.release(req);
@@ -175,9 +175,9 @@ class HttpContentTest {
     void emptyContentHasNullTypeAndRejectsEveryBodyAccess() {
         HttpContent content = HttpContent.empty();
         assertNull(content.getContentType());
-        assertThrows(TurboHttpParseException.class, content::getJsonContent);
-        assertThrows(TurboHttpParseException.class, content::getFormParams);
-        assertThrows(TurboHttpParseException.class, content::getFormFiles);
+        assertThrows(RequestParseException.class, content::getJsonContent);
+        assertThrows(RequestParseException.class, content::getFormParams);
+        assertThrows(RequestParseException.class, content::getFormFiles);
         assertDoesNotThrow(content::release, "decoder 为 null，release 无副作用");
     }
 

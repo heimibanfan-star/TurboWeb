@@ -3,7 +3,7 @@ package top.turboweb.http.core.response;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.exception.ResponseHandleException;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -160,7 +160,7 @@ public class HttpFileResult {
      * </ul>
      *
      * @return HTTP 响应对象
-     * @throws TurboFileException 文件读取异常时抛出
+     * @throws ResponseHandleException 文件读取异常时抛出
      */
     public HttpResponse createResponse() {
         // 如果是磁盘文件，并且超过了限制大小，那么以文件流的形式响应
@@ -184,7 +184,7 @@ public class HttpFileResult {
             try (FileInputStream fis = new FileInputStream(file)) {
                 byteBuffer = ByteBuffer.wrap(fis.readAllBytes());
             } catch (IOException e) {
-                throw new TurboFileException(e);
+                throw new ResponseHandleException(e);
             }
         }
         // 创建响应对象

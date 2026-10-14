@@ -6,7 +6,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.http.orchestrator.ZeroCopyResponseWriter;
 
 import java.io.IOException;
@@ -137,7 +137,7 @@ class ZeroCopyResponseTest {
 
     @Test
     void missingFileThrows() {
-        assertThrows(TurboFileException.class,
+        assertThrows(ResponseHandleException.class,
                 () -> new ZeroCopyResponse(tempDir.resolve("nope.bin").toFile(), 0L, 1L));
     }
 }

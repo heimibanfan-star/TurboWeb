@@ -3,7 +3,7 @@ package top.turboweb.http.core.response;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.http.orchestrator.AsyncFileResponseWriter;
 
 import java.io.IOException;
@@ -74,7 +74,7 @@ class AsyncFileResponseTest {
     @Test
     void nonexistentFileThrowsBeforeOpeningChannel() {
         Path missing = tempDir.resolve("nope.bin");
-        TurboFileException ex = assertThrows(TurboFileException.class,
+        ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new AsyncFileResponse(missing.toFile()));
         assertEquals("文件不存在," + missing.toFile().getAbsolutePath(), ex.getMessage());
     }

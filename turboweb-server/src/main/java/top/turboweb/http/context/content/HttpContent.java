@@ -6,7 +6,7 @@ import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.multipart.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.commons.exception.TurboHttpParseException;
+import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.core.helper.HttpRequestHelper;
 
 import java.io.IOException;
@@ -83,12 +83,12 @@ public class HttpContent {
      * 获取 JSON 格式的请求体内容。
      *
      * @return JSON 字符串，解析后的内容，如果为空返回 "{}"
-     * @throws TurboHttpParseException 当 Content-Type 不是 {@code application/json} 或
+     * @throws RequestParseException 当 Content-Type 不是 {@code application/json} 或
      *                                 请求体内容不是有效 JSON 时抛出
      */
     public String getJsonContent() {
         if (!HttpHeaderValues.APPLICATION_JSON.contentEquals(contentType)) {
-            throw new TurboHttpParseException("contentType is not application/json");
+            throw new RequestParseException("contentType is not application/json");
         }
         // 判断请求体是否被读取
         if (jsonContent != null) {
@@ -106,20 +106,20 @@ public class HttpContent {
             this.jsonContent = jsonContent;
             return jsonContent;
         }
-        throw new TurboHttpParseException("The request body is not a valid json");
+        throw new RequestParseException("The request body is not a valid json");
     }
 
     /**
      * 获取表单参数。
      *
      * @return 表单参数集合，key 为参数名，value 为值列表
-     * @throws TurboHttpParseException 当 Content-Type 不是 {@code application/x-www-form-urlencoded}
+     * @throws RequestParseException 当 Content-Type 不是 {@code application/x-www-form-urlencoded}
      *                                 或 {@code multipart/form-data} 时抛出
      */
     public Map<String, List<String>> getFormParams() {
         if (!HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED.contentEquals(contentType)
                 && !HttpHeaderValues.MULTIPART_FORM_DATA.contentEquals(contentType)) {
-            throw new TurboHttpParseException("contentType is not application/x-www-form-urlencoded or multipart/form-data");
+            throw new RequestParseException("contentType is not application/x-www-form-urlencoded or multipart/form-data");
         }
         if (formIsParsed) {
             return formParams;
@@ -132,11 +132,11 @@ public class HttpContent {
      * 获取 multipart/form-data 文件上传内容。
      *
      * @return 文件上传集合，key 为文件字段名，value 为文件列表
-     * @throws TurboHttpParseException 当 Content-Type 不是 {@code multipart/form-data} 时抛出
+     * @throws RequestParseException 当 Content-Type 不是 {@code multipart/form-data} 时抛出
      */
     public Map<String, List<FileUpload>> getFormFiles() {
         if (!HttpHeaderValues.MULTIPART_FORM_DATA.contentEquals(contentType)) {
-            throw new TurboHttpParseException("contentType is not multipart/form-data");
+            throw new RequestParseException("contentType is not multipart/form-data");
         }
         if (formIsParsed) {
             return formFiles;
@@ -149,7 +149,7 @@ public class HttpContent {
      * 解析表单数据，包括普通参数和文件上传。
      *
      * @param isMultiPart 是否为 multipart/form-data
-     * @throws TurboHttpParseException 当解析失败时抛出
+     * @throws RequestParseException 当解析失败时抛出
      */
     private void parseForm(boolean isMultiPart) {
         Map<String, List<String>> formParams = new HashMap<>();
@@ -174,7 +174,7 @@ public class HttpContent {
                     }
                 } catch (IOException e) {
                     log.error("解析失败", e);
-                    throw new TurboHttpParseException("解析请求体失败");
+                    throw new RequestParseException("解析请求体失败");
                 }
                 // 加入到集合中
                 formParams.computeIfAbsent(name, k -> new ArrayList<>(1)).add(value);

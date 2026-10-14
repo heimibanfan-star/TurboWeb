@@ -1,6 +1,5 @@
 package top.turboweb.http.orchestrator;
 
-import top.turboweb.commons.exception.TurboExceptionHandlerException;
 import top.turboweb.http.exception.ExceptionHandlerException;
 
 import java.lang.invoke.MethodHandle;
@@ -38,14 +37,13 @@ public class ExceptionHandlerInvoker {
      * 异常可赋值给绑定的异常类型（本类或其子类实例）时执行处理方法并返回其返回值；
      * 不可赋值（含异常为 null）时不执行处理方法，抛出 {@link ExceptionHandlerException}。
      * 处理方法为 void 时执行后返回 null。
-     * 处理方法执行中抛出的任何异常一律包装为 {@link TurboExceptionHandlerException} 抛出，
+     * 处理方法执行中抛出的任何异常一律包装为 {@link ExceptionHandlerException} 抛出，
      * 原始异常保留为 cause。
      * </p>
      *
      * @param throwable 待处理的异常
      * @return 处理方法的返回值；方法为 void 时为 null
-     * @throws ExceptionHandlerException 异常不可赋值给绑定的异常类型，处理方法未被执行
-     * @throws TurboExceptionHandlerException   处理方法自身抛出异常
+     * @throws ExceptionHandlerException 异常不可赋值给绑定的异常类型(处理方法未被执行),或处理方法自身抛出异常
      */
     public Object invoke(Throwable throwable) {
         if (!this.exceptionClass.isInstance(throwable)) {
@@ -57,7 +55,7 @@ public class ExceptionHandlerInvoker {
         try {
             return this.methodHandle.invoke(throwable);
         } catch (Throwable e) {
-            throw new TurboExceptionHandlerException("异常处理器执行失败", e);
+            throw new ExceptionHandlerException("异常处理器执行失败", e);
         }
     }
 

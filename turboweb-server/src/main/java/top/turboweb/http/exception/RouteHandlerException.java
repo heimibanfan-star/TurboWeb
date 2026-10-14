@@ -8,6 +8,7 @@ public class RouteHandlerException extends RuntimeException {
     public static final Integer ROUTER_NOT_MATCH = 10001;
     public static final Integer ROUTER_REPEAT = 10002;
     public static final Integer ROUTER_INVOKE_ERROR = 10003;
+    public static final Integer ROUTER_DEFINITION_CREATE_ERROR = 10004;
 
     private final Integer code;
 

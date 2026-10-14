@@ -2,7 +2,6 @@ package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
-import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.ParameterParser;
@@ -30,7 +29,7 @@ public class RouteHandler {
      * @param parsers 参数解析器列表,按注册顺序依次认领参数,不能为 null
      * @throws IllegalArgumentException 元信息为空、url 不一致或同一请求方式重复注册
      * @throws NullPointerException parsers 为 null
-     * @throws TurboRouterDefinitionCreateException 目标方法不可访问导致展开失败
+     * @throws RouteHandlerException 目标方法不可访问导致展开失败,错误码为 ROUTER_DEFINITION_CREATE_ERROR
      */
     public RouteHandler(List<RouteHandlerMetaInfo> metaInfos, List<ParameterParser> parsers) {
         if (metaInfos == null || metaInfos.isEmpty()) {
@@ -59,7 +58,7 @@ public class RouteHandler {
                 invokerList.add(new RouteHandlerInvoker(metaInfo.httpMethod(), methodHandle, binders));
                 httpMethods.add(metaInfo.httpMethod());
             } catch (IllegalAccessException e) {
-                throw new TurboRouterDefinitionCreateException(e);
+                throw new RouteHandlerException(e, RouteHandlerException.ROUTER_DEFINITION_CREATE_ERROR);
             }
         }
         this.invokers = invokerList.toArray(new RouteHandlerInvoker[]{});

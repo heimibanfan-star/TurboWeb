@@ -2,7 +2,7 @@ package top.turboweb.http.core.session;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.exception.TurboSessionException;
+import top.turboweb.http.exception.HttpSessionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -133,13 +133,13 @@ class DefaultHttpSessionTest {
     }
 
     @Test
-    @DisplayName("createSessionMap 连续 5 次失败后抛 TurboSessionException")
-    void retryExhaustionThrowsTurboSessionException() {
+    @DisplayName("createSessionMap 连续 5 次失败后抛 HttpSessionException")
+    void retryExhaustionThrowsHttpSessionException() {
         StubSessionManager manager = new StubSessionManager();
         manager.createSessionMapResult = false;   // 每次都失败，逼出重试耗尽分支
         DefaultHttpSession session = new DefaultHttpSession(manager);
 
-        TurboSessionException ex = assertThrows(TurboSessionException.class, () -> session.setAttr("k", "v"));
+        HttpSessionException ex = assertThrows(HttpSessionException.class, () -> session.setAttr("k", "v"));
 
         assertEquals("sessionId generate error", ex.getMessage());
         assertNull(session.sessionId(), "抛异常后会话仍是未创建状态");

@@ -1,8 +1,8 @@
 package top.turboweb.http.router.parameter;
 
 import top.turboweb.rest.param.QueryParam;
-import top.turboweb.commons.exception.TurboArgsValidationException;
-import top.turboweb.commons.exception.TurboRouterDefinitionCreateException;
+import top.turboweb.http.exception.ParameterValidationException;
+import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Parameter;
@@ -35,7 +35,7 @@ public class QueryParameterParser extends AbstractParameterParser {
                 Object arg = converter.convert(ctx.query(name));
                 // 规则判断
                 if (nonNull && arg == null) {
-                    throw new TurboArgsValidationException(List.of(name + "不能为null"));
+                    throw new ParameterValidationException(List.of(name + "不能为null"));
                 } else {
                     return arg;
                 }
@@ -70,7 +70,8 @@ public class QueryParameterParser extends AbstractParameterParser {
             } else if (parameter.getType() == Set.class) {
                 collectionType = 2;
             } else {
-                throw new TurboRouterDefinitionCreateException("not support type of collection:" + parameter.getType().getName());
+                throw new RouteHandlerException("not support type of collection:" + parameter.getType().getName(),
+                        RouteHandlerException.ROUTER_DEFINITION_CREATE_ERROR);
             }
             // 获取参数类型
             if (parameter.getParameterizedType() instanceof ParameterizedType parameterizedType) {

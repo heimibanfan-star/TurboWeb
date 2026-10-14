@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.core.response.FileStreamResponse;
@@ -143,7 +143,7 @@ class FileStreamResponseWriterTest {
     }
 
     @Test
-    @DisplayName("订阅即被线程池拒绝：promise 失败于 TurboFileException，只发过头")
+    @DisplayName("订阅即被线程池拒绝：promise 失败于 ResponseHandleException，只发过头")
     void poolRejectAtSubscribeCancels() throws IOException {
         FileStreamResponse resp = response(write("r.txt", "hello"), 2, 0, 5);
         EmbeddedChannel channel = new EmbeddedChannel();
@@ -151,7 +151,7 @@ class FileStreamResponseWriterTest {
             ResponseWriter.WriteResult result = newWriter(Stubs.rejectingThreadPool())
                     .write(resp, new InternalConnectSession(channel));
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType(), "取消置败仍有凭据可监听");
-            assertInstanceOf(TurboFileException.class, result.channelFuture().cause());
+            assertInstanceOf(ResponseHandleException.class, result.channelFuture().cause());
             Object[] out = drain(channel);
             assertEquals(1, out.length, "拒绝发生在首块之前，仅有头");
             assertFalse(resp.getFileChannel().isOpen());
@@ -169,7 +169,7 @@ class FileStreamResponseWriterTest {
         try {
             ResponseWriter.WriteResult result = newWriter(Stubs.firstRunRestRejectingThreadPool())
                     .write(resp, new InternalConnectSession(channel));
-            assertInstanceOf(TurboFileException.class, result.channelFuture().cause());
+            assertInstanceOf(ResponseHandleException.class, result.channelFuture().cause());
             Object[] out = drain(channel);
             assertEquals(2, out.length, "头 + 一个内容块，然后取消");
             assertEquals("he", concatBody(out));

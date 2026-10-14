@@ -2,7 +2,7 @@ package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.http.orchestrator.ResponseWriter;
 import top.turboweb.http.orchestrator.FileStreamResponseWriter;
 
@@ -84,7 +84,7 @@ public class FileStreamResponse extends AbstractFileResponse implements Response
         try {
             this.fileChannel = FileChannel.open(file.toPath());
         } catch (IOException e) {
-            throw new TurboFileException(e);
+            throw new ResponseHandleException(e);
         }
         this.chunkSize = chunkSize;
 		this.filenameCharset = filenameCharset;

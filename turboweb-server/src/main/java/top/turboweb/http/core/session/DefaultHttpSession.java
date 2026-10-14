@@ -1,6 +1,6 @@
 package top.turboweb.http.core.session;
 
-import top.turboweb.commons.exception.TurboSessionException;
+import top.turboweb.http.exception.HttpSessionException;
 
 import java.util.UUID;
 
@@ -169,10 +169,10 @@ public class DefaultHttpSession implements HttpSession {
      * 生成逻辑：
      * 1. 使用UUID生成不含横线的字符串作为候选sessionId；
      * 2. 尝试通过会话管理器创建会话，若失败（因并发冲突）则重试，最多重试{@link #MAX_RETRY_COUNT}次；
-     * 3. 若超过最大重试次数仍失败，则抛出{@link TurboSessionException}。
+     * 3. 若超过最大重试次数仍失败，则抛出{@link HttpSessionException}。
      * </p>
      *
-     * @throws TurboSessionException 当sessionId生成失败时抛出
+     * @throws HttpSessionException 当sessionId生成失败时抛出
      */
     private void checkAndGenerateSession() {
         if (this.sessionId == null) {
@@ -183,7 +183,7 @@ public class DefaultHttpSession implements HttpSession {
                 count++;
             }
             if (count >= MAX_RETRY_COUNT) {
-                throw new TurboSessionException("sessionId generate error");
+                throw new HttpSessionException("sessionId generate error");
             }
             this.sessionId = sessionId;
         }

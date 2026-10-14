@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.http.core.constant.ContentType;
 
 import java.io.File;
@@ -71,7 +71,7 @@ class AbstractFileResponseTest {
     void nonexistentFileThrows() {
         Path missing = tempDir.resolve("missing.txt");
 
-        TurboFileException ex = assertThrows(TurboFileException.class,
+        ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new ProbeFileResponse(HttpResponseStatus.OK, missing.toFile(), StandardCharsets.UTF_8));
 
         assertEquals("文件不存在," + missing.toFile().getAbsolutePath(), ex.getMessage());
@@ -79,7 +79,7 @@ class AbstractFileResponseTest {
 
     @Test
     void directoryThrows() {
-        TurboFileException ex = assertThrows(TurboFileException.class,
+        ResponseHandleException ex = assertThrows(ResponseHandleException.class,
                 () -> new ProbeFileResponse(HttpResponseStatus.OK, tempDir.toFile(), StandardCharsets.UTF_8));
 
         assertEquals("文件是文件夹," + tempDir.toFile().getAbsolutePath(), ex.getMessage());

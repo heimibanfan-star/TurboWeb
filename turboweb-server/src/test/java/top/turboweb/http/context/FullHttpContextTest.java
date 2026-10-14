@@ -9,9 +9,8 @@ import jakarta.validation.constraints.NotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.config.GlobalConfig;
-import top.turboweb.commons.exception.TurboArgsValidationException;
-import top.turboweb.commons.exception.TurboHttpParseException;
-import top.turboweb.commons.exception.TurboParamParseException;
+import top.turboweb.http.exception.ParameterValidationException;
+import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
@@ -193,7 +192,7 @@ class FullHttpContextTest {
         try {
             FullHttpContext ctx = context(req);
             ctx.injectPathParam(Map.of("i", "abc"));
-            assertThrows(TurboParamParseException.class, () -> ctx.paramInt("i"));
+            assertThrows(RequestParseException.class, () -> ctx.paramInt("i"));
         } finally {
             Requests.release(req);
         }
@@ -206,7 +205,7 @@ class FullHttpContextTest {
         try {
             FullHttpContext ctx = context(req);
             ctx.injectPathParam(Map.of("d", "abc", "date", "2026-13-01"));
-            // 与 paramInt/paramLong 的 TurboParamParseException 不对称。
+            // 与 paramInt/paramLong 的 RequestParseException 不对称。
             // 钉住 HS-6：若将来修正，本用例应改为期望正确行为（修镜像时本用例应改为断言包装类型）。
             assertThrows(NumberFormatException.class, () -> ctx.paramDouble("d"));
             assertThrows(DateTimeParseException.class, () -> ctx.paramDate("date"));
@@ -299,7 +298,7 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.get("/search?i=abc");
         try {
             FullHttpContext ctx = context(req);
-            // 查询侧流式转换不包装异常，与 paramInt 的 TurboParamParseException 不同
+            // 查询侧流式转换不包装异常，与 paramInt 的 RequestParseException 不同
             assertThrows(NumberFormatException.class, () -> ctx.queryInt("i"));
         } finally {
             Requests.release(req);
@@ -351,8 +350,8 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.get("/json");
         try {
             FullHttpContext ctx = context(req);
-            TurboHttpParseException ex =
-                    assertThrows(TurboHttpParseException.class, () -> ctx.loadJson(QueryBean.class));
+            RequestParseException ex =
+                    assertThrows(RequestParseException.class, () -> ctx.loadJson(QueryBean.class));
             assertEquals("contentType is not application/json", ex.getMessage());
         } finally {
             Requests.release(req);
@@ -390,8 +389,8 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.get("/x");
         try {
             FullHttpContext ctx = context(req);
-            TurboArgsValidationException ex =
-                    assertThrows(TurboArgsValidationException.class, () -> ctx.validate(new ValidBean()));
+            ParameterValidationException ex =
+                    assertThrows(ParameterValidationException.class, () -> ctx.validate(new ValidBean()));
             assertEquals(List.of("name 不能为空"), ex.getErrorMsg());
         } finally {
             Requests.release(req);
@@ -405,7 +404,7 @@ class FullHttpContextTest {
             FullHttpContext ctx = context(req);
             // 默认组不含 groups=OnCreate 的约束
             assertDoesNotThrow(() -> ctx.loadValidQuery(GroupBean.class));
-            TurboArgsValidationException ex = assertThrows(TurboArgsValidationException.class,
+            ParameterValidationException ex = assertThrows(ParameterValidationException.class,
                     () -> ctx.loadValidQuery(GroupBean.class, OnCreate.class));
             assertEquals(List.of("name 不能为空"), ex.getErrorMsg());
         } finally {
@@ -420,8 +419,8 @@ class FullHttpContextTest {
         try {
             FullHttpContext formCtx = context(form);
             FullHttpContext jsonCtx = context(json);
-            assertThrows(TurboArgsValidationException.class, () -> formCtx.loadValidForm(ValidBean.class));
-            assertThrows(TurboArgsValidationException.class, () -> jsonCtx.loadValidJson(ValidBean.class));
+            assertThrows(ParameterValidationException.class, () -> formCtx.loadValidForm(ValidBean.class));
+            assertThrows(ParameterValidationException.class, () -> jsonCtx.loadValidJson(ValidBean.class));
         } finally {
             Requests.release(form);
             Requests.release(json);
