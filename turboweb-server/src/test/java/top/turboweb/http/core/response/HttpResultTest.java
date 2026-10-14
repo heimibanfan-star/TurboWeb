@@ -6,9 +6,10 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.serializer.JsonSerializer;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -60,7 +61,7 @@ class HttpResultTest {
     private static final StubJsonSerializer SHARED = new StubJsonSerializer();
 
     private static int statusOf(HttpResult<?> result) {
-        FullHttpResponse response = (FullHttpResponse) result.createResponse(SHARED);
+        FullHttpResponse response = (FullHttpResponse) result.createResponse(SHARED, StandardCharsets.UTF_8);
         try {
             return response.status().code();
         } finally {
@@ -72,12 +73,12 @@ class HttpResultTest {
     @DisplayName("HS-23 回归：String 分支写 text/html Content-Type，Content-Length 取实际体长")
     void stringDataIsWrittenAsHtmlWithoutSerialization() {
         StubJsonSerializer serializer = new StubJsonSerializer();
-        FullHttpResponse response = (FullHttpResponse) new HttpResult<>("hi <b>").createResponse(serializer);
+        FullHttpResponse response = (FullHttpResponse) new HttpResult<>("hi <b>").createResponse(serializer, StandardCharsets.UTF_8);
         try {
             assertEquals(200, response.status().code());
-            assertEquals("hi <b>", response.content().toString(GlobalConfig.getResponseCharset()));
+            assertEquals("hi <b>", response.content().toString(StandardCharsets.UTF_8));
             assertEquals(0, serializer.calls.get(), "String 数据不得经过 JSON 序列化");
-            assertEquals("text/html;charset=utf-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
+            assertEquals("text/html;charset=UTF-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
             assertEquals(6, response.headers().getInt(HttpHeaderNames.CONTENT_LENGTH),
                     "HS-23 回归：调用方头先整体写入、自算头后写，不再被空 headers 整体 set 抹除");
         } finally {
@@ -89,12 +90,12 @@ class HttpResultTest {
     @DisplayName("HS-23 回归：JSON 分支写 application/json Content-Type，Content-Length 取序列化体长")
     void objectDataIsSerializedAsJson() {
         StubJsonSerializer serializer = new StubJsonSerializer();
-        FullHttpResponse response = (FullHttpResponse) new HttpResult<>(Map.of("k", "v")).createResponse(serializer);
+        FullHttpResponse response = (FullHttpResponse) new HttpResult<>(Map.of("k", "v")).createResponse(serializer, StandardCharsets.UTF_8);
         try {
             String json = "{\"ok\":1}";
-            assertEquals(json, response.content().toString(GlobalConfig.getResponseCharset()));
+            assertEquals(json, response.content().toString(StandardCharsets.UTF_8));
             assertEquals(1, serializer.calls.get());
-            assertEquals("application/json;charset=utf-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
+            assertEquals("application/json;charset=UTF-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
             assertEquals(8, response.headers().getInt(HttpHeaderNames.CONTENT_LENGTH),
                     "HS-23 回归：Content-Length 按实际序列化体长写入（桩序列化器定值 8 字节），不被调用方空头集抹除");
         } finally {
@@ -107,10 +108,10 @@ class HttpResultTest {
     void nullSerializedContentProducesZeroLengthBody() {
         StubJsonSerializer serializer = new StubJsonSerializer();
         serializer.json = null; // 序列化器显式返回 null，走 setContent 的 content==null 分支
-        FullHttpResponse response = (FullHttpResponse) new HttpResult<>(new Object()).createResponse(serializer);
+        FullHttpResponse response = (FullHttpResponse) new HttpResult<>(new Object()).createResponse(serializer, StandardCharsets.UTF_8);
         try {
             assertEquals(0, response.content().readableBytes());
-            assertEquals("application/json;charset=utf-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
+            assertEquals("application/json;charset=UTF-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
             assertEquals(0, response.headers().getInt(HttpHeaderNames.CONTENT_LENGTH),
                     "HS-23 回归：0 长度的 Content-Length 同样是显式写入的头，不被抹除");
         } finally {
@@ -122,10 +123,24 @@ class HttpResultTest {
     void customHeadersAreAppliedToTheResponse() {
         HttpHeaders headers = new DefaultHttpHeaders().add("X-Trace-Id", "t-1");
         FullHttpResponse response =
-                (FullHttpResponse) HttpResult.create(201, headers, "created").createResponse(SHARED);
+                (FullHttpResponse) HttpResult.create(201, headers, "created").createResponse(SHARED, StandardCharsets.UTF_8);
         try {
             assertEquals(201, response.status().code());
             assertEquals("t-1", response.headers().get("X-Trace-Id"));
+        } finally {
+            response.release();
+        }
+    }
+
+    @Test
+    void givenCharsetDrivesBothBodyEncodingAndContentTypeParameter() {
+        Charset gbk = Charset.forName("GBK");
+        FullHttpResponse response =
+                (FullHttpResponse) new HttpResult<>("你好").createResponse(SHARED, gbk);
+        try {
+            assertEquals("你好", response.content().toString(gbk), "正文按传入字符集编码");
+            assertEquals("text/html;charset=GBK", response.headers().get(HttpHeaderNames.CONTENT_TYPE),
+                    "Content-Type 的 charset 段与正文编码同源");
         } finally {
             response.release();
         }

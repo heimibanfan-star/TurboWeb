@@ -13,6 +13,7 @@ import top.turboweb.rest.route.Post;
 import top.turboweb.rest.route.Route;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -113,7 +114,7 @@ class RestRouterHandlerManagerTest {
 
     private static HttpContext ctx(HttpMethod method, String uri) {
         return new FullHttpContext(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri),
-                null, null, null, null);
+                null, null, null, null, StandardCharsets.UTF_8);
     }
 
     private static RouteHandlerManager built(Object... instances) {

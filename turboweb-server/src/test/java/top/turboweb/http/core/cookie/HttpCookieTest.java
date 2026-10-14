@@ -3,6 +3,8 @@ package top.turboweb.http.core.cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -19,7 +21,7 @@ class HttpCookieTest {
     @DisplayName("默认属性：只写 key=value 与默认 Path=/")
     void defaultsProduceMinimalSetCookie() {
         // path 字段默认就是 "/"，不是 null——写出的头必然带 "; Path=/"
-        assertEquals("sid=abc; Path=/", new HttpCookie("sid", "abc").toHeaderString());
+        assertEquals("sid=abc; Path=/", new HttpCookie("sid", "abc").toHeaderString(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -44,15 +46,15 @@ class HttpCookieTest {
         NullPointerException ex =
                 assertThrows(NullPointerException.class, () -> new HttpCookie("k", null));
         assertEquals("value can not be null", ex.getMessage());
-        assertEquals("k=; Path=/", new HttpCookie("k", "").toHeaderString(), "空值要写成空串，且尾部仍是默认 Path");
+        assertEquals("k=; Path=/", new HttpCookie("k", "").toHeaderString(StandardCharsets.UTF_8), "空值要写成空串，且尾部仍是默认 Path");
     }
 
     @Test
-    @DisplayName("value 按响应字符集做 URL 编码")
+    @DisplayName("value 按传入字符集做 URL 编码")
     void valueIsUrlEncoded() {
         // 空格 -> '+'，'/' -> %2F，'=' -> %3D。这些 ASCII 码点在 UTF-8 与任何 ASCII 兼容字符集下编码一致，
-        // 所以即使 GlobalConfig.getResponseCharset() 将来被改，本断言仍成立（不依赖具体字符集取值）
-        assertEquals("k=a+b%2Fc%3Dd; Path=/", new HttpCookie("k", "a b/c=d").toHeaderString());
+        // 所以本断言不依赖具体字符集取值，换传其它 ASCII 兼容字符集仍成立
+        assertEquals("k=a+b%2Fc%3Dd; Path=/", new HttpCookie("k", "a b/c=d").toHeaderString(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -60,13 +62,13 @@ class HttpCookieTest {
     void pathIgnoresBlankAndKeepsDefault() {
         HttpCookie set = new HttpCookie("c", "v");
         set.setPath("/app");
-        assertEquals("c=v; Path=/app", set.toHeaderString());
+        assertEquals("c=v; Path=/app", set.toHeaderString(StandardCharsets.UTF_8));
 
         // 若 blank 被写进去，path 会变成空串，toHeaderString 将整段 Path 省略 → 断言值会变，能分辨
         HttpCookie blank = new HttpCookie("c", "v");
         blank.setPath("");
         blank.setPath(null);
-        assertEquals("c=v; Path=/", blank.toHeaderString(), "空白 path 必须保持默认 /");
+        assertEquals("c=v; Path=/", blank.toHeaderString(StandardCharsets.UTF_8), "空白 path 必须保持默认 /");
     }
 
     @Test
@@ -74,31 +76,31 @@ class HttpCookieTest {
     void domainIsWrittenOnlyWhenSet() {
         HttpCookie set = new HttpCookie("c", "v");
         set.setDomain(".example.com");
-        assertEquals("c=v; Path=/; Domain=.example.com", set.toHeaderString());
+        assertEquals("c=v; Path=/; Domain=.example.com", set.toHeaderString(StandardCharsets.UTF_8));
 
         HttpCookie blank = new HttpCookie("c", "v");
         blank.setDomain("");
         blank.setDomain(null);
-        assertEquals("c=v; Path=/", blank.toHeaderString(), "domain 为空时整段省略，不是写出空值");
+        assertEquals("c=v; Path=/", blank.toHeaderString(StandardCharsets.UTF_8), "domain 为空时整段省略，不是写出空值");
     }
 
     @Test
     @DisplayName("Max-Age 只在 maxAge>=0 时写出，0 表示立即过期")
     void maxAgeIsWrittenOnlyWhenNonNegative() {
-        assertEquals("c=v; Path=/", new HttpCookie("c", "v").toHeaderString(),
+        assertEquals("c=v; Path=/", new HttpCookie("c", "v").toHeaderString(StandardCharsets.UTF_8),
                 "默认 -1 是会话 Cookie，不写 Max-Age");
 
         HttpCookie zero = new HttpCookie("c", "v");
         zero.setMaxAge(0);
-        assertEquals("c=v; Path=/; Max-Age=0", zero.toHeaderString(), "0 必须写出，这是删除 Cookie 的形态");
+        assertEquals("c=v; Path=/; Max-Age=0", zero.toHeaderString(StandardCharsets.UTF_8), "0 必须写出，这是删除 Cookie 的形态");
 
         HttpCookie fixed = new HttpCookie("c", "v");
         fixed.setMaxAge(3600);
-        assertEquals("c=v; Path=/; Max-Age=3600", fixed.toHeaderString());
+        assertEquals("c=v; Path=/; Max-Age=3600", fixed.toHeaderString(StandardCharsets.UTF_8));
 
         HttpCookie negative = new HttpCookie("c", "v");
         negative.setMaxAge(-5);
-        assertEquals("c=v; Path=/", negative.toHeaderString(), "任何负数都不写 Max-Age");
+        assertEquals("c=v; Path=/", negative.toHeaderString(StandardCharsets.UTF_8), "任何负数都不写 Max-Age");
     }
 
     @Test
@@ -106,11 +108,11 @@ class HttpCookieTest {
     void httpOnlyFlagIsWrittenWhenEnabled() {
         HttpCookie on = new HttpCookie("c", "v");
         on.setHttpOnly(true);
-        assertEquals("c=v; Path=/; HttpOnly", on.toHeaderString());
+        assertEquals("c=v; Path=/; HttpOnly", on.toHeaderString(StandardCharsets.UTF_8));
 
         HttpCookie off = new HttpCookie("c", "v");
         off.setHttpOnly(false);
-        assertEquals("c=v; Path=/", off.toHeaderString());
+        assertEquals("c=v; Path=/", off.toHeaderString(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -121,7 +123,7 @@ class HttpCookieTest {
         c.setDomain(".example.com");
         c.setMaxAge(60);
         c.setHttpOnly(true);
-        assertEquals("n=v; Path=/app; Domain=.example.com; Max-Age=60; HttpOnly", c.toHeaderString(),
+        assertEquals("n=v; Path=/app; Domain=.example.com; Max-Age=60; HttpOnly", c.toHeaderString(StandardCharsets.UTF_8),
                 "分隔符恒为 \"; \"，属性顺序即插入顺序，浏览器侧依赖这个字节形态");
     }
 

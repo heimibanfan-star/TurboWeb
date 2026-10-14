@@ -1,18 +1,18 @@
 package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.serializer.JsonSerializer;
 
+import java.nio.charset.Charset;
 import java.util.Objects;
 
 /**
  * HTTP 响应封装对象。
  * <p>
- * 根据响应内容类型自动设置 Content-Type：
+ * 根据响应内容类型自动设置 Content-Type，charset 取生成响应时传入的字符集：
  * <ul>
- *     <li>如果 data 为 {@link String}，则返回 "text/html;charset=utf-8"</li>
- *     <li>如果 data 为其他对象类型，则使用 {@link JsonSerializer} 序列化为 JSON，并返回 "application/json;charset=utf-8"</li>
+ *     <li>如果 data 为 {@link String}，则返回 "text/html;charset=传入字符集名"</li>
+ *     <li>如果 data 为其他对象类型，则使用 {@link JsonSerializer} 序列化为 JSON，并返回 "application/json;charset=传入字符集名"</li>
  * </ul>
  * <p>
  * 提供构造方法和静态工厂方法快速创建不同状态码的响应对象。
@@ -43,7 +43,16 @@ public class HttpResult <T> {
         this.data = data;
     }
 
-    public HttpResponse createResponse(JsonSerializer jsonSerializer) {
+    /**
+     * 生成 HTTP 响应：正文按给定字符集编码，Content-Type 的 charset 段与正文编码一致。
+     *
+     * @param jsonSerializer JSON 序列化器，非字符串 data 经其序列化为 JSON
+     * @param charset        响应正文与 Content-Type 使用的字符集（装配期判定的缺省字符集），不能为null
+     * @return 响应对象
+     * @throws NullPointerException charset 为 null
+     */
+    public HttpResponse createResponse(JsonSerializer jsonSerializer, Charset charset) {
+        Objects.requireNonNull(charset, "charset can not be null");
         // 创建响应对象
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
         // 设置响应头（先整体写入调用方头，后写的 Content-Type / Content-Length 以框架按实际响应体算出的值为准）
@@ -52,14 +61,14 @@ public class HttpResult <T> {
         String content;
         if (data instanceof String s) {
             content = s;
-            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html;charset=utf-8");
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html;charset=" + charset.name());
         } else {
             // 序列化对象
             content = jsonSerializer.beanToJson(data);
-            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json;charset=utf-8");
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json;charset=" + charset.name());
         }
         // 设置响应内容
-        setContent(response, content);
+        setContent(response, content, charset);
         return response;
     }
 
@@ -68,11 +77,12 @@ public class HttpResult <T> {
      *
      * @param response 响应对象
      * @param content 响应体内容
+     * @param charset 正文编码字符集
      */
-    private void setContent(FullHttpResponse response, String content) {
+    private void setContent(FullHttpResponse response, String content, Charset charset) {
         response.content().clear();
         if (content != null) {
-            response.content().writeBytes(content.getBytes(GlobalConfig.getResponseCharset()));
+            response.content().writeBytes(content.getBytes(charset));
             response.headers().set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
         } else {
             response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);

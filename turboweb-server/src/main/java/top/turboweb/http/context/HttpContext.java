@@ -9,6 +9,8 @@ import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
 
+import java.nio.charset.Charset;
+
 /**
  * {@code HttpContext} 表示 TurboWeb 框架中一次 HTTP 请求的上下文环境。
  * <p>
@@ -83,6 +85,16 @@ public interface HttpContext extends ParamBinder {
 	 * @return {@link HttpCookieManager}，用于操作请求和响应中的 Cookie。
 	 */
 	HttpCookieManager cookie();
+
+	/**
+	 * 获取装配期判定的缺省字符集（{@link top.turboweb.http.server.config.HttpConfig} 配置值），
+	 * 不关注请求头声明的编码。
+	 * <p>路径参数解码、响应文本编码、响应内容类型补码与 Cookie 值编码统一取本值；
+	 * 请求体解码另行按请求头 Content-Type 优先、缺省回落到本值判定。</p>
+	 *
+	 * @return 缺省字符集，永不为 null
+	 */
+	Charset defaultCharset();
 
 	/**
 	 * 创建默认配置的 SSE 事件发射器。

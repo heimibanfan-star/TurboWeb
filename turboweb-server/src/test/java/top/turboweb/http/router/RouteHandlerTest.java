@@ -12,6 +12,7 @@ import top.turboweb.http.router.parameter.ParameterParser;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -96,7 +97,7 @@ class RouteHandlerTest {
 
     private static HttpContext ctx(HttpMethod method, String uri) {
         return new FullHttpContext(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri),
-                null, null, null, null);
+                null, null, null, null, StandardCharsets.UTF_8);
     }
 
     private static final ParameterParser REJECTING = parameter -> null;

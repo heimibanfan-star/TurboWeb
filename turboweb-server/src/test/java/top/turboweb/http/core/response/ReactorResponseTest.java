@@ -7,7 +7,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.orchestrator.ReactorResponseWriter;
 
@@ -16,26 +15,29 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * {@link ReactorResponse} 的字符集回退与 Flux 包装（reactor 同步订阅，无时序）。
+ * {@link ReactorResponse} 的字符集显式口径与 Flux 包装（reactor 同步订阅，无时序）。
+ * 内容类型带字符集时 header 与 getCharset 同源写明；不带时只写媒体类型、getCharset 为空，
+ * charset 段留待结果转化环节按缺省字符集补写。
  * 依赖来自本模块 api 声明的 {@code reactor-core} 与仓内 {@code core.constant.ContentType}。
  */
 class ReactorResponseTest {
 
     @Test
-    void defaultConstructorFallsBackToGlobalCharset() {
+    void defaultConstructorLeavesHtmlWithoutCharset() {
         ReactorResponse resp = new ReactorResponse(Flux.empty());
 
-        assertEquals("text/html;charset=" + GlobalConfig.getResponseCharset().name(),
-                resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
-        assertEquals(GlobalConfig.getResponseCharset(), resp.getCharset());
+        assertEquals("text/html", resp.headers().get(HttpHeaderNames.CONTENT_TYPE),
+                "默认内容类型不带 charset 段，补码归结果转化环节");
+        assertNull(resp.getCharset());
         assertEquals(HttpResponseStatus.OK, resp.status());
         assertEquals(ReactorResponseWriter.class, resp.getWriterType());
     }
 
     @Test
-    void explicitCharsetOverridesGlobal() {
+    void explicitCharsetIsWrittenOut() {
         ReactorResponse resp = new ReactorResponse(Flux.empty(),
                 ContentType.create("application/json", StandardCharsets.ISO_8859_1));
 
@@ -44,12 +46,11 @@ class ReactorResponseTest {
     }
 
     @Test
-    void contentTypeWithoutCharsetFallsBackToGlobal() {
+    void contentTypeWithoutCharsetStaysPending() {
         ReactorResponse resp = new ReactorResponse(Flux.empty(), ContentType.create("text/plain"));
 
-        assertEquals(GlobalConfig.getResponseCharset(), resp.getCharset());
-        assertEquals("text/plain;charset=" + GlobalConfig.getResponseCharset().name(),
-                resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
+        assertNull(resp.getCharset());
+        assertEquals("text/plain", resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
     }
 
     @Test
@@ -65,12 +66,11 @@ class ReactorResponseTest {
         assertEquals(StandardCharsets.ISO_8859_1, resp.getCharset(),
                 "charset 字段随 setContentType 同步，getCharset() 与 header 同为 ISO-8859-1");
 
-        // 三元回退的另一支：新内容类型不带字符集时，字段与 header 均回落到全局默认
+        // 另一支：新内容类型不带字符集时，字段为空、header 只写媒体类型
         resp.setContentType(ContentType.create("text/plain"));
-        assertEquals("text/plain;charset=" + GlobalConfig.getResponseCharset().name(),
-                resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
-        assertEquals(GlobalConfig.getResponseCharset(), resp.getCharset(),
-                "无字符集的内容类型回退全局默认，字段与 header 一致");
+        assertEquals("text/plain", resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
+        assertNull(resp.getCharset(),
+                "无字符集的内容类型不回填任何默认，补码归结果转化环节");
     }
 
     @Test

@@ -7,7 +7,6 @@ import io.netty.handler.codec.http.HttpUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.orchestrator.SseResponseWriter;
 import top.turboweb.http.testkit.RecordingConnectSession;
@@ -33,11 +32,12 @@ class SseResponseTest {
     }
 
     @Test
-    void constructorSetsSseHeadersWithGlobalCharset() {
+    void constructorSetsSseHeadersWithoutCharset() {
         RecordingConnectSession session = new RecordingConnectSession();
         SseResponse resp = newResponse(session);
 
-        assertEquals("text/event-stream;charset=" + GlobalConfig.getResponseCharset().name(),
+        // 构造期只写媒体类型，charset 段由结果转化环节按缺省字符集补写
+        assertEquals("text/event-stream",
                 resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
         assertEquals("no-cache", resp.headers().get(HttpHeaderNames.CACHE_CONTROL));
         assertEquals("keep-alive", resp.headers().get(HttpHeaderNames.CONNECTION));

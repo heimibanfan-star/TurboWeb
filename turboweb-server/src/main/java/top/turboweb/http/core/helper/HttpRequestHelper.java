@@ -2,10 +2,10 @@ package top.turboweb.http.core.helper;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import top.turboweb.commons.config.GlobalConfig;
 
 import java.nio.charset.Charset;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * http请求相关的工具包
@@ -26,13 +26,17 @@ public class HttpRequestHelper {
     }
 
     /**
-     * 从 FullHttpRequest 中提取请求体编码
-     * @param request FullHttpRequest 对象
+     * 从 FullHttpRequest 中提取请求体编码：请求头 Content-Type 显式声明 charset 时优先采用，
+     * 未声明（头缺失、无 charset 段、charset 名为空白或不可识别）时回落到给定的缺省编码
+     * @param request FullHttpRequest 对象，为 null 时直接返回 fallback
+     * @param fallback 缺省编码（装配期判定并随请求传递），不能为 null
      * @return 请求体字符编码
+     * @throws NullPointerException fallback 为 null
      */
-    public static Charset getRequestCharset(FullHttpRequest request) {
+    public static Charset getRequestCharset(FullHttpRequest request, Charset fallback) {
+        Objects.requireNonNull(fallback, "fallback can not be null");
         if (request == null) {
-            return GlobalConfig.getRequestCharset();
+            return fallback;
         }
 
         String contentType = request.headers().get(HttpHeaderNames.CONTENT_TYPE);
@@ -54,7 +58,7 @@ public class HttpRequestHelper {
                 }
             }
         }
-        // 没指定 charset，默认
-        return GlobalConfig.getRequestCharset();
+        // 没指定 charset，回落缺省编码
+        return fallback;
     }
 }

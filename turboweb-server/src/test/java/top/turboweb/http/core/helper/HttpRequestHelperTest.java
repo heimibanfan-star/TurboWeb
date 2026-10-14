@@ -9,13 +9,13 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.config.GlobalConfig;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * 请求侧工具：Content-Type 取值与 charset 解析。
@@ -54,37 +54,41 @@ class HttpRequestHelperTest {
 
     @Test
     void charsetComesFromContentTypeToken() {
+        Charset fallback = StandardCharsets.ISO_8859_1;
         assertEquals(StandardCharsets.UTF_8,
-                HttpRequestHelper.getRequestCharset(requestWithContentType("application/json; charset=UTF-8")));
+                HttpRequestHelper.getRequestCharset(requestWithContentType("application/json; charset=UTF-8"), fallback));
         assertEquals(Charset.forName("GBK"),
-                HttpRequestHelper.getRequestCharset(requestWithContentType("text/plain;charset=GBK")));
+                HttpRequestHelper.getRequestCharset(requestWithContentType("text/plain;charset=GBK"), fallback));
         // 大小写不敏感的 token 名，值仍按原样取
         assertEquals(StandardCharsets.UTF_8,
-                HttpRequestHelper.getRequestCharset(requestWithContentType("application/json; CHARSET=UTF-8")));
+                HttpRequestHelper.getRequestCharset(requestWithContentType("application/json; CHARSET=UTF-8"), fallback));
     }
 
     @Test
     void emptyCharsetTokenIsSkippedAndUnparsableNameFallsThrough() {
-        // "charset=" 空值走 continue，非法名走 catch，两者都该落到后面的部分或默认值
+        // "charset=" 空值走 continue，非法名走 catch，两者都该落到后面的部分或缺省值
+        Charset fallback = StandardCharsets.ISO_8859_1;
         assertEquals(StandardCharsets.UTF_16,
-                HttpRequestHelper.getRequestCharset(requestWithContentType("a/b; charset=; charset=no-such-cs; charset=UTF-16")));
-        assertEquals(StandardCharsets.UTF_8,
-                HttpRequestHelper.getRequestCharset(requestWithContentType("a/b; charset=not-a-real-charset")));
+                HttpRequestHelper.getRequestCharset(requestWithContentType("a/b; charset=; charset=no-such-cs; charset=UTF-16"), fallback));
+        assertEquals(fallback,
+                HttpRequestHelper.getRequestCharset(requestWithContentType("a/b; charset=not-a-real-charset"), fallback),
+                "charset 名不可识别时回落到传入缺省，而不是硬编码 UTF-8");
     }
 
     @Test
-    void nullRequestUsesGlobalConfigDefault() {
-        Charset original = GlobalConfig.getRequestCharset();
-        try {
-            GlobalConfig.setRequestCharset(StandardCharsets.ISO_8859_1);
-            assertEquals(StandardCharsets.ISO_8859_1, HttpRequestHelper.getRequestCharset(null),
-                    "request 为 null 时必须回落到 GlobalConfig，而不是硬编码 UTF-8");
-            // 顺带证明无 header 的 request 也走同一回落
-            assertEquals(StandardCharsets.ISO_8859_1,
-                    HttpRequestHelper.getRequestCharset(requestWithContentType(null)));
-        } finally {
-            GlobalConfig.setRequestCharset(original);
-        }
-        assertEquals(original, GlobalConfig.getRequestCharset(), "必须还原，否则污染其它用例");
+    void nullRequestAndMissingHeaderFallBackToProvidedDefault() {
+        assertEquals(StandardCharsets.ISO_8859_1,
+                HttpRequestHelper.getRequestCharset(null, StandardCharsets.ISO_8859_1),
+                "request 为 null 时必须回落到传入缺省");
+        // 无 header 的 request 也走同一回落
+        assertEquals(StandardCharsets.ISO_8859_1,
+                HttpRequestHelper.getRequestCharset(requestWithContentType(null), StandardCharsets.ISO_8859_1));
+    }
+
+    @Test
+    void nullFallbackIsRejected() {
+        NullPointerException ex = assertThrows(NullPointerException.class,
+                () -> HttpRequestHelper.getRequestCharset(requestWithContentType(null), null));
+        assertEquals("fallback can not be null", ex.getMessage());
     }
 }

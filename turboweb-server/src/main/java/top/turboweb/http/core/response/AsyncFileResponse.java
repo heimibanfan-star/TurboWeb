@@ -2,7 +2,6 @@ package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.commons.utils.thread.WorkStealThreadUtils;
 import top.turboweb.http.orchestrator.AsyncFileResponseWriter;
@@ -51,13 +50,14 @@ public class AsyncFileResponse extends AbstractFileResponse implements ResponseC
     }
 
     /**
-     * 构造方法，可指定分块大小
+     * 构造方法，可指定分块大小；文件名编码不在此指定，
+     * 留待结果转化环节以缺省字符集补写
      *
      * @param file      文件对象
      * @param chunkSize 分块缓冲区大小
      */
     public AsyncFileResponse(File file, int chunkSize) {
-        this(HttpResponseStatus.OK, file, chunkSize, GlobalConfig.getResponseCharset());
+        this(HttpResponseStatus.OK, file, chunkSize, null);
     }
 
     /**
@@ -66,7 +66,7 @@ public class AsyncFileResponse extends AbstractFileResponse implements ResponseC
      * @param status         HTTP 响应状态
      * @param file           文件对象
      * @param chunkSize      分块缓冲区大小
-     * @param filenameCharset 文件名编码字符集
+     * @param filenameCharset 文件名编码字符集；为 null 时 Content-Disposition 留待转化环节补写
      */
     public AsyncFileResponse(HttpResponseStatus status, File file, int chunkSize, Charset filenameCharset) {
         super(status, file, filenameCharset);

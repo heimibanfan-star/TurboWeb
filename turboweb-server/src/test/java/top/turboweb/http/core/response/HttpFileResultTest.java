@@ -63,7 +63,7 @@ class HttpFileResultTest {
     @Test
     void byteSourceKeepsMetadataAndBody() {
         HttpFileResult result = HttpFileResult.bytes(BODY, "a b.txt", "text/plain", false);
-        FullHttpResponse response = (FullHttpResponse) result.createResponse();
+        FullHttpResponse response = (FullHttpResponse) result.createResponse(StandardCharsets.UTF_8);
         try {
             assertEquals(200, response.status().code());
             assertEquals("text/plain", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
@@ -83,7 +83,7 @@ class HttpFileResultTest {
     void nullOrEmptyFilenameFallsBackToUuid() {
         for (String name : new String[]{null, ""}) {
             HttpFileResult result = HttpFileResult.bytes(BODY, name);
-            FullHttpResponse response = (FullHttpResponse) result.createResponse();
+            FullHttpResponse response = (FullHttpResponse) result.createResponse(StandardCharsets.UTF_8);
             try {
                 String encoded = dispositionFileName(response);
                 assertEquals(encoded, UUID.fromString(encoded).toString(), "缺名时文件名应是随机 UUID");
@@ -97,7 +97,7 @@ class HttpFileResultTest {
     void diskFileUsesProvidedContentTypeAndLength() throws Exception {
         File source = file("data.bin", "hello");
         HttpFileResult result = HttpFileResult.file(source, "application/x-demo", false);
-        FullHttpResponse response = (FullHttpResponse) result.createResponse();
+        FullHttpResponse response = (FullHttpResponse) result.createResponse(StandardCharsets.UTF_8);
         try {
             assertEquals("application/x-demo", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
             assertEquals("attachment;filename=\"data.bin\"",
@@ -114,7 +114,7 @@ class HttpFileResultTest {
         File source = file("blob", "abc");
         for (String contentType : new String[]{null, ""}) {
             HttpFileResult result = HttpFileResult.file(source, contentType, false);
-            FullHttpResponse response = (FullHttpResponse) result.createResponse();
+            FullHttpResponse response = (FullHttpResponse) result.createResponse(StandardCharsets.UTF_8);
             try {
                 assertEquals("application/octet-stream",
                         response.headers().get(HttpHeaderNames.CONTENT_TYPE));
@@ -128,9 +128,9 @@ class HttpFileResultTest {
     void openFileFlagSelectsInlineDisposition() throws Exception {
         File source = file("pic.png", "PNG");
         FullHttpResponse inline =
-                (FullHttpResponse) HttpFileResult.file(source, "image/png", true).createResponse();
+                (FullHttpResponse) HttpFileResult.file(source, "image/png", true).createResponse(StandardCharsets.UTF_8);
         FullHttpResponse attachment =
-                (FullHttpResponse) HttpFileResult.file(source, "image/png", false).createResponse();
+                (FullHttpResponse) HttpFileResult.file(source, "image/png", false).createResponse(StandardCharsets.UTF_8);
         try {
             assertEquals("inline;filename=\"pic.png\"",
                     inline.headers().get(HttpHeaderNames.CONTENT_DISPOSITION));
@@ -155,7 +155,7 @@ class HttpFileResultTest {
     }
 
     private static void assertFactoryMetadata(HttpFileResult result, String contentType) {
-        FullHttpResponse response = (FullHttpResponse) result.createResponse();
+        FullHttpResponse response = (FullHttpResponse) result.createResponse(StandardCharsets.UTF_8);
         try {
             assertEquals(contentType, response.headers().get(HttpHeaderNames.CONTENT_TYPE));
             assertTrue(response.headers().get(HttpHeaderNames.CONTENT_DISPOSITION).startsWith("inline;"),
@@ -171,7 +171,7 @@ class HttpFileResultTest {
         File source = file("stream.bin", "0123456789"); // 10 字节
         HttpFileResult result = HttpFileResult.file(source, "application/x-stream", false);
         setMaxLimit(result, 9); // 10 > 9 → 流式分支
-        HttpResponse response = result.createResponse();
+        HttpResponse response = result.createResponse(StandardCharsets.UTF_8);
         try {
             assertInstanceOf(FileStreamResponse.class, response, "超限文件必须走 FileStreamResponse");
             assertEquals(FileStreamResponseWriter.class,
@@ -190,7 +190,7 @@ class HttpFileResultTest {
         File source = file("edge.bin", "0123456789"); // 10 字节
         HttpFileResult result = HttpFileResult.file(source, "application/octet-stream", false);
         setMaxLimit(result, 10); // 长度 == 限制：判据是 >，所以不切片
-        FullHttpResponse response = (FullHttpResponse) result.createResponse();
+        FullHttpResponse response = (FullHttpResponse) result.createResponse(StandardCharsets.UTF_8);
         try {
             assertEquals(10, response.content().readableBytes(), "恰好等于限制不得切片");
         } finally {
@@ -204,7 +204,7 @@ class HttpFileResultTest {
         HttpFileResult result = HttpFileResult.file(source, null, false);
         setMaxLimit(result, 1); // 本会超限
         result.closeLimit();    // 关闭限制 → 永不切片
-        FullHttpResponse response = (FullHttpResponse) result.createResponse();
+        FullHttpResponse response = (FullHttpResponse) result.createResponse(StandardCharsets.UTF_8);
         try {
             assertEquals(10, response.content().readableBytes());
         } finally {

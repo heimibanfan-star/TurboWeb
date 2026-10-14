@@ -7,6 +7,7 @@ import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookieManager;
 import top.turboweb.http.core.session.HttpSession;
 
+import java.nio.charset.Charset;
 import java.util.List;
 
 /**
@@ -34,15 +35,17 @@ public abstract class FileHttpContext extends CoreHttpContext {
 	 * @param cookieManager  Cookie 管理器
 	 * @param connectSession 连接会话对象，用于 WebSocket/SSE 等场景
 	 * @param jsonSerializer JSON 序列化器
+	 * @param defaultCharset 缺省编码（装配期判定并随请求传递），不能为 null
 	 */
 	protected FileHttpContext(
 			FullHttpRequest request,
 			HttpSession httpSession,
 			HttpCookieManager cookieManager,
 			ConnectSession connectSession,
-			JsonSerializer jsonSerializer
+			JsonSerializer jsonSerializer,
+			Charset defaultCharset
 	) {
-		super(request, httpSession, cookieManager, connectSession, jsonSerializer);
+		super(request, httpSession, cookieManager, connectSession, jsonSerializer, defaultCharset);
 	}
 
 	/**

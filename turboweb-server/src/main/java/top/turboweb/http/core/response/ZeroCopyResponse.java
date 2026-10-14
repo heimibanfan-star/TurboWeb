@@ -4,14 +4,12 @@ import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.orchestrator.ResponseWriter;
 import top.turboweb.http.orchestrator.ZeroCopyResponseWriter;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
 import java.util.UUID;
 
 /**
@@ -38,7 +36,8 @@ public class ZeroCopyResponse extends AbstractFileResponse implements ResponseCa
      *               超出文件尾的部分写出时自然截断）
      */
     public ZeroCopyResponse(File file, long offset, long count) {
-        super(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset());
+        // 文件名编码不在此指定，留待结果转化环节以缺省字符集补写
+        super(HttpResponseStatus.OK, file, null);
         fileRegion = new DefaultFileRegion(file, offset, count);
         this.headers().add(HttpHeaderNames.CONTENT_LENGTH, count);
     }
@@ -62,7 +61,8 @@ public class ZeroCopyResponse extends AbstractFileResponse implements ResponseCa
      * @param filename    响应文件名
      */
     public ZeroCopyResponse(FileChannel fileChannel, long offset, long count, String filename) {
-        super(HttpResponseStatus.OK, filename, GlobalConfig.getResponseCharset());
+        // 文件名编码不在此指定，留待结果转化环节以缺省字符集补写
+        super(HttpResponseStatus.OK, filename, null);
         fileRegion = new DefaultFileRegion(fileChannel, offset, count);
         this.headers().add(HttpHeaderNames.CONTENT_LENGTH, count);
     }

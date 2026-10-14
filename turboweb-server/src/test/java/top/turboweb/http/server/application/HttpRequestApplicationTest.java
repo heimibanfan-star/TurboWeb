@@ -234,15 +234,32 @@ class HttpRequestApplicationTest {
         RequestOrchestrator orchestrator = orchestratorOf(app);
         for (String component : List.of("middleware", "virtualThreadResource", "responseWriterManager",
                 "resultConverterManager", "corsConfig", "exceptionHandlerManager",
-                "sessionManagerHolder", "jsonSerializer")) {
-            assertNotNull(componentOf(orchestrator, component), "八组件之 " + component + " 装配后不可为null");
+                "sessionManagerHolder", "jsonSerializer", "defaultCharset")) {
+            assertNotNull(componentOf(orchestrator, component), "九组件之 " + component + " 装配后不可为null");
         }
         assertInstanceOf(UnlimitedVirtualThreadResource.class,
                 componentOf(orchestrator, "virtualThreadResource"),
                 "默认配置未启用限流，虚拟线程资源为非受限实现");
         assertTrue(((HttpCorsConfig) componentOf(orchestrator, "corsConfig")).isAnyOrigin(),
                 "cors配置默认取通配配置");
+        assertEquals(java.nio.charset.StandardCharsets.UTF_8, componentOf(orchestrator, "defaultCharset"),
+                "缺省字符集默认取UTF-8并装入编排器");
         app.close();
+    }
+
+    @Test
+    void defaultCharsetIsCarriedFromConfig() throws Exception {
+        HttpRequestApplication app = new HttpRequestApplication.Builder()
+                .sessionManager(new NoopSessionManager())
+                .config(HttpConfig.builder().defaultCharset(java.nio.charset.Charset.forName("GBK")).build())
+                .build();
+        try {
+            assertEquals(java.nio.charset.Charset.forName("GBK"),
+                    componentOf(orchestratorOf(app), "defaultCharset"),
+                    "编排器缺省字符集取自 HttpConfig 的装配值");
+        } finally {
+            app.close();
+        }
     }
 
     // ---------- 虚拟线程资源按配置创建 ----------
@@ -336,8 +353,8 @@ class HttpRequestApplicationTest {
 
     /**
      * 从应用资源作用域里取出磁盘IO线程池：{@code ScopedResource} 不暴露已登记资源，
-     * L1 只能反射读它私有的 {@code registedResource}（与 commons 阶段读 {@code GlobalConfig}
-     * 私有静态的手法是同一类取证手段）。字段一旦改名，本用例会以
+     * L1 只能反射读它私有的 {@code registedResource}（反射私有成员是同一类取证手段）。
+     * 字段一旦改名，本用例会以
      * {@code NoSuchFieldException} 变红，届时同步更新即可。
      */
     @SuppressWarnings("unchecked")

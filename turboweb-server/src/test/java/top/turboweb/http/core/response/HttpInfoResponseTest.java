@@ -5,7 +5,6 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.config.GlobalConfig;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -56,14 +55,34 @@ class HttpInfoResponseTest {
     }
 
     @Test
-    void stringContentWithoutCharsetUsesGlobalResponseCharset() {
-        Charset charset = GlobalConfig.getResponseCharset();
+    void stringContentWithoutCharsetStaysPendingUntilMaterialize() {
+        Charset gbk = Charset.forName("GBK");
         HttpInfoResponse response = new HttpInfoResponse(HttpResponseStatus.OK);
         try {
             response.setContent("你好");
-            assertEquals("你好", response.content().toString(charset));
-            assertEquals("你好".getBytes(charset).length,
+            assertEquals(0, response.content().readableBytes(), "未指定编码时正文只暂存，缓冲保持为空");
+            response.materialize(gbk);
+            assertEquals("你好", response.content().toString(gbk));
+            assertEquals("你好".getBytes(gbk).length,
                     response.headers().getInt(HttpHeaderNames.CONTENT_LENGTH));
+            response.materialize(StandardCharsets.UTF_8);
+            assertEquals("你好".getBytes(gbk).length,
+                    response.headers().getInt(HttpHeaderNames.CONTENT_LENGTH),
+                    "materialize 幂等：无暂存原文时为空操作，不重复落体");
+        } finally {
+            response.release();
+        }
+    }
+
+    @Test
+    void explicitCharsetWriteClearsPendingOriginal() {
+        HttpInfoResponse response = new HttpInfoResponse(HttpResponseStatus.OK);
+        try {
+            response.setContent("你好");
+            response.setContent("abc", StandardCharsets.UTF_8);
+            response.materialize(Charset.forName("GBK"));
+            assertEquals("abc", response.content().toString(StandardCharsets.UTF_8),
+                    "显式编码写入取代暂存原文，materialize 不再落旧文本");
         } finally {
             response.release();
         }

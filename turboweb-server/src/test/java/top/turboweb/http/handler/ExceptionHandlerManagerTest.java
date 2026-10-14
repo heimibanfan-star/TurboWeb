@@ -89,7 +89,7 @@ class ExceptionHandlerManagerTest {
     private static void assertServerError(Object result, String... expectedInBody) {
         assertInstanceOf(HttpResult.class, result, "兜底应构建 HttpResult 对象");
         // 数据为字符串错误页，createResponse 不会触碰序列化器，传 null 引用安全
-        HttpResponse response = ((HttpResult<?>) result).createResponse(null);
+        HttpResponse response = ((HttpResult<?>) result).createResponse(null, StandardCharsets.UTF_8);
         assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, response.status());
         String contentType = response.headers().get(HttpHeaderNames.CONTENT_TYPE);
         assertNotNull(contentType);
@@ -176,7 +176,7 @@ class ExceptionHandlerManagerTest {
         Object result = manager.handle(new RuntimeException("&<b>\"quote\"'apos'"));
 
         assertInstanceOf(HttpResult.class, result);
-        HttpResponse response = ((HttpResult<?>) result).createResponse(null);
+        HttpResponse response = ((HttpResult<?>) result).createResponse(null, StandardCharsets.UTF_8);
         String body = ((FullHttpResponse) response).content().toString(StandardCharsets.UTF_8);
         assertTrue(body.contains("&amp;"), body);
         assertTrue(body.contains("&lt;b&gt;"), body);
@@ -194,7 +194,7 @@ class ExceptionHandlerManagerTest {
                 "router not found: GET /missing<b>", RouteHandlerException.ROUTER_NOT_MATCH));
 
         assertInstanceOf(HttpResult.class, result, "404 兜底应构建 HttpResult 对象");
-        HttpResponse response = ((HttpResult<?>) result).createResponse(null);
+        HttpResponse response = ((HttpResult<?>) result).createResponse(null, StandardCharsets.UTF_8);
         assertEquals(HttpResponseStatus.NOT_FOUND, response.status());
         String contentType = response.headers().get(HttpHeaderNames.CONTENT_TYPE);
         assertNotNull(contentType);

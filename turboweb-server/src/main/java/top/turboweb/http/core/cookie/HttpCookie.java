@@ -1,8 +1,7 @@
 package top.turboweb.http.core.cookie;
 
-import top.turboweb.commons.config.GlobalConfig;
-
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.Objects;
 
 /**
@@ -95,14 +94,19 @@ public class HttpCookie {
 
     /**
      * 转换为符合 Set-Cookie 头的字符串表示。
-     * 会对 Cookie 值进行 URL 编码，防止特殊字符导致解析错误。
+     * 会对 Cookie 值按给定字符集进行 URL 编码，防止特殊字符导致解析错误。
+     *
+     * @param charset Cookie 值 URL 编码字符集（写出侧以装配期判定的缺省字符集传入），不能为null
+     * @return Set-Cookie 头字符串
+     * @throws NullPointerException charset 为 null
      */
-    public String toHeaderString() {
+    public String toHeaderString(Charset charset) {
+        Objects.requireNonNull(charset, "charset can not be null");
         StringBuilder sb = new StringBuilder();
         sb.append(key).append("=");
 
         // 对 value 进行简单 URL 编码
-        String encodedValue = URLEncoder.encode(value, GlobalConfig.getResponseCharset());
+        String encodedValue = URLEncoder.encode(value, charset);
         sb.append(encodedValue);
 
         if (path != null && !path.isEmpty()) {

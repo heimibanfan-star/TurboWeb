@@ -16,6 +16,8 @@ import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
 
+import java.nio.charset.Charset;
+import java.util.Objects;
 
 /**
  * {@code CoreHttpContext} 是 {@link HttpContext} 的抽象基础实现，
@@ -64,6 +66,9 @@ public abstract class CoreHttpContext implements HttpContext{
 	/** JSON 序列化器 */
 	protected final JsonSerializer jsonSerializer;
 
+	/** 装配期判定的缺省编码，经 {@link #defaultCharset()} 对外提供，请求体解码缺省时亦回落到它 */
+	private final Charset defaultCharset;
+
 	/** 请求上下文的挂载对象 */
 	private final Attachment attachment = new DefaultAttachment();
 
@@ -75,23 +80,27 @@ public abstract class CoreHttpContext implements HttpContext{
 	 * @param cookieManager   Cookie 管理器
 	 * @param connectSession  当前连接会话
 	 * @param jsonSerializer  JSON 序列化器
+	 * @param defaultCharset  缺省编码（装配期由 HttpConfig 判定并随请求传递），不能为 null
+	 * @throws NullPointerException defaultCharset 为 null
 	 */
 	protected CoreHttpContext(
 			FullHttpRequest request,
 			HttpSession httpSession,
 			HttpCookieManager cookieManager,
 			ConnectSession connectSession,
-			JsonSerializer jsonSerializer
+			JsonSerializer jsonSerializer,
+			Charset defaultCharset
 	) {
 		this.request = request;
 		this.session = httpSession;
 		this.httpCookieManager = cookieManager;
 		this.connectSession = connectSession;
+		this.defaultCharset = Objects.requireNonNull(defaultCharset, "defaultCharset can not be null");
 		HttpMethod method = request.method();
 		if (HttpMethod.HEAD == method) {
 			httpContent = HttpContent.empty();
 		} else {
-			httpContent = new HttpContent(request);
+			httpContent = new HttpContent(request, defaultCharset);
 		}
 		this.jsonSerializer = jsonSerializer;
 	}
@@ -151,6 +160,14 @@ public abstract class CoreHttpContext implements HttpContext{
 	@Override
 	public HttpCookieManager cookie() {
 		return this.httpCookieManager;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Charset defaultCharset() {
+		return this.defaultCharset;
 	}
 
 	@Override

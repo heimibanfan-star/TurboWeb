@@ -12,6 +12,7 @@ import top.turboweb.commons.utils.base.ValidationUtils;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.helper.UrlHelper;
 import top.turboweb.http.core.helper.UrlHelper.ParamPair;
+import java.nio.charset.Charset;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,15 +59,17 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	 * @param cookieManager  Cookie 管理器
 	 * @param connectSession 连接会话（用于 WebSocket / SSE）
 	 * @param jsonSerializer JSON 序列化器
+	 * @param defaultCharset 缺省编码（装配期由 HttpConfig 判定并随请求传递），不能为 null
 	 */
 	public FullHttpContext(
 			FullHttpRequest request,
 			HttpSession httpSession,
 			HttpCookieManager cookieManager,
 			ConnectSession connectSession,
-			JsonSerializer jsonSerializer
+			JsonSerializer jsonSerializer,
+			Charset defaultCharset
 	) {
-		super(request, httpSession, cookieManager, connectSession, jsonSerializer);
+		super(request, httpSession, cookieManager, connectSession, jsonSerializer, defaultCharset);
 	}
 
 	/**

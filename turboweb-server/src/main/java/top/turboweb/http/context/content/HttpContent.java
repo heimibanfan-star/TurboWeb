@@ -10,6 +10,7 @@ import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.core.helper.HttpRequestHelper;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.*;
 
 /**
@@ -30,6 +31,8 @@ public class HttpContent {
     private static final InternalLogger log = InternalLoggerFactory.getInstance(HttpContent.class);
     private final FullHttpRequest request;
     private final String contentType;
+    /** 请求头未声明 charset 时的缺省解码编码，装配期判定并随请求传递 */
+    private final Charset defaultCharset;
 
     private boolean formIsParsed = false;
 
@@ -53,21 +56,30 @@ public class HttpContent {
     /**
      * 构造函数，根据给定的 HTTP 请求创建 {@code HttpContent} 实例。
      *
-     * @param request HTTP 请求对象，不能为空
-     * @throws NullPointerException 当 {@code request} 为 {@code null} 时抛出
+     * <p>缺省解码编码必须由调用方给出（装配期由 {@link top.turboweb.http.server.config.HttpConfig}
+     * 判定并随请求逐级传递），本类不设缺省值。
+     *
+     * @param request        HTTP 请求对象，不能为空
+     * @param defaultCharset 请求头未声明 charset 时的缺省解码编码，不能为空
+     * @throws NullPointerException 当 {@code request} 或 {@code defaultCharset} 为 {@code null} 时抛出
      */
-    public HttpContent(FullHttpRequest request) {
+    public HttpContent(FullHttpRequest request, Charset defaultCharset) {
         Objects.requireNonNull(request, "request can not be null");
+        this.defaultCharset = Objects.requireNonNull(defaultCharset, "defaultCharset can not be null");
         this.request = request;
         this.contentType = HttpRequestHelper.getContentType(request);
     }
 
     /**
-     * 私有构造函数，用于创建空的 {@code HttpContent}。
+     * 私有构造函数，用于创建空的 {@code HttpContent}（HEAD 等无请求体场景）。
+     *
+     * <p>空实例无请求体，各取体方法在触达解码编码前即因 Content-Type 缺失抛出，
+     * 故不持有缺省编码。
      */
     private HttpContent() {
         this.request = null;
         this.contentType = null;
+        this.defaultCharset = null;
     }
 
     /**
@@ -96,7 +108,7 @@ public class HttpContent {
         }
         ByteBuf contentBuf = request.content();
         // 序列化为json
-        String jsonContent = contentBuf.toString(HttpRequestHelper.getRequestCharset(request));
+        String jsonContent = contentBuf.toString(HttpRequestHelper.getRequestCharset(request, defaultCharset));
         if (jsonContent == null || jsonContent.isBlank()) {
             jsonContent = "{}";
         } else {
@@ -158,7 +170,7 @@ public class HttpContent {
         this.decoder = new HttpPostRequestDecoder(
                 new DefaultHttpDataFactory(Integer.MAX_VALUE),
                 request,
-                HttpRequestHelper.getRequestCharset(request)
+                HttpRequestHelper.getRequestCharset(request, defaultCharset)
         );
         List<InterfaceHttpData> httpDataList = decoder.getBodyHttpDatas();
         // 解析数据

@@ -303,8 +303,8 @@ public class HttpRequestApplication implements Application {
 
         /**
          * 构建应用：串联并初始化中间件链，按 {@link HttpConfig} 的 diskOpeThread* 参数创建
-         * 磁盘IO线程池，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按八组件装配
-         * 请求编排器，最后装配http请求调度处理器；
+         * 磁盘IO线程池，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按九组件装配
+         * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
          * 装配出的中间件链销毁适配器先登记、创建的磁盘IO线程池后登记进资源作用域交给应用持有，
          * 由 {@link Application#close()} 的默认实现按登记顺序释放。
@@ -337,7 +337,7 @@ public class HttpRequestApplication implements Application {
             scopedResource.register(diskOpeThreadPool);
             // 按配置限流参数创建虚拟线程资源
             VirtualThreadResource virtualThreadResource = createVirtualThreadResource();
-            // 未传入的组件补全默认值后，按八组件装定请求编排器
+            // 未传入的组件补全默认值后，按九组件装定请求编排器
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
                     .virtualThreadResource(virtualThreadResource)
@@ -355,6 +355,7 @@ public class HttpRequestApplication implements Application {
                             : new ExceptionHandlerManager(Set.of()))
                     .sessionManagerHolder(createSessionManagerHolder())
                     .jsonSerializer(this.jsonSerializer)
+                    .defaultCharset(httpConfig.getDefaultCharset())
                     .build();
             HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
                     .orchestrator(orchestrator)

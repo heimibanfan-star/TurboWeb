@@ -1,7 +1,6 @@
 package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.http.orchestrator.ResponseWriter;
 import top.turboweb.http.orchestrator.FileStreamResponseWriter;
@@ -26,7 +25,7 @@ public class FileStreamResponse extends AbstractFileResponse implements Response
 	private final long end;
 	/** 分块读取大小 */
 	private final long chunkSize;
-	/** 文件名编码字符集 */
+	/** 文件名编码字符集；为 null 表示构造期未指定，Content-Disposition 留待结果转化环节补写 */
 	private final Charset filenameCharset;
 	/** 文件起始偏移 */
 	private final long offset;
@@ -34,11 +33,12 @@ public class FileStreamResponse extends AbstractFileResponse implements Response
 	private final long length;
 
 	/**
-	 * 构造默认 FileStreamResponse
+	 * 构造默认 FileStreamResponse；文件名编码不在此指定，
+	 * 留待结果转化环节以缺省字符集补写
 	 * @param file 文件
 	 */
 	public FileStreamResponse(File file) {
-		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152, 0, file.length());
+		this(HttpResponseStatus.OK, file, null, 2097152, 0, file.length());
 	}
 
 	/**
@@ -51,29 +51,29 @@ public class FileStreamResponse extends AbstractFileResponse implements Response
 	}
 
 	/**
-	 * 构造 FileStreamResponse，支持自定义分块大小
+	 * 构造 FileStreamResponse，支持自定义分块大小；文件名编码留待结果转化环节补写
 	 * @param file 文件
 	 * @param chunkSize 分块大小
 	 */
 	public FileStreamResponse(File file, int chunkSize) {
-		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), chunkSize, 0, file.length());
+		this(HttpResponseStatus.OK, file, null, chunkSize, 0, file.length());
 	}
 
 	/**
-	 * 构造 FileStreamResponse，支持指定偏移和长度
+	 * 构造 FileStreamResponse，支持指定偏移和长度；文件名编码留待结果转化环节补写
 	 * @param file 文件
 	 * @param offset 起始偏移
 	 * @param length 读取长度
 	 */
 	public FileStreamResponse(File file, long offset, long length) {
-		this(HttpResponseStatus.OK, file, GlobalConfig.getResponseCharset(), 2097152, offset, length);
+		this(HttpResponseStatus.OK, file, null, 2097152, offset, length);
 	}
 
 	/**
 	 * 完整构造方法
 	 * @param status 响应状态
 	 * @param file 文件
-	 * @param filenameCharset 文件名编码字符集
+	 * @param filenameCharset 文件名编码字符集；为 null 时 Content-Disposition 留待结果转化环节补写
 	 * @param chunkSize 分块大小
 	 * @param offset 文件起始偏移
 	 * @param length 文件读取长度

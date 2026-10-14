@@ -37,6 +37,20 @@ class HttpConfigTest {
         assertEquals(6, config.getDiskOpeThreadCoreQueue());
         // 与 CPU 核数绑定的默认值必须现算，写死 2/4/8 会在别的机器上假红
         assertEquals(cpu * 2, config.getDiskOpeThreadMaxThreadNum());
+        assertEquals(java.nio.charset.StandardCharsets.UTF_8, config.getDefaultCharset(), "缺省字符集默认UTF-8");
+    }
+
+    @Test
+    @DisplayName("defaultCharset 判空即抛且合法值原样承载")
+    void defaultCharsetCarriedAndNullRejected() {
+        HttpConfig config = HttpConfig.builder()
+                .defaultCharset(java.nio.charset.Charset.forName("GBK"))
+                .build();
+        assertEquals(java.nio.charset.Charset.forName("GBK"), config.getDefaultCharset());
+
+        NullPointerException ex = assertThrows(NullPointerException.class,
+                () -> HttpConfig.builder().defaultCharset(null));
+        assertEquals("defaultCharset can not be null", ex.getMessage());
     }
 
     @Test

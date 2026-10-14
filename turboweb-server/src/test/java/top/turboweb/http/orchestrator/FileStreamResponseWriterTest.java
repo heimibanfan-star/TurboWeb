@@ -10,7 +10,6 @@ import io.netty.handler.codec.http.LastHttpContent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.core.connect.InternalConnectSession;
@@ -81,7 +80,7 @@ class FileStreamResponseWriterTest {
 
     private static FileStreamResponse response(Path file, int chunkSize, long offset, long length) {
         return new FileStreamResponse(HttpResponseStatus.OK, file.toFile(),
-                GlobalConfig.getResponseCharset(), chunkSize, offset, length);
+                StandardCharsets.UTF_8, chunkSize, offset, length);
     }
 
     @Test

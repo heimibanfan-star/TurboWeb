@@ -5,9 +5,9 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import top.turboweb.commons.config.GlobalConfig;
 
 import java.nio.charset.Charset;
+import java.util.Objects;
 
 /**
  * HTTP 信息响应对象。
@@ -19,8 +19,14 @@ import java.nio.charset.Charset;
  *     <li>设置响应内容类型（Content-Type）</li>
  *     <li>添加响应 Cookie（Set-Cookie）</li>
  * </ul>
+ * <p>
+ * 不带字符集的字符串正文只暂存原文，由结果转化环节在写出前以缺省字符集
+ * 经 {@link #materialize(Charset)} 编码落体。
  */
 public class HttpInfoResponse extends DefaultFullHttpResponse {
+
+    /** 暂存的字符串原文正文，待结果转化环节按缺省字符集编码落体；显式编码写入后清空 */
+    private String pendingContent;
 
     /**
      * 使用指定 HTTP 状态码构造响应对象，默认 HTTP/1.1 版本。
@@ -42,16 +48,17 @@ public class HttpInfoResponse extends DefaultFullHttpResponse {
     }
 
     /**
-     * 设置响应内容（字符串）。
+     * 设置响应内容（字符串），按指定字符集立即编码。
      * <p>
-     * 会根据指定字符集将字符串转换为字节数组，同时更新 Content-Length。
+     * 会根据指定字符集将字符串转换为字节数组，同时更新 Content-Length；
+     * 此前暂存的待编码原文将被本次写入取代并清除。
      *
      * @param content 响应内容
      * @param charset 字符集
      */
     public void setContent(String content, Charset charset) {
-        // 将内容转按照utf-8转化为字节数组
         byte[] bytes = content.getBytes(charset);
+        this.pendingContent = null;
         this.content().clear();
         this.content().writeBytes(bytes);
         this.headers().setInt("Content-Length", bytes.length);
@@ -60,25 +67,42 @@ public class HttpInfoResponse extends DefaultFullHttpResponse {
     /**
      * 设置响应内容（字节数组）。
      * <p>
-     * 会清空原有内容并更新 Content-Length。
+     * 会清空原有内容（含待编码原文暂存）并更新 Content-Length。
      *
      * @param content 响应内容字节数组
      */
     public void setContent(byte[] content) {
+        this.pendingContent = null;
         this.content().clear();
         this.headers().setInt("Content-Length", content.length);
         this.content().writeBytes(content);
     }
 
     /**
-     * 设置响应内容（字符串）。
+     * 设置响应内容（字符串），不指定编码。
      * <p>
-     * 使用全局默认响应字符集（{@link GlobalConfig#getResponseCharset()}）。
+     * 只暂存原文并清空缓冲，正文由结果转化环节在写出前以缺省字符集
+     * 经 {@link #materialize(Charset)} 编码落体。
      *
      * @param content 响应内容
      */
     public void setContent(String content) {
-        this.setContent(content, GlobalConfig.getResponseCharset());
+        this.content().clear();
+        this.pendingContent = content;
+    }
+
+    /**
+     * 落体暂存的原文正文：存在待编码原文时按给定字符集编码写入缓冲并更新 Content-Length，
+     * 随后清除暂存；无暂存内容时为空操作。由结果转化环节在响应写出前调用一次，幂等可重复。
+     *
+     * @param charset 编码字符集（装配期判定的缺省字符集），不能为null
+     * @throws NullPointerException charset 为 null
+     */
+    public void materialize(Charset charset) {
+        Objects.requireNonNull(charset, "charset can not be null");
+        if (pendingContent != null) {
+            setContent(pendingContent, charset);
+        }
     }
 
     /**

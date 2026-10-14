@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.respmeta.DefaultResponseMeta;
 import top.turboweb.http.context.respmeta.ResponseMeta;
@@ -55,7 +54,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 class RequestOrchestratorTest {
 
-    /** 按指定 cors 配置装配八组件齐备的编排器（空链头、空异常处理器表）。 */
+    /** 按指定 cors 配置装配九组件齐备的编排器（空链头、空异常处理器表）。 */
     private static RequestOrchestrator orchestratorWith(HttpCorsConfig corsConfig) {
         return RequestOrchestrator.builder()
                 .middleware(new SentinelMiddleware())
@@ -66,15 +65,16 @@ class RequestOrchestratorTest {
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> new BackHoleSessionManager())
                 .jsonSerializer(new JacksonJsonSerializer())
+                .defaultCharset(StandardCharsets.UTF_8)
                 .build();
     }
 
-    /** 按指定链头与异常处理器装配八组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
+    /** 按指定链头与异常处理器装配九组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
     private static RequestOrchestrator flowOrchestrator(Middleware chain, ExceptionHandlerManager handlers) {
         return flowOrchestrator(chain, handlers, new UnlimitedVirtualThreadResource("test-orchestrator"));
     }
 
-    /** 按指定链头、异常处理器与虚拟线程资源装配八组件齐备的编排器。 */
+    /** 按指定链头、异常处理器与虚拟线程资源装配九组件齐备的编排器。 */
     private static RequestOrchestrator flowOrchestrator(Middleware chain, ExceptionHandlerManager handlers,
                                                          VirtualThreadResource resource) {
         return RequestOrchestrator.builder()
@@ -86,6 +86,7 @@ class RequestOrchestratorTest {
                 .exceptionHandlerManager(handlers)
                 .sessionManagerHolder(() -> new BackHoleSessionManager())
                 .jsonSerializer(new JacksonJsonSerializer())
+                .defaultCharset(StandardCharsets.UTF_8)
                 .build();
     }
 
@@ -127,6 +128,8 @@ class RequestOrchestratorTest {
         assertEquals("session manager holder must not be null", e7.getMessage());
         NullPointerException e8 = assertThrows(NullPointerException.class, () -> builder.jsonSerializer(null));
         assertEquals("json serializer must not be null", e8.getMessage());
+        NullPointerException e9 = assertThrows(NullPointerException.class, () -> builder.defaultCharset(null));
+        assertEquals("default charset must not be null", e9.getMessage());
     }
 
     @Test
@@ -214,6 +217,19 @@ class RequestOrchestratorTest {
                         .sessionManagerHolder(() -> new BackHoleSessionManager())
                         .build());
         assertEquals("json serializer must not be null", e8.getMessage());
+
+        NullPointerException e9 = assertThrows(NullPointerException.class,
+                () -> RequestOrchestrator.builder()
+                        .middleware(new SentinelMiddleware())
+                        .virtualThreadResource(new UnlimitedVirtualThreadResource("t"))
+                        .responseWriterManager(new ResponseWriterManager(Stubs.threadPool(), List.of()))
+                        .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer()))
+                        .corsConfig(HttpCorsConfig.builder().build())
+                        .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
+                        .sessionManagerHolder(() -> new BackHoleSessionManager())
+                        .jsonSerializer(new JacksonJsonSerializer())
+                        .build());
+        assertEquals("default charset must not be null", e9.getMessage());
     }
 
     @Test
@@ -226,7 +242,8 @@ class RequestOrchestratorTest {
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> new BackHoleSessionManager())
-                .jsonSerializer(new JacksonJsonSerializer());
+                .jsonSerializer(new JacksonJsonSerializer())
+                .defaultCharset(StandardCharsets.UTF_8);
 
         RequestOrchestrator first = builder.build();
         RequestOrchestrator second = builder.build();
@@ -362,8 +379,36 @@ class RequestOrchestratorTest {
         assertTrue(result.channelFuture().isSuccess());
         FullHttpResponse written = channel.readOutbound();
         assertEquals(HttpResponseStatus.OK, written.getStatus());
-        assertEquals("hello", written.content().toString(GlobalConfig.getResponseCharset()), "链结果经转化链按字符串产出响应");
+        assertEquals("hello", written.content().toString(StandardCharsets.UTF_8), "链结果经转化链按字符串产出响应");
         assertEquals("https://a.com", written.headers().get("Access-Control-Allow-Origin"), "正常响应写出 CORS 头");
+        assertEquals(0, request.refCnt(), "写出提交后请求已释放");
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void defaultCharsetFlowsToResponseEncoding() {
+        java.nio.charset.Charset gbk = java.nio.charset.Charset.forName("GBK");
+        FixedResultMiddleware chain = new FixedResultMiddleware("你好");
+        RequestOrchestrator orchestrator = RequestOrchestrator.builder()
+                .middleware(chain)
+                .virtualThreadResource(new UnlimitedVirtualThreadResource("t"))
+                .responseWriterManager(new ResponseWriterManager(Stubs.threadPool(), List.of()))
+                .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer()))
+                .corsConfig(HttpCorsConfig.builder().build())
+                .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
+                .sessionManagerHolder(() -> new BackHoleSessionManager())
+                .jsonSerializer(new JacksonJsonSerializer())
+                .defaultCharset(gbk)
+                .build();
+        EmbeddedChannel channel = new EmbeddedChannel();
+        FullHttpRequest request = requestWith(HttpMethod.GET, null);
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        FullHttpResponse written = channel.readOutbound();
+        assertEquals("text/html;charset=GBK", written.headers().get("Content-Type"),
+                "装配期缺省字符集贯通转化链决定响应编码");
+        assertEquals("你好", written.content().toString(gbk), "正文与声明同源编码");
         assertEquals(0, request.refCnt(), "写出提交后请求已释放");
         channel.finishAndReleaseAll();
     }
@@ -382,7 +427,7 @@ class RequestOrchestratorTest {
         String contentType = written.headers().get("Content-Type");
         assertTrue(contentType.startsWith("text/html"), "挂载的响应元信息不再回填内容类型，按转化链字符串支产出");
         assertFalse(contentType.contains("application/json"));
-        assertEquals("hello", written.content().toString(GlobalConfig.getResponseCharset()));
+        assertEquals("hello", written.content().toString(StandardCharsets.UTF_8));
         assertEquals(0, request.refCnt(), "写出提交后请求已释放");
         channel.finishAndReleaseAll();
     }
@@ -419,7 +464,7 @@ class RequestOrchestratorTest {
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
         FullHttpResponse written = channel.readOutbound();
         assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, written.getStatus(), "无注册处理器的异常落 500 兜底");
-        String body = written.content().toString(GlobalConfig.getResponseCharset());
+        String body = written.content().toString(StandardCharsets.UTF_8);
         assertTrue(body.contains("500 Internal Server Error"), "兜底页为 500 错误页");
         assertTrue(body.contains("java.lang.IllegalStateException"), "页面携带异常类型");
         assertEquals("https://a.com", written.headers().get("Access-Control-Allow-Origin"), "异常响应同样写出 CORS 头");
@@ -439,7 +484,7 @@ class RequestOrchestratorTest {
 
         FullHttpResponse written = channel.readOutbound();
         assertEquals(HttpResponseStatus.NOT_FOUND, written.getStatus(), "路由未匹配异常落 404 页");
-        String body = written.content().toString(GlobalConfig.getResponseCharset());
+        String body = written.content().toString(StandardCharsets.UTF_8);
         assertTrue(body.contains("404 Not Found"), "页面为 404 错误页");
         assertTrue(body.contains("router not found: GET /missing"), "页面携带未匹配消息");
         assertEquals(0, request.refCnt());
@@ -458,7 +503,7 @@ class RequestOrchestratorTest {
 
         FullHttpResponse written = channel.readOutbound();
         assertEquals(HttpResponseStatus.OK, written.getStatus(), "处理器返回值经结果转化链正常产出");
-        assertEquals("handled:boom", written.content().toString(GlobalConfig.getResponseCharset()), "透传处理器返回值");
+        assertEquals("handled:boom", written.content().toString(StandardCharsets.UTF_8), "透传处理器返回值");
         assertEquals(0, request.refCnt());
         channel.finishAndReleaseAll();
     }

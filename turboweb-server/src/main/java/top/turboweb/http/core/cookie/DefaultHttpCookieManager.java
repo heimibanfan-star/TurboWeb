@@ -5,9 +5,11 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -23,7 +25,7 @@ import java.util.function.Consumer;
  *     <li>{@code toRemoveHttpCookies}：本次请求需要删除的 Cookie。</li>
  * </ul>
  * <p>
- * 在响应阶段通过 {@link #setCookieForResponse(HttpResponse)} 方法，
+ * 在响应阶段通过 {@link #setCookieForResponse(HttpResponse, Charset)} 方法，
  * 自动将新增和删除的 Cookie 以 {@code Set-Cookie} 头写入响应。
  *
  * <p><b>线程安全性：</b>本类实例与请求绑定，不应在多线程间共享。</p>
@@ -205,9 +207,12 @@ public class DefaultHttpCookieManager implements HttpCookieManager {
      * 调用后不自动清空集合，应在适当时机调用 {@link #clearToWriteCookies()}。
      *
      * @param response 当前响应对象
+     * @param charset  Cookie 值 URL 编码字符集（装配期判定的缺省字符集），不能为null
+     * @throws NullPointerException charset 为 null
      */
     @Override
-    public void setCookieForResponse(HttpResponse response) {
+    public void setCookieForResponse(HttpResponse response, Charset charset) {
+        Objects.requireNonNull(charset, "charset can not be null");
         // 判断是否有要新写入的cookie
         if (!toWriteHttpCookies.isEmpty()) {
             for (String key : toWriteHttpCookies) {
@@ -215,7 +220,7 @@ public class DefaultHttpCookieManager implements HttpCookieManager {
                 if (cookie == null) {
                     continue;
                 }
-                response.headers().add(HttpHeaderNames.SET_COOKIE, cookie.toHeaderString());
+                response.headers().add(HttpHeaderNames.SET_COOKIE, cookie.toHeaderString(charset));
             }
         }
         // 判断是否有待删除的Cookie
@@ -223,7 +228,7 @@ public class DefaultHttpCookieManager implements HttpCookieManager {
             for (String key : toRemoveHttpCookies) {
                 HttpCookie cookie = new HttpCookie(key, "");
                 cookie.setMaxAge(0);
-                response.headers().add(HttpHeaderNames.SET_COOKIE, cookie.toHeaderString());
+                response.headers().add(HttpHeaderNames.SET_COOKIE, cookie.toHeaderString(charset));
             }
         }
     }

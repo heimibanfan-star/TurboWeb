@@ -1,7 +1,6 @@
 package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.*;
@@ -9,6 +8,7 @@ import top.turboweb.struct.radix.RestRouteTree;
 import top.turboweb.struct.radix.RouteTree;
 
 import java.net.URLDecoder;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,7 +32,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
     /**
      * 处理请求:按请求路径匹配路由处理器并执行
      *
-     * <p>查询串不属路径,匹配前先剥离;命中模式上的路径参数按请求字符集解码后注入上下文,
+     * <p>查询串不属路径,匹配前先剥离;命中模式上的路径参数按上下文的缺省字符集解码后注入上下文,
      * 再交由处理器按请求方式分发。
      *
      * @param context 请求上下文
@@ -55,7 +55,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
                     String.format("router not found: %s %s", request.method().name(), request.uri()),
                     RouteHandlerException.ROUTER_NOT_MATCH);
         }
-        context.injectPathParam(decodePathParams(matched.params()));
+        context.injectPathParam(decodePathParams(matched.params(), context.defaultCharset()));
         try {
             return matched.value().handle(context);
         } catch (Throwable e) {
@@ -67,14 +67,15 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
     }
 
     /**
-     * 逐个解码路径参数值,解码字符集取请求字符集
+     * 逐个解码路径参数值,解码字符集取上下文的缺省字符集（URL 百分号编码不受请求头声明影响）
      *
-     * @param params 命中模式上的参数绑定,键为参数名
+     * @param params  命中模式上的参数绑定,键为参数名
+     * @param charset 解码字符集
      * @return 解码后的参数映射,与入参不同实例,原映射不改动
      */
-    private static Map<String, String> decodePathParams(Map<String, String> params) {
+    private static Map<String, String> decodePathParams(Map<String, String> params, Charset charset) {
         Map<String, String> decoded = new HashMap<>(params.size(), 1);
-        params.forEach((name, value) -> decoded.put(name, URLDecoder.decode(value, GlobalConfig.getRequestCharset())));
+        params.forEach((name, value) -> decoded.put(name, URLDecoder.decode(value, charset)));
         return decoded;
     }
 

@@ -1,7 +1,6 @@
 package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.orchestrator.ResponseWriter;
@@ -43,14 +42,14 @@ public class SseResponse extends DefaultHttpResponse implements ResponseCall {
     /**
      * 设置 SSE 必需的 HTTP 头，包括：
      * <ul>
-     *     <li>Content-Type: text/event-stream</li>
+     *     <li>Content-Type: text/event-stream（charset 段由结果转化环节按缺省字符集补写）</li>
      *     <li>Cache-Control: no-cache</li>
      *     <li>Connection: keep-alive</li>
      *     <li>Transfer-Encoding: chunked</li>
      * </ul>
      */
     private void setSseHeaders() {
-        this.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream;charset=" + GlobalConfig.getResponseCharset().name());
+        this.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream");
         this.headers().set(HttpHeaderNames.CACHE_CONTROL, "no-cache");
         this.headers().set(HttpHeaderNames.CONNECTION, "keep-alive");
         this.headers().set(HttpHeaderNames.TRANSFER_ENCODING, "chunked");

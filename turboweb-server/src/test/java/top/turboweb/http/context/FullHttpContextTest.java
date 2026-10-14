@@ -8,7 +8,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.ParameterValidationException;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.serializer.JacksonJsonSerializer;
@@ -24,6 +23,8 @@ import top.turboweb.http.core.session.MemorySessionManager;
 import top.turboweb.http.testkit.Requests;
 
 import java.net.SocketAddress;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -57,7 +58,7 @@ class FullHttpContextTest {
 
     private static FullHttpContext context(FullHttpRequest request, HttpSession session) {
         return new FullHttpContext(request, session,
-                new DefaultHttpCookieManager(request.headers()), CONNECT_SESSION, SERIALIZER);
+                new DefaultHttpCookieManager(request.headers()), CONNECT_SESSION, SERIALIZER, StandardCharsets.UTF_8);
     }
 
     // ---------- 构造器注入与基础 getter 面（CoreHttpContext） ----------
@@ -117,7 +118,7 @@ class FullHttpContextTest {
             assertNull(context(head).httpContent.getContentType(),
                     "HEAD 走 HttpContent.empty()：无 Content-Type");
             assertEquals("application/json", context(json).httpContent.getContentType(),
-                    "非 HEAD 走 new HttpContent(request)：Content-Type 已解析");
+                    "非 HEAD 走 new HttpContent(request, defaultCharset)：Content-Type 已解析");
         } finally {
             Requests.release(head);
             Requests.release(json);
@@ -130,9 +131,9 @@ class FullHttpContextTest {
         try {
             FullHttpContext ctx = context(req);
             SseResponse response = ctx.createSseResponse();
-            // 产品码（SseResponse.setSseHeaders）写的是 "text/event-stream;charset=<GlobalConfig 响应编码>"，
-            // 按 Review Focus 第 4 条：先读 GlobalConfig 当前值再定期望，不放宽为前缀匹配。
-            assertEquals("text/event-stream;charset=" + GlobalConfig.getResponseCharset().name(),
+            // 产品码（SseResponse.setSseHeaders）只写媒体类型 "text/event-stream"，
+            // charset 段由结果转化环节按缺省字符集补写，构造后的原始头不带编码段。
+            assertEquals("text/event-stream",
                     response.headers().get(HttpHeaderNames.CONTENT_TYPE));
             SseEmitter defaultEmitter = ctx.createSseEmitter();
             assertEquals("text/event-stream", defaultEmitter.headers().get(HttpHeaderNames.CONTENT_TYPE));
@@ -427,27 +428,43 @@ class FullHttpContextTest {
         }
     }
 
-    // ---------- 编码（Review Focus 第 4 条：先读 GlobalConfig） ----------
+    // ---------- 编码（缺省编码由装配期判定、构造上下文时传入） ----------
 
     @Test
-    void jsonCharsetComesFromTheContentTypeHeader() {
-        FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/json",
-                "application/json; charset=GBK", "{\"name\":\"张三\"}", java.nio.charset.Charset.forName("GBK"));
+    void contextDefaultCharsetIsTheProvidedOne() {
+        FullHttpRequest req = Requests.get("/json");
         try {
-            assertEquals("{\"name\":\"张三\"}", new HttpContent(req).getJsonContent());
+            FullHttpContext utf8Ctx = context(req);
+            assertEquals(StandardCharsets.UTF_8, utf8Ctx.defaultCharset());
+            FullHttpContext gbkCtx = new FullHttpContext(req, newSession(),
+                    new DefaultHttpCookieManager(req.headers()), CONNECT_SESSION, SERIALIZER, Charset.forName("GBK"));
+            assertEquals(Charset.forName("GBK"), gbkCtx.defaultCharset(),
+                    "defaultCharset() 直接给出传入的缺省编码，不读请求头");
         } finally {
             Requests.release(req);
         }
     }
 
     @Test
-    void jsonCharsetWithoutHeaderFallsBackToGlobalConfig() {
-        // 先读当前值，再据其编码请求体；用例不改写 GlobalConfig（隔离八条第 6 条）
-        java.nio.charset.Charset charset = GlobalConfig.getRequestCharset();
+    void jsonCharsetComesFromTheContentTypeHeader() {
+        FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/json",
+                "application/json; charset=GBK", "{\"name\":\"张三\"}", Charset.forName("GBK"));
+        try {
+            // 缺省给 UTF-8，请求头声明 GBK 时请求体按 GBK 解码
+            assertEquals("{\"name\":\"张三\"}", new HttpContent(req, StandardCharsets.UTF_8).getJsonContent());
+        } finally {
+            Requests.release(req);
+        }
+    }
+
+    @Test
+    void jsonCharsetWithoutHeaderFallsBackToContextDefault() {
+        // 头不带 charset 段，按上下文缺省编码解码；取 ISO-8859-1 以区分于硬编码 UTF-8
+        Charset charset = StandardCharsets.ISO_8859_1;
         FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/json",
                 "application/json", "{\"name\":\"café\"}", charset);
         try {
-            assertEquals("{\"name\":\"café\"}", new HttpContent(req).getJsonContent());
+            assertEquals("{\"name\":\"café\"}", new HttpContent(req, charset).getJsonContent());
         } finally {
             Requests.release(req);
         }

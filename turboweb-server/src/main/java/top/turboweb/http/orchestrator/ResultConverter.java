@@ -2,6 +2,8 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.HttpResponse;
 
+import java.nio.charset.Charset;
+
 /**
  * 结果转化器：尝试把单个业务返回值转化为 HTTP 响应。
  * <p>
@@ -54,9 +56,11 @@ public interface ResultConverter {
     /**
      * 尝试转化一个业务返回值。
      *
-     * @param result 业务返回值，可能为null
+     * @param result  业务返回值，可能为null
+     * @param charset 装配期判定的缺省字符集，
+     *                用于响应文本编码、文件名编码与缺省内容类型补码
      * @return 转化结果：认领时携响应，不认领时放行
      */
-    Result convert(Object result);
+    Result convert(Object result, Charset charset);
 
 }

@@ -4,7 +4,6 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.http.orchestrator.FileStreamResponseWriter;
 
@@ -19,6 +18,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -37,18 +37,39 @@ class FileStreamResponseTest {
     }
 
     @Test
-    void defaultConstructorUsesGlobalCharsetAndFullRange() throws IOException {
+    void defaultConstructorDefersFilenameCharsetAndUsesFullRange() throws IOException {
         FileStreamResponse resp = new FileStreamResponse(write("a.txt", "hello").toFile());
         try {
             assertEquals(0L, resp.getOffset());
             assertEquals(5L, resp.getLength());
             assertEquals(5L, resp.getEnd());
             assertEquals(2097152L, resp.getChunkSize());
-            assertEquals(GlobalConfig.getResponseCharset(), resp.getFilenameCharset());
+            assertNull(resp.getFilenameCharset(), "默认构造不指定文件名编码，留待转化环节补写");
+            assertNull(resp.headers().get(HttpHeaderNames.CONTENT_DISPOSITION),
+                    "未指定编码时构造期不写 Content-Disposition");
             assertEquals("5", resp.headers().get(HttpHeaderNames.CONTENT_LENGTH));
             assertEquals(FileStreamResponseWriter.class, resp.getWriterType());
         } finally {
             resp.getFileChannel().close();
+        }
+    }
+
+    @Test
+    void pendingDispositionIsWrittenByFinalizeAndExplicitOneIsNotOverwritten() throws IOException {
+        FileStreamResponse pending = new FileStreamResponse(write("a.txt", "hello").toFile());
+        FileStreamResponse explicit =
+                new FileStreamResponse(write("b.txt", "hello").toFile(), StandardCharsets.ISO_8859_1);
+        try {
+            pending.finalizeFilenameEncoding(StandardCharsets.UTF_8);
+            assertEquals("attachment; filename=\"a.txt\"",
+                    pending.headers().get(HttpHeaderNames.CONTENT_DISPOSITION), "缺省补写形态与原直接编码一致");
+            String written = explicit.headers().get(HttpHeaderNames.CONTENT_DISPOSITION);
+            explicit.finalizeFilenameEncoding(StandardCharsets.UTF_8);
+            assertEquals(written, explicit.headers().get(HttpHeaderNames.CONTENT_DISPOSITION),
+                    "构造期已显式编码写出的头不被补写覆盖");
+        } finally {
+            pending.getFileChannel().close();
+            explicit.getFileChannel().close();
         }
     }
 

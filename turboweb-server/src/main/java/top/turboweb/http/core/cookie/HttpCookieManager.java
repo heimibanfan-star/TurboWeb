@@ -2,6 +2,7 @@ package top.turboweb.http.core.cookie;
 
 import io.netty.handler.codec.http.HttpResponse;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -77,11 +78,12 @@ public interface HttpCookieManager {
     void clearAll();
 
     /**
-     * 将当前上下文中的 Cookie 状态写入响应头。
+     * 将当前上下文中的 Cookie 状态写入响应头，Cookie 值按给定字符集 URL 编码。
      * 常用于中间件或控制器中设置 Cookie。
      *
      * @param response 要写入 Cookie 的响应对象
+     * @param charset  Cookie 值编码字符集（写出侧以装配期判定的缺省字符集传入）
      */
-    void setCookieForResponse(HttpResponse response);
+    void setCookieForResponse(HttpResponse response, Charset charset);
 }
 

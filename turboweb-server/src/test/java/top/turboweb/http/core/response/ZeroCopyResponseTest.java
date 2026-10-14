@@ -103,6 +103,7 @@ class ZeroCopyResponseTest {
         ZeroCopyResponse resp = new ZeroCopyResponse(channel, 0L, 6L, "z.bin");
         FileRegion region = resp.getFileRegion();
         try {
+            resp.finalizeFilenameEncoding(StandardCharsets.UTF_8);
             assertEquals("6", resp.headers().get(HttpHeaderNames.CONTENT_LENGTH));
             assertEquals("attachment; filename=\"z.bin\"",
                     resp.headers().get(HttpHeaderNames.CONTENT_DISPOSITION));
@@ -124,6 +125,7 @@ class ZeroCopyResponseTest {
         ZeroCopyResponse resp = new ZeroCopyResponse(channel);
         FileRegion region = resp.getFileRegion();
         try {
+            resp.finalizeFilenameEncoding(StandardCharsets.UTF_8);
             String disposition = resp.headers().get(HttpHeaderNames.CONTENT_DISPOSITION);
             String prefix = "attachment; filename=\"";
             assertTrue(disposition.startsWith(prefix), disposition);

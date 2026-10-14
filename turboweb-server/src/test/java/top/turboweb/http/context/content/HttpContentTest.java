@@ -4,11 +4,11 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Requests;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -25,8 +25,20 @@ class HttpContentTest {
 
     @Test
     void nullRequestIsRejected() {
-        NullPointerException ex = assertThrows(NullPointerException.class, () -> new HttpContent(null));
+        NullPointerException ex = assertThrows(NullPointerException.class,
+                () -> new HttpContent(null, StandardCharsets.UTF_8));
         assertEquals("request can not be null", ex.getMessage());
+    }
+
+    @Test
+    void nullDefaultCharsetIsRejected() {
+        FullHttpRequest req = Requests.postJson("/x", "{}");
+        try {
+            NullPointerException ex = assertThrows(NullPointerException.class, () -> new HttpContent(req, null));
+            assertEquals("defaultCharset can not be null", ex.getMessage());
+        } finally {
+            Requests.release(req);
+        }
     }
 
     @Test
@@ -35,9 +47,9 @@ class HttpContentTest {
         FullHttpRequest plain = Requests.raw(HttpMethod.POST, "/x", "text/plain; charset=GBK", "hi", Charset.forName("GBK"));
         FullHttpRequest none = Requests.get("/x");
         try {
-            assertEquals("application/json", new HttpContent(json).getContentType());
-            assertEquals("text/plain", new HttpContent(plain).getContentType());
-            assertNull(new HttpContent(none).getContentType());
+            assertEquals("application/json", new HttpContent(json, StandardCharsets.UTF_8).getContentType());
+            assertEquals("text/plain", new HttpContent(plain, StandardCharsets.UTF_8).getContentType());
+            assertNull(new HttpContent(none, StandardCharsets.UTF_8).getContentType());
         } finally {
             Requests.release(json);
             Requests.release(plain);
@@ -49,7 +61,7 @@ class HttpContentTest {
     void jsonBodyIsTrimmedAndCached() {
         FullHttpRequest req = Requests.postJson("/x", "  {\"a\":1}  ");
         try {
-            HttpContent content = new HttpContent(req);
+            HttpContent content = new HttpContent(req, StandardCharsets.UTF_8);
             assertEquals("{\"a\":1}", content.getJsonContent());
             assertSame(content.getJsonContent(), content.getJsonContent(), "第二次读取命中缓存，返回同一字符串");
         } finally {
@@ -61,7 +73,7 @@ class HttpContentTest {
     void blankJsonBodyBecomesEmptyObject() {
         FullHttpRequest req = Requests.postJson("/x", "");
         try {
-            assertEquals("{}", new HttpContent(req).getJsonContent());
+            assertEquals("{}", new HttpContent(req, StandardCharsets.UTF_8).getJsonContent());
         } finally {
             Requests.release(req);
         }
@@ -73,9 +85,9 @@ class HttpContentTest {
         FullHttpRequest unclosed = Requests.postJson("/x", "{\"a\":1");
         try {
             RequestParseException ex =
-                    assertThrows(RequestParseException.class, () -> new HttpContent(plain).getJsonContent());
+                    assertThrows(RequestParseException.class, () -> new HttpContent(plain, StandardCharsets.UTF_8).getJsonContent());
             assertEquals("The request body is not a valid json", ex.getMessage());
-            assertThrows(RequestParseException.class, () -> new HttpContent(unclosed).getJsonContent());
+            assertThrows(RequestParseException.class, () -> new HttpContent(unclosed, StandardCharsets.UTF_8).getJsonContent());
         } finally {
             Requests.release(plain);
             Requests.release(unclosed);
@@ -88,9 +100,9 @@ class HttpContentTest {
         FullHttpRequest text = Requests.raw(HttpMethod.POST, "/x", "text/plain", "hi", Charset.forName("UTF-8"));
         try {
             RequestParseException ex =
-                    assertThrows(RequestParseException.class, () -> new HttpContent(none).getJsonContent());
+                    assertThrows(RequestParseException.class, () -> new HttpContent(none, StandardCharsets.UTF_8).getJsonContent());
             assertEquals("contentType is not application/json", ex.getMessage());
-            assertThrows(RequestParseException.class, () -> new HttpContent(text).getJsonContent());
+            assertThrows(RequestParseException.class, () -> new HttpContent(text, StandardCharsets.UTF_8).getJsonContent());
         } finally {
             Requests.release(none);
             Requests.release(text);
@@ -102,19 +114,19 @@ class HttpContentTest {
         FullHttpRequest req = Requests.raw(HttpMethod.POST, "/x",
                 "application/json; charset=GBK", "{\"n\":\"张三\"}", Charset.forName("GBK"));
         try {
-            assertEquals("{\"n\":\"张三\"}", new HttpContent(req).getJsonContent());
+            assertEquals("{\"n\":\"张三\"}", new HttpContent(req, StandardCharsets.UTF_8).getJsonContent());
         } finally {
             Requests.release(req);
         }
     }
 
     @Test
-    void jsonCharsetWithoutHeaderFallsBackToGlobalConfig() {
-        // 先读当前值再编码，不用例内改写 GlobalConfig
-        Charset charset = GlobalConfig.getRequestCharset();
+    void jsonCharsetWithoutHeaderFallsBackToGivenDefault() {
+        // 头不带 charset 段时按构造传入的缺省解码；取 ISO-8859-1 以区分于硬编码 UTF-8
+        Charset charset = StandardCharsets.ISO_8859_1;
         FullHttpRequest req = Requests.raw(HttpMethod.POST, "/x", "application/json", "{\"n\":\"café\"}", charset);
         try {
-            assertEquals("{\"n\":\"café\"}", new HttpContent(req).getJsonContent());
+            assertEquals("{\"n\":\"café\"}", new HttpContent(req, charset).getJsonContent());
         } finally {
             Requests.release(req);
         }
@@ -124,7 +136,7 @@ class HttpContentTest {
     void formParamsAreParsedForUrlEncoded() {
         FullHttpRequest req = Requests.postForm("/x", "name=alice&age=30&tag=a&tag=b");
         try {
-            Map<String, List<String>> params = new HttpContent(req).getFormParams();
+            Map<String, List<String>> params = new HttpContent(req, StandardCharsets.UTF_8).getFormParams();
             assertEquals(List.of("alice"), params.get("name"));
             assertEquals(List.of("30"), params.get("age"));
             assertEquals(List.of("a", "b"), params.get("tag"));
@@ -137,7 +149,7 @@ class HttpContentTest {
     void formParamsAreCachedAcrossCalls() {
         FullHttpRequest req = Requests.postForm("/x", "a=1");
         try {
-            HttpContent content = new HttpContent(req);
+            HttpContent content = new HttpContent(req, StandardCharsets.UTF_8);
             assertSame(content.getFormParams(), content.getFormParams());
         } finally {
             Requests.release(req);
@@ -150,9 +162,9 @@ class HttpContentTest {
         FullHttpRequest none = Requests.get("/x");
         try {
             RequestParseException ex =
-                    assertThrows(RequestParseException.class, () -> new HttpContent(json).getFormParams());
+                    assertThrows(RequestParseException.class, () -> new HttpContent(json, StandardCharsets.UTF_8).getFormParams());
             assertEquals("contentType is not application/x-www-form-urlencoded or multipart/form-data", ex.getMessage());
-            assertThrows(RequestParseException.class, () -> new HttpContent(none).getFormParams());
+            assertThrows(RequestParseException.class, () -> new HttpContent(none, StandardCharsets.UTF_8).getFormParams());
         } finally {
             Requests.release(json);
             Requests.release(none);
@@ -164,7 +176,7 @@ class HttpContentTest {
         FullHttpRequest req = Requests.postForm("/x", "a=1");
         try {
             RequestParseException ex =
-                    assertThrows(RequestParseException.class, () -> new HttpContent(req).getFormFiles());
+                    assertThrows(RequestParseException.class, () -> new HttpContent(req, StandardCharsets.UTF_8).getFormFiles());
             assertEquals("contentType is not multipart/form-data", ex.getMessage());
         } finally {
             Requests.release(req);
@@ -185,7 +197,7 @@ class HttpContentTest {
     void releaseBeforeParsingIsRepeatable() {
         FullHttpRequest req = Requests.postJson("/x", "{}");
         try {
-            HttpContent content = new HttpContent(req);
+            HttpContent content = new HttpContent(req, StandardCharsets.UTF_8);
             assertDoesNotThrow(() -> {
                 content.release();
                 content.release();
@@ -199,7 +211,7 @@ class HttpContentTest {
     void releaseAfterFormParsingDestroysTheDecoderOnce() {
         FullHttpRequest req = Requests.postForm("/x", "a=1");
         try {
-            HttpContent content = new HttpContent(req);
+            HttpContent content = new HttpContent(req, StandardCharsets.UTF_8);
             content.getFormParams();
             assertDoesNotThrow(content::release);
         } finally {
@@ -212,7 +224,7 @@ class HttpContentTest {
     void releaseAfterFormParsingIsNotRepeatable() {
         FullHttpRequest req = Requests.postForm("/x", "a=1");
         try {
-            HttpContent content = new HttpContent(req);
+            HttpContent content = new HttpContent(req, StandardCharsets.UTF_8);
             content.getFormParams();
             content.release();
             // 当前实现：HttpContent.decoder 销毁后不清空，第二次 destroy() 命中

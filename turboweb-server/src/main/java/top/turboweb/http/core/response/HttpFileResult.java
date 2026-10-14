@@ -2,7 +2,6 @@ package top.turboweb.http.core.response;
 
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.*;
-import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.exception.ResponseHandleException;
 
 import java.io.File;
@@ -10,6 +9,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -23,14 +23,14 @@ import java.util.UUID;
  * </ul>
  * <p>
  * 提供了多种静态工厂方法，用于快速生成图片、视频或普通文件下载响应。
- * 文件名会自动 URL 编码，保证浏览器下载兼容性。
+ * 文件名按生成响应时传入的字符集 URL 编码，保证浏览器下载兼容性。
  */
 public class HttpFileResult {
 
     /** 文件内容缓冲区（仅在内存字节模式下使用） */
     private final ByteBuffer buffer;
 
-    /** 文件名，已经经过 URL 编码处理 */
+    /** 文件名原文（空或缺失时构造期即为随机 UUID），生成响应时按传入字符集 URL 编码 */
     private final String filename;
 
     /** MIME 类型，如 "image/png" 或 "application/octet-stream" */
@@ -57,7 +57,7 @@ public class HttpFileResult {
         Objects.requireNonNull(buffer, "buffer can not be null");
         this.buffer = buffer;
         if (filename != null && !filename.isEmpty()) {
-            this.filename = URLEncoder.encode(filename, GlobalConfig.getResponseCharset()).replace("+", "%20");
+            this.filename = filename;
         } else {
             this.filename = UUID.randomUUID().toString();
         }
@@ -88,7 +88,7 @@ public class HttpFileResult {
         this.file = file;
         this.contentType = contentType;
         buffer = null;
-        filename = URLEncoder.encode(file.getName(), GlobalConfig.getResponseCharset()).replace("+", "%20");
+        filename = file.getName();
         this.openFile = openFile;
     }
 
@@ -159,10 +159,15 @@ public class HttpFileResult {
      *     <li>否则，将文件或字节数组内容直接写入 FullHttpResponse</li>
      * </ul>
      *
+     * @param charset 文件名 URL 编码所用字符集（装配期判定的缺省字符集），不能为null
      * @return HTTP 响应对象
+     * @throws NullPointerException  charset 为 null
      * @throws ResponseHandleException 文件读取异常时抛出
      */
-    public HttpResponse createResponse() {
+    public HttpResponse createResponse(Charset charset) {
+        Objects.requireNonNull(charset, "charset can not be null");
+        // 文件名按传入字符集 URL 编码，保证浏览器下载兼容
+        String encodedFilename = URLEncoder.encode(filename, charset).replace("+", "%20");
         // 如果是磁盘文件，并且超过了限制大小，那么以文件流的形式响应
         if (file != null && maxLimitSize >= 0 && file.length() > maxLimitSize) {
             FileStreamResponse fileStreamResponse = new FileStreamResponse(file);
@@ -170,7 +175,7 @@ public class HttpFileResult {
                 fileStreamResponse.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType);
             }
             // 设置文件名
-            setFilename(fileStreamResponse);
+            setFilename(fileStreamResponse, encodedFilename);
             return fileStreamResponse;
         }
         // 判断是否是磁盘文件
@@ -195,22 +200,23 @@ public class HttpFileResult {
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/octet-stream");
         }
         // 设置文件名
-        setFilename(response);
+        setFilename(response, encodedFilename);
         // 设置响应长度
         response.headers().set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
         return response;
     }
 
     /**
-     * 设置响应头中的文件名。
+     * 设置响应头中的文件名（已按字符集编码）。
      *
-     * @param response HTTP 响应对象
+     * @param response         HTTP 响应对象
+     * @param encodedFilename  URL 编码后的文件名
      */
-    private void setFilename(HttpResponse response) {
+    private void setFilename(HttpResponse response, String encodedFilename) {
         if (openFile) {
-            response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "inline;filename=\"" + filename + "\"");
+            response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "inline;filename=\"" + encodedFilename + "\"");
         } else {
-            response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment;filename=\"" + filename + "\"");
+            response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment;filename=\"" + encodedFilename + "\"");
         }
     }
 }

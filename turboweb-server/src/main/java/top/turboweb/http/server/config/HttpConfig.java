@@ -1,8 +1,12 @@
 package top.turboweb.http.server.config;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+
 /**
  * http请求应用配置类（不可变），只包含与http请求应用相关的纯参数配置：
- * 请求串行化开关、请求日志开关、session回收参数、http调度器限流参数与磁盘IO线程池参数。
+ * 请求串行化开关、请求日志开关、缺省字符集、session回收参数、http调度器限流参数与磁盘IO线程池参数。
  * <p>
  * 协议编解码、线程、连接数等服务器层配置见 {@link ServerConfig}；
  * 中间件、session管理器等组件对象不属于配置，由 HttpRequestApplication 的建造者持有。
@@ -79,6 +83,12 @@ public final class HttpConfig {
      */
     private final int diskOpeThreadMaxThreadNum;
 
+    /**
+     * 缺省字符集：请求体解码在请求头未声明 charset 时回落到它；
+     * URL 路径参数解码与响应文本、文件名、Cookie 值的编码恒取它，不受请求头声明影响
+     */
+    private final Charset defaultCharset;
+
     private HttpConfig(Builder builder) {
         this.serializePerConnection = builder.serializePerConnection;
         this.showRequestLog = builder.showRequestLog;
@@ -92,6 +102,7 @@ public final class HttpConfig {
         this.diskOpeThreadCacheQueue = builder.diskOpeThreadCacheQueue;
         this.diskOpeThreadCoreQueue = builder.diskOpeThreadCoreQueue;
         this.diskOpeThreadMaxThreadNum = builder.diskOpeThreadMaxThreadNum;
+        this.defaultCharset = builder.defaultCharset;
     }
 
     /**
@@ -149,6 +160,10 @@ public final class HttpConfig {
         return diskOpeThreadMaxThreadNum;
     }
 
+    public Charset getDefaultCharset() {
+        return defaultCharset;
+    }
+
     /**
      * {@link HttpConfig} 的建造者，链式方法名与配置字段同名，
      * 非法参数立即抛出 {@link IllegalArgumentException}。
@@ -178,6 +193,8 @@ public final class HttpConfig {
         private int diskOpeThreadCoreQueue = 6;
 
         private int diskOpeThreadMaxThreadNum = Runtime.getRuntime().availableProcessors() * 2;
+
+        private Charset defaultCharset = StandardCharsets.UTF_8;
 
         private Builder() {
         }
@@ -323,6 +340,17 @@ public final class HttpConfig {
                 throw new IllegalArgumentException("diskOpeThreadMaxThreadNum must be > 0");
             }
             this.diskOpeThreadMaxThreadNum = diskOpeThreadMaxThreadNum;
+            return this;
+        }
+
+        /**
+         * 缺省字符集，默认UTF-8。请求体解码在请求头Content-Type未声明charset时回落到它；
+         * URL路径参数解码与响应文本、文件名、Cookie值的编码恒取它，不受请求头声明影响
+         *
+         * @param defaultCharset 字符集，为null立即抛出 {@link NullPointerException}
+         */
+        public Builder defaultCharset(Charset defaultCharset) {
+            this.defaultCharset = Objects.requireNonNull(defaultCharset, "defaultCharset can not be null");
             return this;
         }
 
