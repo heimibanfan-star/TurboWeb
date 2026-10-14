@@ -31,7 +31,6 @@ val gateClasses = listOf(
     "top/turboweb/commons/utils/resource/**",
     "top/turboweb/commons/utils/base/**",
     "top/turboweb/commons/limit/**",
-    "top/turboweb/commons/lock/**",
     "top/turboweb/commons/struct/trie/**",
     "top/turboweb/commons/constants/**"
 )

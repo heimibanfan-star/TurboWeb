@@ -29,10 +29,10 @@ class JunitIsolationConfigTest {
     }
 
     @Test
-    @DisplayName("并行执行显式关闭（四处JVM全局静态）")
+    @DisplayName("并行执行显式关闭（存在JVM全局静态共享）")
     void parallelExecutionIsDisabled() throws Exception {
         assertEquals("false", loadFromFile().getProperty(PARALLEL_KEY),
-                PARALLEL_KEY + " 必须显式为 false，否则用例间共享 Locks.SESSION_LOCK 等静态状态");
+                PARALLEL_KEY + " 必须显式为 false，否则用例间共享 JVM 全局静态状态会互相干扰");
     }
 
     @Test
