@@ -187,10 +187,10 @@ class RouteHandlerMetaInfoHelperTest {
 
     @Test
     void nullRouteInstanceThrows() {
-        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+        NullPointerException error = assertThrows(NullPointerException.class,
                 () -> RouteHandlerMetaInfoHelper.parse("/x", null, VerbController.class));
         assertEquals("The route handler instance must not be null", error.getMessage());
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(NullPointerException.class,
                 () -> RouteHandlerMetaInfoHelper.parse(null, null, null), "实例判空先于类回落");
     }
 

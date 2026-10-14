@@ -8,6 +8,8 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 
+import java.util.Objects;
+
 /**
  * http请求调度处理器（纯http版本，不可变）。
  * <p>
@@ -66,7 +68,7 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
     }
 
     /**
-     * {@link HttpRequestSchedulerChannelHandler} 的建造者，链式方法校验非法参数立即抛出 {@link IllegalArgumentException}。
+     * {@link HttpRequestSchedulerChannelHandler} 的建造者，链式方法校验参数为null立即抛出 {@link NullPointerException}。
      */
     public static final class Builder {
 
@@ -81,10 +83,7 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
          * @param requestOrchestrator 请求编排器，不能为null
          */
         public Builder orchestrator(RequestOrchestrator requestOrchestrator) {
-            if (requestOrchestrator == null) {
-                throw new IllegalArgumentException("requestOrchestrator can not be null");
-            }
-            this.requestOrchestrator = requestOrchestrator;
+            this.requestOrchestrator = Objects.requireNonNull(requestOrchestrator, "requestOrchestrator can not be null");
             return this;
         }
 
@@ -92,9 +91,7 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
          * 构建处理器对象，只处理http请求，默认没有websocket
          */
         public HttpRequestSchedulerChannelHandler build() {
-            if (requestOrchestrator == null) {
-                throw new IllegalArgumentException("requestOrchestrator can not be null");
-            }
+            Objects.requireNonNull(requestOrchestrator, "requestOrchestrator can not be null");
             return new HttpRequestSchedulerChannelHandler(this);
         }
     }

@@ -143,12 +143,12 @@ class ApplicationManagerTest {
     }
 
     @Test
-    @DisplayName("configure(null) 抛 IllegalArgumentException")
+    @DisplayName("configure(null) 抛 NullPointerException")
     void configureRejectsNullPipeline() {
         ApplicationManager manager = new ApplicationManager();
 
-        IllegalArgumentException ex =
-                assertThrows(IllegalArgumentException.class, () -> manager.configure(null));
+        NullPointerException ex =
+                assertThrows(NullPointerException.class, () -> manager.configure(null));
 
         assertEquals("pipeline can not be null", ex.getMessage());
     }

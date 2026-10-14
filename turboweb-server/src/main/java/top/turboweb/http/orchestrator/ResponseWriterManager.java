@@ -62,8 +62,8 @@ public class ResponseWriterManager {
      * @param threadPool      磁盘IO线程池，注入 {@link FileStreamResponseWriter} 用于调度文件分块读取，不能为null
      * @param customerWriters 自定义写出器列表，按写出器具体类登记为不可变表，不能为null、元素不能为null
      * @throws NullPointerException     线程池或列表为null、列表元素为null
-     * @throws IllegalArgumentException 列表含系统内置写出器类，或同一写出器类出现多次
-     * @throws IllegalStateException    自定义写出器实例已注入过线程池（同一实例传入过其他管理器）
+     * @throws IllegalArgumentException 列表含系统内置写出器类
+     * @throws IllegalStateException    自定义写出器实例已注入过线程池（同一实例传入过其他管理器），或同一写出器类在列表中出现多次
      */
     public ResponseWriterManager(ThreadPool threadPool, List<ResponseWriter> customerWriters) {
         Objects.requireNonNull(threadPool, "The disk IO thread pool must not be null");
@@ -94,7 +94,8 @@ public class ResponseWriterManager {
      * @param builtinTypes    系统内置写出器类集合，命中即拒登
      * @return 写出器具体类到实例的不可变表
      * @throws NullPointerException     列表元素为null
-     * @throws IllegalArgumentException 写出器类为系统内置类型，或同一写出器类出现多次
+     * @throws IllegalArgumentException 写出器类为系统内置类型
+     * @throws IllegalStateException    同一写出器类出现多次
      */
     private static Map<Class<? extends ResponseWriter>, ResponseWriter> collectCustomerTable(
             List<ResponseWriter> customerWriters, Set<Class<? extends ResponseWriter>> builtinTypes) {
@@ -106,7 +107,7 @@ public class ResponseWriterManager {
                 throw new IllegalArgumentException("Can not register a built-in response writer: " + writerType.getName());
             }
             if (table.putIfAbsent(writerType, responseWriter) != null) {
-                throw new IllegalArgumentException("Duplicate response writer registration: " + writerType.getName());
+                throw new IllegalStateException("Duplicate response writer registration: " + writerType.getName());
             }
         }
         return Map.copyOf(table);

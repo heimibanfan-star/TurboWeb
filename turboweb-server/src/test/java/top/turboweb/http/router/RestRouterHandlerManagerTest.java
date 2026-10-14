@@ -262,7 +262,7 @@ class RestRouterHandlerManagerTest {
 
     @Test
     void duplicateClassInListIsRejectedLikeMapEntry() {
-        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+        IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> new RestRouterHandlerManager.Builder().registerRoute(List.of(new PingController(), new PingController())),
                 "同类重复注册统一走已注册拒绝,不再因入口不同而异");
         assertEquals(PingController.class + " is already registered", error.getMessage());
@@ -272,7 +272,7 @@ class RestRouterHandlerManagerTest {
     void secondRegistrationOfSameClassIsRejected() {
         RestRouterHandlerManager.Builder builder = new RestRouterHandlerManager.Builder()
                 .registerRoute(new PingController());
-        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+        IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> builder.registerRoute(Map.of(PingController.class, new PingController())));
         assertEquals(PingController.class + " is already registered", error.getMessage());
     }

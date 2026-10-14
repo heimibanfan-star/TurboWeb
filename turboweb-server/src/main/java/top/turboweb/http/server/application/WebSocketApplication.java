@@ -141,9 +141,7 @@ public class WebSocketApplication implements Application {
             if (websocketPath == null || websocketPath.isBlank()) {
                 throw new IllegalArgumentException("websocketPath can not be blank");
             }
-            if (webSocketHandler == null) {
-                throw new IllegalArgumentException("webSocketHandler can not be null");
-            }
+            Objects.requireNonNull(webSocketHandler, "webSocketHandler can not be null");
             WebSocketInitChannelHandler.Builder initHandlerBuilder = WebSocketInitChannelHandler.builder()
                     .websocketPath(websocketPath)
                     .webSocketHandler(webSocketHandler);

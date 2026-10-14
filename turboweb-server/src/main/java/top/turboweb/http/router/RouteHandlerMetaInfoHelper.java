@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 路由处理器元信息解析助手
@@ -29,14 +30,13 @@ public class RouteHandlerMetaInfoHelper {
      * @param routeInstance 路由处理器实例,不能为 null
      * @param targetClass 路由类,扫描以此类为准;为 null 时取 routeInstance 的类
      * @return 元信息列表,按 url、方法名、参数表升序
-     * @throws IllegalArgumentException routeInstance 为 null;或某方法同时标注多个请求方式注解;
+     * @throws NullPointerException     routeInstance 为 null
+     * @throws IllegalArgumentException 某方法同时标注多个请求方式注解;
      *                                  或某段路径含连续的 /,属非法路径;或三级路径都提不出段,
      *                                  合并退化成不受支持的根路径
      */
     public static List<RouteHandlerMetaInfo> parse(String baseUrl, Object routeInstance, Class<?> targetClass) {
-        if (routeInstance == null) {
-            throw new IllegalArgumentException("The route handler instance must not be null");
-        }
+        Objects.requireNonNull(routeInstance, "The route handler instance must not be null");
         Class<?> routeClass = targetClass != null ? targetClass : routeInstance.getClass();
         String classPath = routeClass.isAnnotationPresent(Route.class)
                 ? routeClass.getAnnotation(Route.class).value()

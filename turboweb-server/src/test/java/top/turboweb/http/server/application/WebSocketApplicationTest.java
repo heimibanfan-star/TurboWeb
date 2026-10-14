@@ -60,7 +60,7 @@ class WebSocketApplicationTest {
 
     @Test
     void buildWithoutHandlerIsRejected() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        NullPointerException ex = assertThrows(NullPointerException.class,
                 () -> new WebSocketApplication.Builder().path("/ws/.*").build());
         assertEquals("webSocketHandler can not be null", ex.getMessage());
     }

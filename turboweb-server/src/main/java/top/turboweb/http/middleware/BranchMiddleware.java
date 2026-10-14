@@ -3,7 +3,6 @@ package top.turboweb.http.middleware;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.exception.RouteHandlerException;
-import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.http.context.HttpContext;
 
 import java.util.*;
@@ -92,7 +91,7 @@ public abstract class BranchMiddleware extends Middleware {
      * @param middleware 要添加的中间件实例（不可为 {@code null}）
      * @return 当前 {@link BranchMiddleware} 实例，支持链式调用
      * @throws NullPointerException         当 key 或 middleware 为空时抛出
-     * @throws TurboServerInitException     当同一分支中重复添加相同中间件时抛出
+     * @throws IllegalStateException        当同一分支中重复添加相同中间件时抛出
      */
     public BranchMiddleware addMiddleware(String key, Middleware middleware) {
         Objects.requireNonNull(key, "The key cannot be null");
@@ -103,7 +102,7 @@ public abstract class BranchMiddleware extends Middleware {
         LinkedHashSet<Middleware> middlewares = middlewareMap.get(key);
         // 判断是否存在重复的
         if (middlewares.contains(middleware)) {
-            throw new TurboServerInitException("Duplicate middleware " + middleware + "appears in branch " + key);
+            throw new IllegalStateException("Duplicate middleware " + middleware + " appears in branch " + key);
         }
         middlewares.add(middleware);
         return this;

@@ -25,7 +25,7 @@ import java.util.Set;
  * <p>
  * 认领在构造期一次完成：方法须公有、未由编译器合成、有且仅有一个参数
  * 且参数类型为 {@link Throwable} 自身或其子类；不依赖注解，静态与实例方法均可。
- * 两个方法声明相同异常类型时抛出 {@link ExceptionHandlerException} 拒绝构建。
+ * 两个方法声明相同异常类型时抛出 {@link IllegalStateException} 拒绝构建。
  * </p>
  * <p>
  * 异常发生时经 {@link #handle(Throwable)} 处理：自异常自身的类型起沿继承链逐级向上，
@@ -48,12 +48,13 @@ public class ExceptionHandlerManager {
      * 有且仅有一个参数且参数类型为 {@link Throwable} 自身或其子类；
      * 实例方法绑定所属实例，静态方法无需绑定，其余方法一律忽略。
      * 解析产物为不可变的异常类型映射表，若出现两个相同的异常类型，
-     * 抛出 {@link ExceptionHandlerException}。
+     * 抛出 {@link IllegalStateException}。
      * </p>
      *
      * @param handlers 异常处理器实例集合，不能为 null
      * @throws NullPointerException          handlers 为 null
-     * @throws ExceptionHandlerException 存在两个相同异常类型的处理方法,或方法句柄不可访问
+     * @throws IllegalStateException     存在两个相同异常类型的处理方法
+     * @throws ExceptionHandlerException 方法句柄不可访问
      */
     public ExceptionHandlerManager(Set<Object> handlers) {
         this.handlers = parseHandlers(Objects.requireNonNull(handlers, "handlers must not be null"));
@@ -149,12 +150,13 @@ public class ExceptionHandlerManager {
      * 不依据注解认领，只按方法签名解析：公有且未由编译器合成、有且仅有一个参数
      * 且参数类型为异常类型（{@link Throwable} 自身或其子类）的方法视为异常处理方法；
      * 实例方法绑定所属实例，静态方法无需绑定；其余方法一律忽略。
-     * 若出现两个相同的异常类型，抛出 {@link ExceptionHandlerException}。
+     * 若出现两个相同的异常类型，抛出 {@link IllegalStateException}。
      * </p>
      *
      * @param instances 异常处理器实例集合
      * @return 不可变的异常类型映射表
-     * @throws ExceptionHandlerException 存在两个相同异常类型的处理方法,或方法句柄不可访问
+     * @throws IllegalStateException     存在两个相同异常类型的处理方法
+     * @throws ExceptionHandlerException 方法句柄不可访问
      */
     @SuppressWarnings("unchecked")
     private static Map<Class<? extends Throwable>, ExceptionHandlerInvoker> parseHandlers(Set<Object> instances) {
@@ -174,7 +176,7 @@ public class ExceptionHandlerManager {
                         bindHandle(method, instance),
                         (Class<? extends Throwable>) parameterType);
                 if (invokers.putIfAbsent(invoker.exceptionClass(), invoker) != null) {
-                    throw new ExceptionHandlerException("Duplicate exception handler type: " + parameterType.getName());
+                    throw new IllegalStateException("Duplicate exception handler type: " + parameterType.getName());
                 }
             }
         }

@@ -65,9 +65,7 @@ public class ApplicationManager implements AutoCloseable {
      * @param pipeline 新连接的处理器链，不能为null
      */
     public void configure(ChannelPipeline pipeline) {
-        if (pipeline == null) {
-            throw new IllegalArgumentException("pipeline can not be null");
-        }
+        Objects.requireNonNull(pipeline, "pipeline can not be null");
         for (Application application : applications) {
             application.configure(pipeline);
         }

@@ -124,13 +124,13 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param instance 路由处理器实例,不能为 null
          * @return 本构建器
          * @throws NullPointerException targetClass 或 instance 为 null
-         * @throws IllegalArgumentException targetClass 已注册过
+         * @throws IllegalStateException targetClass 已注册过
          */
         public Builder registerRoute(Class<?> targetClass, Object instance) {
             Objects.requireNonNull(targetClass, "targetClass must not be null");
             Objects.requireNonNull(instance, "routeInstance must not be null");
             if (this.routeInstanceMap.containsKey(targetClass)) {
-                throw new IllegalArgumentException(targetClass + " is already registered");
+                throw new IllegalStateException(targetClass + " is already registered");
             }
             this.routeInstanceMap.put(targetClass, instance);
             return this;
@@ -142,7 +142,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param instance 路由处理器实例,不能为 null
          * @return 本构建器
          * @throws NullPointerException instance 为 null
-         * @throws IllegalArgumentException 实例的类已注册过
+         * @throws IllegalStateException 实例的类已注册过
          */
         public Builder registerRoute(Object instance) {
             Objects.requireNonNull(instance, "routeInstance must not be null");
@@ -155,7 +155,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param instances 路由处理器实例列表,null 按无注册处理
          * @return 本构建器
          * @throws NullPointerException 列表中出现 null 元素
-         * @throws IllegalArgumentException 列表中出现同类实例
+         * @throws IllegalStateException 列表中出现同类实例
          */
         public Builder registerRoute(List<Object> instances) {
             for (Object instance : Optional.ofNullable(instances).orElse(List.of())) {
@@ -170,7 +170,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param routes 类到实例的映射
          * @return 本构建器
          * @throws NullPointerException 条目中的类或实例为 null
-         * @throws IllegalArgumentException 条目中的类已注册过
+         * @throws IllegalStateException 条目中的类已注册过
          */
         public Builder registerRoute(Map<Class<?>, Object> routes) {
             for (Map.Entry<Class<?>, Object> entry : routes.entrySet()) {
@@ -205,7 +205,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param toRegisteredParser 待注册的解析器,不能为 null
          * @return 本构建器
          * @throws NullPointerException toRegisteredParser 为 null
-         * @throws IllegalArgumentException 同 class 的解析器已注册
+         * @throws IllegalStateException 同 class 的解析器已注册
          */
         public Builder registerParameterParserFirst(ParameterParser toRegisteredParser) {
             validateBeforeRegisterParameterParser(toRegisteredParser);
@@ -219,7 +219,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
          * @param toRegisteredParser 待注册的解析器,不能为 null
          * @return 本构建器
          * @throws NullPointerException toRegisteredParser 为 null
-         * @throws IllegalArgumentException 同 class 的解析器已注册
+         * @throws IllegalStateException 同 class 的解析器已注册
          */
         public Builder registerParameterParserLast(ParameterParser toRegisteredParser) {
             validateBeforeRegisterParameterParser(toRegisteredParser);
@@ -296,7 +296,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
                     toRegisteredParser.getClass(), parser.getClass())
             );
             if (exist) {
-                throw new IllegalArgumentException(toRegisteredParser.getClass() + " is already registered");
+                throw new IllegalStateException(toRegisteredParser.getClass() + " is already registered");
             }
         }
 

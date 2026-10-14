@@ -3,6 +3,8 @@ package top.turboweb.http.server.config;
 import io.netty.handler.codec.http2.Http2Settings;
 import io.netty.handler.ssl.SslContext;
 
+import java.util.Objects;
+
 /**
  * 服务器配置类（不可变），承载与服务器相关的纯参数配置：连接限流参数（最大连接数、
  * io线程数、零拷贝线程数、cpu核数）、ssl上下文与聚合器最大内容长度、http2开关与参数。
@@ -13,8 +15,8 @@ import io.netty.handler.ssl.SslContext;
  * 在每条连接的装配期消费ssl、聚合器长度与http2设置等参数。
  * <p>
  * 与 {@link HttpConfig} 分工互补：应用级参数进应用建造者，服务器级参数进本配置；
- * 参数校验前置到 {@link Builder} 的链式方法中，非法参数立即抛出
- * {@link IllegalArgumentException}。
+ * 参数校验前置到 {@link Builder} 的链式方法中，null参数立即抛出
+ * {@link NullPointerException}，其余非法参数立即抛出 {@link IllegalArgumentException}。
  *
  * <pre>{@code
  * ServerConfig config = ServerConfig.builder()
@@ -225,10 +227,7 @@ public final class ServerConfig {
          * 设置http2的参数，不能为null
          */
         public Builder http2Settings(Http2Settings http2Settings) {
-            if (http2Settings == null) {
-                throw new IllegalArgumentException("http2Settings can not be null");
-            }
-            this.http2Settings = http2Settings;
+            this.http2Settings = Objects.requireNonNull(http2Settings, "http2Settings can not be null");
             return this;
         }
 

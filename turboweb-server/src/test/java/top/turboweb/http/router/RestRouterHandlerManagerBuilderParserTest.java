@@ -161,19 +161,19 @@ class RestRouterHandlerManagerBuilderParserTest {
     @Test
     void duplicateClassRejectedOnAllRegisterPaths() {
         RestRouterHandlerManager.Builder builder = new RestRouterHandlerManager.Builder();
-        IllegalArgumentException firstError = assertThrows(IllegalArgumentException.class,
+        IllegalStateException firstError = assertThrows(IllegalStateException.class,
                 () -> builder.registerParameterParserFirst(new QueryParameterParser()), "first 拒同类重复");
         assertEquals(QueryParameterParser.class + " is already registered", firstError.getMessage(),
                 "重复注册消息在类名与文案之间留空格");
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(IllegalStateException.class,
                 () -> builder.registerParameterParserLast(new QueryParameterParser()), "last 拒同类重复");
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(IllegalStateException.class,
                 () -> builder.registerParameterParserBefore(new PathParameterParser(), new QueryParameterParser()),
                 "before 拒同类重复");
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(IllegalStateException.class,
                 () -> builder.registerParameterParserAfter(new PathParameterParser(), new QueryParameterParser()),
                 "after 拒同类重复");
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(IllegalStateException.class,
                 () -> builder.registerParameterParser(new PathParameterParser(), new QueryParameterParser()),
                 "替换拒同类重复");
     }

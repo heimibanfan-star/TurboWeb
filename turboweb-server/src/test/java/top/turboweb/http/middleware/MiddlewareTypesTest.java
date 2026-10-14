@@ -3,7 +3,6 @@ package top.turboweb.http.middleware;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.exception.RouteHandlerException;
-import top.turboweb.commons.exception.TurboServerInitException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.testkit.RecordingMiddleware;
 
@@ -91,7 +90,7 @@ class MiddlewareTypesTest {
     }
 
     @Test
-    @DisplayName("同一分支重复添加同一中间件实例抛 TurboServerInitException")
+    @DisplayName("同一分支重复添加同一中间件实例抛 IllegalStateException")
     void duplicateMiddlewareInSameBranchIsRejected() {
         List<String> events = new ArrayList<>();
         FixedBranch branch = new FixedBranch("a");
@@ -99,7 +98,7 @@ class MiddlewareTypesTest {
         branch.addMiddleware("a", m);
 
         // LinkedHashSet 判重走 Middleware 未覆写的 equals → 只对同一实例生效
-        TurboServerInitException ex = assertThrows(TurboServerInitException.class,
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> branch.addMiddleware("a", m));
         assertTrue(ex.getMessage().contains("Duplicate middleware"), ex.getMessage());
     }

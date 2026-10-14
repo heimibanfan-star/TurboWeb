@@ -7,7 +7,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.core.response.HttpResult;
-import top.turboweb.http.exception.ExceptionHandlerException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 
@@ -220,9 +219,9 @@ class ExceptionHandlerManagerTest {
     }
 
     @Test
-    @DisplayName("两个实例声明相同异常类型时构造抛 ExceptionHandlerException")
+    @DisplayName("两个实例声明相同异常类型时构造抛 IllegalStateException")
     void duplicateExceptionTypeIsRejectedAtConstruction() {
-        ExceptionHandlerException ex = assertThrows(ExceptionHandlerException.class,
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> new ExceptionHandlerManager(Set.of(new RteHandler(), new ExplodingHandler())));
         assertTrue(ex.getMessage().contains(RuntimeException.class.getName()), ex.getMessage());
     }

@@ -77,7 +77,7 @@ class ServerConfigTest {
     @Test
     @DisplayName("http2Settings 不能为null")
     void http2SettingsNotNull() {
-        assertThrows(IllegalArgumentException.class, () -> ServerConfig.builder().http2Settings(null));
+        assertThrows(NullPointerException.class, () -> ServerConfig.builder().http2Settings(null));
     }
 
     @Test

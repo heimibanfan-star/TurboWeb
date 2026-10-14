@@ -14,6 +14,8 @@ import top.turboweb.websocket.handler.WebSocketHandler;
 import top.turboweb.websocket.info.WebSocketConnectInfo;
 import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
 
+import java.util.Objects;
+
 /**
  * websocket初始化handler（不可变）。
  * <p>
@@ -179,10 +181,7 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
          * @param webSocketHandler websocket处理器，不能为null
          */
         public Builder webSocketHandler(WebSocketHandler webSocketHandler) {
-            if (webSocketHandler == null) {
-                throw new IllegalArgumentException("webSocketHandler can not be null");
-            }
-            this.webSocketHandler = webSocketHandler;
+            this.webSocketHandler = Objects.requireNonNull(webSocketHandler, "webSocketHandler can not be null");
             return this;
         }
 
@@ -207,9 +206,7 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
             if (websocketPath == null || websocketPath.isBlank()) {
                 throw new IllegalArgumentException("websocketPath can not be blank");
             }
-            if (webSocketHandler == null) {
-                throw new IllegalArgumentException("webSocketHandler can not be null");
-            }
+            Objects.requireNonNull(webSocketHandler, "webSocketHandler can not be null");
             return new WebSocketInitChannelHandler(this);
         }
     }

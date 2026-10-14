@@ -173,7 +173,7 @@ class ResponseWriterManagerTest {
     @Test
     void constructorRejectsDuplicateWriterClass() {
         // 重复判定按写出器类进行：同类不同实例同样拒登
-        IllegalArgumentException again = assertThrows(IllegalArgumentException.class,
+        IllegalStateException again = assertThrows(IllegalStateException.class,
                 () -> new ResponseWriterManager(Stubs.threadPool(),
                         List.of(new MarkingWriter(), new MarkingWriter())));
         assertEquals("Duplicate response writer registration: " + MarkingWriter.class.getName(), again.getMessage());
