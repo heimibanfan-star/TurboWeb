@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.orchestrator.FileStreamResponseWriter;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -45,7 +46,7 @@ class FileStreamResponseTest {
             assertEquals(2097152L, resp.getChunkSize());
             assertEquals(GlobalConfig.getResponseCharset(), resp.getFilenameCharset());
             assertEquals("5", resp.headers().get(HttpHeaderNames.CONTENT_LENGTH));
-            assertEquals(InternalCallResponse.InternalCallType.FILE_STREAM, resp.getType());
+            assertEquals(FileStreamResponseWriter.class, resp.getWriterType());
         } finally {
             resp.getFileChannel().close();
         }

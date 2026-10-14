@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.orchestrator.ZeroCopyResponseWriter;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -51,7 +52,7 @@ class ZeroCopyResponseTest {
             assertEquals(6L, region.count());
             assertEquals(0L, region.transferred());
             assertEquals("6", resp.headers().get(HttpHeaderNames.CONTENT_LENGTH));
-            assertEquals(InternalCallResponse.InternalCallType.ZERO_COPY, resp.getType());
+            assertEquals(ZeroCopyResponseWriter.class, resp.getWriterType());
         } finally {
             region.release();
         }

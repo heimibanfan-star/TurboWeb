@@ -9,6 +9,8 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.core.constant.ContentType;
+import top.turboweb.http.orchestrator.ReactorResponseWriter;
+import top.turboweb.http.orchestrator.ResponseWriter;
 
 import java.nio.charset.Charset;
 
@@ -22,10 +24,10 @@ import java.nio.charset.Charset;
  * <ul>
  *     <li>异步、非阻塞响应</li>
  *     <li>支持自定义内容类型和字符集</li>
- *     <li>实现 {@link InternalCallResponse}，类型为 {@link InternalCallResponse.InternalCallType#REACTOR}</li>
+ *     <li>实现 {@link ResponseCall}，声明由 {@link ReactorResponseWriter} 负责写出</li>
  * </ul>
  */
-public class ReactorResponse extends DefaultHttpResponse implements InternalCallResponse {
+public class ReactorResponse extends DefaultHttpResponse implements ResponseCall {
 
     /** 响应体 Flux 流，用于异步推送数据 */
     public final Flux<ByteBuf> bodyFlux;
@@ -87,12 +89,12 @@ public class ReactorResponse extends DefaultHttpResponse implements InternalCall
     }
 
     /**
-     * 返回内部调用类型。
+     * 获取负责写出本响应的写出器类型。
      *
-     * @return {@link InternalCallResponse.InternalCallType#REACTOR}
+     * @return {@link ReactorResponseWriter} 的 Class 对象
      */
     @Override
-    public InternalCallType getType() {
-        return InternalCallType.REACTOR;
+    public Class<? extends ResponseWriter> getWriterType() {
+        return ReactorResponseWriter.class;
     }
 }

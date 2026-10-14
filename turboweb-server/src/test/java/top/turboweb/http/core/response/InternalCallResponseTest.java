@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
+import top.turboweb.http.orchestrator.IgnoredResponseWriter;
 
 import java.util.Arrays;
 import java.util.Set;
@@ -14,12 +15,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * {@link InternalCallResponse} 的枚举契约与"结果类型 → {@code InternalCallType}"事实（spec §5：response）。
+ * {@link InternalCallResponse} 的枚举契约与"结果类型 → {@link ResponseCall} 写出器声明"事实。
  *
- * <p>这里只固定映射事实：{@code IgnoredHttpResponse → IGNORED}、未实现本接口的结果一律按
- * {@code DEFAULT} 兜底（`HttpResult`/`HttpInfoResponse`/内存模式的 `HttpFileResult`）；
- * `HttpFileResult` 超限产出 `FileStreamResponse → FILE_STREAM` 的断言在 `HttpFileResultTest`。
- * 真正的策略选择（`ResponseStrategyContext.chooseStrategy`）归 Task 16。
+ * <p>这里只固定映射事实：{@code IgnoredHttpResponse} 声明 {@code IgnoredResponseWriter} 负责写出、未实现
+ * {@code ResponseCall} 的结果一律由默认写出器兜底（`HttpResult`/`HttpInfoResponse`/内存模式的 `HttpFileResult`）；
+ * `HttpFileResult` 超限产出 `FileStreamResponse` 的声明断言在 `HttpFileResultTest`。
+ * 枚举契约约束旧线策略注册表（`ResponseStrategyContext`）与枚举同步。
  */
 class InternalCallResponseTest {
 
@@ -34,24 +35,24 @@ class InternalCallResponseTest {
     }
 
     @Test
-    void ignoredResponseIsSingletonWithIgnoredType() {
+    void ignoredResponseIsSingletonDeclaringIgnoredWriter() {
         IgnoredHttpResponse first = IgnoredHttpResponse.ignore();
         assertSame(first, IgnoredHttpResponse.ignore(), "忽略响应是单例");
-        assertEquals(InternalCallResponse.InternalCallType.IGNORED, first.getType());
+        assertEquals(IgnoredResponseWriter.class, first.getWriterType());
         assertEquals(HttpResponseStatus.OK, first.status());
         assertEquals(HttpVersion.HTTP_1_1, first.protocolVersion());
     }
 
     @Test
-    void plainResultTypesAreNotInternalCallResponses() {
+    void plainResultTypesAreNotResponseCalls() {
         HttpInfoResponse info = new HttpInfoResponse(HttpResponseStatus.OK);
         FullHttpResponse fileBody = (FullHttpResponse) HttpFileResult.bytes(new byte[]{1}).createResponse();
         try {
             // brief 原文 `new HttpResult<>()` 无零参构造可用（HttpResult.java:28-44），编译修复为显式状态码构造
-            assertFalse(new HttpResult<Object>(200) instanceof InternalCallResponse);
-            assertFalse(info instanceof InternalCallResponse);
-            assertFalse(fileBody instanceof InternalCallResponse,
-                    "内存模式的 HttpFileResult 产出普通 FullHttpResponse，走 DEFAULT 兜底");
+            assertFalse(new HttpResult<Object>(200) instanceof ResponseCall);
+            assertFalse(info instanceof ResponseCall);
+            assertFalse(fileBody instanceof ResponseCall,
+                    "内存模式的 HttpFileResult 产出普通 FullHttpResponse，由默认写出器兜底");
         } finally {
             info.release();
             fileBody.release();

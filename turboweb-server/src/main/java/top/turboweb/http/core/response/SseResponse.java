@@ -4,6 +4,8 @@ import io.netty.handler.codec.http.*;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.orchestrator.ResponseWriter;
+import top.turboweb.http.orchestrator.SseResponseWriter;
 import reactor.core.publisher.Flux;
 
 import java.util.function.Consumer;
@@ -16,7 +18,7 @@ import java.util.function.Function;
  * 并提供多种方式注册 SSE 数据流回调。
  * </p>
  */
-public class SseResponse extends DefaultHttpResponse implements InternalCallResponse {
+public class SseResponse extends DefaultHttpResponse implements ResponseCall {
 
     private final ConnectSession connectSession;
     private Consumer<ConnectSession> sseCallback;
@@ -121,7 +123,7 @@ public class SseResponse extends DefaultHttpResponse implements InternalCallResp
     }
 
     @Override
-    public InternalCallType getType() {
-        return InternalCallType.SSE;
+    public Class<? extends ResponseWriter> getWriterType() {
+        return SseResponseWriter.class;
     }
 }

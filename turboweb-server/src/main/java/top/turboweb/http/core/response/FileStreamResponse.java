@@ -3,6 +3,8 @@ package top.turboweb.http.core.response;
 import io.netty.handler.codec.http.*;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.orchestrator.ResponseWriter;
+import top.turboweb.http.orchestrator.FileStreamResponseWriter;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,7 +18,7 @@ import java.nio.charset.Charset;
  * 可处理部分文件范围传输（offset + length）。可用于避免一次性将大文件加载到内存中。
  * </p>
  */
-public class FileStreamResponse extends AbstractFileResponse implements InternalCallResponse {
+public class FileStreamResponse extends AbstractFileResponse implements ResponseCall {
 
 	/** 文件通道，用于流式读取文件 */
 	private final FileChannel fileChannel;
@@ -93,8 +95,8 @@ public class FileStreamResponse extends AbstractFileResponse implements Internal
 
 
 	@Override
-	public InternalCallType getType() {
-		return InternalCallType.FILE_STREAM;
+	public Class<? extends ResponseWriter> getWriterType() {
+		return FileStreamResponseWriter.class;
 	}
 
 	public FileChannel getFileChannel() {

@@ -18,7 +18,6 @@ import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.cookie.HttpCookieManager;
-import top.turboweb.http.core.response.InternalCallResponse;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
@@ -287,10 +286,6 @@ class ParamInfoParsersTest {
                 .bindParameter(stub.returning("createSseResponse", sseResponse).ctx()));
 
         SseEmitter sseEmitter = new SseEmitter(proxy(ConnectSession.class), 16) {
-            @Override
-            public InternalCallResponse.InternalCallType getType() {
-                return InternalCallResponse.InternalCallType.SSE;
-            }
         };
         assertSame(sseEmitter, p.parse(parameter("internSseEmitter"))
                 .bindParameter(stub.returning("createSseEmitter", sseEmitter).ctx()));

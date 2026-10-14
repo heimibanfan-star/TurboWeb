@@ -3,6 +3,8 @@ package top.turboweb.http.core.response;
 import io.netty.handler.codec.http.*;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.commons.exception.TurboSseException;
+import top.turboweb.http.orchestrator.ResponseWriter;
+import top.turboweb.http.orchestrator.SseResponseWriter;
 
 import java.util.LinkedList;
 import java.util.concurrent.locks.ReentrantLock;
@@ -13,7 +15,7 @@ import java.util.function.Consumer;
  * SSE (Server-Sent Events) 发射器抽象类。
  * <p>
  * 用于向客户端推送事件流，支持消息缓存、异步发送和连接管理。
- * 实现了 {@link InternalCallResponse} 接口，类型为 {@link InternalCallResponse.InternalCallType#SSE}。
+ * 实现了 {@link ResponseCall} 接口，声明由 {@link SseResponseWriter} 负责写出。
  * <p>
  * 特点：
  * <ul>
@@ -22,7 +24,7 @@ import java.util.function.Consumer;
  *     <li>支持连接关闭及回调处理</li>
  * </ul>
  */
-public abstract class SseEmitter extends DefaultHttpResponse implements InternalCallResponse {
+public abstract class SseEmitter extends DefaultHttpResponse implements ResponseCall {
 
 	/**
 	 * 关联的连接会话
@@ -185,12 +187,12 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Internal
 	}
 
 	/**
-	 * 获取内部调用类型。
+	 * 获取负责写出本响应的写出器类型。
 	 *
-	 * @return {@link InternalCallResponse.InternalCallType#SSE}
+	 * @return {@link SseResponseWriter} 的 Class 对象
 	 */
 	@Override
-	public InternalCallType getType() {
-		return InternalCallType.SSE;
+	public Class<? extends ResponseWriter> getWriterType() {
+		return SseResponseWriter.class;
 	}
 }

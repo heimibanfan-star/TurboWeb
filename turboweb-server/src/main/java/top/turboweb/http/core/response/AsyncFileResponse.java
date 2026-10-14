@@ -5,6 +5,8 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.commons.exception.TurboFileException;
 import top.turboweb.commons.utils.thread.WorkStealThreadUtils;
+import top.turboweb.http.orchestrator.AsyncFileResponseWriter;
+import top.turboweb.http.orchestrator.ResponseWriter;
 
 import java.io.Closeable;
 import java.io.File;
@@ -23,10 +25,10 @@ import java.util.Set;
  * 可用于高性能 HTTP 文件传输场景，避免阻塞线程。
  * </p>
  * <p>
- * 继承自 {@link AbstractFileResponse} 并实现 {@link InternalCallResponse} 和 {@link Closeable}。
+ * 继承自 {@link AbstractFileResponse} 并实现 {@link ResponseCall} 和 {@link Closeable}。
  * </p>
  */
-public class AsyncFileResponse extends AbstractFileResponse implements InternalCallResponse, Closeable {
+public class AsyncFileResponse extends AbstractFileResponse implements ResponseCall, Closeable {
 
     /** 异步文件通道，用于 AIO 文件读取 */
     private final AsynchronousFileChannel asynchronousFileChannel;
@@ -130,11 +132,11 @@ public class AsyncFileResponse extends AbstractFileResponse implements InternalC
 
     /**
      * {@inheritDoc}
-     * @return 返回内部调用类型 {@link InternalCallType#AIO_FILE}
+     * @return 负责写出本响应的 {@link AsyncFileResponseWriter} 的 Class 对象
      */
     @Override
-    public InternalCallType getType() {
-        return InternalCallType.AIO_FILE;
+    public Class<? extends ResponseWriter> getWriterType() {
+        return AsyncFileResponseWriter.class;
     }
 
     /**

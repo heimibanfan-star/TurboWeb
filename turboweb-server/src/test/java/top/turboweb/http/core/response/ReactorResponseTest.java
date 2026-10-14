@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.core.constant.ContentType;
+import top.turboweb.http.orchestrator.ReactorResponseWriter;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -30,7 +31,7 @@ class ReactorResponseTest {
                 resp.headers().get(HttpHeaderNames.CONTENT_TYPE));
         assertEquals(GlobalConfig.getResponseCharset(), resp.getCharset());
         assertEquals(HttpResponseStatus.OK, resp.status());
-        assertEquals(InternalCallResponse.InternalCallType.REACTOR, resp.getType());
+        assertEquals(ReactorResponseWriter.class, resp.getWriterType());
     }
 
     @Test

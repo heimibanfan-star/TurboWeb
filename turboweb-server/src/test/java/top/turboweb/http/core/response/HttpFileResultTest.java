@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import top.turboweb.http.orchestrator.FileStreamResponseWriter;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -173,8 +174,8 @@ class HttpFileResultTest {
         HttpResponse response = result.createResponse();
         try {
             assertInstanceOf(FileStreamResponse.class, response, "超限文件必须走 FileStreamResponse");
-            assertEquals(InternalCallResponse.InternalCallType.FILE_STREAM,
-                    ((InternalCallResponse) response).getType(), "结果类型映射到 FILE_STREAM");
+            assertEquals(FileStreamResponseWriter.class,
+                    ((ResponseCall) response).getWriterType(), "超限文件结果声明 FileStreamResponseWriter 负责写出");
             assertEquals("application/x-stream", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
             assertEquals("attachment;filename=\"stream.bin\"",
                     response.headers().get(HttpHeaderNames.CONTENT_DISPOSITION));

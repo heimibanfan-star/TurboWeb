@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.HttpUtil;
 import org.junit.jupiter.api.Test;
 import top.turboweb.commons.exception.TurboSseException;
 import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.orchestrator.SseResponseWriter;
 import top.turboweb.http.testkit.RecordingConnectSession;
 
 import java.util.List;
@@ -121,8 +122,8 @@ class SseEmitterTest {
     }
 
     @Test
-    void getTypeIsSse() {
+    void writerTypeIsSseResponseWriter() {
         ProbeEmitter emitter = new ProbeEmitter(new RecordingConnectSession(), 10);
-        assertEquals(InternalCallResponse.InternalCallType.SSE, emitter.getType());
+        assertEquals(SseResponseWriter.class, emitter.getWriterType());
     }
 }

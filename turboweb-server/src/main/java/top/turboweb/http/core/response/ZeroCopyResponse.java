@@ -5,6 +5,8 @@ import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.commons.config.GlobalConfig;
+import top.turboweb.http.orchestrator.ResponseWriter;
+import top.turboweb.http.orchestrator.ZeroCopyResponseWriter;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,7 +22,7 @@ import java.util.UUID;
  * <p>
  * 适用于大文件传输或高吞吐量场景。
  */
-public class ZeroCopyResponse extends AbstractFileResponse implements InternalCallResponse {
+public class ZeroCopyResponse extends AbstractFileResponse implements ResponseCall {
 
     /**
      * 文件传输区域对象，用于零拷贝传输。
@@ -96,12 +98,12 @@ public class ZeroCopyResponse extends AbstractFileResponse implements InternalCa
     }
 
     /**
-     * 获取内部调用类型。
+     * 获取负责写出本响应的写出器类型。
      *
-     * @return {@link InternalCallType#ZERO_COPY}
+     * @return {@link ZeroCopyResponseWriter} 的 Class 对象
      */
     @Override
-    public InternalCallType getType() {
-        return InternalCallType.ZERO_COPY;
+    public Class<? extends ResponseWriter> getWriterType() {
+        return ZeroCopyResponseWriter.class;
     }
 }

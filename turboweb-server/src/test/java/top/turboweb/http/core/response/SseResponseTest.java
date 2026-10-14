@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import top.turboweb.commons.config.GlobalConfig;
 import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.orchestrator.SseResponseWriter;
 import top.turboweb.http.testkit.RecordingConnectSession;
 
 import java.util.ArrayList;
@@ -127,7 +128,7 @@ class SseResponseTest {
     }
 
     @Test
-    void getTypeIsSse() {
-        assertEquals(InternalCallResponse.InternalCallType.SSE, newResponse(new RecordingConnectSession()).getType());
+    void writerTypeIsSseResponseWriter() {
+        assertEquals(SseResponseWriter.class, newResponse(new RecordingConnectSession()).getWriterType());
     }
 }

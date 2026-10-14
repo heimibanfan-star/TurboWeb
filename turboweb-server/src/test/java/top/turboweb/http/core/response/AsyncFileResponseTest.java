@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.commons.exception.TurboFileException;
+import top.turboweb.http.orchestrator.AsyncFileResponseWriter;
 
 import java.io.IOException;
 import java.nio.channels.AsynchronousFileChannel;
@@ -43,7 +44,7 @@ class AsyncFileResponseTest {
             assertEquals(10L, resp.getRemaining());
             assertEquals(0L, resp.getPosition());
             assertEquals("10", resp.headers().get(HttpHeaderNames.CONTENT_LENGTH));
-            assertEquals(InternalCallResponse.InternalCallType.AIO_FILE, resp.getType());
+            assertEquals(AsyncFileResponseWriter.class, resp.getWriterType());
             assertTrue(resp.getAsynchronousFileChannel().isOpen());
         } finally {
             resp.close();
