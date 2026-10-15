@@ -25,7 +25,7 @@ dependencies {
 
 description = "turboweb-common"
 
-// commons 覆盖率门禁分母：只统计支撑本次重构的公共面，exception/** 与 func/TirConsumer 不计入（spec §2.1）
+// commons 覆盖率门禁分母：只统计支撑本次重构的公共面，exception/** 不计入（spec §2.1）
 val gateClasses = listOf(
     "top/turboweb/common/utils/thread/**",
     "top/turboweb/common/utils/resource/**",
