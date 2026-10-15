@@ -5,7 +5,6 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
-import java.util.Map;
 
 /**
  * json映射为实体的参数解析器
@@ -22,7 +21,7 @@ public class BeanJsonParameterParser extends AbstractParameterParser{
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx, Map<String, String> pathParams, BeanValidator beanValidator) {
+        public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator) {
             Object bean = ctx.loadJson(type);
             if (validate) {
                 if (groups == null || groups.length == 0) {

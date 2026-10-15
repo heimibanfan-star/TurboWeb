@@ -17,19 +17,19 @@ import java.nio.channels.Channel;
 public class InternTypeParameterParser extends AbstractParameterParser{
 
     // HttpContext自动绑定
-    private static final ParameterParser.Binder HTTP_CONTEXT_BINDER = (ctx, pathParams, beanValidator) -> ctx;
+    private static final ParameterParser.Binder HTTP_CONTEXT_BINDER = (ctx, requestParameter, beanValidator) -> ctx;
     // HttpSession自动绑定
-    private static final ParameterParser.Binder HTTP_SESSION_BINDER = (ctx, pathParams, beanValidator) -> ctx.httpSession();
+    private static final ParameterParser.Binder HTTP_SESSION_BINDER = (ctx, requestParameter, beanValidator) -> ctx.httpSession();
     // HttpCookies自动绑定
-    private static final ParameterParser.Binder HTTP_COOKIES_BINDER = (ctx, pathParams, beanValidator) -> ctx.cookies();
+    private static final ParameterParser.Binder HTTP_COOKIES_BINDER = (ctx, requestParameter, beanValidator) -> ctx.cookies();
     // SseResponse自动绑定
-    private static final ParameterParser.Binder SSE_RESPONSE_BINDER = (ctx, pathParams, beanValidator) -> ctx.createSseResponse();
+    private static final ParameterParser.Binder SSE_RESPONSE_BINDER = (ctx, requestParameter, beanValidator) -> ctx.createSseResponse();
     // SseEmitter自动绑定
-    private static final ParameterParser.Binder SSE_EMITTER_BINDER = (ctx, pathParams, beanValidator) -> ctx.createSseEmitter();
+    private static final ParameterParser.Binder SSE_EMITTER_BINDER = (ctx, requestParameter, beanValidator) -> ctx.createSseEmitter();
     // 连接会话绑定
-    private static final ParameterParser.Binder CONNECT_SESSION_BINDER = (ctx, pathParams, beanValidator) -> ctx.getConnectSession();
+    private static final ParameterParser.Binder CONNECT_SESSION_BINDER = (ctx, requestParameter, beanValidator) -> ctx.getConnectSession();
     // 连接通道自动绑定
-    private static final ParameterParser.Binder CHANNEL_BINDER = (ctx, pathParams, beanValidator) -> ((InternalConnectSession) ctx.getConnectSession()).getChannel();
+    private static final ParameterParser.Binder CHANNEL_BINDER = (ctx, requestParameter, beanValidator) -> ((InternalConnectSession) ctx.getConnectSession()).getChannel();
 
     @Override
     protected ParameterParser.Binder doParse(Parameter parameter) {

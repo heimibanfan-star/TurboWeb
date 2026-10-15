@@ -3,10 +3,10 @@ package top.turboweb.http.router;
 import io.netty.handler.codec.http.HttpMethod;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.ParameterParser;
+import top.turboweb.http.router.parameter.RequestParameter;
 import top.turboweb.validation.BeanValidator;
 
 import java.lang.invoke.MethodHandle;
-import java.util.Map;
 import java.util.Objects;
 
 public class RouteHandlerInvoker {
@@ -40,15 +40,15 @@ public class RouteHandlerInvoker {
      * 逐位绑定请求上下文中的参数,展开后调用目标方法
      *
      * @param context 请求上下文
-     * @param pathParams 路由匹配携带的路径参数映射(已解码),随上下文交给各绑定器
+     * @param requestParameter 路由装配就位的非请求体参数承载(路径与查询参数,均已解码),随上下文交给各绑定器
      * @param beanValidator Bean 校验器,随上下文交给各绑定器,绑定结果为 bean 需校验时由绑定器经其执行
      * @return 目标方法的返回值
      * @throws Throwable 参数绑定或目标方法调用抛出的异常原样透传
      */
-    public Object invoke(HttpContext context, Map<String, String> pathParams, BeanValidator beanValidator) throws Throwable {
+    public Object invoke(HttpContext context, RequestParameter requestParameter, BeanValidator beanValidator) throws Throwable {
         Object[] args = new Object[binders.length];
         for (int i = 0; i < binders.length; i++) {
-            args[i] = binders[i].bindParameter(context, pathParams, beanValidator);
+            args[i] = binders[i].bindParameter(context, requestParameter, beanValidator);
         }
         return methodHandle.invoke(args);
     }

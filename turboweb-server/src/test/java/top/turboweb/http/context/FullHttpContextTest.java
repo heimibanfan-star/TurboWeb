@@ -20,7 +20,10 @@ import top.turboweb.serializer.JsonSerializer;
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -131,107 +134,45 @@ class FullHttpContextTest {
         }
     }
 
-    // ---------- 查询参数 ----------
+    // ---------- bindBean / loadForm / loadJson 绑定 ----------
 
     @Test
-    void queriesReturnAllValuesInOrder() {
-        FullHttpRequest req = Requests.get("/search?tag=a&tag=b");
+    void bindBeanCollapsesSingleAndKeepsMultiValues() {
+        FullHttpRequest req = Requests.get("/x");
         try {
-            assertEquals(List.of("a", "b"), context(req).queries("tag"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void queryReturnsFirstValueAndMissingIsNull() {
-        FullHttpRequest req = Requests.get("/search?name=alice&name=bob");
-        try {
-            FullHttpContext ctx = context(req);
-            assertEquals("alice", ctx.query("name"));
-            assertNull(ctx.query("nope"));
-            assertEquals(List.of(), ctx.queries("nope"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void queryDefaultIsUsedOnlyWhenAbsent() {
-        FullHttpRequest req = Requests.get("/search?name=alice");
-        try {
-            FullHttpContext ctx = context(req);
-            assertEquals("alice", ctx.query("name", "def"));
-            assertEquals("def", ctx.query("nope", "def"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void queryValuesArePercentDecoded() {
-        FullHttpRequest req = Requests.get("/search?q=a%20b");
-        try {
-            assertEquals("a b", context(req).query("q"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void queryTypedConversionsAndDefaults() {
-        FullHttpRequest req = Requests.get("/search?i=42&l=99&b=true&d=1.5");
-        try {
-            FullHttpContext ctx = context(req);
-            assertEquals(42, ctx.queryInt("i"));
-            assertEquals(99L, ctx.queryLong("l"));
-            assertTrue(ctx.queryBool("b"));
-            assertEquals(1.5, ctx.queryDouble("d"));
-            assertEquals(7L, ctx.queryLong("nope", 7L));
-            assertEquals(7, ctx.queryInt("nope", 7));
-            assertTrue(ctx.queryBool("nope", Boolean.TRUE));
-            assertEquals(7.5, ctx.queryDouble("nope", 7.5));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void multiValuedQueryConvertsToTypedLists() {
-        FullHttpRequest req = Requests.get("/search?i=1&i=2&l=3&l=4&b=true&b=false&d=1.5&d=2.5");
-        try {
-            FullHttpContext ctx = context(req);
-            assertEquals(List.of(1, 2), ctx.queriesInt("i"));
-            assertEquals(List.of(3L, 4L), ctx.queriesLong("l"));
-            assertEquals(List.of(true, false), ctx.queriesBool("b"));
-            assertEquals(List.of(1.5, 2.5), ctx.queriesDouble("d"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void queryIntParseFailureThrowsRawNumberFormat() {
-        FullHttpRequest req = Requests.get("/search?i=abc");
-        try {
-            FullHttpContext ctx = context(req);
-            // 查询侧流式转换不包装异常，解析失败原样抛 NumberFormatException
-            assertThrows(NumberFormatException.class, () -> ctx.queryInt("i"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    // ---------- loadQuery / loadForm / loadJson 绑定 ----------
-
-    @Test
-    void loadQueryMapsSingleAndMultiValuedParameters() {
-        FullHttpRequest req = Requests.get("/search?name=alice&age=30&tag=a&tag=b");
-        try {
-            QueryBean bean = context(req).loadQuery(QueryBean.class);
+            Map<String, List<String>> params = new HashMap<>();
+            params.put("name", List.of("alice"));
+            params.put("age", List.of("30"));
+            params.put("tag", List.of("a", "b"));
+            QueryBean bean = context(req).bindBean(params, QueryBean.class);
             assertEquals("alice", bean.getName());
             assertEquals(30, bean.getAge());
-            assertEquals(List.of("a", "b"), bean.getTag(), "多值参数以 List 交给 Jackson");
+            assertEquals(List.of("a", "b"), bean.getTag(), "多值留列表交 Jackson");
+        } finally {
+            Requests.release(req);
+        }
+    }
+
+    @Test
+    void bindBeanPassesNullValuedFlagThrough() {
+        FullHttpRequest req = Requests.get("/x");
+        try {
+            Map<String, List<String>> params = new HashMap<>();
+            params.put("name", Collections.singletonList(null));
+            QueryBean bean = context(req).bindBean(params, QueryBean.class);
+            assertNull(bean.getName(), "?flag 型 null 值折叠后原样传递,Jackson 置属性为 null");
+        } finally {
+            Requests.release(req);
+        }
+    }
+
+    @Test
+    void bindBeanOnEmptyMapYieldsEmptyBean() {
+        FullHttpRequest req = Requests.get("/x");
+        try {
+            QueryBean bean = context(req).bindBean(Map.of(), QueryBean.class);
+            assertNull(bean.getName());
+            assertEquals(0, bean.getAge());
         } finally {
             Requests.release(req);
         }

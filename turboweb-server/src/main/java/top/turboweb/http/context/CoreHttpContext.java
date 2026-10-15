@@ -17,6 +17,9 @@ import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.serializer.JsonSerializer;
 
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -173,5 +176,32 @@ public abstract class CoreHttpContext implements HttpContext{
 	@Override
 	public Attachment attachment() {
 		return this.attachment;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public <T> T bindBean(Map<String, List<String>> paramsMap, Class<T> beanType) {
+		return jsonSerializer.mapToBean(collapseParamValues(paramsMap), beanType);
+	}
+
+	/**
+	 * 将 {@code Map<String, List<String>>} 转换为 {@code Map<String, Object>}:
+	 * 值列表仅一个元素时取该元素(可为 null),多个元素保留列表。
+	 *
+	 * @param oldMap 原始多值集合
+	 * @return 折叠后的键值集合
+	 */
+	private static Map<String, Object> collapseParamValues(Map<String, List<String>> oldMap) {
+		Map<String, Object> newMap = new HashMap<>();
+		oldMap.forEach((key, value) -> {
+			if (value.size() == 1) {
+				newMap.put(key, value.getFirst());
+			} else {
+				newMap.put(key, value);
+			}
+		});
+		return newMap;
 	}
 }

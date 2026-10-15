@@ -10,6 +10,7 @@ import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.ParameterParser.Binder;
 import top.turboweb.http.router.parameter.ParameterParser;
+import top.turboweb.http.router.parameter.RequestParameter;
 import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Method;
@@ -105,6 +106,9 @@ class RouteHandlerTest {
 
     private static final ParameterParser REJECTING = parameter -> null;
 
+    /** 空承载夹具:路径与查询都无参数的装配结果 */
+    private static final RequestParameter NO_PARAMS = new RequestParameter(Map.of(), Map.of());
+
     /** 空操作校验器占位:本类夹具不经 bean 校验通道 */
     private static final BeanValidator NOOP_VALIDATOR = new BeanValidator() {
         @Override
@@ -128,7 +132,7 @@ class RouteHandlerTest {
             @Override
             public ParameterParser.Binder parse(Parameter parameter) {
                 int current = counter.getAndIncrement();
-                return (ctx, pathParams, validator) -> prefix + current;
+                return (ctx, requestParameter, validator) -> prefix + current;
             }
         };
     }
@@ -189,8 +193,8 @@ class RouteHandlerTest {
         RouteHandler handler = new RouteHandler(List.of(
                 meta("/x", controller, HttpMethod.POST, "postHandler"),
                 meta("/x", controller, HttpMethod.GET, "getHandler")), List.of(), NOOP_VALIDATOR);
-        assertEquals("get", handler.handle(ctx(HttpMethod.GET, "/x"), Map.of()));
-        assertEquals("post", handler.handle(ctx(HttpMethod.POST, "/x"), Map.of()), "按请求方式命中对应处理器,与注册顺序无关");
+        assertEquals("get", handler.handle(ctx(HttpMethod.GET, "/x"), NO_PARAMS));
+        assertEquals("post", handler.handle(ctx(HttpMethod.POST, "/x"), NO_PARAMS), "按请求方式命中对应处理器,与注册顺序无关");
     }
 
     @Test
@@ -198,7 +202,7 @@ class RouteHandlerTest {
         EchoController controller = new EchoController();
         RouteHandler handler = new RouteHandler(List.of(meta("/x", controller, HttpMethod.GET, "getHandler")), List.of(), NOOP_VALIDATOR);
         RouteHandlerException error = assertThrows(RouteHandlerException.class,
-                () -> handler.handle(ctx(HttpMethod.PUT, "/x"), Map.of()));
+                () -> handler.handle(ctx(HttpMethod.PUT, "/x"), NO_PARAMS));
         assertEquals("not found route:PUT /x", error.getMessage(), "错误消息含请求方式与 uri");
         assertEquals(ErrorCode.RouterNotMatch, error.getCode(), "无匹配请求方式走路由不匹配错误码");
     }
@@ -214,7 +218,7 @@ class RouteHandlerTest {
     void zeroArgMethodInvoked() throws Throwable {
         EchoController controller = new EchoController();
         RouteHandler handler = new RouteHandler(List.of(meta("/x", controller, HttpMethod.GET, "noArgs")), List.of(), NOOP_VALIDATOR);
-        assertEquals("fixed", handler.handle(ctx(HttpMethod.GET, "/x"), Map.of()), "无参方法不触碰解析器");
+        assertEquals("fixed", handler.handle(ctx(HttpMethod.GET, "/x"), NO_PARAMS), "无参方法不触碰解析器");
     }
 
     @Test
@@ -223,19 +227,31 @@ class RouteHandlerTest {
         RouteHandler handler = new RouteHandler(
                 List.of(meta("/x", controller, HttpMethod.GET, "join", String.class, String.class)),
                 List.of(claiming("p")), NOOP_VALIDATOR);
-        assertEquals("p0/p1", handler.handle(ctx(HttpMethod.GET, "/x"), Map.of()), "参数按声明顺序绑定并展开传入");
+        assertEquals("p0/p1", handler.handle(ctx(HttpMethod.GET, "/x"), NO_PARAMS), "参数按声明顺序绑定并展开传入");
     }
 
     @Test
     void pathParamsFlowIntoBindersWithHandle() throws Throwable {
         EchoController controller = new EchoController();
-        // 绑定器从路径参数映射取 k 键的值,证明匹配产物随 handle 调用逐层交给绑定器
-        ParameterParser fromPath = parameter -> (ctx, pathParams, validator) -> pathParams.get("k");
+        // 绑定器从承载对象取 k 键的路径参数值,证明匹配产物随 handle 调用逐层交给绑定器
+        ParameterParser fromPath = parameter -> (ctx, requestParameter, validator) -> requestParameter.pathParam("k");
         RouteHandler handler = new RouteHandler(
                 List.of(meta("/x", controller, HttpMethod.GET, "echo", String.class)),
                 List.of(fromPath), NOOP_VALIDATOR);
-        assertEquals("echo:v", handler.handle(ctx(HttpMethod.GET, "/x"), Map.of("k", "v")),
+        assertEquals("echo:v", handler.handle(ctx(HttpMethod.GET, "/x"), new RequestParameter(Map.of("k", "v"), Map.of())),
                 "路径参数经处理器调用透传到绑定器");
+    }
+
+    @Test
+    void carrierQueryValuesFlowIntoBinder() throws Throwable {
+        EchoController controller = new EchoController();
+        ParameterParser fromCarrier = parameter -> (ctx, params, validator) -> params.queryParam("c");
+        RouteHandler handler = new RouteHandler(
+                List.of(meta("/x", controller, HttpMethod.GET, "echo", String.class)),
+                List.of(fromCarrier), NOOP_VALIDATOR);
+        assertEquals("echo:c0", handler.handle(ctx(HttpMethod.GET, "/x"),
+                new RequestParameter(Map.of(), Map.of("c", List.of("c0")))),
+                "承载对象的查询值原样送到绑定器");
     }
 
     @Test
@@ -244,7 +260,7 @@ class RouteHandlerTest {
         RouteHandler handler = new RouteHandler(
                 List.of(meta("/x", controller, HttpMethod.GET, "echo", String.class)),
                 List.of(REJECTING), NOOP_VALIDATOR);
-        assertEquals("echo:null", handler.handle(ctx(HttpMethod.GET, "/x"), Map.of()), "无人认领的参数绑定为空");
+        assertEquals("echo:null", handler.handle(ctx(HttpMethod.GET, "/x"), NO_PARAMS), "无人认领的参数绑定为空");
     }
 
     @Test
@@ -256,7 +272,7 @@ class RouteHandlerTest {
         RouteHandler handler = new RouteHandler(
                 List.of(meta("/x", controller, HttpMethod.GET, "echo", String.class)),
                 List.of(REJECTING, claiming("c"), exploding), NOOP_VALIDATOR);
-        assertEquals("echo:c0", handler.handle(ctx(HttpMethod.GET, "/x"), Map.of()), "解析器按注册序尝试,首个非空绑定生效");
+        assertEquals("echo:c0", handler.handle(ctx(HttpMethod.GET, "/x"), NO_PARAMS), "解析器按注册序尝试,首个非空绑定生效");
     }
 
     @Test
@@ -266,7 +282,7 @@ class RouteHandlerTest {
                 List.of(meta("/x", controller, HttpMethod.GET, "add", int.class, int.class)),
                 List.of(REJECTING), NOOP_VALIDATOR);
         NullPointerException error = assertThrows(NullPointerException.class,
-                () -> handler.handle(ctx(HttpMethod.GET, "/x"), Map.of()),
+                () -> handler.handle(ctx(HttpMethod.GET, "/x"), NO_PARAMS),
                 "无人认领的原始类型参数绑定为空,调用时空值拆箱失败");
         assertTrue(error.getMessage().contains("intValue"), "空指针原因指向拆箱");
     }
@@ -276,7 +292,7 @@ class RouteHandlerTest {
         EchoController controller = new EchoController();
         RouteHandler handler = new RouteHandler(List.of(meta("/x", controller, HttpMethod.GET, "boom")), List.of(), NOOP_VALIDATOR);
         IllegalStateException error = assertThrows(IllegalStateException.class,
-                () -> handler.handle(ctx(HttpMethod.GET, "/x"), Map.of()));
+                () -> handler.handle(ctx(HttpMethod.GET, "/x"), NO_PARAMS));
         assertEquals("boom", error.getMessage(), "目标方法异常原样透传");
     }
 
@@ -285,7 +301,7 @@ class RouteHandlerTest {
         EchoController controller = new EchoController();
         RouteHandler handler = new RouteHandler(
                 List.of(accessiblePrivateMeta("/x", controller, HttpMethod.GET, "hidden")), List.of(), NOOP_VALIDATOR);
-        assertEquals("hidden", handler.handle(ctx(HttpMethod.GET, "/x"), Map.of()), "已开放访问的私有方法可正常展开调用");
+        assertEquals("hidden", handler.handle(ctx(HttpMethod.GET, "/x"), NO_PARAMS), "已开放访问的私有方法可正常展开调用");
     }
 
     @Test

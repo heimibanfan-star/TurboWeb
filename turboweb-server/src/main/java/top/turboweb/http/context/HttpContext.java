@@ -10,6 +10,8 @@ import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
 
 import java.nio.charset.Charset;
+import java.util.List;
+import java.util.Map;
 
 /**
  * {@code HttpContext} 表示 TurboWeb 框架中一次 HTTP 请求的上下文环境。
@@ -124,4 +126,14 @@ public interface HttpContext extends ParamBinder {
 	 * @return {@link Attachment} 对象，用于挂载对象。
 	 */
 	Attachment attachment();
+
+	/**
+	 * 将多值参数映射绑定为 bean:单值列表折叠为字符串、多值列表保留(无值段为 null 原样传递),
+	 * 经 JSON 序列化器完成属性映射。本方法不读取请求数据,映射数据由调用方就位。
+	 *
+	 * @param paramsMap 参数名到值列表的映射,可为空
+	 * @param beanType  目标 bean 类型,不能为 null
+	 * @return 绑定后的 bean;未知属性按序列化器忽略未知字段的口径跳过
+	 */
+	<T> T bindBean(Map<String, List<String>> paramsMap, Class<T> beanType);
 }

@@ -22,7 +22,9 @@ public class RouteHandlerException extends RuntimeException {
         /** 定义展开错误:路由处理器构造期目标方法不可访问,或参数定义使用不支持的集合类型 */
         RouterDefinitionCreateError(10004, HttpResponseStatus.INTERNAL_SERVER_ERROR),
         /** 缺少必要参数:必填查询参数缺值 */
-        MissingParamError(10005, HttpResponseStatus.BAD_REQUEST);
+        MissingParamError(10005, HttpResponseStatus.BAD_REQUEST),
+        /** 参数解码错误:路径或查询参数的百分号转义畸形,URI 侧解码在路由装配点拦截后按 400 报告 */
+        ParamDecodeError(10006, HttpResponseStatus.BAD_REQUEST);
 
         private final int value;
         private final HttpResponseStatus httpStatus;

@@ -6,6 +6,7 @@ import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.ParameterParser;
+import top.turboweb.http.router.parameter.RequestParameter;
 import top.turboweb.validation.BeanValidator;
 
 import java.lang.invoke.MethodHandle;
@@ -19,7 +20,7 @@ import java.util.*;
  */
 public class RouteHandler {
 
-    private static final ParameterParser.Binder DEFAULT_PARAMETER_BINDER = (ctx, pathParams, beanValidator) -> null;
+    private static final ParameterParser.Binder DEFAULT_PARAMETER_BINDER = (ctx, requestParameter, beanValidator) -> null;
     private final String path;
 
     private final RouteHandlerInvoker[] invokers;
@@ -105,18 +106,18 @@ public class RouteHandler {
      * 处理请求:按请求方式匹配调用器并执行
      *
      * @param context 请求上下文
-     * @param pathParams 路由匹配携带的路径参数映射(已按缺省字符集解码),交给各参数绑定器取用
+     * @param requestParameter 路由装配就位的非请求体参数承载(路径参数与查询参数,均已按缺省字符集解码),交给各参数绑定器取用
      * @return 目标方法的返回值
      * @throws RouteHandlerException 请求方式与已登记的均不匹配,错误码为 RouterNotMatch
      * @throws Throwable 目标方法抛出的异常原样透传
      */
-    public Object handle(HttpContext context, Map<String, String> pathParams) throws Throwable {
+    public Object handle(HttpContext context, RequestParameter requestParameter) throws Throwable {
         FullHttpRequest request = context.getRequest();
         HttpMethod httpMethod = request.method();
         // 按请求方式匹配调用器,命中即绑定参数并展开调用目标方法
         for (RouteHandlerInvoker invoker : invokers) {
             if (Objects.equals(invoker.httpMethod(), httpMethod)) {
-                return invoker.invoke(context, pathParams, beanValidator);
+                return invoker.invoke(context, requestParameter, beanValidator);
             }
         }
         // 无匹配的请求方式,按路由不匹配错误码抛出

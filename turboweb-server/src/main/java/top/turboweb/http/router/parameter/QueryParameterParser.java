@@ -11,7 +11,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,9 +31,9 @@ public class QueryParameterParser extends AbstractParameterParser {
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx, Map<String, String> pathParams, BeanValidator beanValidator) {
+        public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator) {
             if (collectionType == 0) {
-                Object arg = converter.convert(ctx.query(name));
+                Object arg = converter.convert(requestParameter.queryParam(name));
                 // 规则判断
                 if (nonNull && arg == null) {
                     throw new RouteHandlerException("校验失败:" + List.of(name + " must not be null"),
@@ -44,7 +43,7 @@ public class QueryParameterParser extends AbstractParameterParser {
                 }
             }
             // 获取所有数据
-            List<String> values = ctx.queries(name);
+            List<String> values = requestParameter.queryParams(name);
             if (values.isEmpty()) {
                 return collectionType == 1 ? List.of() : Set.of();
             }

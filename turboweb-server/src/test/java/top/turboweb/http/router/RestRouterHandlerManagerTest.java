@@ -1,19 +1,25 @@
 package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.rest.param.BeanQuery;
 import top.turboweb.rest.param.PathParam;
+import top.turboweb.rest.param.QueryParam;
+import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.rest.route.Get;
 import top.turboweb.rest.route.Post;
 import top.turboweb.rest.route.Route;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -326,6 +332,120 @@ class RestRouterHandlerManagerTest {
         assertEquals(ErrorCode.RouterInvokeError, error.getCode());
         IOException cause = assertInstanceOf(IOException.class, error.getCause());
         assertEquals("io-fail", cause.getMessage(), "包装保留原因");
+    }
+
+    public static class QueryController {
+
+        @Get("/q")
+        public String q(@QueryParam("name") String name) {
+            return "name=" + name;
+        }
+
+        @Get("/flag")
+        public String flag(@QueryParam("flag") String flag) {
+            return "flag=" + flag;
+        }
+    }
+
+    private static HttpContext ctx(HttpMethod method, String uri, Charset charset) {
+        return new FullHttpContext(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri),
+                null, null, null, null, charset);
+    }
+
+    @Test
+    void queryParameterFlowsThroughCarrierIntoBinder() {
+        RouteHandlerManager manager = built(new QueryController());
+        assertEquals("name=alice", manager.handle(ctx(HttpMethod.GET, "/q?name=alice")),
+                "查询参数由装配解析、经承载对象随调用绑定,不再经上下文");
+    }
+
+    @Test
+    void queryValueIsPercentDecoded() {
+        RouteHandlerManager manager = built(new QueryController());
+        assertEquals("name=a b", manager.handle(ctx(HttpMethod.GET, "/q?name=a%20b")),
+                "百分号解码随 UTF-8 缺省字符集,旧口径兼容即零回归");
+    }
+
+    @Test
+    void queryPercentEscapeFollowsDefaultCharset() {
+        RouteHandlerManager manager = built(new QueryController());
+        // D6 D0 是 GBK 下 "中" 的字节序
+        assertEquals("name=中", manager.handle(ctx(HttpMethod.GET, "/q?name=%D6%D0", Charset.forName("GBK"))),
+                "查询串解码字符集随 defaultCharset,与路径参数同尺");
+    }
+
+    @Test
+    void queryFlagSegmentWithoutEqualsBindsNull() {
+        RouteHandlerManager manager = built(new QueryController());
+        assertEquals("flag=null", manager.handle(ctx(HttpMethod.GET, "/flag?flag")),
+                "无等号段首值 null,String 转换器直通");
+    }
+
+    @Test
+    void malformedQueryEscapeThrowsParamDecodeError() {
+        RouteHandlerManager manager = built(new QueryController());
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
+                () -> manager.handle(ctx(HttpMethod.GET, "/q?name=%zz")), "畸形转义不再吞错当空参");
+        assertEquals(ErrorCode.ParamDecodeError, error.getCode());
+        assertEquals(HttpResponseStatus.BAD_REQUEST, error.getCode().getHttpStatus());
+        assertInstanceOf(IllegalArgumentException.class, error.getCause(), "原始解码异常保留为 cause");
+    }
+
+    @Test
+    void malformedPathParameterEscapeThrowsParamDecodeError() {
+        RouteHandlerManager manager = built(new ParamController());
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
+                () -> manager.handle(ctx(HttpMethod.GET, "/u/user/%zz")), "路径段畸形转义不再裸逃逸 500");
+        assertEquals(ErrorCode.ParamDecodeError, error.getCode());
+        assertInstanceOf(IllegalArgumentException.class, error.getCause());
+    }
+
+    @Test
+    void unmatchedPathWithMalformedQueryStillReportsRouterNotMatch() {
+        RouteHandlerManager manager = built(new QueryController());
+        RouteHandlerException error = assertThrows(RouteHandlerException.class,
+                () -> manager.handle(ctx(HttpMethod.GET, "/nope?x=%zz")), "路由匹配先于解码,未命中不做解码劳动");
+        assertEquals(ErrorCode.RouterNotMatch, error.getCode());
+    }
+
+    public static class QbController {
+
+        @Get("/qb")
+        public String qb(@BeanQuery Qb bean) {
+            return bean.name + "/" + (bean.tags == null ? "-" : String.join(",", bean.tags));
+        }
+    }
+
+    public static class Qb {
+        private String name;
+        private List<String> tags;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public List<String> getTags() {
+            return tags;
+        }
+
+        public void setTags(List<String> tags) {
+            this.tags = tags;
+        }
+    }
+
+    @Test
+    void beanQueryBindsFromCarrierEndToEnd() {
+        RouteHandlerManager manager = built(new QbController());
+        FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET,
+                "/qb?name=alice&tags=a&tags=b");
+        HttpContext context = new FullHttpContext(req, null, null, null,
+                new JacksonJsonSerializer(), StandardCharsets.UTF_8);
+        assertEquals("alice/a,b", manager.handle(context),
+                "@BeanQuery 端到端:承载查询映射经 bindBean 折叠绑定,数据源断链时该断言必红");
     }
 
     @Test

@@ -5,6 +5,8 @@ import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.*;
+import top.turboweb.http.core.helper.UrlHelper;
+import top.turboweb.http.core.helper.UrlHelper.ParamPair;
 import top.turboweb.struct.radix.RestRouteTree;
 import top.turboweb.struct.radix.RouteTree;
 import top.turboweb.validation.BeanValidator;
@@ -21,7 +23,7 @@ import java.util.stream.Collectors;
  * <p>路由表由 {@link Builder} 在装配期构建:注解解析出的元信息按 url 聚合成路由处理器,
  * 再以 url 为模式登记进基数树,树对管理器只读。
  *
- * <p>请求处理按路径逐段匹配基数树,路径参数从命中模式上取出并解码注入上下文;
+ * <p>请求处理按路径逐段匹配基数树,路径与查询参数解码后装入非请求体参数承载随处理器调用传递;
  * 路径未命中、或命中路径但请求方式无对应处理器,一律按路由不匹配错误码抛出,由异常处理器转 404。
  */
 public class RestRouterHandlerManager implements RouteHandlerManager {
@@ -40,14 +42,16 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
     /**
      * 处理请求:按请求路径匹配路由处理器并执行
      *
-     * <p>查询串不属路径,匹配前先剥离;命中模式上的路径参数按上下文的缺省字符集解码后,
-     * 随处理器调用传递,由参数绑定器取用,处理器按请求方式分发。
+     * <p>查询串不属路径,匹配前先剥离;命中后路径参数按上下文缺省字符集解码、查询串按同一字符集
+     * 解析并按名聚合,一并装入非请求体参数承载随处理器调用传递,由参数绑定器取用,
+     * 处理器按请求方式分发。
      *
      * @param context 请求上下文
      * @return 目标方法的返回值
      * @throws RouteHandlerException 路由未匹配(含路径未命中与请求方式无对应处理器),错误码为
-     *                              RouterNotMatch;目标方法抛出的非运行时异常包装后错误码为
-     *                              RouterInvokeError,运行时异常原样透传
+     *                              RouterNotMatch;路径或查询参数的百分号转义畸形在装配点包装,
+     *                              错误码为 ParamDecodeError(400);目标方法抛出的非运行时异常
+     *                              包装后错误码为 RouterInvokeError,运行时异常原样透传
      */
     @Override
     public Object handle(HttpContext context) {
@@ -63,10 +67,23 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
                     String.format("router not found: %s %s", request.method().name(), request.uri()),
                     ErrorCode.RouterNotMatch);
         }
-        // 路径参数是匹配产物,随处理器调用传递,不进请求上下文
-        Map<String, String> pathParams = decodePathParams(matched.params(), context.defaultCharset());
+        // 路径与查询参数都是 URI 侧数据,装配期解码就位后随处理器调用传递,不进请求上下文;
+        // 匹配先于解码:未命中路径的 URI 不做解码劳动
+        Map<String, String> pathParams;
         try {
-            return matched.value().handle(context, pathParams);
+            pathParams = decodePathParams(matched.params(), context.defaultCharset());
+        } catch (IllegalArgumentException e) {
+            throw new RouteHandlerException(e, ErrorCode.ParamDecodeError);
+        }
+        Map<String, List<String>> queryParams;
+        try {
+            queryParams = parseQueryParams(request.uri(), context.defaultCharset());
+        } catch (IllegalArgumentException e) {
+            throw new RouteHandlerException(e, ErrorCode.ParamDecodeError);
+        }
+        RequestParameter requestParameter = new RequestParameter(pathParams, queryParams);
+        try {
+            return matched.value().handle(context, requestParameter);
         } catch (Throwable e) {
             if (e instanceof RuntimeException runtimeException) {
                 throw runtimeException;
@@ -86,6 +103,22 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
         Map<String, String> decoded = new HashMap<>(params.size(), 1);
         params.forEach((name, value) -> decoded.put(name, URLDecoder.decode(value, charset)));
         return decoded;
+    }
+
+    /**
+     * 解析 URI 查询串并按名聚合:值按出现顺序保留;无等号段(如 {@code ?flag})取值 null 入列表;
+     * 无查询串返回空映射。百分号转义畸形时抛 IllegalArgumentException,由装配点转 400,不吞错。
+     *
+     * @param uri     完整请求 URI
+     * @param charset 装配期缺省字符集
+     * @return 参数名到值列表的映射
+     */
+    private static Map<String, List<String>> parseQueryParams(String uri, Charset charset) {
+        Map<String, List<String>> params = new LinkedHashMap<>();
+        for (ParamPair param : UrlHelper.parseQueryParams(uri, charset)) {
+            params.computeIfAbsent(param.getName(), k -> new ArrayList<>()).add(param.getValue());
+        }
+        return params;
     }
 
     public static class Builder {

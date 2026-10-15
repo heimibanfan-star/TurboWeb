@@ -5,7 +5,6 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
-import java.util.Map;
 
 /**
  * 查询模型映射为实体的参数解析器
@@ -23,8 +22,8 @@ public class BeanQueryParameterParser extends AbstractParameterParser{
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx, Map<String, String> pathParams, BeanValidator beanValidator) {
-            Object bean = ctx.loadQuery(type);
+        public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator) {
+            Object bean = ctx.bindBean(requestParameter.queryParams(), type);
             if (validate) {
                 if (groups == null || groups.length == 0) {
                     beanValidator.validate(bean);
