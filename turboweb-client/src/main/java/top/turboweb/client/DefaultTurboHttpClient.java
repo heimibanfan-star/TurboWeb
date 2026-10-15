@@ -12,7 +12,7 @@ import top.turboweb.client.interceptor.RequestInterceptor;
 import top.turboweb.client.interceptor.ResponseInterceptor;
 import top.turboweb.client.result.ClientResult;
 import top.turboweb.client.result.Stream;
-import top.turboweb.commons.exception.TurboHttpClientException;
+import top.turboweb.common.exception.TurboHttpClientException;
 
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;

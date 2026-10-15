@@ -3,7 +3,7 @@ package top.turboweb.http.server.manager;
 import io.netty.channel.ChannelPipeline;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.utils.resource.ScopedResource;
+import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.http.server.application.Application;
 
 import java.util.ArrayList;

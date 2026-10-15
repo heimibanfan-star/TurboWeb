@@ -8,7 +8,7 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.utils.resource.ScopedResource;
+import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.http.server.application.Application;
 import top.turboweb.http.server.config.ServerConfig;
 import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;

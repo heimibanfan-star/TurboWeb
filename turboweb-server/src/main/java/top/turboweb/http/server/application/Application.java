@@ -1,7 +1,7 @@
 package top.turboweb.http.server.application;
 
 import io.netty.channel.ChannelPipeline;
-import top.turboweb.commons.utils.resource.ScopedResource;
+import top.turboweb.common.utils.resource.ScopedResource;
 
 /**
  * netty应用，用于管理上游的处理器。

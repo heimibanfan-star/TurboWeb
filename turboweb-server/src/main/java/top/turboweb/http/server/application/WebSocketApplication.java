@@ -3,7 +3,7 @@ package top.turboweb.http.server.application;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.commons.utils.resource.ScopedResource;
+import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.http.server.handler.WebSocketInitChannelHandler;
 import top.turboweb.websocket.handler.WebSocketHandler;
 

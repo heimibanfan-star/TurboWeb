@@ -2,8 +2,8 @@ package top.turboweb.http.server.application;
 
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import org.junit.jupiter.api.Test;
-import top.turboweb.commons.utils.resource.ScopedResource;
-import top.turboweb.commons.utils.thread.VirtualThreads;
+import top.turboweb.common.utils.resource.ScopedResource;
+import top.turboweb.common.utils.thread.VirtualThreads;
 import top.turboweb.http.server.handler.WebSocketInitChannelHandler;
 import top.turboweb.websocket.dispatch.WebSocketDispatcherChannelHandler;
 import top.turboweb.websocket.handler.WebSocketHandler;

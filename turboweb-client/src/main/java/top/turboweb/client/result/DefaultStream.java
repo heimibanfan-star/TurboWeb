@@ -3,7 +3,7 @@ package top.turboweb.client.result;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import top.turboweb.commons.exception.TurboHttpClientException;
+import top.turboweb.common.exception.TurboHttpClientException;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;

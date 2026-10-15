@@ -3,7 +3,7 @@ package top.turboweb.http.context;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.commons.utils.base.ValidationUtils;
+import top.turboweb.common.utils.base.ValidationUtils;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.helper.UrlHelper;
@@ -36,7 +36,7 @@ import java.util.Map;
  *
  * @see FileHttpContext
  * @see HttpContext
- * @see top.turboweb.commons.utils.base.ValidationUtils
+ * @see top.turboweb.common.utils.base.ValidationUtils
  */
 public class FullHttpContext extends FileHttpContext implements HttpContext{
 

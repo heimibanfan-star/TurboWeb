@@ -27,12 +27,12 @@ description = "turboweb-common"
 
 // commons 覆盖率门禁分母：只统计支撑本次重构的公共面，exception/** 与 func/TirConsumer 不计入（spec §2.1）
 val gateClasses = listOf(
-    "top/turboweb/commons/utils/thread/**",
-    "top/turboweb/commons/utils/resource/**",
-    "top/turboweb/commons/utils/base/**",
-    "top/turboweb/commons/limit/**",
-    "top/turboweb/commons/struct/trie/**",
-    "top/turboweb/commons/constants/**"
+    "top/turboweb/common/utils/thread/**",
+    "top/turboweb/common/utils/resource/**",
+    "top/turboweb/common/utils/base/**",
+    "top/turboweb/common/limit/**",
+    "top/turboweb/common/struct/trie/**",
+    "top/turboweb/common/constants/**"
 )
 
 tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
