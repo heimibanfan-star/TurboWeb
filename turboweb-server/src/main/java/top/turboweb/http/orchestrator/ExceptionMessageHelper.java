@@ -1,5 +1,7 @@
 package top.turboweb.http.orchestrator;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
@@ -16,13 +18,15 @@ public class ExceptionMessageHelper {
     }
 
     /**
-     * 生成路由未匹配的 404 错误页面文本：展示异常消息，消息为 null 时回落异常类名。
-     * 该情况不是服务器故障，页面不携带异常栈。
+     * 生成按给定 HTTP 状态码呈现的客户端错误页面文本：标题由状态码与理由短语构成，
+     * 正文展示异常消息，消息为 null 时回落异常类名。
+     * 该情况（路由未匹配、缺少必要参数等 4xx 错误码）不是服务器故障，页面不携带异常栈。
      *
-     * @param throwable 触发 404 的异常
+     * @param throwable 触发客户端错误的异常
+     * @param status    错误码携带的 HTTP 状态码，用于生成标题
      * @return 完整的 HTML 页面文本
      */
-    public static String notFoundMessage(Throwable throwable) {
+    public static String clientErrorMessage(Throwable throwable, HttpResponseStatus status) {
         String message = throwable.getMessage() == null ? throwable.getClass().getName() : throwable.getMessage();
         return """
                 <!DOCTYPE html>
@@ -37,11 +41,11 @@ public class ExceptionMessageHelper {
                     </style>
                 </head>
                 <body>
-                    <h1>404 Not Found</h1>
+                    <h1>%d %s</h1>
                     <p class="error-message">Exception message: %s</p>
                 </body>
                 </html>
-                """.formatted(htmlEscape(message));
+                """.formatted(status.code(), status.reasonPhrase(), htmlEscape(message));
     }
 
     /**

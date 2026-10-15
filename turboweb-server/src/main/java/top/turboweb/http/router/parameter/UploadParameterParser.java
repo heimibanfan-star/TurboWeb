@@ -3,6 +3,7 @@ package top.turboweb.http.router.parameter;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.rest.param.UploadParam;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.validation.BeanValidator;
 
@@ -72,7 +73,7 @@ public class UploadParameterParser extends AbstractParameterParser {
                 collectionType = 2;
             } else {
                 throw new RouteHandlerException("not support type of collection:" + type.getName(),
-                        RouteHandlerException.ROUTER_DEFINITION_CREATE_ERROR);
+                        ErrorCode.RouterDefinitionCreateError);
             }
         }
         // 获取名称

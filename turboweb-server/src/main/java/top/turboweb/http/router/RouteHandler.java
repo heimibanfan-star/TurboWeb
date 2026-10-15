@@ -3,6 +3,7 @@ package top.turboweb.http.router;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.ParameterParser;
 import top.turboweb.validation.BeanValidator;
@@ -36,7 +37,7 @@ public class RouteHandler {
      * @param beanValidator Bean 校验器,调用参数绑定器时传入,绑定结果为 bean 需校验时由绑定器经其执行,不能为 null
      * @throws IllegalArgumentException 元信息为空、url 不一致或同一请求方式重复注册
      * @throws NullPointerException parsers 或 beanValidator 为 null
-     * @throws RouteHandlerException 目标方法不可访问导致展开失败,错误码为 ROUTER_DEFINITION_CREATE_ERROR
+     * @throws RouteHandlerException 目标方法不可访问导致展开失败,错误码为 RouterDefinitionCreateError
      */
     public RouteHandler(List<RouteHandlerMetaInfo> metaInfos, List<ParameterParser> parsers, BeanValidator beanValidator) {
         if (metaInfos == null || metaInfos.isEmpty()) {
@@ -66,7 +67,7 @@ public class RouteHandler {
                 invokerList.add(new RouteHandlerInvoker(metaInfo.httpMethod(), methodHandle, binders));
                 httpMethods.add(metaInfo.httpMethod());
             } catch (IllegalAccessException e) {
-                throw new RouteHandlerException(e, RouteHandlerException.ROUTER_DEFINITION_CREATE_ERROR);
+                throw new RouteHandlerException(e, ErrorCode.RouterDefinitionCreateError);
             }
         }
         this.invokers = invokerList.toArray(new RouteHandlerInvoker[]{});
@@ -105,7 +106,7 @@ public class RouteHandler {
      *
      * @param context 请求上下文
      * @return 目标方法的返回值
-     * @throws RouteHandlerException 请求方式与已登记的均不匹配,错误码为 ROUTER_NOT_MATCH
+     * @throws RouteHandlerException 请求方式与已登记的均不匹配,错误码为 RouterNotMatch
      * @throws Throwable 目标方法抛出的异常原样透传
      */
     public Object handle(HttpContext context) throws Throwable {
@@ -118,7 +119,7 @@ public class RouteHandler {
             }
         }
         // 无匹配的请求方式,按路由不匹配错误码抛出
-        throw new RouteHandlerException("not found route:" + httpMethod.name() + " " + request.uri(), RouteHandlerException.ROUTER_NOT_MATCH);
+        throw new RouteHandlerException("not found route:" + httpMethod.name() + " " + request.uri(), ErrorCode.RouterNotMatch);
     }
 
     /**

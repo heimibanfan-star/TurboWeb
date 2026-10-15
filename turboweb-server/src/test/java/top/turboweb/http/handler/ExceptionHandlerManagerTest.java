@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.core.response.HttpResult;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 
 import java.io.IOException;
@@ -191,7 +192,7 @@ class ExceptionHandlerManagerTest {
         ExceptionHandlerManager manager = new ExceptionHandlerManager(Set.of());
 
         Object result = manager.handle(new RouteHandlerException(
-                "router not found: GET /missing<b>", RouteHandlerException.ROUTER_NOT_MATCH));
+                "router not found: GET /missing<b>", ErrorCode.RouterNotMatch));
 
         assertInstanceOf(HttpResult.class, result, "404 兜底应构建 HttpResult 对象");
         HttpResponse response = ((HttpResult<?>) result).createResponse(null, StandardCharsets.UTF_8);
@@ -206,12 +207,31 @@ class ExceptionHandlerManagerTest {
     }
 
     @Test
+    @DisplayName("缺少必要参数错误码的路由异常无处理器命中时兜底 400，消息页不带异常栈")
+    void missingParamRouterErrorFallsBackToBadRequest() {
+        ExceptionHandlerManager manager = new ExceptionHandlerManager(Set.of());
+
+        Object result = manager.handle(new RouteHandlerException(
+                "校验失败:[q must not be null]", ErrorCode.MissingParamError));
+
+        assertInstanceOf(HttpResult.class, result, "400 兜底应构建 HttpResult 对象");
+        HttpResponse response = ((HttpResult<?>) result).createResponse(null, StandardCharsets.UTF_8);
+        assertEquals(HttpResponseStatus.BAD_REQUEST, response.status());
+        String contentType = response.headers().get(HttpHeaderNames.CONTENT_TYPE);
+        assertNotNull(contentType);
+        assertTrue(contentType.startsWith("text/html"), contentType);
+        String body = ((FullHttpResponse) response).content().toString(StandardCharsets.UTF_8);
+        assertTrue(body.contains("400 Bad Request"), body);
+        assertTrue(body.contains("校验失败:[q must not be null]"), body);
+    }
+
+    @Test
     @DisplayName("其余错误码的路由异常无处理器命中时仍兜底 500")
     void otherRouterErrorCodeStillFallsBackToServerError() {
         ExceptionHandlerManager manager = new ExceptionHandlerManager(Set.of());
 
         Object result = manager.handle(new RouteHandlerException(
-                new IllegalStateException("invoke-fail"), RouteHandlerException.ROUTER_INVOKE_ERROR));
+                new IllegalStateException("invoke-fail"), ErrorCode.RouterInvokeError));
 
         assertServerError(result,
                 "500 Internal Server Error",

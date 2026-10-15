@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.rest.param.PathParam;
@@ -142,7 +143,7 @@ class RestRouterHandlerManagerTest {
         RouteHandlerManager manager = built(new PingController());
         RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.PUT, "/ping")), "路径命中但请求方式无对应调用器仍按路由不匹配处理");
-        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, error.getCode());
+        assertEquals(ErrorCode.RouterNotMatch, error.getCode());
     }
 
     @Test
@@ -150,7 +151,7 @@ class RestRouterHandlerManagerTest {
         RouteHandlerManager manager = built(new PingController());
         RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.GET, "/nope")), "路由找不到按路由不匹配错误码抛出,由异常处理器转 404");
-        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, error.getCode());
+        assertEquals(ErrorCode.RouterNotMatch, error.getCode());
         assertEquals("router not found: GET /nope", error.getMessage(), "消息含请求方式与 uri,与原注解路由口径一致");
     }
 
@@ -258,7 +259,7 @@ class RestRouterHandlerManagerTest {
         RouteHandlerManager manager = new RestRouterHandlerManager.Builder().registerRoute((List<Object>) null).build();
         RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.GET, "/ping")), "没有任何注册时一切请求都是路由找不到");
-        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, error.getCode());
+        assertEquals(ErrorCode.RouterNotMatch, error.getCode());
     }
 
     @Test
@@ -322,7 +323,7 @@ class RestRouterHandlerManagerTest {
         RouteHandlerManager manager = built(new ThrowingController());
         RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.GET, "/io")), "非运行时异常按调用错误码包装");
-        assertEquals(RouteHandlerException.ROUTER_INVOKE_ERROR, error.getCode());
+        assertEquals(ErrorCode.RouterInvokeError, error.getCode());
         IOException cause = assertInstanceOf(IOException.class, error.getCause());
         assertEquals("io-fail", cause.getMessage(), "包装保留原因");
     }

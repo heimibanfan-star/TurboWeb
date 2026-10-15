@@ -3,6 +3,7 @@ package top.turboweb.http.middleware;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.testkit.RecordingMiddleware;
 
@@ -198,7 +199,7 @@ class MiddlewareTypesTest {
     }
 
     @Test
-    @DisplayName("invoke 遇到未注册的分支键抛 RouteHandlerException(ROUTER_NOT_MATCH)")
+    @DisplayName("invoke 遇到未注册的分支键抛 RouteHandlerException(RouterNotMatch)")
     void invokeUnknownBranchThrowsRouterNotMatch() {
         List<String> events = new ArrayList<>();
         FixedBranch branch = new FixedBranch("missing");
@@ -207,12 +208,12 @@ class MiddlewareTypesTest {
 
         RouteHandlerException ex =
                 assertThrows(RouteHandlerException.class, () -> branch.invoke(null));
-        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
+        assertEquals(ErrorCode.RouterNotMatch, ex.getCode());
         assertTrue(ex.getMessage().contains("missing"), ex.getMessage());
     }
 
     @Test
-    @DisplayName("未 init 时注册过分支也视为不存在：invoke 抛 ROUTER_NOT_MATCH")
+    @DisplayName("未 init 时注册过分支也视为不存在：invoke 抛 RouterNotMatch")
     void invokeBeforeInitTreatsBranchAsMissing() {
         List<String> events = new ArrayList<>();
         FixedBranch branch = new FixedBranch("a");
@@ -221,7 +222,7 @@ class MiddlewareTypesTest {
         // middlewareChains 只在 init 里写入，注册本身不等于可路由
         RouteHandlerException ex =
                 assertThrows(RouteHandlerException.class, () -> branch.invoke(null));
-        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, ex.getCode());
+        assertEquals(ErrorCode.RouterNotMatch, ex.getCode());
     }
 
     @Test

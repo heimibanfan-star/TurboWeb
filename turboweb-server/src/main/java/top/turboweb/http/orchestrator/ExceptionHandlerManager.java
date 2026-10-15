@@ -1,5 +1,6 @@
 package top.turboweb.http.orchestrator;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.core.response.HttpResult;
@@ -30,8 +31,9 @@ import java.util.Set;
  * <p>
  * 异常发生时经 {@link #handle(Throwable)} 处理：自异常自身的类型起沿继承链逐级向上，
  * 优先命中绑定最近异常类型的处理器并透传其返回值；
- * 整条继承链均无匹配且异常为路由未匹配错误码的路由异常时，返回 404 状态码的 {@link HttpResult}；
- * 其余无匹配或处理器自身执行失败时，
+ * 整条继承链均无匹配时，路由异常按错误码携带的 HTTP 状态码兜底——
+ * 客户端状态码（4xx）返回对应状态码、展示异常消息的 {@link HttpResult}，服务器状态码（5xx）走 500 兜底；
+ * 其余异常与处理器自身执行失败时，
  * 返回 500 状态码、text/html 形式并携带完整异常栈的 {@link HttpResult} 兜底响应。
  * </p>
  */
@@ -65,21 +67,20 @@ public class ExceptionHandlerManager {
      * <p>
      * 自异常自身的类型起沿继承链逐级向上查找，优先命中绑定最近父类异常的处理器，
      * 命中后执行并返回处理方法的返回值。
-     * 若整条继承链都没有注册处理器且异常是路由未匹配异常，直接返回 404 状态码的 {@link HttpResult}；
+     * 若整条继承链都没有注册处理器则兜底：路由异常按错误码携带的 HTTP 状态码分流，
+     * 客户端状态码（4xx）返回对应状态码、展示异常消息的 {@link HttpResult} 且不记录错误日志，
+     * 服务器状态码（5xx）走 500 兜底；
      * 其余无匹配或处理器执行中自身抛出异常的情况，
      * 构建 500 状态码、text/html 形式并携带完整异常栈的 {@link HttpResult} 兜底响应返回，同时记录日志。
      * </p>
      *
      * @param throwable 待处理的异常
-     * @return 命中的处理方法的返回值；兜底时为 404 或 500 状态码的 {@link HttpResult}
+     * @return 命中的处理方法的返回值；兜底时为客户端错误码或 500 状态码的 {@link HttpResult}
      */
     public Object handle(Throwable throwable) {
         ExceptionHandlerInvoker invoker = findInvoker(throwable);
         if (invoker == null) {
-            if (isRouterNotMatch(throwable)) {
-                return notFoundHandleResult(throwable);
-            }
-            return errorHandleResult(throwable);
+            return fallbackHandleResult(throwable);
         }
         try {
             return invoker.invoke(throwable);
@@ -108,27 +109,23 @@ public class ExceptionHandlerManager {
     }
 
     /**
-     * 判定异常是否为路由未匹配异常：类型是 {@link RouteHandlerException} 且错误码为 ROUTER_NOT_MATCH，
-     * 该异常在未命中任何处理器时按 404 响应展示，其余错误码的路由异常仍走 500 兜底。
+     * 构建未命中任何异常处理器时的兜底响应：路由异常按错误码携带的 HTTP 状态码分流，
+     * 状态码低于 500（客户端错误）时生成 HTML 错误页面展示异常消息并按该状态码返回——
+     * 消息携带请求方法、被请求 URI 或缺值参数名（均来自客户端输入），经 HTML 转义后嵌入页面，
+     * 其中的标记字符不会作为原始标签透传给浏览器；本情况不是服务器故障，不记录错误日志、不输出异常栈。
+     * 服务器状态码（500 及以上）的路由异常与其余全部异常走 500 异常栈兜底页并记录错误日志。
      *
-     * @param throwable 待判定的异常
-     * @return 是否为路由未匹配异常
+     * @param throwable 触发兜底的原始异常
+     * @return 对应状态码的 {@link HttpResult}，其数据为字符串，生成响应时按 text/html 输出
      */
-    private static boolean isRouterNotMatch(Throwable throwable) {
-        return throwable instanceof RouteHandlerException routeHandlerException
-                && RouteHandlerException.ROUTER_NOT_MATCH.equals(routeHandlerException.getCode());
-    }
-
-    /**
-     * 构建路由未匹配的 404 响应：生成 HTML 错误页面展示异常消息，
-     * 消息携带请求方法与被请求的 URI（来自客户端输入），经 HTML 转义后嵌入页面，
-     * 其中的标记字符不会作为原始标签透传给浏览器。本情况不是服务器故障，不记录错误日志、不输出异常栈。
-     *
-     * @param throwable 触发 404 的路由未匹配异常
-     * @return 404 状态码的 {@link HttpResult}，其数据为字符串，生成响应时按 text/html 输出
-     */
-    private Object notFoundHandleResult(Throwable throwable) {
-        return HttpResult.create(404, ExceptionMessageHelper.notFoundMessage(throwable));
+    private Object fallbackHandleResult(Throwable throwable) {
+        if (throwable instanceof RouteHandlerException routeHandlerException) {
+            HttpResponseStatus status = routeHandlerException.getCode().getHttpStatus();
+            if (status.code() < 500) {
+                return HttpResult.create(status.code(), ExceptionMessageHelper.clientErrorMessage(throwable, status));
+            }
+        }
+        return errorHandleResult(throwable);
     }
 
     /**

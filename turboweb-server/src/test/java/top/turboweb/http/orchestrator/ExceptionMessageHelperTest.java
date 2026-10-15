@@ -1,5 +1,6 @@
 package top.turboweb.http.orchestrator;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -7,27 +8,36 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link ExceptionMessageHelper} 的行为锚：两类异常响应页面的文本契约——
- * 404 页展示转义后的异常消息（消息为 null 时回落异常类名）、
+ * 客户端错误页按给定状态码成题并展示转义后的异常消息（消息为 null 时回落异常类名）、
  * 500 页展示异常类型与转义后的完整栈文本（含 Caused by 链），
  * 五种 HTML 实体（&amp; &lt; &gt; &quot; &#39;）全部转义，外来文本不作为原始标签嵌入页面。
  */
 class ExceptionMessageHelperTest {
 
     @Test
-    void notFoundMessageRendersTitleAndEscapesAllHtmlEntities() {
-        String html = ExceptionMessageHelper.notFoundMessage(
-                new IllegalStateException("a&<>\"'b"));
+    void clientErrorMessageRendersTitleAndEscapesAllHtmlEntities() {
+        String html = ExceptionMessageHelper.clientErrorMessage(
+                new IllegalStateException("a&<>\"'b"), HttpResponseStatus.NOT_FOUND);
 
-        assertTrue(html.contains("<!DOCTYPE html>"), "404 页必须是完整 HTML 文档");
-        assertTrue(html.contains("<h1>404 Not Found</h1>"), "404 页必须带 404 标题");
+        assertTrue(html.contains("<!DOCTYPE html>"), "客户端错误页必须是完整 HTML 文档");
+        assertTrue(html.contains("<h1>404 Not Found</h1>"), "标题由状态码与理由短语构成");
         assertTrue(html.contains("<p class=\"error-message\">Exception message: a&amp;&lt;&gt;&quot;&#39;b</p>"),
                 "五种 HTML 实体都必须转义后嵌入消息段落");
         assertFalse(html.contains("a<>"), "原始尖括号不得透传给浏览器");
     }
 
     @Test
-    void notFoundMessageFallsBackToClassNameWhenMessageIsNull() {
-        String html = ExceptionMessageHelper.notFoundMessage(new IllegalStateException());
+    void clientErrorMessageRendersTitlePerGivenStatus() {
+        String html = ExceptionMessageHelper.clientErrorMessage(
+                new IllegalStateException("bad param"), HttpResponseStatus.BAD_REQUEST);
+
+        assertTrue(html.contains("<h1>400 Bad Request</h1>"), "标题随传入的状态码生成，不写死 404");
+    }
+
+    @Test
+    void clientErrorMessageFallsBackToClassNameWhenMessageIsNull() {
+        String html = ExceptionMessageHelper.clientErrorMessage(
+                new IllegalStateException(), HttpResponseStatus.NOT_FOUND);
 
         assertTrue(html.contains("<p class=\"error-message\">Exception message: java.lang.IllegalStateException</p>"),
                 "消息为 null 时以异常类名兜底展示");

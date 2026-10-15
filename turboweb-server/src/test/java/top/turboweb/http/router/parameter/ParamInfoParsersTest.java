@@ -13,6 +13,7 @@ import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.rest.param.*;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
@@ -270,7 +271,8 @@ class ParamInfoParsersTest {
         RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> b.bindParameter(stub.ctx(), NOOP));
         assertEquals("校验失败:[q must not be null]", ex.getMessage());
-        assertEquals(RouteHandlerException.MISSING_PARAM_ERROR, ex.getCode());
+        assertEquals(ErrorCode.MissingParamError, ex.getCode());
+        assertEquals(10005, ex.getCode().getValue(), "数值错误码钉住");
     }
 
     @Test

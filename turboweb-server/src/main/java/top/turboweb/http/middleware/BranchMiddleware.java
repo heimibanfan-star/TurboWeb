@@ -3,6 +3,7 @@ package top.turboweb.http.middleware;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 
 import java.util.*;
@@ -78,7 +79,7 @@ public abstract class BranchMiddleware extends Middleware {
     public Object invoke(HttpContext ctx) {
         String branchKey = getBranchKey(ctx);
         if (!middlewareChains.containsKey(branchKey)) {
-            throw new RouteHandlerException("The branch " + branchKey + " does not exist", RouteHandlerException.ROUTER_NOT_MATCH);
+            throw new RouteHandlerException("The branch " + branchKey + " does not exist", ErrorCode.RouterNotMatch);
         }
         return middlewareChains.get(branchKey).invoke(ctx);
     }

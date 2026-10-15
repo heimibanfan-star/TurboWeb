@@ -2,6 +2,7 @@ package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.*;
 import top.turboweb.struct.radix.RestRouteTree;
@@ -45,8 +46,8 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
      * @param context 请求上下文
      * @return 目标方法的返回值
      * @throws RouteHandlerException 路由未匹配(含路径未命中与请求方式无对应处理器),错误码为
-     *                              ROUTER_NOT_MATCH;目标方法抛出的非运行时异常包装后错误码为
-     *                              ROUTER_INVOKE_ERROR,运行时异常原样透传
+     *                              RouterNotMatch;目标方法抛出的非运行时异常包装后错误码为
+     *                              RouterInvokeError,运行时异常原样透传
      */
     @Override
     public Object handle(HttpContext context) {
@@ -60,7 +61,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
             // 与注解路由同口径:未匹配按路由不匹配错误码抛出,由异常处理器转 404
             throw new RouteHandlerException(
                     String.format("router not found: %s %s", request.method().name(), request.uri()),
-                    RouteHandlerException.ROUTER_NOT_MATCH);
+                    ErrorCode.RouterNotMatch);
         }
         context.injectPathParam(decodePathParams(matched.params(), context.defaultCharset()));
         try {
@@ -69,7 +70,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
             if (e instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
-            throw new RouteHandlerException(e, RouteHandlerException.ROUTER_INVOKE_ERROR);
+            throw new RouteHandlerException(e, ErrorCode.RouterInvokeError);
         }
     }
 

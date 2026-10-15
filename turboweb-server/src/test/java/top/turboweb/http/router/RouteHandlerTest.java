@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.ParameterParser.Binder;
@@ -198,7 +199,7 @@ class RouteHandlerTest {
         RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> handler.handle(ctx(HttpMethod.PUT, "/x")));
         assertEquals("not found route:PUT /x", error.getMessage(), "错误消息含请求方式与 uri");
-        assertEquals(RouteHandlerException.ROUTER_NOT_MATCH, error.getCode(), "无匹配请求方式走路由不匹配错误码");
+        assertEquals(ErrorCode.RouterNotMatch, error.getCode(), "无匹配请求方式走路由不匹配错误码");
     }
 
     @Test
@@ -279,6 +280,7 @@ class RouteHandlerTest {
         EchoController controller = new EchoController();
         RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> new RouteHandler(List.of(rawPrivateMeta("/x", controller, HttpMethod.GET, "hidden")), List.of(), NOOP_VALIDATOR));
+        assertEquals(ErrorCode.RouterDefinitionCreateError, error.getCode(), "展开失败携带定义展开错误码");
         assertInstanceOf(IllegalAccessException.class, error.getCause(), "展开失败包装为路由定义创建异常并保留原因");
     }
 

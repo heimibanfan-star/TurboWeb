@@ -2,6 +2,7 @@ package top.turboweb.http.router.parameter;
 
 import top.turboweb.rest.param.QueryParam;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.validation.BeanValidator;
 
@@ -36,7 +37,7 @@ public class QueryParameterParser extends AbstractParameterParser {
                 // 规则判断
                 if (nonNull && arg == null) {
                     throw new RouteHandlerException("校验失败:" + List.of(name + " must not be null"),
-                            RouteHandlerException.MISSING_PARAM_ERROR);
+                            ErrorCode.MissingParamError);
                 } else {
                     return arg;
                 }
@@ -72,7 +73,7 @@ public class QueryParameterParser extends AbstractParameterParser {
                 collectionType = 2;
             } else {
                 throw new RouteHandlerException("not support type of collection:" + parameter.getType().getName(),
-                        RouteHandlerException.ROUTER_DEFINITION_CREATE_ERROR);
+                        ErrorCode.RouterDefinitionCreateError);
             }
             // 获取参数类型
             if (parameter.getParameterizedType() instanceof ParameterizedType parameterizedType) {

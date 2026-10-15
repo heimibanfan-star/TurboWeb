@@ -21,6 +21,7 @@ import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.core.session.BackHoleSessionManager;
 import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.testkit.Stubs;
@@ -541,7 +542,7 @@ class RequestOrchestratorTest {
     @Test
     void routerNotMatchThrowableFallsToNotFoundPage() {
         ThrowingMiddleware chain = new ThrowingMiddleware(
-                new RouteHandlerException("router not found: GET /missing", RouteHandlerException.ROUTER_NOT_MATCH));
+                new RouteHandlerException("router not found: GET /missing", ErrorCode.RouterNotMatch));
         RequestOrchestrator orchestrator = flowOrchestrator(chain, new ExceptionHandlerManager(Set.of()));
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
