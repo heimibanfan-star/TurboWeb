@@ -8,7 +8,6 @@ import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.common.utils.thread.ThreadAssert;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.core.response.ReactorResponse;
 
@@ -20,8 +19,8 @@ import top.turboweb.http.core.response.ReactorResponse;
  * </p>
  *
  * <p><b>线程模型：</b></p>
- * 仅允许在虚拟线程（Virtual Thread）中执行，通过
- * {@link ThreadAssert#assertIsVirtualThread()} 进行约束。
+ * 仅允许在虚拟线程（Virtual Thread）中执行，写出前由本类校验当前线程，
+ * 非虚拟线程调用抛 {@link IllegalStateException}。
  *
  * @see ReactorResponse
  */
@@ -40,7 +39,9 @@ public class ReactorResponseWriter extends AbstractResponseWriter {
      */
     @Override
     protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
-        ThreadAssert.assertIsVirtualThread();
+        if (!Thread.currentThread().isVirtual()) {
+            throw new IllegalStateException("This method must be called from a virtual thread");
+        }
         if (response instanceof ReactorResponse reactorResponse) {
             ChannelPromise promise = session.getChannel().newPromise();
             writeHeader(response, session)
