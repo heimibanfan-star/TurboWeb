@@ -1,9 +1,9 @@
 package top.turboweb.http.router.parameter;
 
+import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
-import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.core.cookie.HttpCookieManager;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
@@ -20,8 +20,8 @@ public class InternTypeParameterParser extends AbstractParameterParser{
     private static final ParameterParser.Binder HTTP_CONTEXT_BINDER = ctx -> ctx;
     // HttpSession自动绑定
     private static final ParameterParser.Binder HTTP_SESSION_BINDER = HttpContext::httpSession;
-    // CookieManager自动绑定
-    private static final ParameterParser.Binder COOKIE_MANAGER_BINDER = HttpContext::cookie;
+    // HttpCookies自动绑定
+    private static final ParameterParser.Binder HTTP_COOKIES_BINDER = HttpContext::cookies;
     // SseResponse自动绑定
     private static final ParameterParser.Binder SSE_RESPONSE_BINDER = HttpContext::createSseResponse;
     // SseEmitter自动绑定
@@ -41,8 +41,8 @@ public class InternTypeParameterParser extends AbstractParameterParser{
         if (HttpSession.class == type) {
             return HTTP_SESSION_BINDER;
         }
-        if (HttpCookieManager.class == type) {
-            return COOKIE_MANAGER_BINDER;
+        if (HttpCookies.class == type) {
+            return HTTP_COOKIES_BINDER;
         }
         if (SseResponse.class == type) {
             return SSE_RESPONSE_BINDER;

@@ -3,15 +3,16 @@ package top.turboweb.http.context;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.serializer.JsonSerializer;
-import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.http.core.cookie.HttpCookieManager;
-import top.turboweb.http.exception.ParameterValidationException;
-import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.commons.utils.base.ValidationUtils;
-import top.turboweb.http.core.session.HttpSession;
+import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.helper.UrlHelper;
 import top.turboweb.http.core.helper.UrlHelper.ParamPair;
+import top.turboweb.http.core.session.HttpSession;
+import top.turboweb.http.exception.ParameterValidationException;
+import top.turboweb.http.exception.RequestParseException;
+import top.turboweb.serializer.JsonSerializer;
+
 import java.nio.charset.Charset;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -56,7 +57,7 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	 *
 	 * @param request        HTTP 请求对象
 	 * @param httpSession    会话对象
-	 * @param cookieManager  Cookie 管理器
+	 * @param cookies  当前请求的 Cookie 集合
 	 * @param connectSession 连接会话（用于 WebSocket / SSE）
 	 * @param jsonSerializer JSON 序列化器
 	 * @param defaultCharset 缺省编码（装配期由 HttpConfig 判定并随请求传递），不能为 null
@@ -64,12 +65,12 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	public FullHttpContext(
 			FullHttpRequest request,
 			HttpSession httpSession,
-			HttpCookieManager cookieManager,
+			HttpCookies cookies,
 			ConnectSession connectSession,
 			JsonSerializer jsonSerializer,
 			Charset defaultCharset
 	) {
-		super(request, httpSession, cookieManager, connectSession, jsonSerializer, defaultCharset);
+		super(request, httpSession, cookies, connectSession, jsonSerializer, defaultCharset);
 	}
 
 	/**

@@ -6,7 +6,7 @@ import top.turboweb.rest.route.Post;
 import top.turboweb.rest.route.Route;
 import top.turboweb.rest.param.*;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.core.cookie.HttpCookieManager;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
@@ -21,13 +21,13 @@ public class BindController {
     public String bind01(
             HttpContext ctx,
             HttpSession session,
-            HttpCookieManager cookieManager,
+            HttpCookies cookies,
             SseResponse sseResponse,
             SseEmitter sseEmitter
             ) {
         System.out.println(ctx);
         System.out.println(session);
-        System.out.println(cookieManager);
+        System.out.println(cookies);
         System.out.println(sseResponse);
         System.out.println(sseEmitter);
         return "success";

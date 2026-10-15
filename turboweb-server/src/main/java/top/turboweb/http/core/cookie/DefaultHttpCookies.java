@@ -6,15 +6,11 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 
 import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * 默认的 {@link HttpCookieManager} 实现。
+ * 默认的 {@link HttpCookies} 实现。
  * <p>
  * 该类负责解析请求头中的 Cookie 信息，并在响应阶段统一管理新增与删除的 Cookie。
  * 它在请求到达时从 {@link HttpHeaders} 中解析 {@code Cookie} 字段，
@@ -30,21 +26,21 @@ import java.util.function.Consumer;
  *
  * <p><b>线程安全性：</b>本类实例与请求绑定，不应在多线程间共享。</p>
  */
-public class DefaultHttpCookieManager implements HttpCookieManager {
+public class DefaultHttpCookies implements HttpCookies {
 
     private final Map<String, HttpCookie> httpCookieMap;
     private final Set<String> toWriteHttpCookies = new HashSet<>();
     private final Set<String> toRemoveHttpCookies = new HashSet<>();
 
     /**
-     * 基于请求头构造默认 Cookie 管理器。
+     * 基于请求头构造默认 Cookie 集合。
      * <p>
      * 会从请求头中解析 {@code Cookie} 字段并填充内部 {@link #httpCookieMap}。
      * 当请求中不存在 Cookie 时，将创建空的 Cookie 映射。
      *
      * @param requestHeaders 当前请求的 HTTP 头信息
      */
-    public DefaultHttpCookieManager(HttpHeaders requestHeaders) {
+    public DefaultHttpCookies(HttpHeaders requestHeaders) {
         String cookie = requestHeaders.get(HttpHeaderNames.COOKIE);
         if (cookie != null) {
             String[] cookieArray = cookie.split(";");
@@ -111,7 +107,7 @@ public class DefaultHttpCookieManager implements HttpCookieManager {
      * <p>
      * 典型用法：
      * <pre>{@code
-     * cookieManager.setCookie("token", "abc123", c -> {
+     * cookies.setCookie("token", "abc123", c -> {
      *     c.setHttpOnly(true);
      *     c.setMaxAge(3600);
      * });

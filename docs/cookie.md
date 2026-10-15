@@ -4,7 +4,7 @@
 
 服务器通过响应头的 `Set-Cookie` 向浏览器设置 Cookie；浏览器随后在每次请求中通过请求头 `Cookie` 自动带回，完成状态同步。
 
-在 TurboWeb 中，Cookie 的管理由框架内置的 `HttpCookieManager` 负责，开发者通过 `HttpContext.cookie()` 获取该管理器即可完成大多数操作。
+在 TurboWeb 中，Cookie 的管理由框架内置的 `HttpCookies` 负责，开发者通过 `HttpContext.cookies()` 获取该 Cookie 集合即可完成大多数操作。
 
 ## 快速上手
 
@@ -13,19 +13,19 @@
 ```java
 @Get("/set")
 public String setCookie(HttpContext context) {
-    context.cookie().setCookie("name", "turbo");
+    context.cookies().setCookie("name", "turbo");
     return "setCookie";
 }
 ```
 
-通过 `HttpContext.cookie()` 获取 `HttpCookieManager`，使用 `setCookie(key, value)` 设置 Cookie。
+通过 `HttpContext.cookies()` 获取 `HttpCookies`，使用 `setCookie(key, value)` 设置 Cookie。
 
 **_读取 Cookie_**
 
 ```java
 @Get("/get")
 public String getCookie(HttpContext context) {
-    String name = context.cookie().getCookie("name");
+    String name = context.cookies().getCookie("name");
     return "name: " + name;
 }
 ```
@@ -37,7 +37,7 @@ public String getCookie(HttpContext context) {
 ```java
 @Get("/rem")
 public String removeCookie(HttpContext context) {
-    context.cookie().removeCookie("name");
+    context.cookies().removeCookie("name");
     return "remCookie";
 }
 ```
@@ -55,8 +55,8 @@ public String removeCookie(HttpContext context) {
 ```java
 @Get("/set2")
 public String setCookie2(HttpContext context) {
-    HttpCookieManager cookieManager = context.cookie();
-    cookieManager.setCookie("name", "turbo", cookie -> {
+    HttpCookies cookies = context.cookies();
+    cookies.setCookie("name", "turbo", cookie -> {
         cookie.setMaxAge(3600);
         cookie.setPath("/user");
     });
@@ -67,7 +67,7 @@ public String setCookie2(HttpContext context) {
 **_方式二：函数式配置属性（推荐）_**
 
 ```java
-context.cookie().setCookie("name", "turbo", cookie -> {
+context.cookies().setCookie("name", "turbo", cookie -> {
     cookie.setMaxAge(3600);
     cookie.setPath("/user");
 });
@@ -78,11 +78,11 @@ context.cookie().setCookie("name", "turbo", cookie -> {
 ```java
 @Get("/clear")
 public String clearToWriteCookies(HttpContext context) {
-    HttpCookieManager cookieManager = context.cookie();
-    cookieManager.setCookie("a", "1");
-    cookieManager.setCookie("b", "2");
-    cookieManager.setCookie("c", "3");
-    cookieManager.clearToWriteCookies();
+    HttpCookies cookies = context.cookies();
+    cookies.setCookie("a", "1");
+    cookies.setCookie("b", "2");
+    cookies.setCookie("c", "3");
+    cookies.clearToWriteCookies();
     return "clearCookie";
 }
 ```
@@ -94,7 +94,7 @@ public String clearToWriteCookies(HttpContext context) {
 ```java
 @Get("/clearAll")
 public String clearAllCookies(HttpContext context) {
-    context.cookie().clearAll();
+    context.cookies().clearAll();
     return "clearAllCookie";
 }
 ```

@@ -5,39 +5,24 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.rest.param.BeanForm;
-import top.turboweb.rest.param.BeanJson;
-import top.turboweb.rest.param.BeanQuery;
-import top.turboweb.rest.param.PathParam;
-import top.turboweb.rest.param.QueryParam;
-import top.turboweb.rest.param.UploadParam;
-import top.turboweb.http.exception.ParameterValidationException;
-import top.turboweb.http.exception.RouteHandlerException;
-import top.turboweb.serializer.JsonSerializer;
+import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
-import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.core.cookie.HttpCookieManager;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
+import top.turboweb.http.exception.ParameterValidationException;
+import top.turboweb.http.exception.RouteHandlerException;
+import top.turboweb.rest.param.*;
+import top.turboweb.serializer.JsonSerializer;
 
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Proxy;
 import java.nio.channels.Channel;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * autoBind 七个参数解析器各自的解析逻辑（spec §5：autoBind 七 parser 认领与绑定契约）。
@@ -67,7 +52,7 @@ class ParamInfoParsersTest {
         // —— 内部类型（无注解，按声明类型认领） ——
         void internContext(HttpContext v) {}
         void internSession(HttpSession v) {}
-        void internCookie(HttpCookieManager v) {}
+        void internCookies(HttpCookies v) {}
         void internSseResponse(SseResponse v) {}
         void internSseEmitter(SseEmitter v) {}
         void internConnectSession(ConnectSession v) {}
@@ -276,9 +261,9 @@ class ParamInfoParsersTest {
         assertSame(session, p.parse(parameter("internSession"))
                 .bindParameter(stub.returning("httpSession", session).ctx()));
 
-        HttpCookieManager cookie = proxy(HttpCookieManager.class);
-        assertSame(cookie, p.parse(parameter("internCookie"))
-                .bindParameter(stub.returning("cookie", cookie).ctx()));
+        HttpCookies cookies = proxy(HttpCookies.class);
+        assertSame(cookies, p.parse(parameter("internCookies"))
+                .bindParameter(stub.returning("cookies", cookies).ctx()));
 
         SseResponse sseResponse = new SseResponse(HttpResponseStatus.OK, new DefaultHttpHeaders(),
                 proxy(ConnectSession.class), proxy(JsonSerializer.class));

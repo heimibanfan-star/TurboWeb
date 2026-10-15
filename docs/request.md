@@ -424,20 +424,20 @@ AnnoRouterManager routerManager = new AnnoRouterManager(true);
 
 **TurboWeb支持部分框架内部对象的自动注入，支持的类型如下：**
 
-HttpContext、HttpSession、HttpCookieManager、SseResponse、SseEmitter。
+HttpContext、HttpSession、HttpCookies、SseResponse、SseEmitter。
 
 ```java
 @Get("/1")
 public String bind01(
         HttpContext ctx,
         HttpSession session,
-        HttpCookieManager cookieManager,
+        HttpCookies cookies,
         SseResponse sseResponse,
         SseEmitter sseEmitter
         ) {
     System.out.println(ctx);
     System.out.println(session);
-    System.out.println(cookieManager);
+    System.out.println(cookies);
     System.out.println(sseResponse);
     System.out.println(sseEmitter);
     return "success";

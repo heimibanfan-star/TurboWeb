@@ -4,17 +4,17 @@ import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import top.turboweb.serializer.JsonSerializer;
-import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.context.attchment.DefaultAttachment;
 import top.turboweb.http.context.content.HttpContent;
 import top.turboweb.http.context.respmeta.ResponseMeta;
-import top.turboweb.http.core.cookie.HttpCookieManager;
+import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
+import top.turboweb.serializer.JsonSerializer;
 
 import java.nio.charset.Charset;
 import java.util.Objects;
@@ -57,8 +57,8 @@ public abstract class CoreHttpContext implements HttpContext{
 	/** 当前请求的连接会话 */
 	protected final ConnectSession connectSession;
 
-	/** Cookie 管理器 */
-	protected final HttpCookieManager httpCookieManager;
+	/** 当前请求的 Cookie 集合 */
+	protected final HttpCookies httpCookies;
 
 	/** 封装后的请求内容对象 */
 	protected final HttpContent httpContent;
@@ -77,7 +77,7 @@ public abstract class CoreHttpContext implements HttpContext{
 	 *
 	 * @param request         当前请求对象
 	 * @param httpSession     HTTP 会话对象
-	 * @param cookieManager   Cookie 管理器
+	 * @param cookies         当前请求的 Cookie 集合
 	 * @param connectSession  当前连接会话
 	 * @param jsonSerializer  JSON 序列化器
 	 * @param defaultCharset  缺省编码（装配期由 HttpConfig 判定并随请求传递），不能为 null
@@ -86,14 +86,14 @@ public abstract class CoreHttpContext implements HttpContext{
 	protected CoreHttpContext(
 			FullHttpRequest request,
 			HttpSession httpSession,
-			HttpCookieManager cookieManager,
+			HttpCookies cookies,
 			ConnectSession connectSession,
 			JsonSerializer jsonSerializer,
 			Charset defaultCharset
 	) {
 		this.request = request;
 		this.session = httpSession;
-		this.httpCookieManager = cookieManager;
+		this.httpCookies = cookies;
 		this.connectSession = connectSession;
 		this.defaultCharset = Objects.requireNonNull(defaultCharset, "defaultCharset can not be null");
 		HttpMethod method = request.method();
@@ -158,8 +158,8 @@ public abstract class CoreHttpContext implements HttpContext{
 	 * {@inheritDoc}
 	 */
 	@Override
-	public HttpCookieManager cookie() {
-		return this.httpCookieManager;
+	public HttpCookies cookies() {
+		return this.httpCookies;
 	}
 
 	/**

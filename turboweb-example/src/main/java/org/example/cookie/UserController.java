@@ -5,28 +5,28 @@ import top.turboweb.rest.route.Get;
 import top.turboweb.rest.route.Route;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.cookie.HttpCookie;
-import top.turboweb.http.core.cookie.HttpCookieManager;
+import top.turboweb.http.core.cookie.HttpCookies;
 
 @Route("/user")
 public class UserController {
 
     @Get("/set")
     public String setCookie(HttpContext context) {
-        context.cookie().setCookie("name", "turbo");
+        context.cookies().setCookie("name", "turbo");
         return "setCookie";
     }
 
 
     @Get("/get")
     public String getCookie(HttpContext context) {
-        String name = context.cookie().getCookie("name");
+        String name = context.cookies().getCookie("name");
         return "name: " + name;
     }
 
 
     @Get("/rem")
     public String removeCookie(HttpContext context) {
-        context.cookie().removeCookie("name");
+        context.cookies().removeCookie("name");
         return "remCookie";
     }
 
@@ -36,25 +36,25 @@ public class UserController {
         HttpCookie cookie = new HttpCookie("name", "turbo");
         cookie.setMaxAge(3600);        // 1小时后过期
         cookie.setPath("/user");       // 限定路径
-        context.cookie().setCookie(cookie);
+        context.cookies().setCookie(cookie);
         return "setCookie2";
     }
 
 
     @Get("/clear")
     public String clearToWriteCookies(HttpContext context) {
-        HttpCookieManager cookieManager = context.cookie();
-        cookieManager.setCookie("a", "1");
-        cookieManager.setCookie("b", "2");
-        cookieManager.setCookie("c", "3");
-        cookieManager.clearToWriteCookies();
+        HttpCookies cookies = context.cookies();
+        cookies.setCookie("a", "1");
+        cookies.setCookie("b", "2");
+        cookies.setCookie("c", "3");
+        cookies.clearToWriteCookies();
         return "clearCookie";
     }
 
 
     @Get("/clearAll")
     public String clearAllCookies(HttpContext context) {
-        context.cookie().clearAll();
+        context.cookies().clearAll();
         return "clearAllCookie";
     }
 

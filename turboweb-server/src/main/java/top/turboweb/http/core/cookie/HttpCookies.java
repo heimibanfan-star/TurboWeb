@@ -7,11 +7,11 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Cookie 管理器接口，用于管理当前请求过程中的 Cookie 数据。
+ * 请求级 Cookie 集合接口，统一管理当前请求过程中的 Cookie 数据。
  * 该接口既支持读取客户端发送的 Cookie，也支持设置服务端响应的 Set-Cookie。
  * 适用于框架内部中间件、控制器或过滤器中对 Cookie 的统一访问和写入。
  */
-public interface HttpCookieManager {
+public interface HttpCookies {
 
     /**
      * 获取指定 key 对应的 Cookie 对象（包含完整属性）。

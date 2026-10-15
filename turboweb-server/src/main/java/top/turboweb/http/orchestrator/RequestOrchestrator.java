@@ -1,22 +1,18 @@
 package top.turboweb.http.orchestrator;
 
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
+import top.turboweb.http.context.FullHttpContext;
+import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.http.core.cookie.DefaultHttpCookieManager;
-import top.turboweb.http.core.cookie.HttpCookieManager;
+import top.turboweb.http.core.cookie.DefaultHttpCookies;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.core.session.SessionManagerHolder;
-import top.turboweb.http.context.FullHttpContext;
-import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.serializer.JsonSerializer;
 
@@ -254,7 +250,7 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 执行中间件链并善后结果：初始化 Cookie 管理器与会话，构建请求上下文后调用链头，
+     * 执行中间件链并善后结果：初始化 Cookie 集合与会话，构建请求上下文后调用链头，
      * 链结果经结果转化链转化为响应；随后回写 Cookie，会话新建或路径变更时设置
      * JSESSIONID 的 Set-Cookie 头。上下文释放与会话续期在返回前完成。
      *
@@ -268,17 +264,17 @@ public class RequestOrchestrator {
         HttpContext context = null;
         try {
             // 初始化Cookie
-            HttpCookieManager cookieManager = new DefaultHttpCookieManager(request.headers());
+            HttpCookies cookies = new DefaultHttpCookies(request.headers());
             // 初始化session
-            String originSessionId = cookieManager.getCookie("JSESSIONID");
+            String originSessionId = cookies.getCookie("JSESSIONID");
             HttpSession httpSession = new DefaultHttpSession(sessionManager, originSessionId);
             // 创建HttpContext对象
-            context = new FullHttpContext(request, httpSession, cookieManager, connectSession, jsonSerializer, defaultCharset);
+            context = new FullHttpContext(request, httpSession, cookies, connectSession, jsonSerializer, defaultCharset);
             // 执行中间件
             Object result = middleware.invoke(context);
             HttpResponse response = resultConverterManager.convert(result, defaultCharset);
             // 处理Cookie
-            cookieManager.setCookieForResponse(response, defaultCharset);
+            cookies.setCookieForResponse(response, defaultCharset);
             // 处理session
             if (httpSession.sessionId() != null
                     && (!Objects.equals(httpSession.sessionId(), originSessionId) || httpSession.pathIsUpdate())) {

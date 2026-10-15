@@ -1,10 +1,10 @@
 package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.context.respmeta.ResponseMeta;
-import top.turboweb.http.core.cookie.HttpCookieManager;
+import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
@@ -80,11 +80,11 @@ public interface HttpContext extends ParamBinder {
 	HttpSession httpSession();
 
 	/**
-	 * 获取 Cookie 管理器。
+	 * 获取当前请求的 Cookie 集合。
 	 *
-	 * @return {@link HttpCookieManager}，用于操作请求和响应中的 Cookie。
+	 * @return {@link HttpCookies}，用于操作请求和响应中的 Cookie。
 	 */
-	HttpCookieManager cookie();
+	HttpCookies cookies();
 
 	/**
 	 * 获取装配期判定的缺省字符集（{@link top.turboweb.http.server.config.HttpConfig} 配置值），

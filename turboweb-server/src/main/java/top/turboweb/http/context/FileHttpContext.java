@@ -2,10 +2,10 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.multipart.FileUpload;
-import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.http.core.cookie.HttpCookieManager;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.session.HttpSession;
+import top.turboweb.serializer.JsonSerializer;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -32,7 +32,7 @@ public abstract class FileHttpContext extends CoreHttpContext {
 	 *
 	 * @param request        HTTP 请求对象
 	 * @param httpSession    会话对象
-	 * @param cookieManager  Cookie 管理器
+	 * @param cookies  当前请求的 Cookie 集合
 	 * @param connectSession 连接会话对象，用于 WebSocket/SSE 等场景
 	 * @param jsonSerializer JSON 序列化器
 	 * @param defaultCharset 缺省编码（装配期判定并随请求传递），不能为 null
@@ -40,12 +40,12 @@ public abstract class FileHttpContext extends CoreHttpContext {
 	protected FileHttpContext(
 			FullHttpRequest request,
 			HttpSession httpSession,
-			HttpCookieManager cookieManager,
+			HttpCookies cookies,
 			ConnectSession connectSession,
 			JsonSerializer jsonSerializer,
 			Charset defaultCharset
 	) {
-		super(request, httpSession, cookieManager, connectSession, jsonSerializer, defaultCharset);
+		super(request, httpSession, cookies, connectSession, jsonSerializer, defaultCharset);
 	}
 
 	/**

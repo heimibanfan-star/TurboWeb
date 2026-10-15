@@ -3,24 +3,23 @@ package top.turboweb.http.context;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.exception.ParameterValidationException;
-import top.turboweb.http.exception.RequestParseException;
-import top.turboweb.serializer.JacksonJsonSerializer;
-import top.turboweb.serializer.JsonSerializer;
-import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.context.content.HttpContent;
-import top.turboweb.http.core.cookie.DefaultHttpCookieManager;
+import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.MemorySessionManager;
+import top.turboweb.http.exception.ParameterValidationException;
+import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Requests;
+import top.turboweb.serializer.JacksonJsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
@@ -30,12 +29,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * {@link FullHttpContext} 的请求解析与参数绑定（spec §5：context 行）。
@@ -58,7 +52,7 @@ class FullHttpContextTest {
 
     private static FullHttpContext context(FullHttpRequest request, HttpSession session) {
         return new FullHttpContext(request, session,
-                new DefaultHttpCookieManager(request.headers()), CONNECT_SESSION, SERIALIZER, StandardCharsets.UTF_8);
+                new DefaultHttpCookies(request.headers()), CONNECT_SESSION, SERIALIZER, StandardCharsets.UTF_8);
     }
 
     // ---------- 构造器注入与基础 getter 面（CoreHttpContext） ----------
@@ -87,12 +81,12 @@ class FullHttpContextTest {
     }
 
     @Test
-    void cookieManagerReadsTheCookieHeaderOfTheRequest() {
+    void cookiesReadsTheCookieHeaderOfTheRequest() {
         FullHttpRequest req = Requests.getWithCookie("/x", "sid=abc; theme=dark");
         try {
             FullHttpContext ctx = context(req);
-            assertEquals("abc", ctx.cookie().getCookie("sid"));
-            assertEquals("dark", ctx.cookie().getCookie("theme"));
+            assertEquals("abc", ctx.cookies().getCookie("sid"));
+            assertEquals("dark", ctx.cookies().getCookie("theme"));
         } finally {
             Requests.release(req);
         }
@@ -437,7 +431,7 @@ class FullHttpContextTest {
             FullHttpContext utf8Ctx = context(req);
             assertEquals(StandardCharsets.UTF_8, utf8Ctx.defaultCharset());
             FullHttpContext gbkCtx = new FullHttpContext(req, newSession(),
-                    new DefaultHttpCookieManager(req.headers()), CONNECT_SESSION, SERIALIZER, Charset.forName("GBK"));
+                    new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER, Charset.forName("GBK"));
             assertEquals(Charset.forName("GBK"), gbkCtx.defaultCharset(),
                     "defaultCharset() 直接给出传入的缺省编码，不读请求头");
         } finally {
