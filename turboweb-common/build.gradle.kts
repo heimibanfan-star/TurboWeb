@@ -32,7 +32,7 @@ val gateClasses = listOf(
     "top/turboweb/common/utils/base/**",
     "top/turboweb/common/limit/**",
     "top/turboweb/common/struct/trie/**",
-    "top/turboweb/common/constants/**"
+    "top/turboweb/common/util/**"
 )
 
 tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
