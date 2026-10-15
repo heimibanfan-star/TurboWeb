@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.rest.param.UploadParam;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
@@ -29,7 +30,7 @@ public class UploadParameterParser extends AbstractParameterParser {
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx) {
+        public Object bindParameter(HttpContext ctx, BeanValidator beanValidator) {
             if (collectionType == 0) {
                 return ctx.loadFile(name);
             }

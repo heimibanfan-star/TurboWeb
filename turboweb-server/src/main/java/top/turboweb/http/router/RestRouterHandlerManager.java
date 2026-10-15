@@ -6,6 +6,8 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.*;
 import top.turboweb.struct.radix.RestRouteTree;
 import top.turboweb.struct.radix.RouteTree;
+import top.turboweb.validation.BeanValidator;
+import top.turboweb.validation.HibernateBeanValidator;
 
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
@@ -22,6 +24,11 @@ import java.util.stream.Collectors;
  * 路径未命中、或命中路径但请求方式无对应处理器,一律按路由不匹配错误码抛出,由异常处理器转 404。
  */
 public class RestRouterHandlerManager implements RouteHandlerManager {
+
+    /**
+     * 默认 Bean 校验器:装配未指定时由 build 采用,Hibernate 引擎线程安全,全局共享一份
+     */
+    private static final BeanValidator DEFAULT_BEAN_VALIDATOR = new HibernateBeanValidator();
 
     private final RouteTree<RouteHandler> routeHandlerRadixTree;
 
@@ -85,6 +92,11 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
         private final String baseUrl;
         private final Map<Class<?>, Object> routeInstanceMap = new HashMap<>();
         private final LinkedList<ParameterParser> parsers = new LinkedList<>();
+
+        /**
+         * Bean 校验器,null 表示未指定,build 时采用默认校验器
+         */
+        private BeanValidator beanValidator;
 
         /**
          * 构建路由注册器
@@ -177,6 +189,19 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
             for (Map.Entry<Class<?>, Object> entry : routes.entrySet()) {
                 registerRoute(entry.getKey(), entry.getValue());
             }
+            return this;
+        }
+
+        /**
+         * 指定 Bean 校验器:路由形参绑定为 bean 且注解要求校验时,由参数绑定器经该校验器执行校验;
+         * 未指定时装配采用默认 Hibernate 引擎校验器
+         *
+         * @param beanValidator 校验器,不能为 null
+         * @return 本构建器
+         * @throws NullPointerException beanValidator 为 null
+         */
+        public Builder beanValidator(BeanValidator beanValidator) {
+            this.beanValidator = Objects.requireNonNull(beanValidator, "beanValidator must not be null");
             return this;
         }
 
@@ -318,10 +343,12 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
                         return RouteHandlerMetaInfoHelper.parse(this.baseUrl, instance, targetClass).stream();
                     })
                     .collect(Collectors.groupingBy(RouteHandlerMetaInfo::url));
+            // 未指定校验器时采用默认校验器,随各路由处理器构造传入
+            BeanValidator validator = this.beanValidator != null ? this.beanValidator : DEFAULT_BEAN_VALIDATOR;
             // 构建基数树
             RestRouteTree<RouteHandler> restRouteTree = new RestRouteTree<>();
             routeMetaInfoMap.forEach((url, metaInfos) -> {
-                RouteHandler routeHandler = new RouteHandler(metaInfos, parsers);
+                RouteHandler routeHandler = new RouteHandler(metaInfos, parsers, validator);
                 restRouteTree.put(routeHandler.path(), routeHandler);
             });
             return new RestRouterHandlerManager(restRouteTree.toReadView());

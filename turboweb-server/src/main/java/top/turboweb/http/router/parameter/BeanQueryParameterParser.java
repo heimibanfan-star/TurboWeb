@@ -2,6 +2,7 @@ package top.turboweb.http.router.parameter;
 
 import top.turboweb.rest.param.BeanQuery;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
 
@@ -12,7 +13,7 @@ public class BeanQueryParameterParser extends AbstractParameterParser{
 
 
     /**
-     * 查询参数映射为实体的绑定器
+     * 查询参数映射为实体的绑定器:取数走无校验通道,注解要求校验时在绑定器内经传入的 Bean 校验器执行
      */
     private record QueryModelParameterBinder(
             Class<?> type,
@@ -21,16 +22,16 @@ public class BeanQueryParameterParser extends AbstractParameterParser{
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx) {
-            if (!validate) {
-                return ctx.loadQuery(type);
-            } else {
+        public Object bindParameter(HttpContext ctx, BeanValidator beanValidator) {
+            Object bean = ctx.loadQuery(type);
+            if (validate) {
                 if (groups == null || groups.length == 0) {
-                    return ctx.loadValidQuery(type);
+                    beanValidator.validate(bean);
                 } else {
-                    return ctx.loadValidQuery(type, groups);
+                    beanValidator.validate(bean, groups);
                 }
             }
+            return bean;
         }
     }
 

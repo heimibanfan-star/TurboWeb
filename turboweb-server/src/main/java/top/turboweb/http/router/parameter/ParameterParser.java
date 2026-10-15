@@ -1,6 +1,7 @@
 package top.turboweb.http.router.parameter;
 
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
 
@@ -24,8 +25,9 @@ public interface ParameterParser {
         /**
          * 解析参数
          * @param ctx 请求上下文
+         * @param beanValidator Bean 校验器，绑定结果为 bean 且需要校验时由绑定器经其执行校验
          * @return 参数
          */
-        Object bindParameter(HttpContext ctx);
+        Object bindParameter(HttpContext ctx, BeanValidator beanValidator);
     }
 }

@@ -2,6 +2,7 @@ package top.turboweb.http.router.parameter;
 
 import top.turboweb.rest.param.PathParam;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
 
@@ -20,7 +21,7 @@ public class PathParameterParser extends AbstractParameterParser {
     ) implements ParameterParser.Binder{
 
         @Override
-        public Object bindParameter(HttpContext ctx) {
+        public Object bindParameter(HttpContext ctx, BeanValidator beanValidator) {
             return converter.convert(ctx.param(name));
         }
     }

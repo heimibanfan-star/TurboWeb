@@ -2,6 +2,7 @@ package top.turboweb.http.router.parameter;
 
 import top.turboweb.rest.param.BeanForm;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
 
@@ -11,7 +12,7 @@ import java.lang.reflect.Parameter;
 public class BeanFormParameterParser extends AbstractParameterParser{
 
     /**
-     * 绑定表单模型参数
+     * 绑定表单模型参数:取数走无校验通道,注解要求校验时在绑定器内经传入的 Bean 校验器执行
      */
     private record FormModelParameterBinder(
             Class<?> type,
@@ -20,16 +21,16 @@ public class BeanFormParameterParser extends AbstractParameterParser{
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx) {
-            if (!validate) {
-                return ctx.loadForm(type);
-            } else {
+        public Object bindParameter(HttpContext ctx, BeanValidator beanValidator) {
+            Object bean = ctx.loadForm(type);
+            if (validate) {
                 if (groups == null || groups.length == 0) {
-                    return ctx.loadValidForm(type);
+                    beanValidator.validate(bean);
                 } else {
-                    return ctx.loadValidForm(type, groups);
+                    beanValidator.validate(bean, groups);
                 }
             }
+            return bean;
         }
     }
 

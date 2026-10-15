@@ -4,6 +4,7 @@ import top.turboweb.rest.param.QueryParam;
 import top.turboweb.http.exception.ParameterValidationException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
@@ -30,7 +31,7 @@ public class QueryParameterParser extends AbstractParameterParser {
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx) {
+        public Object bindParameter(HttpContext ctx, BeanValidator beanValidator) {
             if (collectionType == 0) {
                 Object arg = converter.convert(ctx.query(name));
                 // 规则判断

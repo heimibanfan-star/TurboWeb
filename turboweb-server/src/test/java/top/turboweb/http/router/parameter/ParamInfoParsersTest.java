@@ -16,6 +16,7 @@ import top.turboweb.http.exception.ParameterValidationException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.rest.param.*;
 import top.turboweb.serializer.JsonSerializer;
+import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Proxy;
@@ -164,6 +165,46 @@ class ParamInfoParsersTest {
                 });
     }
 
+    /** 空操作校验器占位，供不经校验通道的绑定器使用。 */
+    private static final BeanValidator NOOP = new BeanValidator() {
+        @Override
+        public void validate(Object bean) {
+        }
+
+        @Override
+        public void validate(Object bean, Class<?>... groups) {
+        }
+
+        @Override
+        public void close() {
+        }
+    };
+
+    /** 记录型 {@link BeanValidator} 替身：记录最近一次校验的 bean 与分组（单参重载记 null）及调用次数。 */
+    private static final class RecordingValidator implements BeanValidator {
+        private int count;
+        private Object bean;
+        private Class<?>[] groups;
+
+        @Override
+        public void validate(Object obj) {
+            count++;
+            bean = obj;
+            groups = null;
+        }
+
+        @Override
+        public void validate(Object obj, Class<?>... gs) {
+            count++;
+            bean = obj;
+            groups = gs;
+        }
+
+        @Override
+        public void close() {
+        }
+    }
+
     // ---------- QueryParameterParser ----------
 
     @Test
@@ -176,7 +217,7 @@ class ParamInfoParsersTest {
         Stub stub = new Stub().returning("query", "hello");
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("queryString"));
         assertNotNull(b);
-        assertEquals("hello", b.bindParameter(stub.ctx()));
+        assertEquals("hello", b.bindParameter(stub.ctx(), NOOP));
         assertEquals("q", stub.lastArgs("query")[0], "注解的 value 即查询参数名");
     }
 
@@ -198,7 +239,7 @@ class ParamInfoParsersTest {
         Stub stub = new Stub().returning("queries", List.of("1", "2"));
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("queryList"));
         assertNotNull(b);
-        assertEquals(List.of(1, 2), b.bindParameter(stub.ctx()), "List<Integer> 逐元素转换");
+        assertEquals(List.of(1, 2), b.bindParameter(stub.ctx(), NOOP), "List<Integer> 逐元素转换");
         assertEquals("q", stub.lastArgs("queries")[0]);
     }
 
@@ -206,21 +247,21 @@ class ParamInfoParsersTest {
     void queryListWithoutValuesIsEmptyList() {
         Stub stub = new Stub().returning("queries", List.of());
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("queryList"));
-        assertEquals(List.of(), b.bindParameter(stub.ctx()));
+        assertEquals(List.of(), b.bindParameter(stub.ctx(), NOOP));
     }
 
     @Test
     void querySetDeduplicates() {
         Stub stub = new Stub().returning("queries", List.of("a", "b", "a"));
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("querySet"));
-        assertEquals(Set.of("a", "b"), b.bindParameter(stub.ctx()));
+        assertEquals(Set.of("a", "b"), b.bindParameter(stub.ctx(), NOOP));
     }
 
     @Test
     void querySetWithoutValuesIsEmptySet() {
         Stub stub = new Stub().returning("queries", List.of());
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("querySet"));
-        assertEquals(Set.of(), b.bindParameter(stub.ctx()));
+        assertEquals(Set.of(), b.bindParameter(stub.ctx(), NOOP));
     }
 
     @Test
@@ -228,7 +269,7 @@ class ParamInfoParsersTest {
         Stub stub = new Stub().returning("query", null);
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("queryNonNull"));
         ParameterValidationException ex = assertThrows(ParameterValidationException.class,
-                () -> b.bindParameter(stub.ctx()));
+                () -> b.bindParameter(stub.ctx(), NOOP));
         assertEquals(List.of("q must not be null"), ex.getErrorMsg());
     }
 
@@ -236,14 +277,14 @@ class ParamInfoParsersTest {
     void queryNonNullPassesWhenValuePresent() {
         Stub stub = new Stub().returning("query", "v");
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("queryNonNull"));
-        assertEquals("v", b.bindParameter(stub.ctx()));
+        assertEquals("v", b.bindParameter(stub.ctx(), NOOP));
     }
 
     @Test
     void queryPrimitiveIntDefaultsToZeroWhenMissing() {
         Stub stub = new Stub().returning("query", null);
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("queryInt"));
-        assertEquals(0, b.bindParameter(stub.ctx()), "int 转换器对 null 返回 0（与 Integer 的 null 区分）");
+        assertEquals(0, b.bindParameter(stub.ctx(), NOOP), "int 转换器对 null 返回 0（与 Integer 的 null 区分）");
     }
 
     // ---------- InternTypeParameterParser ----------
@@ -254,37 +295,37 @@ class ParamInfoParsersTest {
         HttpContext ctx = stub.ctx();
         InternTypeParameterParser p = new InternTypeParameterParser();
 
-        assertSame(ctx, p.parse(parameter("internContext")).bindParameter(ctx),
+        assertSame(ctx, p.parse(parameter("internContext")).bindParameter(ctx, NOOP),
                 "HttpContext 参数注入的就是当前上下文");
 
         HttpSession session = proxy(HttpSession.class);
         assertSame(session, p.parse(parameter("internSession"))
-                .bindParameter(stub.returning("httpSession", session).ctx()));
+                .bindParameter(stub.returning("httpSession", session).ctx(), NOOP));
 
         HttpCookies cookies = proxy(HttpCookies.class);
         assertSame(cookies, p.parse(parameter("internCookies"))
-                .bindParameter(stub.returning("cookies", cookies).ctx()));
+                .bindParameter(stub.returning("cookies", cookies).ctx(), NOOP));
 
         SseResponse sseResponse = new SseResponse(HttpResponseStatus.OK, new DefaultHttpHeaders(),
                 proxy(ConnectSession.class), proxy(JsonSerializer.class));
         assertSame(sseResponse, p.parse(parameter("internSseResponse"))
-                .bindParameter(stub.returning("createSseResponse", sseResponse).ctx()));
+                .bindParameter(stub.returning("createSseResponse", sseResponse).ctx(), NOOP));
 
         SseEmitter sseEmitter = new SseEmitter(proxy(ConnectSession.class), 16) {
         };
         assertSame(sseEmitter, p.parse(parameter("internSseEmitter"))
-                .bindParameter(stub.returning("createSseEmitter", sseEmitter).ctx()));
+                .bindParameter(stub.returning("createSseEmitter", sseEmitter).ctx(), NOOP));
 
         ConnectSession connectSession = proxy(ConnectSession.class);
         assertSame(connectSession, p.parse(parameter("internConnectSession"))
-                .bindParameter(stub.returning("getConnectSession", connectSession).ctx()));
+                .bindParameter(stub.returning("getConnectSession", connectSession).ctx(), NOOP));
 
         // 夹具侧类型矫正（D1）：CHANNEL_BINDER 认领的声明类型是 java.nio.channels.Channel（Params.internChannel
         // 不动），但 InternalConnectSession 存取的是 io.netty.channel.Channel（InternalConnectSession.java:27/:31），
         // 故被注入的那个对象必须是 Netty 通道的代理；断言语义（注入的就是配置进去的那个对象）逐字保留。
         io.netty.channel.Channel channel = proxy(io.netty.channel.Channel.class);
         assertSame(channel, p.parse(parameter("internChannel"))
-                .bindParameter(stub.returning("getConnectSession", new InternalConnectSession(channel)).ctx()));
+                .bindParameter(stub.returning("getConnectSession", new InternalConnectSession(channel)).ctx(), NOOP));
     }
 
     @Test
@@ -300,7 +341,7 @@ class ParamInfoParsersTest {
         Stub stub = new Stub().returning("loadFile", file);
         ParameterParser.Binder b = new UploadParameterParser().parse(parameter("uploadFile"));
         assertNotNull(b);
-        assertSame(file, b.bindParameter(stub.ctx()));
+        assertSame(file, b.bindParameter(stub.ctx(), NOOP));
         assertEquals("f", stub.lastArgs("loadFile")[0]);
     }
 
@@ -314,7 +355,7 @@ class ParamInfoParsersTest {
         Stub stub = new Stub().returning("loadFile", file);
         ParameterParser.Binder b = new UploadParameterParser().parse(parameter("uploadObject"));
         assertNotNull(b);
-        assertSame(file, b.bindParameter(stub.ctx()));
+        assertSame(file, b.bindParameter(stub.ctx(), NOOP));
     }
 
     @Test
@@ -331,15 +372,15 @@ class ParamInfoParsersTest {
         Stub stub = new Stub().returning("loadFiles", List.of(a, b));
         ParameterParser.Binder listBinder = new UploadParameterParser().parse(parameter("uploadList"));
         assertNotNull(listBinder, "List<FileUpload> + @UploadParam 应被认领");
-        assertEquals(List.of(a, b), listBinder.bindParameter(stub.ctx()));
+        assertEquals(List.of(a, b), listBinder.bindParameter(stub.ctx(), NOOP));
         assertEquals("f", stub.lastArgs("loadFiles")[0], "注解的 value 即表单字段名");
         ParameterParser.Binder setBinder = new UploadParameterParser().parse(parameter("uploadSet"));
         assertNotNull(setBinder, "Set<FileUpload> + @UploadParam 应被认领");
-        assertEquals(Set.of(a, b), setBinder.bindParameter(stub.ctx()), "Set 分支把 loadFiles 结果包装成 HashSet");
+        assertEquals(Set.of(a, b), setBinder.bindParameter(stub.ctx(), NOOP), "Set 分支把 loadFiles 结果包装成 HashSet");
         // 字段缺失（loadFiles 返回 null）归一为空集合
         Stub empty = new Stub().returning("loadFiles", null);
-        assertEquals(List.of(), listBinder.bindParameter(empty.ctx()));
-        assertEquals(Set.of(), setBinder.bindParameter(empty.ctx()));
+        assertEquals(List.of(), listBinder.bindParameter(empty.ctx(), NOOP));
+        assertEquals(Set.of(), setBinder.bindParameter(empty.ctx(), NOOP));
         // 无 @UploadParam 的裸 List 不认领——不得截走其他渠道负责的参数
         assertNull(new UploadParameterParser().parse(parameter("uploadListWithoutAnnotation")));
         // 声明元素类型与 FileUpload 不符 → 不认领
@@ -367,30 +408,36 @@ class ParamInfoParsersTest {
     void jsonModelBindsPlainLoad() {
         Model sentinel = new Model();
         Stub stub = new Stub().returning("loadJson", sentinel);
+        RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonModel"));
         assertNotNull(b);
-        assertSame(sentinel, b.bindParameter(stub.ctx()));
+        assertSame(sentinel, b.bindParameter(stub.ctx(), validator));
         assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadJson"), "loadJson(参数声明类型)");
+        assertEquals(0, validator.count, "validate=false 不触碰校验器");
     }
 
     @Test
     void jsonValidWithoutGroupsUsesSingleArgOverload() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadValidJson", sentinel);
+        Stub stub = new Stub().returning("loadJson", sentinel);
+        RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonValid"));
-        assertSame(sentinel, b.bindParameter(stub.ctx()));
-        assertEquals(1, stub.lastArgs("loadValidJson").length, "无分组时调 loadValidJson(Class)");
+        assertSame(sentinel, b.bindParameter(stub.ctx(), validator));
+        assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadJson"), "取数走无校验的 loadJson");
+        assertEquals(1, validator.count);
+        assertSame(sentinel, validator.bean, "校验的就是绑定出的 bean");
+        assertNull(validator.groups, "无分组时经校验器单参重载 validate(bean)");
     }
 
     @Test
     void jsonValidWithGroupsPassesGroups() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadValidJson", sentinel);
+        Stub stub = new Stub().returning("loadJson", sentinel);
+        RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonGroups"));
-        assertSame(sentinel, b.bindParameter(stub.ctx()));
-        Object[] args = stub.lastArgs("loadValidJson");
-        assertEquals(2, args.length, "有分组时调 loadValidJson(Class, Class...)");
-        assertArrayEquals(new Class<?>[]{GroupA.class}, (Class<?>[]) args[1]);
+        assertSame(sentinel, b.bindParameter(stub.ctx(), validator));
+        assertEquals(1, validator.count);
+        assertArrayEquals(new Class<?>[]{GroupA.class}, validator.groups, "注解分组透传给校验器");
     }
 
     @Test
@@ -404,30 +451,36 @@ class ParamInfoParsersTest {
     void formModelBindsPlainLoad() {
         Model sentinel = new Model();
         Stub stub = new Stub().returning("loadForm", sentinel);
+        RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formModel"));
         assertNotNull(b);
-        assertSame(sentinel, b.bindParameter(stub.ctx()));
+        assertSame(sentinel, b.bindParameter(stub.ctx(), validator));
         assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadForm"));
+        assertEquals(0, validator.count, "validate=false 不触碰校验器");
     }
 
     @Test
     void formValidWithoutGroupsUsesSingleArgOverload() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadValidForm", sentinel);
+        Stub stub = new Stub().returning("loadForm", sentinel);
+        RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formValid"));
-        assertSame(sentinel, b.bindParameter(stub.ctx()));
-        assertEquals(1, stub.lastArgs("loadValidForm").length);
+        assertSame(sentinel, b.bindParameter(stub.ctx(), validator));
+        assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadForm"), "取数走无校验的 loadForm");
+        assertEquals(1, validator.count);
+        assertSame(sentinel, validator.bean);
+        assertNull(validator.groups, "无分组时经校验器单参重载 validate(bean)");
     }
 
     @Test
     void formValidWithGroupsPassesGroups() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadValidForm", sentinel);
+        Stub stub = new Stub().returning("loadForm", sentinel);
+        RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formGroups"));
-        assertSame(sentinel, b.bindParameter(stub.ctx()));
-        Object[] args = stub.lastArgs("loadValidForm");
-        assertEquals(2, args.length);
-        assertArrayEquals(new Class<?>[]{GroupA.class}, (Class<?>[]) args[1]);
+        assertSame(sentinel, b.bindParameter(stub.ctx(), validator));
+        assertEquals(1, validator.count);
+        assertArrayEquals(new Class<?>[]{GroupA.class}, validator.groups, "注解分组透传给校验器");
     }
 
     @Test
@@ -441,30 +494,36 @@ class ParamInfoParsersTest {
     void queryModelBindsPlainLoad() {
         Model sentinel = new Model();
         Stub stub = new Stub().returning("loadQuery", sentinel);
+        RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("queryModel"));
         assertNotNull(b);
-        assertSame(sentinel, b.bindParameter(stub.ctx()));
+        assertSame(sentinel, b.bindParameter(stub.ctx(), validator));
         assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadQuery"));
+        assertEquals(0, validator.count, "validate=false 不触碰校验器");
     }
 
     @Test
     void queryModelValidWithoutGroupsUsesSingleArgOverload() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadValidQuery", sentinel);
+        Stub stub = new Stub().returning("loadQuery", sentinel);
+        RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("queryModelValid"));
-        assertSame(sentinel, b.bindParameter(stub.ctx()));
-        assertEquals(1, stub.lastArgs("loadValidQuery").length);
+        assertSame(sentinel, b.bindParameter(stub.ctx(), validator));
+        assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadQuery"), "取数走无校验的 loadQuery");
+        assertEquals(1, validator.count);
+        assertSame(sentinel, validator.bean);
+        assertNull(validator.groups, "无分组时经校验器单参重载 validate(bean)");
     }
 
     @Test
     void queryModelValidWithGroupsPassesGroups() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadValidQuery", sentinel);
+        Stub stub = new Stub().returning("loadQuery", sentinel);
+        RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("queryModelGroups"));
-        assertSame(sentinel, b.bindParameter(stub.ctx()));
-        Object[] args = stub.lastArgs("loadValidQuery");
-        assertEquals(2, args.length);
-        assertArrayEquals(new Class<?>[]{GroupA.class}, (Class<?>[]) args[1]);
+        assertSame(sentinel, b.bindParameter(stub.ctx(), validator));
+        assertEquals(1, validator.count);
+        assertArrayEquals(new Class<?>[]{GroupA.class}, validator.groups, "注解分组透传给校验器");
     }
 
     @Test
@@ -479,7 +538,7 @@ class ParamInfoParsersTest {
         Stub stub = new Stub().returning("param", "42");
         ParameterParser.Binder b = new PathParameterParser().parse(parameter("restInt"));
         assertNotNull(b);
-        assertEquals(42, b.bindParameter(stub.ctx()));
+        assertEquals(42, b.bindParameter(stub.ctx(), NOOP));
         assertEquals("id", stub.lastArgs("param")[0], "注解的 value 即路径参数名");
     }
 

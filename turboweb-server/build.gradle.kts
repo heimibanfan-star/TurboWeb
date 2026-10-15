@@ -17,6 +17,8 @@ dependencies {
     api(libs.reactor.core)
     // 参数绑定与路由注解由 turboweb-rest-api 提供
     api(project(":turboweb-rest-api"))
+    // Bean 校验器契约由 turboweb-validation 提供；BeanValidator 出现在绑定接口与路由处理器公开签名，用 api 暴露
+    api(project(":turboweb-validation"))
     // 聚合turboweb-websocket模块
     api(project(":turboweb-websocket"))
     implementation(project(":turboweb-struct"))

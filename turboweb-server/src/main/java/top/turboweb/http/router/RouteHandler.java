@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.ParameterParser;
+import top.turboweb.validation.BeanValidator;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -17,26 +18,33 @@ import java.util.*;
  */
 public class RouteHandler {
 
-    private static final ParameterParser.Binder DEFAULT_PARAMETER_BINDER = ctx -> null;
+    private static final ParameterParser.Binder DEFAULT_PARAMETER_BINDER = (ctx, beanValidator) -> null;
     private final String path;
 
     private final RouteHandlerInvoker[] invokers;
+
+    /**
+     * Bean 校验器,调用绑定器时逐次传入;绑定结果为 bean 且需要校验时由绑定器经其执行
+     */
+    private final BeanValidator beanValidator;
 
     /**
      * 构建路由处理器:逐条元信息解析参数绑定器并展开目标方法句柄
      *
      * @param metaInfos 路由元信息列表,至少一条;各条 url 必须一致,同一请求方式至多出现一次
      * @param parsers 参数解析器列表,按注册顺序依次认领参数,不能为 null
+     * @param beanValidator Bean 校验器,调用参数绑定器时传入,绑定结果为 bean 需校验时由绑定器经其执行,不能为 null
      * @throws IllegalArgumentException 元信息为空、url 不一致或同一请求方式重复注册
-     * @throws NullPointerException parsers 为 null
+     * @throws NullPointerException parsers 或 beanValidator 为 null
      * @throws RouteHandlerException 目标方法不可访问导致展开失败,错误码为 ROUTER_DEFINITION_CREATE_ERROR
      */
-    public RouteHandler(List<RouteHandlerMetaInfo> metaInfos, List<ParameterParser> parsers) {
+    public RouteHandler(List<RouteHandlerMetaInfo> metaInfos, List<ParameterParser> parsers, BeanValidator beanValidator) {
         if (metaInfos == null || metaInfos.isEmpty()) {
             throw new IllegalArgumentException("RouteHandlerMetaInfo must not be empty");
         }
         // 解析器列表必须显式给出,不接受 null,在构造入口拒绝而非留到逐参数解析时深处失败
         Objects.requireNonNull(parsers, "parsers must not be null");
+        this.beanValidator = Objects.requireNonNull(beanValidator, "beanValidator must not be null");
         this.path = metaInfos.getFirst().url();
         // 判断是否有重复的请求方式
         Set<HttpMethod> httpMethods = new HashSet<>();
@@ -106,7 +114,7 @@ public class RouteHandler {
         // 按请求方式匹配调用器,命中即绑定参数并展开调用目标方法
         for (RouteHandlerInvoker invoker : invokers) {
             if (Objects.equals(invoker.httpMethod(), httpMethod)) {
-                return invoker.invoke(context);
+                return invoker.invoke(context, beanValidator);
             }
         }
         // 无匹配的请求方式,按路由不匹配错误码抛出
