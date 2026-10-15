@@ -3,13 +3,11 @@ package top.turboweb.http.context;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.common.utils.base.ValidationUtils;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.helper.UrlHelper;
 import top.turboweb.http.core.helper.UrlHelper.ParamPair;
 import top.turboweb.http.core.session.HttpSession;
-import top.turboweb.http.exception.ParameterValidationException;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.serializer.JsonSerializer;
 
@@ -28,7 +26,6 @@ import java.util.Map;
  *     <li>路径参数解析（Path Parameter）</li>
  *     <li>查询参数解析（Query Parameter）</li>
  *     <li>表单与 JSON 请求体反序列化</li>
- *     <li>参数校验（基于 JSR303）</li>
  * </ul>
  * <p>
  * 该类主要面向业务层使用者，提供统一的参数访问与数据绑定能力。
@@ -36,7 +33,6 @@ import java.util.Map;
  *
  * @see FileHttpContext
  * @see HttpContext
- * @see top.turboweb.common.utils.base.ValidationUtils
  */
 public class FullHttpContext extends FileHttpContext implements HttpContext{
 
@@ -71,35 +67,6 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 			Charset defaultCharset
 	) {
 		super(request, httpSession, cookies, connectSession, jsonSerializer, defaultCharset);
-	}
-
-	/**
-	 * 校验对象参数合法性。
-	 * <p>
-	 * 若存在校验错误，将抛出 {@link ParameterValidationException}。
-	 *
-	 * @param obj 待校验对象
-	 */
-	@Override
-	public void validate(Object obj) {
-		List<String> errorMsg = ValidationUtils.validate(obj);
-		if (!errorMsg.isEmpty()) {
-			throw new ParameterValidationException(errorMsg);
-		}
-	}
-
-	/**
-	 * 校验对象参数合法性（带校验分组）。
-	 *
-	 * @param obj    待校验对象
-	 * @param groups 校验分组
-	 */
-	@Override
-	public void validate(Object obj, Class<?>... groups) {
-		List<String> errorMsg = ValidationUtils.validate(obj, groups);
-		if (!errorMsg.isEmpty()) {
-			throw new ParameterValidationException(errorMsg);
-		}
 	}
 
 	/**
@@ -338,20 +305,6 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		return jsonSerializer.mapToBean(newMap, beanType);
 	}
 
-	@Override
-	public <T> T loadValidQuery(Class<T> beanType) {
-		T result = this.loadQuery(beanType);
-		validate(result);
-		return result;
-	}
-
-	@Override
-	public <T> T loadValidQuery(Class<T> beanType, Class<?>... groups) {
-		T result = this.loadQuery(beanType);
-		validate(result, groups);
-		return result;
-	}
-
 	/**
 	 * 加载并反序列化表单参数。
 	 */
@@ -359,20 +312,6 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 	public <T> T loadForm(Class<T> beanType) {
 		Map<String, Object> newMap = handleParamMap(httpContent.getFormParams());
 		return jsonSerializer.mapToBean(newMap, beanType);
-	}
-
-	@Override
-	public <T> T loadValidForm(Class<T> beanType) {
-		T result = this.loadForm(beanType);
-		validate(result);
-		return result;
-	}
-
-	@Override
-	public <T> T loadValidForm(Class<T> beanType, Class<?>... groups) {
-		T result = this.loadForm(beanType);
-		validate(result, groups);
-		return result;
 	}
 
 	/**
@@ -389,20 +328,6 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 		}
 		// 序列化对象
 		return jsonSerializer.jsonToBean(jsonContent, beanType);
-	}
-
-	@Override
-	public <T> T loadValidJson(Class<T> beanType) {
-		T result = this.loadJson(beanType);
-		validate(result);
-		return result;
-	}
-
-	@Override
-	public <T> T loadValidJson(Class<T> beanType, Class<?>... groups) {
-		T result = this.loadJson(beanType);
-		validate(result, groups);
-		return result;
 	}
 
 	/**

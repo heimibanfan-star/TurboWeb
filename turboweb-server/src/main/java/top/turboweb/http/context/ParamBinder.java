@@ -14,7 +14,7 @@ import java.util.Map;
  * <ul>
  *     <li>路径参数（Path Variable）的注入与读取</li>
  *     <li>查询参数（Query Parameter）的提取与类型转换</li>
- *     <li>表单与 JSON 参数的自动封装与可选校验</li>
+ *     <li>表单与 JSON 参数的自动封装</li>
  *     <li>上传文件的访问与管理</li>
  * </ul>
  * <p>
@@ -25,7 +25,6 @@ import java.util.Map;
  * <h2>设计原则</h2>
  * <ul>
  *     <li>轻量化：不进行隐式缓存或状态持久，仅在当前请求上下文内有效。</li>
- *     <li>显式校验：仅在调用 <code>loadValid*</code> 系列方法时执行 JSR303 校验。</li>
  *     <li>类型安全：常用基础类型（数值、布尔、日期等）提供直接转换方法。</li>
  *     <li>可组合：可与 {@link HttpContext} 配合，实现注解驱动的参数注入。</li>
  * </ul>
@@ -38,7 +37,7 @@ import java.util.Map;
  *     int page = ctx.queryInt("page", 1);
  *
  *     // 绑定为对象
- *     SearchRequest req = ctx.loadValidQuery(SearchRequest.class);
+ *     SearchRequest req = ctx.loadQuery(SearchRequest.class);
  *
  *     // 获取上传文件
  *     FileUpload file = ctx.loadFile("avatar");
@@ -52,21 +51,6 @@ import java.util.Map;
  * @see top.turboweb.http.context.content.HttpContent
  */
 public interface ParamBinder {
-
-    /**
-     * 校验对象
-     *
-     * @param obj 对象
-     */
-    void validate(Object obj);
-
-    /**
-     * 校验对象
-     *
-     * @param obj 待校验对象
-     * @param groups 待校验分组
-     */
-    void validate(Object obj, Class<?>... groups);
 
     /**
      * 注入路径参数
@@ -137,17 +121,6 @@ public interface ParamBinder {
      */
     <T> T loadQuery(Class<T> beanType);
 
-    <T> T loadValidQuery(Class<T> beanType);
-
-    /**
-     * 将查询参数封装为对象
-     *
-     * @param beanType 待封装对象类型
-     * @param groups 待校验分组
-     * @return 封装对象
-     */
-    <T> T loadValidQuery(Class<T> beanType, Class<?>... groups);
-
     /**
      * 将表单参数封装成对象
      *
@@ -156,17 +129,6 @@ public interface ParamBinder {
      */
     <T> T loadForm(Class<T> beanType);
 
-    <T> T loadValidForm(Class<T> beanType);
-
-    /**
-     * 将表单参数封装成对象
-     *
-     * @param beanType 待封装对象类型
-     * @param groups 待校验分组
-     * @return 封装对象
-     */
-    <T> T loadValidForm(Class<T> beanType, Class<?>... groups);
-
     /**
      * 将json参数封装成对象
      *
@@ -174,17 +136,6 @@ public interface ParamBinder {
      * @return 对象
      */
     <T> T loadJson(Class<T> beanType);
-
-    <T> T loadValidJson(Class<T> beanType);
-
-    /**
-     * 将json参数封装成对象
-     *
-     * @param beanType 待封装对象类型
-     * @param groups 待校验分组
-     * @return 封装对象
-     */
-    <T> T loadValidJson(Class<T> beanType, Class<?>... groups);
 
     /**
      * 获取文件上传对象

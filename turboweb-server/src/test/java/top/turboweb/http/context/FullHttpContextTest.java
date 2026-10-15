@@ -3,8 +3,6 @@ package top.turboweb.http.context;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.context.content.HttpContent;
@@ -15,7 +13,6 @@ import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.MemorySessionManager;
-import top.turboweb.http.exception.ParameterValidationException;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.serializer.JacksonJsonSerializer;
@@ -366,62 +363,6 @@ class FullHttpContextTest {
         }
     }
 
-    // ---------- validate ----------
-
-    @Test
-    void validatePassesWhenConstraintsHold() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            FullHttpContext ctx = context(req);
-            assertDoesNotThrow(() -> ctx.validate(new ValidBean("alice")));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void validateThrowsWithMessagesWhenConstraintViolated() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            FullHttpContext ctx = context(req);
-            ParameterValidationException ex =
-                    assertThrows(ParameterValidationException.class, () -> ctx.validate(new ValidBean()));
-            assertEquals(List.of("name 不能为空"), ex.getErrorMsg());
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void loadValidQueryChecksDefaultGroupAndExplicitGroupSeparately() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            FullHttpContext ctx = context(req);
-            // 默认组不含 groups=OnCreate 的约束
-            assertDoesNotThrow(() -> ctx.loadValidQuery(GroupBean.class));
-            ParameterValidationException ex = assertThrows(ParameterValidationException.class,
-                    () -> ctx.loadValidQuery(GroupBean.class, OnCreate.class));
-            assertEquals(List.of("name 不能为空"), ex.getErrorMsg());
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void loadValidFormAndJsonThrowOnViolation() {
-        FullHttpRequest form = Requests.postForm("/form", "other=x");
-        FullHttpRequest json = Requests.postJson("/json", "{}");
-        try {
-            FullHttpContext formCtx = context(form);
-            FullHttpContext jsonCtx = context(json);
-            assertThrows(ParameterValidationException.class, () -> formCtx.loadValidForm(ValidBean.class));
-            assertThrows(ParameterValidationException.class, () -> jsonCtx.loadValidJson(ValidBean.class));
-        } finally {
-            Requests.release(form);
-            Requests.release(json);
-        }
-    }
-
     // ---------- 编码（缺省编码由装配期判定、构造上下文时传入） ----------
 
     @Test
@@ -548,39 +489,4 @@ class FullHttpContextTest {
         }
     }
 
-    public static class ValidBean {
-        @NotBlank(message = "name 不能为空")
-        private String name;
-
-        public ValidBean() {
-        }
-
-        public ValidBean(String name) {
-            this.name = name;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-    }
-
-    public interface OnCreate {
-    }
-
-    public static class GroupBean {
-        @NotNull(message = "name 不能为空", groups = OnCreate.class)
-        private String name;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-    }
 }

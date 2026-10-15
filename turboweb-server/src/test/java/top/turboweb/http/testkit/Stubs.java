@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
  * L1 用例的最小替身集合。
  * <p>
  * {@link #httpContext} 用 {@link Proxy} 实现 {@link HttpContext}：只覆盖本任务被测中间件真正读取的
- * {@code getRequest()} 与 {@code loadValidQuery(...)} 两个入口，其余
+ * {@code getRequest()} 入口，其余
  * {@link top.turboweb.http.context.ParamBinder} 方法一律抛 {@link UnsupportedOperationException}——
  * 任何用例若意外走到未覆盖的入口会立刻暴露，而不是静默拿到 {@code null} 让断言失去意义。
  * <p>
@@ -28,16 +28,11 @@ public final class Stubs {
     }
 
     public static HttpContext httpContext(FullHttpRequest request) {
-        return httpContext(request, null);
-    }
-
-    public static HttpContext httpContext(FullHttpRequest request, Object validQuery) {
         return (HttpContext) Proxy.newProxyInstance(
                 HttpContext.class.getClassLoader(),
                 new Class<?>[]{HttpContext.class},
                 (proxy, method, args) -> switch (method.getName()) {
                     case "getRequest" -> request;
-                    case "loadValidQuery" -> validQuery;
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "StubHttpContext";

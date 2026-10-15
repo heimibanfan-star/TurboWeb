@@ -12,7 +12,6 @@ import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
-import top.turboweb.http.exception.ParameterValidationException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.rest.param.*;
 import top.turboweb.serializer.JsonSerializer;
@@ -268,9 +267,10 @@ class ParamInfoParsersTest {
     void queryNonNullRejectsMissingValue() {
         Stub stub = new Stub().returning("query", null);
         ParameterParser.Binder b = new QueryParameterParser().parse(parameter("queryNonNull"));
-        ParameterValidationException ex = assertThrows(ParameterValidationException.class,
+        RouteHandlerException ex = assertThrows(RouteHandlerException.class,
                 () -> b.bindParameter(stub.ctx(), NOOP));
-        assertEquals(List.of("q must not be null"), ex.getErrorMsg());
+        assertEquals("校验失败:[q must not be null]", ex.getMessage());
+        assertEquals(RouteHandlerException.MISSING_PARAM_ERROR, ex.getCode());
     }
 
     @Test

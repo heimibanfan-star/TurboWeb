@@ -1,7 +1,6 @@
 package top.turboweb.http.router.parameter;
 
 import top.turboweb.rest.param.QueryParam;
-import top.turboweb.http.exception.ParameterValidationException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.validation.BeanValidator;
@@ -36,7 +35,8 @@ public class QueryParameterParser extends AbstractParameterParser {
                 Object arg = converter.convert(ctx.query(name));
                 // 规则判断
                 if (nonNull && arg == null) {
-                    throw new ParameterValidationException(List.of(name + " must not be null"));
+                    throw new RouteHandlerException("校验失败:" + List.of(name + " must not be null"),
+                            RouteHandlerException.MISSING_PARAM_ERROR);
                 } else {
                     return arg;
                 }
