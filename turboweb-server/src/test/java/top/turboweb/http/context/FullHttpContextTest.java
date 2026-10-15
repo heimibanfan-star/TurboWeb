@@ -51,7 +51,7 @@ class FullHttpContextTest {
                 new DefaultHttpCookies(request.headers()), CONNECT_SESSION, SERIALIZER, StandardCharsets.UTF_8);
     }
 
-    // ---------- 构造器注入与基础 getter 面（CoreHttpContext） ----------
+    // ---------- 构造器注入与基础 getter 面 ----------
 
     @Test
     void getRequestReturnsTheSameInstance() {
@@ -224,6 +224,42 @@ class FullHttpContextTest {
             QueryBean bean = context(req).loadJson(QueryBean.class);
             assertNull(bean.getName());
             assertEquals(0, bean.getAge());
+        } finally {
+            Requests.release(req);
+        }
+    }
+
+    // ---------- loadFile / loadFiles 上传通道 ----------
+
+    @Test
+    void loadFileReturnsFirstUploadOfMultipartField() {
+        FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/up",
+                "multipart/form-data; boundary=T",
+                "--T\r\nContent-Disposition: form-data; name=\"doc\"; filename=\"a.txt\"\r\n"
+                        + "Content-Type: text/plain\r\n\r\nhello\r\n--T--\r\n",
+                StandardCharsets.UTF_8);
+        try {
+            FullHttpContext ctx = context(req);
+            assertEquals(1, ctx.loadFiles("doc").size(), "multipart 文件段归档进 formFiles");
+            assertSame(ctx.loadFiles("doc").getFirst(), ctx.loadFile("doc"), "单文件通道返回该字段首文件");
+            ctx.release();
+        } finally {
+            Requests.release(req);
+        }
+    }
+
+    @Test
+    void loadFilesOnMissingFieldReturnsEmptyList() {
+        FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/up",
+                "multipart/form-data; boundary=T",
+                "--T\r\nContent-Disposition: form-data; name=\"doc\"; filename=\"a.txt\"\r\n"
+                        + "Content-Type: text/plain\r\n\r\nhello\r\n--T--\r\n",
+                StandardCharsets.UTF_8);
+        try {
+            FullHttpContext ctx = context(req);
+            assertEquals(List.of(), ctx.loadFiles("absent"), "字段不存在按契约归一为空集合,不交 null");
+            assertNull(ctx.loadFile("absent"), "单文件通道未命中契约本就是 null");
+            ctx.release();
         } finally {
             Requests.release(req);
         }

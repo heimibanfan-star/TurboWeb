@@ -349,7 +349,7 @@ class ParamInfoParsersTest {
     @Test
     void uploadObjectTypedParameterBindsSingleFile() {
         // Object.isAssignableFrom(FileUpload) 为真 → 走单文件分支（collectionType 0）
-        // 夹具侧类型矫正（D2）：loadFile 的声明返回类型是 FileUpload（ParamBinder.java:203），
+        // 夹具侧类型矫正（D2）：loadFile 的声明返回类型是 FileUpload（HttpContext 的 loadFile 声明），
         // JDK 动态代理在把返回值交给调用方之前先按该类型强转，故哨兵不可能是 brief 夹具里的 "single"
         // （String 会抛 ClassCastException）；换成 FileUpload 哨兵代理，断言语义仍是"拿回的就是 loadFile 的那个对象"。
         FileUpload file = proxy(FileUpload.class);
@@ -378,8 +378,8 @@ class ParamInfoParsersTest {
         ParameterParser.Binder setBinder = new UploadParameterParser().parse(parameter("uploadSet"));
         assertNotNull(setBinder, "Set<FileUpload> + @UploadParam 应被认领");
         assertEquals(Set.of(a, b), setBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP), "Set 分支把 loadFiles 结果包装成 HashSet");
-        // 字段缺失（loadFiles 返回 null）归一为空集合
-        Stub empty = new Stub().returning("loadFiles", null);
+        // 字段不存在:上下文按契约返空集合,绑定器直传/包装
+        Stub empty = new Stub().returning("loadFiles", List.of());
         assertEquals(List.of(), listBinder.bindParameter(empty.ctx(), NO_PARAMS, NOOP));
         assertEquals(Set.of(), setBinder.bindParameter(empty.ctx(), NO_PARAMS, NOOP));
         // 无 @UploadParam 的裸 List 不认领——不得截走其他渠道负责的参数

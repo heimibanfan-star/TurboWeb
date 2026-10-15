@@ -1,8 +1,8 @@
 package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.http.context.attchment.Attachment;
-import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
@@ -16,7 +16,8 @@ import java.util.Map;
 /**
  * {@code HttpContext} 表示 TurboWeb 框架中一次 HTTP 请求的上下文环境。
  * <p>
- * 它封装了请求信息、连接会话、Session 管理、Cookie 管理、响应元信息（{@link ResponseMeta}）、
+ * 它封装了请求信息、连接会话、Session 管理、Cookie 管理、请求体参数访问
+ * （表单/JSON 封装与上传文件读取，见本接口末段方法）、
  * 以及用于创建 SSE（Server-Sent Events）流的相关方法。
  * <br>
  * 每个请求都拥有独立的 {@code HttpContext} 实例，生命周期与请求保持一致。
@@ -26,7 +27,11 @@ import java.util.Map;
  * <ul>
  *   <li>职责单一：负责维护请求级上下文状态。</li>
  *   <li>框架无侵入：不限制用户在业务方法中的调用顺序。</li>
- *   <li>面向接口：实际行为由 {@link CoreHttpContext} 提供核心实现。</li>
+ *   <li>面向接口：唯一实现由 {@link FullHttpContext} 提供。</li>
+ *   <li>体侧边界：本接口只承载请求体数据的读取；查询参数与路径参数是 URI 与路由匹配的产物，
+ *       由路由装配解码后随处理器调用传递（承载对象 {@code RequestParameter}），
+ *       经参数绑定器按注解取数（{@code @QueryParam}/{@code @BeanQuery}/{@code @PathParam}），
+ *       不经请求上下文中转。</li>
  * </ul>
  *
  * <h2>典型用法</h2>
@@ -39,6 +44,9 @@ import java.util.Map;
  *     HttpSession session = ctx.httpSession();
  *     session.setAttr("user", "Alice");
  *
+ *     // 表单绑定为对象
+ *     SearchRequest query = ctx.loadForm(SearchRequest.class);
+ *
  *     // 释放上下文资源
  *     ctx.release();
  * }
@@ -47,11 +55,11 @@ import java.util.Map;
  * <p><b>线程安全性：</b> 本接口的实现类通常不是线程安全的，
  * 每个 HTTP 请求应独立持有上下文实例。</p>
  *
- * @see CoreHttpContext
+ * @see FullHttpContext
  * @see SseResponse
  * @see SseEmitter
  */
-public interface HttpContext extends ParamBinder {
+public interface HttpContext {
 
 	/**
 	 * 获取当前请求对象。
@@ -136,4 +144,40 @@ public interface HttpContext extends ParamBinder {
 	 * @return 绑定后的 bean;未知属性按序列化器忽略未知字段的口径跳过
 	 */
 	<T> T bindBean(Map<String, List<String>> paramsMap, Class<T> beanType);
+
+	/**
+	 * 加载并反序列化表单参数,封装成对象。
+	 *
+	 * @param beanType 对象类型
+	 * @return 对象
+	 */
+	<T> T loadForm(Class<T> beanType);
+
+	/**
+	 * 反序列化 JSON 请求体为对象。
+	 *
+	 * @param beanType 对象类型
+	 * @return 对象
+	 * @throws top.turboweb.http.exception.RequestParseException 请求体 Content-Type 非 JSON 或内容无效时抛出
+	 */
+	<T> T loadJson(Class<T> beanType);
+
+	/**
+	 * 根据表单字段名获取对应的所有上传文件。
+	 *
+	 * @param fileName 表单中文件字段名
+	 * @return 上传文件列表；若字段不存在则返回空集合
+	 */
+	List<FileUpload> loadFiles(String fileName);
+
+	/**
+	 * 根据表单字段名获取对应的第一个上传文件。
+	 * <p>
+	 * 若字段存在多个文件，则仅返回第一个；
+	 * 若字段不存在或文件列表为空，则返回 {@code null}。
+	 *
+	 * @param fileName 表单中文件字段名
+	 * @return 第一个上传文件或 {@code null}
+	 */
+	FileUpload loadFile(String fileName);
 }

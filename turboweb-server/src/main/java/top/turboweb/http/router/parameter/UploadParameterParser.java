@@ -36,10 +36,6 @@ public class UploadParameterParser extends AbstractParameterParser {
                 return ctx.loadFile(name);
             }
             List<FileUpload> files = ctx.loadFiles(name);
-            if (files == null) {
-                // 字段不存在时 loadFiles 返回 null，归一为空集合
-                files = List.of();
-            }
             if (collectionType == 1) {
                 return files;
             }
