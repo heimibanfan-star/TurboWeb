@@ -145,6 +145,6 @@
 - 运行入口（pitest 任务**不接入 check**：变异一轮分钟级，check 冷跑口径保持不变）：
   - `./gradlew :turboweb-common:pitest`
   - `./gradlew :turboweb-server:pitest`
-- 变异作用域与覆盖率闸分母同形：commons 为 gateClasses 九包（由该列表推导），http-server 整模块零排除。
+- 变异作用域与覆盖率闸分母同形：commons 为 gateClasses 五包（由该列表推导），http-server 整模块零排除。
 - 构建门槛 `mutationThreshold` **暂不钉线**：先跑基线拿真实分数，随用例补充自基线逐步抬升，终点 95。
 - 增删改用例当日的使用法：跑 pitest，看 `build/reports/pitest/<时间戳>/index.html` 的 survivor 清单——survivor 即"代码被执行过但改动不被断言逮住"的精确补例清单，逐条补强后复跑对账分数。
