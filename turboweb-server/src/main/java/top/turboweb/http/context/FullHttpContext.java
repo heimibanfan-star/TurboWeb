@@ -12,7 +12,6 @@ import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.serializer.JsonSerializer;
 
 import java.nio.charset.Charset;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,7 +22,6 @@ import java.util.Map;
  * <p>
  * 它在 {@link FileHttpContext} 的基础上，进一步整合了：
  * <ul>
- *     <li>路径参数解析（Path Parameter）</li>
  *     <li>查询参数解析（Query Parameter）</li>
  *     <li>表单与 JSON 请求体反序列化</li>
  * </ul>
@@ -37,11 +35,6 @@ import java.util.Map;
 public class FullHttpContext extends FileHttpContext implements HttpContext{
 
 	private static final InternalLogger log = InternalLoggerFactory.getInstance(FullHttpContext.class);
-
-	/**
-	 * 路径参数映射（如 /user/{id} -> id）
-	 */
-	private Map<String, String> pathParams;
 
 	/**
 	 * 查询参数映射（来自 URL 中 ?key=value 的部分）
@@ -67,102 +60,6 @@ public class FullHttpContext extends FileHttpContext implements HttpContext{
 			Charset defaultCharset
 	) {
 		super(request, httpSession, cookies, connectSession, jsonSerializer, defaultCharset);
-	}
-
-	/**
-	 * 注入路径参数（框架内部使用，开发者无需关心此方法）。
-	 *
-	 * @param params 路径参数键值映射
-	 */
-	@Override
-	public void injectPathParam(Map<String, String> params) {
-		this.pathParams = params;
-	}
-
-	/**
-	 * 获取路径参数值。
-	 *
-	 * @param name 参数名
-	 * @return 参数值，若不存在则返回 {@code null}
-	 */
-	@Override
-	public String param(String name) {
-		if (pathParams == null) {
-			return null;
-		}
-		return pathParams.get(name);
-	}
-
-	/**
-	 * 获取路径参数并转为 {@code int} 类型。
-	 *
-	 * @param name 参数名
-	 * @return 整型值
-	 * @throws RequestParseException 转换失败时抛出
-	 */
-	@Override
-	public Integer paramInt(String name) {
-		String param = param(name);
-		if (param == null) {
-			return null;
-		}
-		try {
-			return Integer.parseInt(param);
-		} catch (NumberFormatException e) {
-			throw new RequestParseException(e);
-		}
-	}
-
-	/**
-	 * 获取路径参数并转为 {@code long} 类型。
-	 */
-	@Override
-	public Long paramLong(String name) {
-		String param = param(name);
-		if (param == null) {
-			return null;
-		}
-		try {
-			return Long.parseLong(param);
-		} catch (NumberFormatException e) {
-			throw new RequestParseException(e);
-		}
-	}
-
-	/**
-	 * 获取路径参数并转为 {@code boolean} 类型。
-	 */
-	@Override
-	public Boolean paramBool(String name) {
-		String param = param(name);
-		if (param == null) {
-			return null;
-		}
-		return Boolean.parseBoolean(param);
-	}
-
-	/**
-	 * 获取路径参数并转为 {@code double} 类型。
-	 */
-	@Override
-	public Double paramDouble(String name) {
-		String param = param(name);
-		if (param == null) {
-			return null;
-		}
-		return Double.parseDouble(param);
-	}
-
-	/**
-	 * 获取路径参数并转为 {@link LocalDate}。
-	 */
-	@Override
-	public LocalDate paramDate(String name) {
-		String param = param(name);
-		if (param == null) {
-			return null;
-		}
-		return LocalDate.parse(param);
 	}
 
 	/**

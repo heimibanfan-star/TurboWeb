@@ -5,6 +5,7 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
+import java.util.Map;
 
 /**
  * 负责解析@PathParam注解
@@ -21,8 +22,8 @@ public class PathParameterParser extends AbstractParameterParser {
     ) implements ParameterParser.Binder{
 
         @Override
-        public Object bindParameter(HttpContext ctx, BeanValidator beanValidator) {
-            return converter.convert(ctx.param(name));
+        public Object bindParameter(HttpContext ctx, Map<String, String> pathParams, BeanValidator beanValidator) {
+            return converter.convert(pathParams.get(name));
         }
     }
 

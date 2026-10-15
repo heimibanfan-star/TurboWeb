@@ -2,9 +2,7 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.multipart.FileUpload;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 /**
  * {@code ParamBinder} 定义了 TurboWeb 框架中请求参数的统一访问与封装接口，
@@ -12,11 +10,14 @@ import java.util.Map;
  * <p>
  * 它是 {@link HttpContext} 的核心组成部分，负责实现：
  * <ul>
- *     <li>路径参数（Path Variable）的注入与读取</li>
  *     <li>查询参数（Query Parameter）的提取与类型转换</li>
  *     <li>表单与 JSON 参数的自动封装</li>
  *     <li>上传文件的访问与管理</li>
  * </ul>
+ * <p>
+ * 路径参数不归本接口承载：其值为路由匹配的产物，由路由器随处理器调用传递给
+ * 参数绑定器（{@code @PathParam} 注解绑定），不经请求上下文中转。
+ * </p>
  * <p>
  * 该接口屏蔽了底层 Netty 与请求解析细节，使上层代码可以以统一方式访问参数，
  * 无需关心请求的编码方式（GET/POST/JSON/Form）。
@@ -51,31 +52,6 @@ import java.util.Map;
  * @see top.turboweb.http.context.content.HttpContent
  */
 public interface ParamBinder {
-
-    /**
-     * 注入路径参数
-     *
-     * @param params 路径参数
-     */
-    void injectPathParam(Map<String, String> params);
-
-    /**
-     * 获取路径参数
-     *
-     * @param name 参数名
-     * @return 参数值
-     */
-    String param(String name);
-
-    Integer paramInt(String name);
-
-    Long paramLong(String name);
-
-    Boolean paramBool(String name);
-
-    Double paramDouble(String name);
-
-    LocalDate paramDate(String name);
 
     /**
      * 获取查询参数

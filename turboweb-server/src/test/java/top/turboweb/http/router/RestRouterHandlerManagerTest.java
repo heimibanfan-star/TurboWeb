@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * RestRouterHandlerManager 单元测试:baseUrl 规整、四种注册入口的空值与重复拒绝、
  * build 的按 url 聚合与同路径同请求方式拒绝、请求分发(路径命中、查询串剥离、
- * 尾斜杠容忍、路径参数解码注入)、路由未命中的路由不匹配错误码、
+ * 尾斜杠容忍、路径参数解码绑定)、路由未命中的路由不匹配错误码、
  * 目标方法异常透传与非运行时异常的调用错误包装。
  */
 class RestRouterHandlerManagerTest {
@@ -56,8 +56,8 @@ class RestRouterHandlerManagerTest {
         }
 
         @Get("/name/:name")
-        public String name(HttpContext ctx) {
-            return "name=" + ctx.param("name");
+        public String name(@PathParam("name") String name) {
+            return "name=" + name;
         }
     }
 
@@ -178,7 +178,7 @@ class RestRouterHandlerManagerTest {
     @Test
     void pathParamIsBoundAndConverted() {
         RouteHandlerManager manager = built(new ParamController());
-        assertEquals("id=42", manager.handle(ctx(HttpMethod.GET, "/u/user/42")), "路径参数解码后注入并绑定到形参");
+        assertEquals("id=42", manager.handle(ctx(HttpMethod.GET, "/u/user/42")), "路径参数解码后经绑定器传入形参");
     }
 
     @Test

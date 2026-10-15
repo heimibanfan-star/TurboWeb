@@ -11,6 +11,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,7 +32,7 @@ public class QueryParameterParser extends AbstractParameterParser {
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx, BeanValidator beanValidator) {
+        public Object bindParameter(HttpContext ctx, Map<String, String> pathParams, BeanValidator beanValidator) {
             if (collectionType == 0) {
                 Object arg = converter.convert(ctx.query(name));
                 // 规则判断

@@ -40,8 +40,8 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
     /**
      * 处理请求:按请求路径匹配路由处理器并执行
      *
-     * <p>查询串不属路径,匹配前先剥离;命中模式上的路径参数按上下文的缺省字符集解码后注入上下文,
-     * 再交由处理器按请求方式分发。
+     * <p>查询串不属路径,匹配前先剥离;命中模式上的路径参数按上下文的缺省字符集解码后,
+     * 随处理器调用传递,由参数绑定器取用,处理器按请求方式分发。
      *
      * @param context 请求上下文
      * @return 目标方法的返回值
@@ -63,9 +63,10 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
                     String.format("router not found: %s %s", request.method().name(), request.uri()),
                     ErrorCode.RouterNotMatch);
         }
-        context.injectPathParam(decodePathParams(matched.params(), context.defaultCharset()));
+        // 路径参数是匹配产物,随处理器调用传递,不进请求上下文
+        Map<String, String> pathParams = decodePathParams(matched.params(), context.defaultCharset());
         try {
-            return matched.value().handle(context);
+            return matched.value().handle(context, pathParams);
         } catch (Throwable e) {
             if (e instanceof RuntimeException runtimeException) {
                 throw runtimeException;

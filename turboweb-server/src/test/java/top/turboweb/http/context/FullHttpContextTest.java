@@ -3,7 +3,6 @@ package top.turboweb.http.context;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.context.content.HttpContent;
 import top.turboweb.http.core.connect.ConnectSession;
@@ -21,10 +20,7 @@ import top.turboweb.serializer.JsonSerializer;
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -135,77 +131,6 @@ class FullHttpContextTest {
         }
     }
 
-    // ---------- 路径参数（ParamBinder） ----------
-
-    @Test
-    void paramBeforeInjectionReturnsNull() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            FullHttpContext ctx = context(req);
-            assertNull(ctx.param("id"));
-            assertNull(ctx.paramInt("id"), "无路径参数时类型转换方法同样返回 null");
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void injectedPathParamIsReadBackAndMissingNameIsNull() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            FullHttpContext ctx = context(req);
-            ctx.injectPathParam(Map.of("id", "7"));
-            assertEquals("7", ctx.param("id"));
-            assertNull(ctx.param("nope"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void pathParamTypedConversions() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            FullHttpContext ctx = context(req);
-            ctx.injectPathParam(Map.of("i", "42", "l", "99", "b", "TRUE", "d", "1.5", "date", "2026-10-06"));
-            assertEquals(42, ctx.paramInt("i"));
-            assertEquals(99L, ctx.paramLong("l"));
-            assertTrue(ctx.paramBool("b"), "Boolean.parseBoolean 大小写不敏感");
-            assertEquals(1.5, ctx.paramDouble("d"));
-            assertEquals(LocalDate.of(2026, 10, 6), ctx.paramDate("date"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void pathParamIntParseFailureIsWrapped() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            FullHttpContext ctx = context(req);
-            ctx.injectPathParam(Map.of("i", "abc"));
-            assertThrows(RequestParseException.class, () -> ctx.paramInt("i"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    @DisplayName("钉住 HS-6：paramDouble/paramDate 的解析失败不包装，原样抛 unchecked")
-    void pathParamDoubleAndDateFailuresAreNotWrapped() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            FullHttpContext ctx = context(req);
-            ctx.injectPathParam(Map.of("d", "abc", "date", "2026-13-01"));
-            // 与 paramInt/paramLong 的 RequestParseException 不对称。
-            // 钉住 HS-6：若将来修正，本用例应改为期望正确行为（修镜像时本用例应改为断言包装类型）。
-            assertThrows(NumberFormatException.class, () -> ctx.paramDouble("d"));
-            assertThrows(DateTimeParseException.class, () -> ctx.paramDate("date"));
-        } finally {
-            Requests.release(req);
-        }
-    }
-
     // ---------- 查询参数 ----------
 
     @Test
@@ -290,7 +215,7 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.get("/search?i=abc");
         try {
             FullHttpContext ctx = context(req);
-            // 查询侧流式转换不包装异常，与 paramInt 的 RequestParseException 不同
+            // 查询侧流式转换不包装异常，解析失败原样抛 NumberFormatException
             assertThrows(NumberFormatException.class, () -> ctx.queryInt("i"));
         } finally {
             Requests.release(req);
