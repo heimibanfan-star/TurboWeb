@@ -153,7 +153,7 @@ public class HttpRequestApplication implements Application {
 
     /**
      * {@link HttpRequestApplication} 的建造者：持有应用装配所需的全部组件对象
-     * （业务中间件、路由处理器管理器、异常处理器管理器、session管理器、json序列化器、
+     * （业务中间件、路由处理器管理器、异常处理器集合、session管理器、json序列化器、
      * cors配置、自定义结果转化器集合、自定义响应写出器集合），纯参数配置（串行化开关、session回收参数、
      * 虚拟线程限流参数）全部由 {@link HttpConfig} 承载；组件均带默认值，按需覆盖即可，
      * 未传入者构建时补全默认实例，装配完成的编排器组件均不可为null。
@@ -176,9 +176,10 @@ public class HttpRequestApplication implements Application {
          */
         private final List<Middleware> middlewares = new ArrayList<>();
         /**
-         * 异常处理器管理器，未传入时默认为登记空处理器集合的管理器
+         * 异常处理器实例集合，按注册顺序收集，构建期以登记后的异常类型表
+         * 装配成 {@link ExceptionHandlerManager}；默认为空集合
          */
-        private ExceptionHandlerManager exceptionHandlerManager = null;
+        private final List<Object> exceptionHandlers = new ArrayList<>();
         /**
          * 路由处理器管理器，传null表示无路由：装配时不创建路由调用中间件
          */
@@ -219,12 +220,16 @@ public class HttpRequestApplication implements Application {
         private final AtomicBoolean built = new AtomicBoolean(false);
 
         /**
-         * 设置异常处理器管理器（按异常类型匹配处理器产出处理结果），传null立即抛出
-         * {@link NullPointerException}
+         * 按顺序登记异常处理器实例（异常统一处理链路的处理者，构建期装配成异常处理器
+         * 管理器）；元素为null立即抛出 {@link NullPointerException}；处理方法按公有单异常
+         * 参数签名认领，同一异常类型重复登记在构建时抛出
          */
-        public Builder exceptionHandlerManager(ExceptionHandlerManager exceptionHandlerManager) {
-            Objects.requireNonNull(exceptionHandlerManager, "The exception handler manager must not be null");
-            this.exceptionHandlerManager = exceptionHandlerManager;
+        public Builder exceptionHandlers(Object... exceptionHandlers) {
+            this.exceptionHandlers.addAll(
+                    Stream.of(exceptionHandlers)
+                            .peek(handler -> Objects.requireNonNull(handler, "The exception handler must not be null"))
+                            .toList()
+            );
             return this;
         }
 
@@ -360,9 +365,7 @@ public class HttpRequestApplication implements Application {
                     .corsConfig(this.corsConfig != null
                             ? this.corsConfig
                             : HttpCorsConfig.builder().build())
-                    .exceptionHandlerManager(this.exceptionHandlerManager != null
-                            ? this.exceptionHandlerManager
-                            : new ExceptionHandlerManager(Set.of()))
+                    .exceptionHandlerManager(new ExceptionHandlerManager(Set.copyOf(this.exceptionHandlers)))
                     .sessionManagerHolder(createSessionManagerHolder())
                     .jsonSerializer(this.jsonSerializer)
                     .defaultCharset(httpConfig.getDefaultCharset())

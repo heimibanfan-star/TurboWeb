@@ -69,7 +69,7 @@ class HttpRequestApplicationTest {
         assertThrows(NullPointerException.class, () -> builder.sessionManager(null));
         assertThrows(NullPointerException.class, () -> builder.jsonSerializer(null));
         assertThrows(NullPointerException.class, () -> builder.corsConfig(null));
-        assertThrows(NullPointerException.class, () -> builder.exceptionHandlerManager(null));
+        assertThrows(NullPointerException.class, () -> builder.exceptionHandlers((Object) null));
         assertThrows(NullPointerException.class, () -> builder.resultConverters((ResultConverter) null));
         assertThrows(NullPointerException.class, () -> builder.responseWriters((ResponseWriter) null));
         assertThrows(NullPointerException.class, () -> builder.config(null));
@@ -191,11 +191,11 @@ class HttpRequestApplicationTest {
         TestRouteHandlerManager router = new TestRouteHandlerManager(events);
         JsonSerializer serializer = new JacksonJsonSerializer();
         HttpCorsConfig corsConfig = HttpCorsConfig.builder().build();
-        ExceptionHandlerManager exceptionHandlerManager = new ExceptionHandlerManager(Set.of());
+        MarkerExceptionHandler customHandler = new MarkerExceptionHandler();
         ResultConverter customConverter = (result, charset) -> ResultConverter.Result.shouldContinue();
         MarkerResponseWriter customWriter = new MarkerResponseWriter();
         HttpRequestApplication app = new HttpRequestApplication.Builder()
-                .exceptionHandlerManager(exceptionHandlerManager)
+                .exceptionHandlers(customHandler)
                 .sessionManager(new NoopSessionManager())
                 .routeHandlerManager(router)
                 .jsonSerializer(serializer)
@@ -209,8 +209,12 @@ class HttpRequestApplicationTest {
         RequestOrchestrator orchestrator = orchestratorOf(app);
         assertSame(corsConfig, componentOf(orchestrator, "corsConfig"),
                 "用户传入的cors配置原样进入编排器");
-        assertSame(exceptionHandlerManager, componentOf(orchestrator, "exceptionHandlerManager"),
-                "用户传入的异常处理器管理器原样进入编排器");
+        ExceptionHandlerManager exceptionHandlerManager =
+                (ExceptionHandlerManager) componentOf(orchestrator, "exceptionHandlerManager");
+        assertNotNull(exceptionHandlerManager, "异常处理器管理器由构建期装配进入编排器");
+        Map<?, ?> handlerTable = (Map<?, ?>) fieldOf(exceptionHandlerManager, "handlers");
+        assertTrue(handlerTable.containsKey(IllegalArgumentException.class),
+                "用户传入的异常处理器经构建期装配登记进管理器的异常类型表");
         ResultConverterManager resultConverterManager =
                 (ResultConverterManager) componentOf(orchestrator, "resultConverterManager");
         assertNotNull(resultConverterManager, "结果转化器管理器由构建期装配进入编排器");
@@ -447,6 +451,18 @@ class HttpRequestApplicationTest {
         @Override
         public WriteResult write(HttpResponse httpResponse, InternalConnectSession session) {
             return WriteResult.notListenable();
+        }
+    }
+
+    /**
+     * 异常处理器夹具：声明一个 IllegalArgumentException 的处理方法（用例只核查构建期登记结果，
+     * 方法不被执行）；管理器按签名反射认领方法，故须为公有类的公有方法。
+     * 用于钉住用户传入的异常处理器经构建期装配登记进管理器的异常类型表。
+     */
+    public static class MarkerExceptionHandler {
+
+        public String handle(IllegalArgumentException e) {
+            return "handled";
         }
     }
 
