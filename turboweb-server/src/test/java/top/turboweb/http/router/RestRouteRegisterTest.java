@@ -30,7 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * RestRouteRegister 单元测试:登记后生产出的管理器可处理已登记路由、指定校验器随生产进入管理器、
- * 生产门闩对重复生产与生产后的每一处登记入口一律拒绝、序列化器入参判空。
+ * 生产传入的序列化器经参数绑定直达绑定器、生产门闩对重复生产与生产后的每一处登记入口一律拒绝、
+ * 序列化器入参判空。
  */
 class RestRouteRegisterTest {
 
@@ -72,6 +73,18 @@ class RestRouteRegisterTest {
 
         public void setName(String name) {
             this.name = name;
+        }
+    }
+
+    /** 统计 mapToBean 调用次数的序列化器夹具：证明生产注入的序列化器直达参数绑定 */
+    static class CountingJsonSerializer extends JacksonJsonSerializer {
+
+        private int mapToBeanCalls;
+
+        @Override
+        public <T> T mapToBean(Map<String, Object> map, Class<T> beanClass) {
+            mapToBeanCalls++;
+            return super.mapToBean(map, beanClass);
         }
     }
 
@@ -121,6 +134,18 @@ class RestRouteRegisterTest {
         assertEquals("vb:alice", manager.handle(ctx("/vb?name=alice", new JacksonJsonSerializer())),
                 "指定校验器后路由照常可用");
         assertEquals(1, validator.calls, "形参绑定为 bean 且注解要求校验时经指定的校验器执行，默认引擎不参与");
+    }
+
+    @Test
+    void productionSerializerReachesParameterBinding() {
+        CountingJsonSerializer serializer = new CountingJsonSerializer();
+        RouteHandlerManager manager = new RestRouteRegister()
+                .registerRoute(new ValidatedController())
+                .newRouteHandlerManager(serializer);
+        assertEquals("vb:alice", manager.handle(ctx("/vb?name=alice", serializer)),
+                "以给定序列化器生产后路由照常可用");
+        assertEquals(1, serializer.mapToBeanCalls,
+                "生产入口传入的序列化器随参数绑定交给绑定器，bean 绑定经其 mapToBean 完成");
     }
 
     @Test

@@ -20,15 +20,13 @@ import top.turboweb.serializer.JsonSerializer;
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * {@link FullHttpContext} 的请求解析与参数绑定（spec §5：context 行）。
+ * {@link FullHttpContext} 的请求解析与内容能力契约通道（spec §5：context 行）。
+ * bean 绑定语义由路由侧参数绑定器承载，其用例见参数解析器测试。
  *
  * <p>每条用例只断言可从返回值/异常观察的行为；请求夹具产出的 {@link FullHttpRequest}
  * 带引用计数，一律在 finally 里 {@link Requests#release(FullHttpRequest)}。
@@ -175,88 +173,32 @@ class FullHttpContextTest {
         }
     }
 
-    // ---------- bindBean / bindJson 绑定与内容能力契约通道 ----------
+    // ---------- FormContent / JsonContent 能力契约通道 ----------
 
     @Test
-    void bindBeanCollapsesSingleAndKeepsMultiValues() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            Map<String, List<String>> params = new HashMap<>();
-            params.put("name", List.of("alice"));
-            params.put("age", List.of("30"));
-            params.put("tag", List.of("a", "b"));
-            QueryBean bean = context(req).bindBean(params, QueryBean.class);
-            assertEquals("alice", bean.getName());
-            assertEquals(30, bean.getAge());
-            assertEquals(List.of("a", "b"), bean.getTag(), "多值留列表交 Jackson");
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void bindBeanPassesNullValuedFlagThrough() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            Map<String, List<String>> params = new HashMap<>();
-            params.put("name", Collections.singletonList(null));
-            QueryBean bean = context(req).bindBean(params, QueryBean.class);
-            assertNull(bean.getName(), "?flag 型 null 值折叠后原样传递,Jackson 置属性为 null");
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void bindBeanOnEmptyMapYieldsEmptyBean() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            QueryBean bean = context(req).bindBean(Map.of(), QueryBean.class);
-            assertNull(bean.getName());
-            assertEquals(0, bean.getAge());
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void formChannelBindsUrlEncodedBodyViaContract() {
+    void formChannelExposesUrlEncodedParamsViaContract() {
         FullHttpRequest req = Requests.postForm("/form", "name=alice&age=30");
         try {
             FullHttpContext ctx = context(req);
             HttpContext.FormContent formContent = assertInstanceOf(HttpContext.FormContent.class, ctx.content(),
                     "表单内容实现 FormContent 能力契约，参数封装权在内容侧");
-            QueryBean bean = ctx.bindBean(formContent.formParams(), QueryBean.class);
-            assertEquals("alice", bean.getName());
-            assertEquals(30, bean.getAge());
-            assertNull(bean.getTag());
+            assertEquals(List.of("alice"), formContent.formParams().get("name"));
+            assertEquals(List.of("30"), formContent.formParams().get("age"),
+                    "字段值以多值列表原样呈现，折叠与绑定归绑定器");
         } finally {
             Requests.release(req);
         }
     }
 
     @Test
-    void jsonChannelBindsBodyViaContract() {
+    void jsonChannelExposesBodyStringViaContract() {
         FullHttpRequest req = Requests.postJson("/json", "{\"name\":\"alice\",\"age\":30}");
         try {
             FullHttpContext ctx = context(req);
             HttpContext.JsonContent jsonContent = assertInstanceOf(HttpContext.JsonContent.class, ctx.content(),
                     "JSON 内容实现 JsonContent 能力契约，字符串供数在内容侧");
-            QueryBean bean = ctx.bindJson(jsonContent.jsonString(), QueryBean.class);
-            assertEquals("alice", bean.getName());
-            assertEquals(30, bean.getAge());
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void bindJsonMapsTheProvidedString() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            QueryBean bean = context(req).bindJson("{\"name\":\"cindy\",\"age\":7}", QueryBean.class);
-            assertEquals("cindy", bean.getName());
-            assertEquals(7, bean.getAge(), "bindJson 只经序列化器绑定入料字符串，不读取请求");
+            assertEquals("{\"name\":\"alice\",\"age\":30}", jsonContent.jsonString(),
+                    "契约取回的就是体字符串，反序列化归绑定器");
         } finally {
             Requests.release(req);
         }
@@ -275,16 +217,13 @@ class FullHttpContextTest {
     }
 
     @Test
-    void blankJsonBodyYieldsEmptyBeanViaContract() {
+    void blankJsonBodyIsNormalizedToEmptyObjectViaContract() {
         FullHttpRequest req = Requests.postJson("/json", "");
         try {
             FullHttpContext ctx = context(req);
             // 内容装配期把空体规整成 "{}"，能力契约取回的字符串即规整结果
             HttpContext.JsonContent jsonContent = (HttpContext.JsonContent) ctx.content();
             assertEquals("{}", jsonContent.jsonString());
-            QueryBean bean = ctx.bindJson(jsonContent.jsonString(), QueryBean.class);
-            assertNull(bean.getName());
-            assertEquals(0, bean.getAge());
         } finally {
             Requests.release(req);
         }
@@ -412,35 +351,4 @@ class FullHttpContextTest {
             return null;
         }
     }
-
-    public static class QueryBean {
-        private String name;
-        private int age;
-        private List<String> tag;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public int getAge() {
-            return age;
-        }
-
-        public void setAge(int age) {
-            this.age = age;
-        }
-
-        public List<String> getTag() {
-            return tag;
-        }
-
-        public void setTag(List<String> tag) {
-            this.tag = tag;
-        }
-    }
-
 }

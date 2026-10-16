@@ -461,7 +461,7 @@ class RestRouterHandlerManagerTest {
                 Contexts.content(req, StandardCharsets.UTF_8), null, null, null,
                 new JacksonJsonSerializer(), StandardCharsets.UTF_8);
         assertEquals("alice/a,b", manager.handle(context),
-                "@BeanQuery 端到端:承载查询映射经 bindBean 折叠绑定,数据源断链时该断言必红");
+                "@BeanQuery 端到端:承载查询映射经序列化器折叠绑定,数据源断链时该断言必红");
     }
 
     @Test

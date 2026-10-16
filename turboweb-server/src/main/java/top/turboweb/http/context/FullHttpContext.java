@@ -15,17 +15,13 @@ import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.serializer.JsonSerializer;
 
 import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
  * {@code FullHttpContext} 是 TurboWeb 框架中 {@link HttpContext} 的唯一实现。
  * <p>
  * 它封装请求消息（{@link HttpContext.Message}）、请求体内容（{@link HttpContext.Content}）、
- * Session、Cookie、连接会话、JSON 序列化器、缺省编码与挂载对象，并据此提供 SSE 创建与
- * bean 绑定服务（{@link #bindBean} 与 {@link #bindJson}，入料由调用方就位）；
+ * Session、Cookie、连接会话、JSON 序列化器、缺省编码与挂载对象，并据此提供 SSE 创建；
  * 请求体参数的封装与读取经内容对象的能力子契约（{@link HttpContext.FormContent}、
  * {@link HttpContext.JsonContent}）完成，本类不按具体实现类分派。
  * <p>
@@ -33,7 +29,7 @@ import java.util.Objects;
  * 请求体经内容解析器产出的 {@link HttpContext.Content} 读取，两者均由编排器在装配上下文时就位。
  * 请求体内容为 {@link HttpContext.AutoCloseContent} 时，其资源在 {@link #release()} 时关闭。
  * <p>
- * 该类主要面向业务层使用者，提供统一的参数访问与数据绑定能力。
+ * 该类主要面向业务层使用者，提供统一的参数访问能力。
  * 它不关心路由分发或请求调度，仅负责当前请求作用域的数据封装与访问。
  *
  * <h2>线程模型</h2>
@@ -66,7 +62,7 @@ public final class FullHttpContext implements HttpContext {
 	/** 当前请求的 Cookie 集合 */
 	private final HttpCookies httpCookies;
 
-	/** JSON 序列化器 */
+	/** JSON 序列化器，创建 SSE 响应时注入响应对象 */
 	private final JsonSerializer jsonSerializer;
 
 	/** 装配期判定的缺省编码，经 {@link #defaultCharset()} 对外提供，请求体解码缺省时亦回落到它 */
@@ -84,7 +80,7 @@ public final class FullHttpContext implements HttpContext {
 	 * @param httpSession     HTTP 会话对象
 	 * @param cookies         当前请求的 Cookie 集合
 	 * @param connectSession  当前连接会话（用于 WebSocket / SSE）
-	 * @param jsonSerializer  JSON 序列化器
+	 * @param jsonSerializer  JSON 序列化器（供 SSE 创建通道注入）
 	 * @param defaultCharset  缺省编码（装配期由 HttpConfig 判定并随请求传递），不能为 null
 	 * @throws NullPointerException message、content 或 defaultCharset 为 null
 	 */
@@ -184,41 +180,6 @@ public final class FullHttpContext implements HttpContext {
 	@Override
 	public Attachment attachment() {
 		return this.attachment;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public <T> T bindBean(Map<String, List<String>> paramsMap, Class<T> beanType) {
-		return jsonSerializer.mapToBean(collapseParamValues(paramsMap), beanType);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public <T> T bindJson(String jsonString, Class<T> beanType) {
-		return jsonSerializer.jsonToBean(jsonString, beanType);
-	}
-
-	/**
-	 * 将 {@code Map<String, List<String>>} 转换为 {@code Map<String, Object>}:
-	 * 值列表仅一个元素时取该元素(可为 null),多个元素保留列表。
-	 *
-	 * @param oldMap 原始多值集合
-	 * @return 折叠后的键值集合
-	 */
-	private static Map<String, Object> collapseParamValues(Map<String, List<String>> oldMap) {
-		Map<String, Object> newMap = new HashMap<>();
-		oldMap.forEach((key, value) -> {
-			if (value.size() == 1) {
-				newMap.put(key, value.getFirst());
-			} else {
-				newMap.put(key, value);
-			}
-		});
-		return newMap;
 	}
 
 	/**

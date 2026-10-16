@@ -3,6 +3,7 @@ package top.turboweb.http.router.parameter;
 import top.turboweb.rest.param.BeanForm;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.exception.RequestParseException;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
@@ -13,7 +14,7 @@ import java.lang.reflect.Parameter;
 public class BeanFormParameterParser extends AbstractParameterParser{
 
     /**
-     * 绑定表单模型参数:取数经请求体内容的 FormContent 能力契约，绑定走无校验的 bindBean 通道,
+     * 绑定表单模型参数:取数经请求体内容的 FormContent 能力契约，折叠后经传入的 json 序列化器绑定为 bean,
      * 注解要求校验时在绑定器内经传入的 Bean 校验器执行
      */
     private record FormModelParameterBinder(
@@ -23,13 +24,14 @@ public class BeanFormParameterParser extends AbstractParameterParser{
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator) {
+        public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
+                                    JsonSerializer jsonSerializer) {
             HttpContext.Content content = ctx.content();
             if (!(content instanceof HttpContext.FormContent formContent)) {
                 throw new RequestParseException(
                         "contentType is not application/x-www-form-urlencoded or multipart/form-data");
             }
-            Object bean = ctx.bindBean(formContent.formParams(), type);
+            Object bean = ParameterHandleHelper.bindBeanMap(jsonSerializer, formContent.formParams(), type);
             if (validate) {
                 if (groups == null || groups.length == 0) {
                     beanValidator.validate(bean);

@@ -6,6 +6,7 @@ import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
@@ -34,7 +35,8 @@ public class UploadParameterParser extends AbstractParameterParser {
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator) {
+        public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
+                                    JsonSerializer jsonSerializer) {
             HttpContext.Content content = ctx.content();
             if (!(content instanceof HttpContext.FormContent formContent)) {
                 throw new RequestParseException(

@@ -4,6 +4,7 @@ import top.turboweb.rest.param.QueryParam;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
 
 import java.lang.reflect.Parameter;
@@ -24,16 +25,17 @@ public class QueryParameterParser extends AbstractParameterParser {
      */
     private record QueryParameterBinder(
             String name,
-            TypeConverters.Converter converter,
+            SimpleTypeHandler simpleTypeHandler,
             // 集合类型,0 非集合, 1 list, 2 set
             short collectionType,
             boolean nonNull
     ) implements ParameterParser.Binder {
 
         @Override
-        public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator) {
+        public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
+                                    JsonSerializer jsonSerializer) {
             if (collectionType == 0) {
-                Object arg = converter.convert(requestParameter.queryParam(name));
+                Object arg = simpleTypeHandler.handle(requestParameter.queryParam(name));
                 // 规则判断
                 if (nonNull && arg == null) {
                     throw new RouteHandlerException("校验失败:" + List.of(name + " must not be null"),
@@ -49,9 +51,9 @@ public class QueryParameterParser extends AbstractParameterParser {
             }
             // 转化数据类型
             if (collectionType == 1) {
-                return values.stream().map(converter::convert).toList();
+                return values.stream().map(simpleTypeHandler::handle).toList();
             } else {
-                return values.stream().map(converter::convert).collect(Collectors.toSet());
+                return values.stream().map(simpleTypeHandler::handle).collect(Collectors.toSet());
             }
         }
     }
@@ -87,14 +89,14 @@ public class QueryParameterParser extends AbstractParameterParser {
         } else {
             type = parameter.getType();
         }
-        // 查询具体的转换器
-        TypeConverters.Converter converter = TypeConverters.getConverter(type);
-        if (converter == null) {
+        // 查询具体的简单类型处理器
+        SimpleTypeHandler simpleTypeHandler = ParameterHandleHelper.getSimpleTypeHandler(type);
+        if (simpleTypeHandler == null) {
             return null;
         }
         // 获取参数名
         QueryParam query = parameter.getAnnotation(QueryParam.class);
         String name = query.value();
-        return new QueryParameterBinder(name, converter, collectionType, query.nonNull());
+        return new QueryParameterBinder(name, simpleTypeHandler, collectionType, query.nonNull());
     }
 }

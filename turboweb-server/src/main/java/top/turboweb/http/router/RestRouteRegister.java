@@ -280,12 +280,13 @@ public class RestRouteRegister implements RouteRegister {
 
     /**
      * 装配路由表并生产管理器:逐控制器解析元信息,按 url 聚合为路由处理器后以 url 为模式
-     * 登记进基数树,连同参数解析器表与 Bean 校验器一并装入只读快照
+     * 登记进基数树,连同参数解析器表与 Bean 校验器一并装入只读快照;json 序列化器随各路由处理器
+     * 构造注入,供其参数绑定器绑定 bean 时取用
      *
      * <p>同一 url 上的多个请求方式合进一个处理器;某段路径含连续斜杠、同路径同请求方式重复、
      * 或模式与既有注册面歧义,都在本时点直接失败。生产之后的登记表不再接受变更。
      *
-     * @param jsonSerializer json 序列化器,不能为 null;注入生产的管理器,与装配方共用同一实例
+     * @param jsonSerializer json 序列化器,不能为 null;随各路由处理器构造注入供参数绑定使用,与装配方共用同一实例
      * @return 只读路由表对应的路由器管理器,未注册任何路由时其对所有请求都按路由未匹配处理
      * @throws NullPointerException     jsonSerializer 为 null
      * @throws IllegalStateException    本登记表已生产过管理器
@@ -311,10 +312,10 @@ public class RestRouteRegister implements RouteRegister {
         // 构建基数树
         RestRouteTree<RouteHandler> restRouteTree = new RestRouteTree<>();
         routeMetaInfoMap.forEach((url, metaInfos) -> {
-            RouteHandler routeHandler = new RouteHandler(metaInfos, registeredParsers, validator);
+            RouteHandler routeHandler = new RouteHandler(metaInfos, registeredParsers, validator, jsonSerializer);
             restRouteTree.put(routeHandler.path(), routeHandler);
         });
-        return new RouterManager(restRouteTree.toReadView(), jsonSerializer);
+        return new RouterManager(restRouteTree.toReadView());
     }
 
     /**
@@ -369,14 +370,8 @@ public class RestRouteRegister implements RouteRegister {
          */
         private final RouteTree<RouteHandler> routeHandlerRadixTree;
 
-        /**
-         * json 序列化器：生产时刻由登记表注入的实例，本管理器持有备用
-         */
-        private final JsonSerializer jsonSerializer;
-
-        private RouterManager(RouteTree<RouteHandler> routeHandlerRadixTree, JsonSerializer jsonSerializer) {
+        private RouterManager(RouteTree<RouteHandler> routeHandlerRadixTree) {
             this.routeHandlerRadixTree = routeHandlerRadixTree;
-            this.jsonSerializer = jsonSerializer;
         }
 
         /**

@@ -19,8 +19,7 @@ import java.util.Set;
  * <p>
  * 它封装了请求信息、连接会话、Session 管理、Cookie 管理、请求体内容
  * （表单字段、JSON 字符串与上传文件的封装权在解析器产出的内容对象侧，读取通道见 {@link Content}
- * 的能力子契约 {@link FormContent} 与 {@link JsonContent}）、bean 绑定服务
- * （{@link #bindBean} 与 {@link #bindJson}，序列化器由容器就位、入料由调用方供）、
+ * 的能力子契约 {@link FormContent} 与 {@link JsonContent}），
  * 以及用于创建 SSE（Server-Sent Events）流的相关方法。
  * <br>
  * 每个请求都拥有独立的 {@code HttpContext} 实例，生命周期与请求保持一致。
@@ -49,9 +48,9 @@ import java.util.Set;
  *     HttpSession session = ctx.httpSession();
  *     session.setAttr("user", "Alice");
  *
- *     // 表单绑定为对象：参数取数经内容的 FormContent 能力契约，绑定经上下文序列化器组件
+ *     // 读表单字段：参数取数经内容的 FormContent 能力契约；表单到对象的绑定由路由侧 @BeanForm 参数绑定器完成
  *     HttpContext.FormContent form = (HttpContext.FormContent) ctx.content();
- *     SearchRequest query = ctx.bindBean(form.formParams(), SearchRequest.class);
+ *     String keyword = form.formParams().get("keyword").getFirst();
  *
  *     // 释放上下文资源
  *     ctx.release();
@@ -411,24 +410,4 @@ public interface HttpContext {
 	 * @return {@link Attachment} 对象，用于挂载对象。
 	 */
 	Attachment attachment();
-
-	/**
-	 * 将多值参数映射绑定为 bean:单值列表折叠为字符串、多值列表保留(无值段为 null 原样传递),
-	 * 经 JSON 序列化器完成属性映射。本方法不读取请求数据,映射数据由调用方就位。
-	 *
-	 * @param paramsMap 参数名到值列表的映射,可为空
-	 * @param beanType  目标 bean 类型,不能为 null
-	 * @return 绑定后的 bean;未知属性按序列化器忽略未知字段的口径跳过
-	 */
-	<T> T bindBean(Map<String, List<String>> paramsMap, Class<T> beanType);
-
-	/**
-	 * 将 JSON 字符串反序列化为 bean。本方法不读取请求数据,字符串由调用方就位
-	 * (绑请求体时经 {@link JsonContent} 能力契约取数)。
-	 *
-	 * @param jsonString JSON 字符串,不能为 null
-	 * @param beanType   目标 bean 类型,不能为 null
-	 * @return 绑定后的 bean;未知属性按序列化器忽略未知字段的口径跳过
-	 */
-	<T> T bindJson(String jsonString, Class<T> beanType);
 }
