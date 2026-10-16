@@ -1,7 +1,6 @@
 package top.turboweb.http.router.parameter;
 
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,12 +9,14 @@ import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.core.cookie.HttpCookies;
+import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
+import top.turboweb.http.exception.SseBufferException;
 import top.turboweb.rest.param.*;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
@@ -452,15 +453,21 @@ class ParamInfoParsersTest {
         assertSame(cookies, p.parse(parameter("internCookies"))
                 .bindParameter(stub.returning("cookies", cookies).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
 
-        SseResponse sseResponse = new SseResponse(HttpResponseStatus.OK, new DefaultHttpHeaders(),
-                proxy(ConnectSession.class), proxy(JsonSerializer.class));
-        assertSame(sseResponse, p.parse(parameter("internSseResponse"))
-                .bindParameter(stub.returning("createSseResponse", sseResponse).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
+        ConnectSession sseSession = proxy(ConnectSession.class);
+        SseResponse boundSseResponse = assertInstanceOf(SseResponse.class, p.parse(parameter("internSseResponse"))
+                .bindParameter(stub.returning("getConnectSession", sseSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
+        assertEquals("text/event-stream", boundSseResponse.headers().get(HttpHeaderNames.CONTENT_TYPE),
+                "SSE 响应由绑定器经连接会话就地构造，携事件流媒体类型");
 
-        SseEmitter sseEmitter = new SseEmitter(proxy(ConnectSession.class), 16) {
-        };
-        assertSame(sseEmitter, p.parse(parameter("internSseEmitter"))
-                .bindParameter(stub.returning("createSseEmitter", sseEmitter).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
+        SseEmitter boundSseEmitter = assertInstanceOf(InternalSseEmitter.class, p.parse(parameter("internSseEmitter"))
+                .bindParameter(stub.returning("getConnectSession", sseSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
+        assertEquals("text/event-stream", boundSseEmitter.headers().get(HttpHeaderNames.CONTENT_TYPE));
+        // 消息缓存容量统一 32:未初始化时 32 条入缓存无异常,第 33 条溢出抛错
+        for (int i = 0; i < 32; i++) {
+            boundSseEmitter.send("m" + i);
+        }
+        assertThrows(SseBufferException.class, () -> boundSseEmitter.send("overflow"),
+                "第 33 条缓存消息越界");
 
         ConnectSession connectSession = proxy(ConnectSession.class);
         assertSame(connectSession, p.parse(parameter("internConnectSession"))

@@ -5,8 +5,6 @@ import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.core.cookie.HttpCookies;
-import top.turboweb.http.core.response.SseEmitter;
-import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
 
 import java.nio.charset.Charset;
@@ -19,8 +17,7 @@ import java.util.Set;
  * <p>
  * 它封装了请求信息、连接会话、Session 管理、Cookie 管理、请求体内容
  * （表单字段、JSON 字符串与上传文件的封装权在解析器产出的内容对象侧，读取通道见 {@link Content}
- * 的能力子契约 {@link FormContent} 与 {@link JsonContent}），
- * 以及用于创建 SSE（Server-Sent Events）流的相关方法。
+ * 的能力子契约 {@link FormContent} 与 {@link JsonContent}）。
  * <br>
  * 每个请求都拥有独立的 {@code HttpContext} 实例，生命周期与请求保持一致。
  * </p>
@@ -61,8 +58,6 @@ import java.util.Set;
  * 每个 HTTP 请求应独立持有上下文实例。</p>
  *
  * @see FullHttpContext
- * @see SseResponse
- * @see SseEmitter
  */
 public interface HttpContext {
 
@@ -351,13 +346,6 @@ public interface HttpContext {
 	ConnectSession getConnectSession();
 
 	/**
-	 * 创建一个新的 SSE（Server-Sent Events）响应实例。
-	 *
-	 * @return 用于构建 SSE 响应的 {@link SseResponse}。
-	 */
-	SseResponse createSseResponse();
-
-	/**
 	 * 获取当前 HTTP 会话对象。
 	 *
 	 * @return {@link HttpSession} 对象，用于存储和读取会话数据。
@@ -380,21 +368,6 @@ public interface HttpContext {
 	 * @return 缺省字符集，永不为 null
 	 */
 	Charset defaultCharset();
-
-	/**
-	 * 创建默认配置的 SSE 事件发射器。
-	 *
-	 * @return {@link SseEmitter} 对象，用于服务端事件推送。
-	 */
-	SseEmitter createSseEmitter();
-
-	/**
-	 * 创建指定缓存大小的 SSE 事件发射器。
-	 *
-	 * @param maxMessageCache SSE 消息缓存的最大容量
-	 * @return {@link SseEmitter} 对象，用于服务端事件推送。
-	 */
-	SseEmitter createSseEmitter(int maxMessageCache);
 
 	/**
 	 * 释放当前上下文持有的资源。

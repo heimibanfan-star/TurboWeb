@@ -100,13 +100,13 @@ class AbstractConcurrentLimitMiddlewareTest {
      * L1 上下文夹具：内存中的 {@link FullHttpRequest}，只带方法与 URI，不含 channel / socket / 线程。
      *
      * <p>内容缓冲来自 {@code Unpooled.buffer(0)}，非池化、无需 {@code release()}，不触发 Netty 泄漏检测；
-     * 其余构造参数（session / cookie / connectSession / 序列化器）在本用例的调用路径上都用不到，传 null。
+     * 其余构造参数（session / cookie / connectSession）在本用例的调用路径上都用不到，传 null。
      */
     private static HttpContext ctx(HttpMethod method, String uri) {
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri);
         return new FullHttpContext(Contexts.message(request, StandardCharsets.UTF_8),
                 Contexts.content(request, StandardCharsets.UTF_8),
-                null, null, null, null, StandardCharsets.UTF_8);
+                null, null, null, StandardCharsets.UTF_8);
     }
 
     // ---------- AbstractConcurrentLimitMiddleware（实例版） ----------

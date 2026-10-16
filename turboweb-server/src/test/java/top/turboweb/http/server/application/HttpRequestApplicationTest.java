@@ -154,8 +154,11 @@ class HttpRequestApplicationTest {
                 .build();
 
         assertInstanceOf(JacksonJsonSerializer.class, register.producedWith, "未指定序列化器时生产用应用的默认实例");
-        assertSame(componentOf(orchestratorOf(app), "jsonSerializer"), register.producedWith,
-                "登记表拿到的默认序列化器与编排器持有的是同一实例");
+        ResultConverterManager resultConverterManager =
+                (ResultConverterManager) componentOf(orchestratorOf(app), "resultConverterManager");
+        ResultConverter defaultConverter = (ResultConverter) fieldOf(resultConverterManager, "defaultConverter");
+        assertSame(fieldOf(defaultConverter, "jsonSerializer"), register.producedWith,
+                "登记表拿到的默认序列化器与结果转化链持有的是同一实例");
         app.close();
     }
 
@@ -260,8 +263,6 @@ class HttpRequestApplicationTest {
         Map<?, ?> customWriters = (Map<?, ?>) fieldOf(responseWriterManager, "customerResponseWriter");
         assertSame(customWriter, customWriters.get(customWriter.getClass()),
                 "用户传入的自定义响应写出器经构建期装配进入管理器的自定义表");
-        assertSame(serializer, componentOf(orchestrator, "jsonSerializer"),
-                "用户传入的json序列化器原样进入编排器");
         Middleware head = (Middleware) componentOf(orchestrator, "middleware");
         assertInstanceOf(SentinelMiddleware.class, head, "编排器的中间件组件是链头哨兵");
         assertSame(mw, head.getNext(), "业务中间件紧随哨兵");
@@ -279,8 +280,8 @@ class HttpRequestApplicationTest {
         RequestOrchestrator orchestrator = orchestratorOf(app);
         for (String component : List.of("middleware", "virtualThreadResource", "responseWriterManager",
                 "resultConverterManager", "corsConfig", "exceptionHandlerManager",
-                "sessionManagerHolder", "jsonSerializer", "defaultCharset", "contentParserManager")) {
-            assertNotNull(componentOf(orchestrator, component), "十组件之 " + component + " 装配后不可为null");
+                "sessionManagerHolder", "defaultCharset", "contentParserManager")) {
+            assertNotNull(componentOf(orchestrator, component), "九组件之 " + component + " 装配后不可为null");
         }
         assertInstanceOf(UnlimitedVirtualThreadResource.class,
                 componentOf(orchestrator, "virtualThreadResource"),

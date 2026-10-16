@@ -1,18 +1,12 @@
 package top.turboweb.http.context;
 
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.context.attchment.DefaultAttachment;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookies;
-import top.turboweb.http.core.response.InternalSseEmitter;
-import top.turboweb.http.core.response.SseEmitter;
-import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
-import top.turboweb.serializer.JsonSerializer;
 
 import java.nio.charset.Charset;
 import java.util.Objects;
@@ -21,7 +15,7 @@ import java.util.Objects;
  * {@code FullHttpContext} 是 TurboWeb 框架中 {@link HttpContext} 的唯一实现。
  * <p>
  * 它封装请求消息（{@link HttpContext.Message}）、请求体内容（{@link HttpContext.Content}）、
- * Session、Cookie、连接会话、JSON 序列化器、缺省编码与挂载对象，并据此提供 SSE 创建；
+ * Session、Cookie、连接会话、缺省编码与挂载对象；
  * 请求体参数的封装与读取经内容对象的能力子契约（{@link HttpContext.FormContent}、
  * {@link HttpContext.JsonContent}）完成，本类不按具体实现类分派。
  * <p>
@@ -39,8 +33,6 @@ import java.util.Objects;
  * </p>
  *
  * @see HttpContext
- * @see SseResponse
- * @see SseEmitter
  */
 public final class FullHttpContext implements HttpContext {
 
@@ -62,9 +54,6 @@ public final class FullHttpContext implements HttpContext {
 	/** 当前请求的 Cookie 集合 */
 	private final HttpCookies httpCookies;
 
-	/** JSON 序列化器，创建 SSE 响应时注入响应对象 */
-	private final JsonSerializer jsonSerializer;
-
 	/** 装配期判定的缺省编码，经 {@link #defaultCharset()} 对外提供，请求体解码缺省时亦回落到它 */
 	private final Charset defaultCharset;
 
@@ -80,7 +69,6 @@ public final class FullHttpContext implements HttpContext {
 	 * @param httpSession     HTTP 会话对象
 	 * @param cookies         当前请求的 Cookie 集合
 	 * @param connectSession  当前连接会话（用于 WebSocket / SSE）
-	 * @param jsonSerializer  JSON 序列化器（供 SSE 创建通道注入）
 	 * @param defaultCharset  缺省编码（装配期由 HttpConfig 判定并随请求传递），不能为 null
 	 * @throws NullPointerException message、content 或 defaultCharset 为 null
 	 */
@@ -90,7 +78,6 @@ public final class FullHttpContext implements HttpContext {
 			HttpSession httpSession,
 			HttpCookies cookies,
 			ConnectSession connectSession,
-			JsonSerializer jsonSerializer,
 			Charset defaultCharset
 	) {
 		this.message = Objects.requireNonNull(message, "message can not be null");
@@ -99,7 +86,6 @@ public final class FullHttpContext implements HttpContext {
 		this.httpCookies = cookies;
 		this.connectSession = connectSession;
 		this.defaultCharset = Objects.requireNonNull(defaultCharset, "defaultCharset can not be null");
-		this.jsonSerializer = jsonSerializer;
 	}
 
 	/**
@@ -124,30 +110,6 @@ public final class FullHttpContext implements HttpContext {
 	@Override
 	public ConnectSession getConnectSession() {
 		return this.connectSession;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public SseResponse createSseResponse() {
-		return new SseResponse(HttpResponseStatus.OK, new DefaultHttpHeaders(), connectSession, jsonSerializer);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public SseEmitter createSseEmitter() {
-		return new InternalSseEmitter(connectSession, 32);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public SseEmitter createSseEmitter(int maxMessageCache) {
-		return new InternalSseEmitter(connectSession, maxMessageCache);
 	}
 
 	/**

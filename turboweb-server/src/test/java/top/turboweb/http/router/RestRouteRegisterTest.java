@@ -14,7 +14,6 @@ import top.turboweb.http.testkit.Contexts;
 import top.turboweb.rest.param.BeanQuery;
 import top.turboweb.rest.route.Get;
 import top.turboweb.serializer.JacksonJsonSerializer;
-import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
 import top.turboweb.validation.HibernateBeanValidator;
 
@@ -108,11 +107,11 @@ class RestRouteRegisterTest {
         }
     }
 
-    private static HttpContext ctx(String uri, JsonSerializer jsonSerializer) {
+    private static HttpContext ctx(String uri) {
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
         return new FullHttpContext(Contexts.message(request, StandardCharsets.UTF_8),
                 Contexts.content(request, StandardCharsets.UTF_8),
-                null, null, null, jsonSerializer, StandardCharsets.UTF_8);
+                null, null, null, StandardCharsets.UTF_8);
     }
 
     @Test
@@ -120,7 +119,7 @@ class RestRouteRegisterTest {
         RouteHandlerManager manager = new RestRouteRegister()
                 .registerRoute(new PingController())
                 .newRouteHandlerManager(new JacksonJsonSerializer());
-        assertEquals("pong", manager.handle(ctx("/ping", new JacksonJsonSerializer())),
+        assertEquals("pong", manager.handle(ctx("/ping")),
                 "登记的路由由生产出的管理器处理");
     }
 
@@ -131,7 +130,7 @@ class RestRouteRegisterTest {
         assertSame(register, register.beanValidator(validator), "指定校验器返回登记表自身");
         RouteHandlerManager manager = register.newRouteHandlerManager(new JacksonJsonSerializer());
 
-        assertEquals("vb:alice", manager.handle(ctx("/vb?name=alice", new JacksonJsonSerializer())),
+        assertEquals("vb:alice", manager.handle(ctx("/vb?name=alice")),
                 "指定校验器后路由照常可用");
         assertEquals(1, validator.calls, "形参绑定为 bean 且注解要求校验时经指定的校验器执行，默认引擎不参与");
     }
@@ -142,7 +141,7 @@ class RestRouteRegisterTest {
         RouteHandlerManager manager = new RestRouteRegister()
                 .registerRoute(new ValidatedController())
                 .newRouteHandlerManager(serializer);
-        assertEquals("vb:alice", manager.handle(ctx("/vb?name=alice", serializer)),
+        assertEquals("vb:alice", manager.handle(ctx("/vb?name=alice")),
                 "以给定序列化器生产后路由照常可用");
         assertEquals(1, serializer.mapToBeanCalls,
                 "生产入口传入的序列化器随参数绑定交给绑定器，bean 绑定经其 mapToBean 完成");

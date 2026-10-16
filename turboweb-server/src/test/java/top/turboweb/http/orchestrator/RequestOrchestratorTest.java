@@ -53,11 +53,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * {@link RequestOrchestrator} 的行为锚：建造者装配十组件（中间件、虚拟线程资源、
+ * {@link RequestOrchestrator} 的行为锚：建造者装配九组件（中间件、虚拟线程资源、
  * 响应写出器管理器、结果转化器管理器、cors 配置、异常处理器管理器、
- * 会话管理器持有者、json 序列化器、缺省字符集、请求体内容解析器管理器）的构造契约——
+ * 会话管理器持有者、缺省字符集、请求体内容解析器管理器）的构造契约——
  * 配置方法 null 入参即时拒收、缺配在 build 时拒收且消息指名组件、
- * 十件齐配构建成功且重复 build 产物互不相同；
+ * 九件齐配构建成功且重复 build 产物互不相同；
  * CORS 来源处理流程的响应头写出契约；以及消费流程契约——
  * 入口参数判空、中间件结果转化写出与请求释放、挂载的响应元信息不回填响应、
  * OPTIONS 预检空 200 不进链、未注册异常落 500 兜底页、路由未匹配落 404 页、
@@ -71,7 +71,7 @@ class RequestOrchestratorTest {
         return new HttpContentParserManager(StandardCharsets.UTF_8, List.of());
     }
 
-    /** 按指定 cors 配置装配十组件齐备的编排器（空链头、空异常处理器表）。 */
+    /** 按指定 cors 配置装配九组件齐备的编排器（空链头、空异常处理器表）。 */
     private static RequestOrchestrator orchestratorWith(HttpCorsConfig corsConfig) {
         return RequestOrchestrator.builder()
                 .middleware(new SentinelMiddleware())
@@ -80,19 +80,17 @@ class RequestOrchestratorTest {
                 .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
                 .corsConfig(corsConfig)
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
-                .sessionManagerHolder(() -> new BackHoleSessionManager())
-                .jsonSerializer(new JacksonJsonSerializer())
-                .defaultCharset(StandardCharsets.UTF_8)
+                .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(StandardCharsets.UTF_8)
                 .contentParserManager(contentParserManager())
                 .build();
     }
 
-    /** 按指定链头与异常处理器装配十组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
+    /** 按指定链头与异常处理器装配九组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
     private static RequestOrchestrator flowOrchestrator(Middleware chain, ExceptionHandlerManager handlers) {
         return flowOrchestrator(chain, handlers, new UnlimitedVirtualThreadResource("test-orchestrator"));
     }
 
-    /** 按指定链头、异常处理器与虚拟线程资源装配十组件齐备的编排器。 */
+    /** 按指定链头、异常处理器与虚拟线程资源装配九组件齐备的编排器。 */
     private static RequestOrchestrator flowOrchestrator(Middleware chain, ExceptionHandlerManager handlers,
                                                          VirtualThreadResource resource) {
         return RequestOrchestrator.builder()
@@ -102,9 +100,7 @@ class RequestOrchestratorTest {
                 .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(handlers)
-                .sessionManagerHolder(() -> new BackHoleSessionManager())
-                .jsonSerializer(new JacksonJsonSerializer())
-                .defaultCharset(StandardCharsets.UTF_8)
+                .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(StandardCharsets.UTF_8)
                 .contentParserManager(contentParserManager())
                 .build();
     }
@@ -145,12 +141,10 @@ class RequestOrchestratorTest {
         assertEquals("exception handler manager must not be null", e6.getMessage());
         NullPointerException e7 = assertThrows(NullPointerException.class, () -> builder.sessionManagerHolder(null));
         assertEquals("session manager holder must not be null", e7.getMessage());
-        NullPointerException e8 = assertThrows(NullPointerException.class, () -> builder.jsonSerializer(null));
-        assertEquals("json serializer must not be null", e8.getMessage());
-        NullPointerException e9 = assertThrows(NullPointerException.class, () -> builder.defaultCharset(null));
-        assertEquals("default charset must not be null", e9.getMessage());
-        NullPointerException e10 = assertThrows(NullPointerException.class, () -> builder.contentParserManager(null));
-        assertEquals("content parser manager must not be null", e10.getMessage());
+        NullPointerException e8 = assertThrows(NullPointerException.class, () -> builder.defaultCharset(null));
+        assertEquals("default charset must not be null", e8.getMessage());
+        NullPointerException e9 = assertThrows(NullPointerException.class, () -> builder.contentParserManager(null));
+        assertEquals("content parser manager must not be null", e9.getMessage());
     }
 
     @Test
@@ -222,9 +216,7 @@ class RequestOrchestratorTest {
                         .responseWriterManager(new ResponseWriterManager(Stubs.threadPool(), List.of()))
                         .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
                         .corsConfig(HttpCorsConfig.builder().build())
-                        .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
-                        .jsonSerializer(new JacksonJsonSerializer())
-                        .build());
+                        .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))                        .build());
         assertEquals("session manager holder must not be null", e7.getMessage());
 
         NullPointerException e8 = assertThrows(NullPointerException.class,
@@ -235,9 +227,8 @@ class RequestOrchestratorTest {
                         .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
                         .corsConfig(HttpCorsConfig.builder().build())
                         .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
-                        .sessionManagerHolder(() -> new BackHoleSessionManager())
-                        .build());
-        assertEquals("json serializer must not be null", e8.getMessage());
+                        .sessionManagerHolder(() -> new BackHoleSessionManager())                        .build());
+        assertEquals("default charset must not be null", e8.getMessage());
 
         NullPointerException e9 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
@@ -247,24 +238,9 @@ class RequestOrchestratorTest {
                         .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
                         .corsConfig(HttpCorsConfig.builder().build())
                         .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
-                        .sessionManagerHolder(() -> new BackHoleSessionManager())
-                        .jsonSerializer(new JacksonJsonSerializer())
+                        .sessionManagerHolder(() -> new BackHoleSessionManager())                        .defaultCharset(StandardCharsets.UTF_8)
                         .build());
-        assertEquals("default charset must not be null", e9.getMessage());
-
-        NullPointerException e10 = assertThrows(NullPointerException.class,
-                () -> RequestOrchestrator.builder()
-                        .middleware(new SentinelMiddleware())
-                        .virtualThreadResource(new UnlimitedVirtualThreadResource("t"))
-                        .responseWriterManager(new ResponseWriterManager(Stubs.threadPool(), List.of()))
-                        .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
-                        .corsConfig(HttpCorsConfig.builder().build())
-                        .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
-                        .sessionManagerHolder(() -> new BackHoleSessionManager())
-                        .jsonSerializer(new JacksonJsonSerializer())
-                        .defaultCharset(StandardCharsets.UTF_8)
-                        .build());
-        assertEquals("content parser manager must not be null", e10.getMessage(),
+        assertEquals("content parser manager must not be null", e9.getMessage(),
                 "内容解析器管理器同为必配组件，缺配同样指名拒收");
     }
 
@@ -277,9 +253,7 @@ class RequestOrchestratorTest {
                 .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
-                .sessionManagerHolder(() -> new BackHoleSessionManager())
-                .jsonSerializer(new JacksonJsonSerializer())
-                .defaultCharset(StandardCharsets.UTF_8)
+                .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(StandardCharsets.UTF_8)
                 .contentParserManager(contentParserManager());
 
         RequestOrchestrator first = builder.build();
@@ -433,9 +407,7 @@ class RequestOrchestratorTest {
                 .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
-                .sessionManagerHolder(() -> new BackHoleSessionManager())
-                .jsonSerializer(new JacksonJsonSerializer())
-                .defaultCharset(gbk)
+                .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(gbk)
                 .contentParserManager(new HttpContentParserManager(gbk, List.of()))
                 .build();
         EmbeddedChannel channel = new EmbeddedChannel();
@@ -451,7 +423,7 @@ class RequestOrchestratorTest {
         channel.finishAndReleaseAll();
     }
 
-    /** 按指定链头与会话管理器实例装配十组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
+    /** 按指定链头与会话管理器实例装配九组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
     private static RequestOrchestrator orchestratorWithChainAndManager(Middleware chain, SessionManager manager) {
         return RequestOrchestrator.builder()
                 .middleware(chain)
@@ -460,9 +432,7 @@ class RequestOrchestratorTest {
                 .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
-                .sessionManagerHolder(() -> manager)
-                .jsonSerializer(new JacksonJsonSerializer())
-                .defaultCharset(StandardCharsets.UTF_8)
+                .sessionManagerHolder(() -> manager)                .defaultCharset(StandardCharsets.UTF_8)
                 .contentParserManager(contentParserManager())
                 .build();
     }
@@ -673,12 +643,12 @@ class RequestOrchestratorTest {
 
     // ---------- 上下文装配：请求转化为消息与请求体内容 ----------
 
-    /** 十组件齐备的建造者（默认通配 cors、空异常处理器表），链头由调用方给定，内容解析器管理器取内置。 */
+    /** 九组件齐备的建造者（默认通配 cors、空异常处理器表），链头由调用方给定，内容解析器管理器取内置。 */
     private static RequestOrchestrator.Builder builderWith(Middleware chain) {
         return builderWith(chain, contentParserManager());
     }
 
-    /** 十组件齐备的建造者，链头与内容解析器管理器由调用方给定。 */
+    /** 九组件齐备的建造者，链头与内容解析器管理器由调用方给定。 */
     private static RequestOrchestrator.Builder builderWith(Middleware chain, HttpContentParserManager parserManager) {
         return RequestOrchestrator.builder()
                 .middleware(chain)
@@ -687,9 +657,7 @@ class RequestOrchestratorTest {
                 .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
-                .sessionManagerHolder(() -> new BackHoleSessionManager())
-                .jsonSerializer(new JacksonJsonSerializer())
-                .defaultCharset(StandardCharsets.UTF_8)
+                .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(StandardCharsets.UTF_8)
                 .contentParserManager(parserManager);
     }
 

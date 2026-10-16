@@ -2,20 +2,15 @@ package top.turboweb.http.context;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
-import top.turboweb.http.core.response.SseEmitter;
-import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.MemorySessionManager;
 import top.turboweb.http.testkit.Contexts;
 import top.turboweb.http.testkit.Requests;
-import top.turboweb.serializer.JacksonJsonSerializer;
-import top.turboweb.serializer.JsonSerializer;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
@@ -33,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class FullHttpContextTest {
 
-    private static final JsonSerializer SERIALIZER = new JacksonJsonSerializer();
     private static final ConnectSession CONNECT_SESSION = new NoopConnectSession();
 
     private static HttpSession newSession() {
@@ -47,7 +41,7 @@ class FullHttpContextTest {
     private static FullHttpContext context(FullHttpRequest request, HttpSession session) {
         return new FullHttpContext(Contexts.message(request, StandardCharsets.UTF_8),
                 Contexts.content(request, StandardCharsets.UTF_8), session,
-                new DefaultHttpCookies(request.headers()), CONNECT_SESSION, SERIALIZER, StandardCharsets.UTF_8);
+                new DefaultHttpCookies(request.headers()), CONNECT_SESSION, StandardCharsets.UTF_8);
     }
 
     // ---------- 构造器注入与基础 getter 面 ----------
@@ -59,7 +53,7 @@ class FullHttpContextTest {
             HttpContext.Message message = Contexts.message(req, StandardCharsets.UTF_8);
             HttpContext.Content content = Contexts.content(req, StandardCharsets.UTF_8);
             FullHttpContext ctx = new FullHttpContext(message, content, newSession(),
-                    new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER, StandardCharsets.UTF_8);
+                    new DefaultHttpCookies(req.headers()), CONNECT_SESSION, StandardCharsets.UTF_8);
             assertSame(message, ctx.message(), "上下文按注入就位，不另建契约对象");
             assertSame(content, ctx.content());
         } finally {
@@ -88,11 +82,11 @@ class FullHttpContextTest {
             HttpContext.Content content = Contexts.content(req, StandardCharsets.UTF_8);
             HttpSession session = newSession();
             NullPointerException e1 = assertThrows(NullPointerException.class, () -> new FullHttpContext(
-                    null, content, session, new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER,
+                    null, content, session, new DefaultHttpCookies(req.headers()), CONNECT_SESSION,
                     StandardCharsets.UTF_8));
             assertEquals("message can not be null", e1.getMessage());
             NullPointerException e2 = assertThrows(NullPointerException.class, () -> new FullHttpContext(
-                    message, null, session, new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER,
+                    message, null, session, new DefaultHttpCookies(req.headers()), CONNECT_SESSION,
                     StandardCharsets.UTF_8));
             assertEquals("content can not be null", e2.getMessage());
         } finally {
@@ -151,25 +145,6 @@ class FullHttpContextTest {
         } finally {
             Requests.release(json);
             Requests.release(csv);
-        }
-    }
-
-    @Test
-    void createSseResponseAndEmitterCarryTheEventStreamContentType() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            FullHttpContext ctx = context(req);
-            SseResponse response = ctx.createSseResponse();
-            // 产品码（SseResponse.setSseHeaders）只写媒体类型 "text/event-stream"，
-            // charset 段由结果转化环节按缺省字符集补写，构造后的原始头不带编码段。
-            assertEquals("text/event-stream",
-                    response.headers().get(HttpHeaderNames.CONTENT_TYPE));
-            SseEmitter defaultEmitter = ctx.createSseEmitter();
-            assertEquals("text/event-stream", defaultEmitter.headers().get(HttpHeaderNames.CONTENT_TYPE));
-            SseEmitter sizedEmitter = ctx.createSseEmitter(8);
-            assertEquals("text/event-stream", sizedEmitter.headers().get(HttpHeaderNames.CONTENT_TYPE));
-        } finally {
-            Requests.release(req);
         }
     }
 
@@ -260,7 +235,7 @@ class FullHttpContextTest {
             assertEquals(StandardCharsets.UTF_8, utf8Ctx.defaultCharset());
             Charset gbk = Charset.forName("GBK");
             FullHttpContext gbkCtx = new FullHttpContext(Contexts.message(req, gbk), Contexts.content(req, gbk),
-                    newSession(), new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER, gbk);
+                    newSession(), new DefaultHttpCookies(req.headers()), CONNECT_SESSION, gbk);
             assertEquals(Charset.forName("GBK"), gbkCtx.defaultCharset(),
                     "defaultCharset() 直接给出传入的缺省编码，不读请求头");
         } finally {

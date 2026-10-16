@@ -113,7 +113,7 @@ class RouteHandlerTest {
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri);
         return new FullHttpContext(Contexts.message(request, StandardCharsets.UTF_8),
                 Contexts.content(request, StandardCharsets.UTF_8),
-                null, null, null, null, StandardCharsets.UTF_8);
+                null, null, null, StandardCharsets.UTF_8);
     }
 
     private static final ParameterParser REJECTING = parameter -> null;

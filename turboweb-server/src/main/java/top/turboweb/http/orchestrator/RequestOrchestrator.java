@@ -16,7 +16,6 @@ import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.core.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.serializer.JsonSerializer;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -24,17 +23,15 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 请求编排器：以建造者装配十个协作组件——中间件链、虚拟线程资源、
+ * 请求编排器：以建造者装配九个协作组件——中间件链、虚拟线程资源、
  * 响应写出器管理器、结果转化器管理器、cors 配置、异常处理器管理器、
- * 会话管理器持有者、json 序列化器、缺省字符集与请求体内容解析器管理器
+ * 会话管理器持有者、缺省字符集与请求体内容解析器管理器
  * （{@link HttpContentParserManager}，由装配方按缺省字符集与自定义解析器建立后传入）。
  * <p>
  * 组件全部 final、构造后不可变更；非空契约两级拒收：
  * 建造者配置方法对 null 入参即时拒绝，{@link Builder#build()} 对缺配组件拒绝并指名。
  * 磁盘IO线程池已在写出器管理器构造期装配，本类不直接持有；
- * json 序列化器与结果转化器管理器内的序列化器应由装配方传入同一实例，
- * 使请求体解码与响应体编码同源；虚拟线程资源、中间件链与会话管理器持有者
- * 同样仅持有、不负责其生命周期。
+ * 虚拟线程资源、中间件链与会话管理器持有者仅持有、不负责其生命周期。
  * </p>
  * <p>
  * 已实现的流程：{@link #orchestrate} 把请求任务提交到虚拟线程资源，
@@ -68,8 +65,6 @@ public class RequestOrchestrator {
     private final ExceptionHandlerManager exceptionHandlerManager;
     /** 会话管理器持有者，构建请求上下文时提供会话存储。 */
     private final SessionManagerHolder sessionManagerHolder;
-    /** json 序列化器，构建请求上下文供参数解码与 SSE 事件编码使用。 */
-    private final JsonSerializer jsonSerializer;
     /** 缺省字符集（装配期由 HttpConfig 判定），随请求传入上下文，并用于响应转化与 Cookie 写出编码。 */
     private final Charset defaultCharset;
     /** 请求体内容解析器管理器：由建造者装配传入，装配上下文时按内容类型解析请求体。 */
@@ -79,7 +74,7 @@ public class RequestOrchestrator {
      * 由建造者装配产物，编排器对外不提供公有构造入口；
      * 组件实例原样持有，不在本构造期建立或复制。
      *
-     * @param builder 已收集完十组件的建造者
+     * @param builder 已收集完九组件的建造者
      */
     private RequestOrchestrator(Builder builder) {
         this.middleware = builder.middleware;
@@ -89,13 +84,12 @@ public class RequestOrchestrator {
         this.corsConfig = builder.corsConfig;
         this.exceptionHandlerManager = builder.exceptionHandlerManager;
         this.sessionManagerHolder = builder.sessionManagerHolder;
-        this.jsonSerializer = builder.jsonSerializer;
         this.defaultCharset = builder.defaultCharset;
         this.contentParserManager = builder.contentParserManager;
     }
 
     /**
-     * 创建建造者，十组件均无默认值，须逐一配置齐备后构建。
+     * 创建建造者，九组件均无默认值，须逐一配置齐备后构建。
      *
      * @return 新建造者
      */
@@ -286,7 +280,7 @@ public class RequestOrchestrator {
                     ? new HttpUnknowContent(null)
                     : contentParserManager.parse(request);
             // 创建HttpContext对象
-            context = new FullHttpContext(message, content, httpSession, cookies, connectSession, jsonSerializer, defaultCharset);
+            context = new FullHttpContext(message, content, httpSession, cookies, connectSession, defaultCharset);
             // 执行中间件
             Object result = middleware.invoke(context);
             HttpResponse response = resultConverterManager.convert(result, defaultCharset);
@@ -342,7 +336,7 @@ public class RequestOrchestrator {
     }
 
     /**
-     * {@link RequestOrchestrator} 的建造者：十个组件各一个流式配置方法，
+     * {@link RequestOrchestrator} 的建造者：九个组件各一个流式配置方法，
      * 重复配置以最后一次为准；null 入参在配置方法即时拒绝，
      * 缺配在 {@link #build()} 拒绝且消息指名缺失组件。
      * {@link #build()} 可多次调用，产物互不影响。
@@ -356,7 +350,6 @@ public class RequestOrchestrator {
         private HttpCorsConfig corsConfig;
         private ExceptionHandlerManager exceptionHandlerManager;
         private SessionManagerHolder sessionManagerHolder;
-        private JsonSerializer jsonSerializer;
         private Charset defaultCharset;
         private HttpContentParserManager contentParserManager;
 
@@ -402,12 +395,6 @@ public class RequestOrchestrator {
             return this;
         }
 
-        /** 设置 json 序列化器，应与结果转化器管理器持有的为同一实例。 */
-        public Builder jsonSerializer(JsonSerializer jsonSerializer) {
-            this.jsonSerializer = Objects.requireNonNull(jsonSerializer, "json serializer must not be null");
-            return this;
-        }
-
         /** 设置缺省字符集（装配期由 HttpConfig 判定），随请求传入上下文，并用于响应转化与 Cookie 写出编码。 */
         public Builder defaultCharset(Charset defaultCharset) {
             this.defaultCharset = Objects.requireNonNull(defaultCharset, "default charset must not be null");
@@ -428,7 +415,7 @@ public class RequestOrchestrator {
         }
 
         /**
-         * 产出编排器：十组件逐一校验齐备后装配。
+         * 产出编排器：九组件逐一校验齐备后装配。
          *
          * @return 以当前收集值装配的新编排器
          * @throws NullPointerException 存在未配置的组件，消息指名缺失者
@@ -441,7 +428,6 @@ public class RequestOrchestrator {
             Objects.requireNonNull(corsConfig, "cors config must not be null");
             Objects.requireNonNull(exceptionHandlerManager, "exception handler manager must not be null");
             Objects.requireNonNull(sessionManagerHolder, "session manager holder must not be null");
-            Objects.requireNonNull(jsonSerializer, "json serializer must not be null");
             Objects.requireNonNull(defaultCharset, "default charset must not be null");
             Objects.requireNonNull(contentParserManager, "content parser manager must not be null");
             return new RequestOrchestrator(this);
