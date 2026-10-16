@@ -14,9 +14,26 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * {@link DefaultMessage} 的组装口径：头视图与地址对象的构造期建立、实例稳定性与缺省字符集透传。
+ * {@link DefaultMessage} 的组装口径：请求方式快照、头视图与地址对象的构造期建立、
+ * 实例稳定性与缺省字符集透传。
  */
 class DefaultMessageTest {
+
+    @Test
+    void methodIsSnapshottedFromRequestLine() {
+        FullHttpRequest get = Requests.get("/x");
+        FullHttpRequest post = Requests.postJson("/x", "{}");
+        try {
+            DefaultMessage getMessage = new DefaultMessage(get, StandardCharsets.UTF_8);
+            DefaultMessage postMessage = new DefaultMessage(post, StandardCharsets.UTF_8);
+            assertEquals("GET", getMessage.method(), "标准方法为大写字面量");
+            assertEquals("POST", postMessage.method());
+            assertSame(getMessage.method(), getMessage.method(), "构造期快照，重复访问同实例");
+        } finally {
+            Requests.release(get);
+            Requests.release(post);
+        }
+    }
 
     @Test
     void nullRequestIsRejected() {

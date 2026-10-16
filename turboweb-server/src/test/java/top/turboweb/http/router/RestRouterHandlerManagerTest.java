@@ -10,6 +10,7 @@ import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.testkit.Contexts;
 import top.turboweb.rest.param.BeanQuery;
 import top.turboweb.rest.param.PathParam;
 import top.turboweb.rest.param.QueryParam;
@@ -120,7 +121,9 @@ class RestRouterHandlerManagerTest {
     }
 
     private static HttpContext ctx(HttpMethod method, String uri) {
-        return new FullHttpContext(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri),
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri);
+        return new FullHttpContext(Contexts.message(request, StandardCharsets.UTF_8),
+                Contexts.content(request, StandardCharsets.UTF_8),
                 null, null, null, null, StandardCharsets.UTF_8);
     }
 
@@ -348,7 +351,8 @@ class RestRouterHandlerManagerTest {
     }
 
     private static HttpContext ctx(HttpMethod method, String uri, Charset charset) {
-        return new FullHttpContext(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri),
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri);
+        return new FullHttpContext(Contexts.message(request, charset), Contexts.content(request, charset),
                 null, null, null, null, charset);
     }
 
@@ -442,7 +446,8 @@ class RestRouterHandlerManagerTest {
         RouteHandlerManager manager = built(new QbController());
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET,
                 "/qb?name=alice&tags=a&tags=b");
-        HttpContext context = new FullHttpContext(req, null, null, null,
+        HttpContext context = new FullHttpContext(Contexts.message(req, StandardCharsets.UTF_8),
+                Contexts.content(req, StandardCharsets.UTF_8), null, null, null,
                 new JacksonJsonSerializer(), StandardCharsets.UTF_8);
         assertEquals("alice/a,b", manager.handle(context),
                 "@BeanQuery 端到端:承载查询映射经 bindBean 折叠绑定,数据源断链时该断言必红");

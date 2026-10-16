@@ -6,13 +6,16 @@ import java.nio.charset.Charset;
 import java.util.Objects;
 
 /**
- * {@code DefaultMessage} 是 {@link HttpContext.Message} 的默认实现：构造期建立
- * 请求头视图与地址对象并持有，两个访问器重复访问返回同一实例。
+ * {@code DefaultMessage} 是 {@link HttpContext.Message} 的默认实现：构造期快照请求方式、
+ * 建立请求头视图与地址对象并持有，三个访问器重复访问返回同一值。
  *
- * <p>头视图实时委托请求的头集合；地址对象构造期快照地址字符串，查询参数解码使用
- * 传入的缺省字符集。
+ * <p>请求方式取请求行的方法字面量；头视图实时委托请求的头集合；地址对象构造期快照
+ * 地址字符串，查询参数解码使用传入的缺省字符集。
  */
 public final class DefaultMessage implements HttpContext.Message {
+
+    /** 构造期快照的请求方式字面量 */
+    private final String method;
 
     /** 请求头只读视图 */
     private final DefaultHeaders headers;
@@ -29,8 +32,17 @@ public final class DefaultMessage implements HttpContext.Message {
      */
     public DefaultMessage(FullHttpRequest request, Charset queryCharset) {
         Objects.requireNonNull(request, "request can not be null");
+        this.method = request.method().name();
         this.headers = new DefaultHeaders(request);
         this.url = new DefaultURL(request, queryCharset);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String method() {
+        return method;
     }
 
     /**

@@ -21,8 +21,8 @@ import java.nio.charset.StandardCharsets;
  * <p>GET 等无体请求使用 {@link Unpooled#EMPTY_BUFFER}（不可释放，release 是 no-op）；
  * 带体请求使用 {@code Unpooled.wrappedBuffer}，refCnt 从 1 起算。
  *
- * <p>消费者范围（R10）：当前仅 Task 6 的 {@code FullHttpContextTest} / {@code HttpContentTest}
- * 使用；后续任务若需手工请求夹具可直接复用。
+ * <p>消费者范围（R10）：上下文、请求消息与请求体内容契约、编排流程的用例复用；
+ * 后续用例若需手工请求夹具可直接复用。
  */
 public final class Requests {
 
@@ -33,9 +33,9 @@ public final class Requests {
     public static final String JSON_CONTENT_TYPE = "application/json; charset=UTF-8";
 
     /**
-     * HEAD 夹具带的 Content-Type（D2，见任务报告）：HEAD 上下文的产品语义是"走 HttpContent.empty()，
-     * 不读请求体类型"，夹具带类型头后，assertNull 的断言才真正区分 empty() 与 new HttpContent(request, defaultCharset)——
-     * 若 HEAD 分支被改坏，empty() 的 null 会变成头里的 "text/plain"。
+     * HEAD 夹具带的 Content-Type（D2，见任务报告）：编排流程的产品语义是"HEAD 不进内容解析器，
+     * 内容侧以未声明类型的未知内容承载"，夹具带类型头后，assertNull 的断言才真正区分 HEAD 分支与
+     * 走解析器的常规分支——若 HEAD 分支被改坏，null 会变成头里的 "text/plain"。
      */
     private static final String HEAD_CONTENT_TYPE = "text/plain; charset=UTF-8";
 

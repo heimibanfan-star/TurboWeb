@@ -1,6 +1,5 @@
 package top.turboweb.http.router;
 
-import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
@@ -112,16 +111,17 @@ public class RouteHandler {
      * @throws Throwable 目标方法抛出的异常原样透传
      */
     public Object handle(HttpContext context, RequestParameter requestParameter) throws Throwable {
-        FullHttpRequest request = context.getRequest();
-        HttpMethod httpMethod = request.method();
+        HttpContext.Message message = context.message();
+        String httpMethod = message.method();
         // 按请求方式匹配调用器,命中即绑定参数并展开调用目标方法
         for (RouteHandlerInvoker invoker : invokers) {
-            if (Objects.equals(invoker.httpMethod(), httpMethod)) {
+            if (invoker.httpMethod().name().equals(httpMethod)) {
                 return invoker.invoke(context, requestParameter, beanValidator);
             }
         }
         // 无匹配的请求方式,按路由不匹配错误码抛出
-        throw new RouteHandlerException("not found route:" + httpMethod.name() + " " + request.uri(), ErrorCode.RouterNotMatch);
+        throw new RouteHandlerException("not found route:" + httpMethod + " " + message.url().url(false),
+                ErrorCode.RouterNotMatch);
     }
 
     /**

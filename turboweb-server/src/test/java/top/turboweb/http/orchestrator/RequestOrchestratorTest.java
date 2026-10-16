@@ -14,6 +14,8 @@ import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.context.HttpJsonContent;
+import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.context.respmeta.DefaultResponseMeta;
 import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.core.connect.InternalConnectSession;
@@ -24,9 +26,11 @@ import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
+import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.testkit.Stubs;
 import top.turboweb.serializer.JacksonJsonSerializer;
 
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,21 +39,25 @@ import java.util.function.Function;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * {@link RequestOrchestrator} 的行为锚：建造者装配八组件（中间件、虚拟线程资源、
+ * {@link RequestOrchestrator} 的行为锚：建造者装配十组件（中间件、虚拟线程资源、
  * 响应写出器管理器、结果转化器管理器、cors 配置、异常处理器管理器、
- * 会话管理器持有者、json 序列化器）的构造契约——配置方法 null 入参即时拒收、
- * 缺配在 build 时拒收且消息指名组件、八件齐配构建成功且重复 build 产物互不相同；
+ * 会话管理器持有者、json 序列化器、缺省字符集、请求体内容解析器管理器）的构造契约——
+ * 配置方法 null 入参即时拒收、缺配在 build 时拒收且消息指名组件、
+ * 十件齐配构建成功且重复 build 产物互不相同；
  * CORS 来源处理流程的响应头写出契约；以及消费流程契约——
  * 入口参数判空、中间件结果转化写出与请求释放、挂载的响应元信息不回填响应、
  * OPTIONS 预检空 200 不进链、未注册异常落 500 兜底页、路由未匹配落 404 页、
@@ -58,7 +66,12 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 class RequestOrchestratorTest {
 
-    /** 按指定 cors 配置装配九组件齐备的编排器（空链头、空异常处理器表）。 */
+    /** 内置解析器构成的内容解析器管理器（UTF-8 缺省字符集、无自定义解析器）。 */
+    private static HttpContentParserManager contentParserManager() {
+        return new HttpContentParserManager(StandardCharsets.UTF_8, List.of());
+    }
+
+    /** 按指定 cors 配置装配十组件齐备的编排器（空链头、空异常处理器表）。 */
     private static RequestOrchestrator orchestratorWith(HttpCorsConfig corsConfig) {
         return RequestOrchestrator.builder()
                 .middleware(new SentinelMiddleware())
@@ -70,15 +83,16 @@ class RequestOrchestratorTest {
                 .sessionManagerHolder(() -> new BackHoleSessionManager())
                 .jsonSerializer(new JacksonJsonSerializer())
                 .defaultCharset(StandardCharsets.UTF_8)
+                .contentParserManager(contentParserManager())
                 .build();
     }
 
-    /** 按指定链头与异常处理器装配九组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
+    /** 按指定链头与异常处理器装配十组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
     private static RequestOrchestrator flowOrchestrator(Middleware chain, ExceptionHandlerManager handlers) {
         return flowOrchestrator(chain, handlers, new UnlimitedVirtualThreadResource("test-orchestrator"));
     }
 
-    /** 按指定链头、异常处理器与虚拟线程资源装配九组件齐备的编排器。 */
+    /** 按指定链头、异常处理器与虚拟线程资源装配十组件齐备的编排器。 */
     private static RequestOrchestrator flowOrchestrator(Middleware chain, ExceptionHandlerManager handlers,
                                                          VirtualThreadResource resource) {
         return RequestOrchestrator.builder()
@@ -91,6 +105,7 @@ class RequestOrchestratorTest {
                 .sessionManagerHolder(() -> new BackHoleSessionManager())
                 .jsonSerializer(new JacksonJsonSerializer())
                 .defaultCharset(StandardCharsets.UTF_8)
+                .contentParserManager(contentParserManager())
                 .build();
     }
 
@@ -134,6 +149,8 @@ class RequestOrchestratorTest {
         assertEquals("json serializer must not be null", e8.getMessage());
         NullPointerException e9 = assertThrows(NullPointerException.class, () -> builder.defaultCharset(null));
         assertEquals("default charset must not be null", e9.getMessage());
+        NullPointerException e10 = assertThrows(NullPointerException.class, () -> builder.contentParserManager(null));
+        assertEquals("content parser manager must not be null", e10.getMessage());
     }
 
     @Test
@@ -234,6 +251,21 @@ class RequestOrchestratorTest {
                         .jsonSerializer(new JacksonJsonSerializer())
                         .build());
         assertEquals("default charset must not be null", e9.getMessage());
+
+        NullPointerException e10 = assertThrows(NullPointerException.class,
+                () -> RequestOrchestrator.builder()
+                        .middleware(new SentinelMiddleware())
+                        .virtualThreadResource(new UnlimitedVirtualThreadResource("t"))
+                        .responseWriterManager(new ResponseWriterManager(Stubs.threadPool(), List.of()))
+                        .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer()))
+                        .corsConfig(HttpCorsConfig.builder().build())
+                        .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
+                        .sessionManagerHolder(() -> new BackHoleSessionManager())
+                        .jsonSerializer(new JacksonJsonSerializer())
+                        .defaultCharset(StandardCharsets.UTF_8)
+                        .build());
+        assertEquals("content parser manager must not be null", e10.getMessage(),
+                "内容解析器管理器同为必配组件，缺配同样指名拒收");
     }
 
     @Test
@@ -247,7 +279,8 @@ class RequestOrchestratorTest {
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> new BackHoleSessionManager())
                 .jsonSerializer(new JacksonJsonSerializer())
-                .defaultCharset(StandardCharsets.UTF_8);
+                .defaultCharset(StandardCharsets.UTF_8)
+                .contentParserManager(contentParserManager());
 
         RequestOrchestrator first = builder.build();
         RequestOrchestrator second = builder.build();
@@ -403,6 +436,7 @@ class RequestOrchestratorTest {
                 .sessionManagerHolder(() -> new BackHoleSessionManager())
                 .jsonSerializer(new JacksonJsonSerializer())
                 .defaultCharset(gbk)
+                .contentParserManager(new HttpContentParserManager(gbk, List.of()))
                 .build();
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
@@ -417,7 +451,7 @@ class RequestOrchestratorTest {
         channel.finishAndReleaseAll();
     }
 
-    /** 按指定链头与会话管理器实例装配九组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
+    /** 按指定链头与会话管理器实例装配十组件齐备的编排器（默认通配 cors、非受限虚拟线程资源）。 */
     private static RequestOrchestrator orchestratorWithChainAndManager(Middleware chain, SessionManager manager) {
         return RequestOrchestrator.builder()
                 .middleware(chain)
@@ -429,6 +463,7 @@ class RequestOrchestratorTest {
                 .sessionManagerHolder(() -> manager)
                 .jsonSerializer(new JacksonJsonSerializer())
                 .defaultCharset(StandardCharsets.UTF_8)
+                .contentParserManager(contentParserManager())
                 .build();
     }
 
@@ -634,6 +669,130 @@ class RequestOrchestratorTest {
         assertEquals("POST /submit cost:12us state:fail",
                 RequestOrchestrator.buildRequestLogMessage("POST", "/submit", 12_345L, false),
                 "微秒整除取商、失败措辞 fail");
+    }
+
+    // ---------- 上下文装配：请求转化为消息与请求体内容 ----------
+
+    /** 十组件齐备的建造者（默认通配 cors、空异常处理器表），链头由调用方给定，内容解析器管理器取内置。 */
+    private static RequestOrchestrator.Builder builderWith(Middleware chain) {
+        return builderWith(chain, contentParserManager());
+    }
+
+    /** 十组件齐备的建造者，链头与内容解析器管理器由调用方给定。 */
+    private static RequestOrchestrator.Builder builderWith(Middleware chain, HttpContentParserManager parserManager) {
+        return RequestOrchestrator.builder()
+                .middleware(chain)
+                .virtualThreadResource(new UnlimitedVirtualThreadResource("test-orchestrator"))
+                .responseWriterManager(new ResponseWriterManager(Stubs.threadPool(), List.of()))
+                .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer()))
+                .corsConfig(HttpCorsConfig.builder().build())
+                .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
+                .sessionManagerHolder(() -> new BackHoleSessionManager())
+                .jsonSerializer(new JacksonJsonSerializer())
+                .defaultCharset(StandardCharsets.UTF_8)
+                .contentParserManager(parserManager);
+    }
+
+    @Test
+    void contextAssembledWithMessageAndParsedContent() {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        ContextCapturingMiddleware chain = new ContextCapturingMiddleware();
+        RequestOrchestrator orchestrator = builderWith(chain).build();
+        FullHttpRequest request = Requests.postJson("/submit", "{\"name\":\"alice\"}");
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        HttpContext context = chain.captured();
+        assertNotNull(context, "链进入时上下文已装配");
+        assertEquals("POST", context.message().method(), "请求方式来自请求行");
+        assertEquals("/submit", context.message().url().url(true), "地址由请求转化为消息");
+        assertInstanceOf(HttpJsonContent.class, context.content(), "JSON 请求体分派给内置 JSON 解析器");
+        assertEquals("{\"name\":\"alice\"}", ((HttpJsonContent) context.content()).jsonString(),
+                "请求体在装配上下文时已解码为字符串");
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void headRequestSkipsBodyParsing() {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        ContextCapturingMiddleware chain = new ContextCapturingMiddleware();
+        RequestOrchestrator orchestrator = builderWith(chain).build();
+        FullHttpRequest request = Requests.head("/x");
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        HttpContext.Content content = chain.captured().content();
+        assertInstanceOf(HttpUnknowContent.class, content, "HEAD 不进内容解析器");
+        assertNull(content.contentType(), "HEAD 无请求体，内容侧不声明类型（夹具的类型头不被读取）");
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void invalidRequestBodyFailsAtAssemblyBeforeChain() {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        ContextCapturingMiddleware chain = new ContextCapturingMiddleware();
+        RequestOrchestrator orchestrator = builderWith(chain).build();
+        FullHttpRequest request = Requests.postJson("/submit", "not a json");
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        assertNull(chain.captured(), "请求体解析失败发生在装配上下文时，链不进入");
+        FullHttpResponse written = channel.readOutbound();
+        assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, written.getStatus(),
+                "解析异常与链内异常同径交异常处理器，未注册时落 500 兜底页");
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void customContentParserOfInjectedManagerIsDispatched() {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        ContextCapturingMiddleware chain = new ContextCapturingMiddleware();
+        HttpContentParserManager parserManager =
+                new HttpContentParserManager(StandardCharsets.UTF_8, List.of(new MarkedContentParser()));
+        RequestOrchestrator orchestrator = builderWith(chain, parserManager).build();
+        FullHttpRequest request = Requests.raw(HttpMethod.GET, "/x", "text/csv", "a,b", StandardCharsets.UTF_8);
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        assertSame(MarkedContentParser.MARKER, chain.captured().content(),
+                "注入的管理器所持有的自定义解析器按类型分派，其产出进上下文");
+        channel.finishAndReleaseAll();
+    }
+
+    /** 链成员：捕获进入的上下文并返回固定字符串。 */
+    private static class ContextCapturingMiddleware extends Middleware {
+        private final AtomicReference<HttpContext> captured = new AtomicReference<>();
+
+        @Override
+        public Object invoke(HttpContext ctx) {
+            captured.set(ctx);
+            return "hello";
+        }
+
+        HttpContext captured() {
+            return captured.get();
+        }
+    }
+
+    /** 自定义解析器：承接 text/csv 并返回标记内容对象，用于证明注册后的分派。 */
+    private static class MarkedContentParser implements HttpContentParser {
+
+        static final HttpContext.Content MARKER = new HttpContext.Content() {
+            @Override
+            public ContentType contentType() {
+                return ContentType.create("text/csv");
+            }
+        };
+
+        @Override
+        public Set<ContentType> contentTypes() {
+            return Set.of(ContentType.create("text/csv"));
+        }
+
+        @Override
+        public HttpContext.Content parse(FullHttpRequest request, Charset defaultCharset) {
+            return MARKER;
+        }
     }
 
     /** 链成员：进链时记录 chain 事件并返回固定字符串。 */

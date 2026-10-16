@@ -1,6 +1,5 @@
 package org.example.mbel;
 
-import io.netty.handler.codec.http.HttpHeaderNames;
 import top.turboweb.core.server.BootStrapTurboWebServer;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.BranchMiddleware;
@@ -45,7 +44,7 @@ public class MBELApplication {
             @Override
             protected String getBranchKey(HttpContext ctx) {
                 // 获取请求头的数据
-                return ctx.getRequest().headers().get(HttpHeaderNames.AUTHORIZATION);
+                return ctx.message().headers().authorization();
             }
         };
         // 注册分支

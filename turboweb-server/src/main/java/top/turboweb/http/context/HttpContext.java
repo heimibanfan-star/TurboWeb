@@ -1,6 +1,5 @@
 package top.turboweb.http.context;
 
-import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.core.connect.ConnectSession;
@@ -39,8 +38,10 @@ import java.util.Set;
  * <h2>典型用法</h2>
  * <pre>{@code
  * void handle(HttpContext ctx) {
- *     // 获取请求
- *     FullHttpRequest req = ctx.getRequest();
+ *     // 获取请求消息：方式、请求头与请求地址
+ *     HttpContext.Message message = ctx.message();
+ *     String method = message.method();
+ *     String path = message.url().url(true);
  *
  *     // 获取Session属性
  *     HttpSession session = ctx.httpSession();
@@ -82,9 +83,16 @@ public interface HttpContext {
 	}
 
 	/**
-	 * http请求消息：请求头与请求地址的读取入口。
+	 * http请求消息：请求方式、请求头与请求地址的读取入口。
 	 */
 	interface Message {
+
+		/**
+		 * 获取请求方式，取请求行的方法字面量。
+		 *
+		 * @return 请求方式（标准方法为大写，如 {@code GET}、{@code POST}）
+		 */
+		String method();
 
 		/**
 		 * 获取请求头只读视图。
@@ -277,11 +285,23 @@ public interface HttpContext {
 	}
 
 	/**
-	 * 获取当前请求对象。
+	 * 获取当前请求的消息：请求方式、请求头与请求地址。
+	 * <p>由编排器在装配上下文时从请求对象转化而来，本接口不暴露请求对象本身。</p>
 	 *
-	 * @return Netty 的 {@link FullHttpRequest} 对象，包含请求头、URI、方法及请求体。
+	 * @return 请求消息，永不为 null
 	 */
-	FullHttpRequest getRequest();
+	Message message();
+
+	/**
+	 * 获取当前请求的请求体内容。
+	 * <p>由编排器按请求头声明的内容类型分派解析器产出；内容类型未声明或无对应解析器时为
+	 * {@link HttpUnknowContent}，无请求体的请求（如 HEAD）同样以此承载。</p>
+	 * <p>返回对象中持有资源的实现（{@link AutoCloseContent}）由本上下文统一管理，
+	 * 在 {@link #release()} 时关闭，使用者无须也不应提前关闭。</p>
+	 *
+	 * @return 请求体内容，永不为 null
+	 */
+	Content content();
 
 	/**
 	 * 获取连接会话。
@@ -338,7 +358,8 @@ public interface HttpContext {
 
 	/**
 	 * 释放当前上下文持有的资源。
-	 * <p>例如释放 {@link FullHttpRequest} 的引用，回收缓冲区等。</p>
+	 * <p>关闭 {@link #content()} 中持有资源的实现（表单解码器、上传文件的直接内存与磁盘临时文件）。</p>
+	 * <p>本方法不释放请求对象本身，请求的释放由持有请求的编排环节负责。</p>
 	 */
 	void release();
 

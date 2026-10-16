@@ -235,8 +235,8 @@ class HttpRequestApplicationTest {
         RequestOrchestrator orchestrator = orchestratorOf(app);
         for (String component : List.of("middleware", "virtualThreadResource", "responseWriterManager",
                 "resultConverterManager", "corsConfig", "exceptionHandlerManager",
-                "sessionManagerHolder", "jsonSerializer", "defaultCharset")) {
-            assertNotNull(componentOf(orchestrator, component), "九组件之 " + component + " 装配后不可为null");
+                "sessionManagerHolder", "jsonSerializer", "defaultCharset", "contentParserManager")) {
+            assertNotNull(componentOf(orchestrator, component), "十组件之 " + component + " 装配后不可为null");
         }
         assertInstanceOf(UnlimitedVirtualThreadResource.class,
                 componentOf(orchestrator, "virtualThreadResource"),

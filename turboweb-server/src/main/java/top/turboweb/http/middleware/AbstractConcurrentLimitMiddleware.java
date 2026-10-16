@@ -23,8 +23,10 @@ public abstract class AbstractConcurrentLimitMiddleware extends Middleware{
 
     @Override
     public Object invoke(HttpContext ctx) {
+        HttpContext.Message message = ctx.message();
+        String method = message.method();
         // 判断是否可以放行
-        LimitMatchResult limitMatchResult = couldEnter(ctx.getRequest().method().name(), ctx.getRequest().uri());
+        LimitMatchResult limitMatchResult = couldEnter(method, message.url().url(false));
         if (limitMatchResult.status == LimitMatchStatus.REJECT) {
             return doAfterReject(ctx);
         }
@@ -32,7 +34,7 @@ public abstract class AbstractConcurrentLimitMiddleware extends Middleware{
         try {
             return next(ctx);
         } finally {
-            leave(ctx.getRequest().method().name(), limitMatchResult);
+            leave(method, limitMatchResult);
         }
     }
 

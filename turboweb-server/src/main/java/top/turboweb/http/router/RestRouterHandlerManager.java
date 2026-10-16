@@ -1,12 +1,9 @@
 package top.turboweb.http.router;
 
-import io.netty.handler.codec.http.FullHttpRequest;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.router.parameter.*;
-import top.turboweb.http.core.helper.UrlHelper;
-import top.turboweb.http.core.helper.UrlHelper.ParamPair;
 import top.turboweb.struct.radix.RestRouteTree;
 import top.turboweb.struct.radix.RouteTree;
 import top.turboweb.validation.BeanValidator;
@@ -42,9 +39,9 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
     /**
      * 处理请求:按请求路径匹配路由处理器并执行
      *
-     * <p>查询串不属路径,匹配前先剥离;命中后路径参数按上下文缺省字符集解码、查询串按同一字符集
-     * 解析并按名聚合,一并装入非请求体参数承载随处理器调用传递,由参数绑定器取用,
-     * 处理器按请求方式分发。
+     * <p>匹配路径取上下文消息地址的仅路径形态（查询段与片段段不入匹配）;命中后路径参数按
+     * 上下文缺省字符集解码,查询参数直接取消息地址按同一字符集解码并按名聚合的结果,
+     * 两者一并装入非请求体参数承载随处理器调用传递,由参数绑定器取用,处理器按请求方式分发。
      *
      * @param context 请求上下文
      * @return 目标方法的返回值
@@ -55,16 +52,14 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
      */
     @Override
     public Object handle(HttpContext context) {
-        FullHttpRequest request = context.getRequest();
-        String path = request.uri();
-        if (path.contains("?")) {
-            path = path.substring(0, path.indexOf("?"));
-        }
+        HttpContext.Message message = context.message();
+        HttpContext.URL url = message.url();
+        String path = url.url(true);
         RouteTree.Result<RouteHandler> matched = this.routeHandlerRadixTree.match(path);
         if (matched == null) {
             // 与注解路由同口径:未匹配按路由不匹配错误码抛出,由异常处理器转 404
             throw new RouteHandlerException(
-                    String.format("router not found: %s %s", request.method().name(), request.uri()),
+                    String.format("router not found: %s %s", message.method(), url.url(false)),
                     ErrorCode.RouterNotMatch);
         }
         // 路径与查询参数都是 URI 侧数据,装配期解码就位后随处理器调用传递,不进请求上下文;
@@ -77,7 +72,7 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
         }
         Map<String, List<String>> queryParams;
         try {
-            queryParams = parseQueryParams(request.uri(), context.defaultCharset());
+            queryParams = url.queryParams();
         } catch (IllegalArgumentException e) {
             throw new RouteHandlerException(e, ErrorCode.ParamDecodeError);
         }
@@ -103,22 +98,6 @@ public class RestRouterHandlerManager implements RouteHandlerManager {
         Map<String, String> decoded = new HashMap<>(params.size(), 1);
         params.forEach((name, value) -> decoded.put(name, URLDecoder.decode(value, charset)));
         return decoded;
-    }
-
-    /**
-     * 解析 URI 查询串并按名聚合:值按出现顺序保留;无等号段(如 {@code ?flag})取值 null 入列表;
-     * 无查询串返回空映射。百分号转义畸形时抛 IllegalArgumentException,由装配点转 400,不吞错。
-     *
-     * @param uri     完整请求 URI
-     * @param charset 装配期缺省字符集
-     * @return 参数名到值列表的映射
-     */
-    private static Map<String, List<String>> parseQueryParams(String uri, Charset charset) {
-        Map<String, List<String>> params = new LinkedHashMap<>();
-        for (ParamPair param : UrlHelper.parseQueryParams(uri, charset)) {
-            params.computeIfAbsent(param.getName(), k -> new ArrayList<>()).add(param.getValue());
-        }
-        return params;
     }
 
     public static class Builder {

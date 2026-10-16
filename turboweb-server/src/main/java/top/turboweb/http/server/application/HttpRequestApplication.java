@@ -19,6 +19,7 @@ import top.turboweb.http.core.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
+import top.turboweb.http.orchestrator.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 import top.turboweb.http.orchestrator.ResponseWriterManager;
@@ -39,7 +40,7 @@ import java.util.stream.Stream;
  * 请求串行化处理器（可选，连接级新实例）与http请求调度处理器（无状态单例，跨连接复用）；
  * 对内通过 {@link Builder} 在构建期一次性完成请求编排器的装配：串联中间件链（业务中间件
  * 按注册顺序，存在路由处理器管理器时在其后追加路由调用中间件为链尾）、按 {@link HttpConfig}
- * 创建磁盘IO线程池与虚拟线程资源、未由调用方传入的组件补全默认实例，按八组件装定
+ * 创建磁盘IO线程池与虚拟线程资源、未由调用方传入的组件补全默认实例，按十组件装定
  * {@link RequestOrchestrator} 后接入调度处理器。
  * <p>
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
@@ -159,7 +160,7 @@ public class HttpRequestApplication implements Application {
      * 串联并初始化中间件链 -> 按 {@link HttpConfig} 的 diskOpeThread* 参数创建磁盘IO线程池 ->
      * 按限流参数创建虚拟线程资源（启用限流为 {@link LimitedVirtualThreadResource}，
      * 否则为 {@link UnlimitedVirtualThreadResource}）-> 补全未传入的组件默认值 ->
-     * 按八组件装配 {@link RequestOrchestrator} -> 装配http请求调度处理器。
+     * 按十组件装配 {@link RequestOrchestrator} -> 装配http请求调度处理器。
      * 装配出的中间件链销毁适配器先登记、磁盘IO线程池后登记进应用的
      * {@link ScopedResource} 资源作用域，由应用在关闭时按登记顺序统一释放。
      * <p>
@@ -303,8 +304,9 @@ public class HttpRequestApplication implements Application {
 
         /**
          * 构建应用：串联并初始化中间件链，按 {@link HttpConfig} 的 diskOpeThread* 参数创建
-         * 磁盘IO线程池，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按九组件装配
-         * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}），最后装配http请求调度处理器；
+         * 磁盘IO线程池，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按十组件装配
+         * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}，内容解析器管理器
+         * 以同一字符集与内置解析器建立），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
          * 装配出的中间件链销毁适配器先登记、创建的磁盘IO线程池后登记进资源作用域交给应用持有，
          * 由 {@link Application#close()} 的默认实现按登记顺序释放。
@@ -337,7 +339,7 @@ public class HttpRequestApplication implements Application {
             scopedResource.register(diskOpeThreadPool);
             // 按配置限流参数创建虚拟线程资源
             VirtualThreadResource virtualThreadResource = createVirtualThreadResource();
-            // 未传入的组件补全默认值后，按九组件装定请求编排器
+            // 未传入的组件补全默认值后，按十组件装定请求编排器
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
                     .virtualThreadResource(virtualThreadResource)
@@ -356,6 +358,7 @@ public class HttpRequestApplication implements Application {
                     .sessionManagerHolder(createSessionManagerHolder())
                     .jsonSerializer(this.jsonSerializer)
                     .defaultCharset(httpConfig.getDefaultCharset())
+                    .contentParserManager(new HttpContentParserManager(httpConfig.getDefaultCharset(), List.of()))
                     .build();
             HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
                     .orchestrator(orchestrator)

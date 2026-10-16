@@ -1,13 +1,12 @@
 package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.multipart.FileUpload;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.context.attchment.DefaultAttachment;
-import top.turboweb.http.context.content.HttpContent;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
@@ -26,9 +25,13 @@ import java.util.Objects;
 /**
  * {@code FullHttpContext} 是 TurboWeb 框架中 {@link HttpContext} 的唯一实现。
  * <p>
- * 它封装原始请求、Session、Cookie、连接会话、请求内容（{@link HttpContent}）、
- * JSON 序列化器、缺省编码与挂载对象，并据此提供 SSE 创建、请求体参数封装
- * （表单/JSON/上传文件）与 bean 绑定服务。
+ * 它封装请求消息（{@link HttpContext.Message}）、请求体内容（{@link HttpContext.Content}）、
+ * Session、Cookie、连接会话、JSON 序列化器、缺省编码与挂载对象，并据此提供 SSE 创建、
+ * 请求体参数封装（表单/JSON/上传文件）与 bean 绑定服务。
+ * <p>
+ * 本类不持有 Netty 的请求对象：请求的方式、头与地址经 {@link HttpContext.Message} 读取，
+ * 请求体经内容解析器产出的 {@link HttpContext.Content} 读取，两者均由编排器在装配上下文时就位。
+ * 请求体内容为 {@link HttpContext.AutoCloseContent} 时，其资源在 {@link #release()} 时关闭。
  * <p>
  * 该类主要面向业务层使用者，提供统一的参数访问与数据绑定能力。
  * 它不关心路由分发或请求调度，仅负责当前请求作用域的数据封装与访问。
@@ -45,8 +48,14 @@ import java.util.Objects;
  */
 public final class FullHttpContext implements HttpContext {
 
-	/** 原始 Netty HTTP 请求对象 */
-	private final FullHttpRequest request;
+	/** 内容关闭失败的记录器，走 netty 标准日志通道 */
+	private static final InternalLogger log = InternalLoggerFactory.getInstance(FullHttpContext.class);
+
+	/** 请求消息：请求方式、请求头与请求地址 */
+	private final HttpContext.Message message;
+
+	/** 请求体内容：由内容解析器产出，持有资源的实现在释放时关闭 */
+	private final HttpContext.Content content;
 
 	/** 当前请求关联的会话对象 */
 	private final HttpSession session;
@@ -56,9 +65,6 @@ public final class FullHttpContext implements HttpContext {
 
 	/** 当前请求的 Cookie 集合 */
 	private final HttpCookies httpCookies;
-
-	/** 封装后的请求内容对象 */
-	final HttpContent httpContent;
 
 	/** JSON 序列化器 */
 	private final JsonSerializer jsonSerializer;
@@ -70,36 +76,33 @@ public final class FullHttpContext implements HttpContext {
 	private final Attachment attachment = new DefaultAttachment();
 
 	/**
-	 * 构造完整的 HTTP 上下文，初始化请求上下文的核心依赖。
-	 * <p>HEAD 请求无请求体，内容侧以空实例承载；其余请求按给定缺省编码构造 {@link HttpContent}。</p>
+	 * 构造完整的 HTTP 上下文，装配请求上下文的核心依赖。
+	 * <p>请求消息与请求体内容都由调用方（编排器）就位，本构造不再从请求对象取数。</p>
 	 *
-	 * @param request         当前请求对象
+	 * @param message         请求消息（方式、头与地址），不能为 null
+	 * @param content         请求体内容，不能为 null
 	 * @param httpSession     HTTP 会话对象
 	 * @param cookies         当前请求的 Cookie 集合
 	 * @param connectSession  当前连接会话（用于 WebSocket / SSE）
 	 * @param jsonSerializer  JSON 序列化器
 	 * @param defaultCharset  缺省编码（装配期由 HttpConfig 判定并随请求传递），不能为 null
-	 * @throws NullPointerException defaultCharset 为 null
+	 * @throws NullPointerException message、content 或 defaultCharset 为 null
 	 */
 	public FullHttpContext(
-			FullHttpRequest request,
+			HttpContext.Message message,
+			HttpContext.Content content,
 			HttpSession httpSession,
 			HttpCookies cookies,
 			ConnectSession connectSession,
 			JsonSerializer jsonSerializer,
 			Charset defaultCharset
 	) {
-		this.request = request;
+		this.message = Objects.requireNonNull(message, "message can not be null");
+		this.content = Objects.requireNonNull(content, "content can not be null");
 		this.session = httpSession;
 		this.httpCookies = cookies;
 		this.connectSession = connectSession;
 		this.defaultCharset = Objects.requireNonNull(defaultCharset, "defaultCharset can not be null");
-		HttpMethod method = request.method();
-		if (HttpMethod.HEAD == method) {
-			httpContent = HttpContent.empty();
-		} else {
-			httpContent = new HttpContent(request, defaultCharset);
-		}
 		this.jsonSerializer = jsonSerializer;
 	}
 
@@ -107,8 +110,16 @@ public final class FullHttpContext implements HttpContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FullHttpRequest getRequest() {
-		return this.request;
+	public HttpContext.Message message() {
+		return this.message;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public HttpContext.Content content() {
+		return this.content;
 	}
 
 	/**
@@ -207,7 +218,7 @@ public final class FullHttpContext implements HttpContext {
 	 */
 	@Override
 	public <T> T loadForm(Class<T> beanType) {
-		return bindBean(httpContent.getFormParams(), beanType);
+		return bindBean(formContent().formParams(), beanType);
 	}
 
 	/**
@@ -215,13 +226,11 @@ public final class FullHttpContext implements HttpContext {
 	 */
 	@Override
 	public <T> T loadJson(Class<T> beanType) {
-		// 获取json请求体
-		String jsonContent = httpContent.getJsonContent();
-		if (jsonContent == null) {
-			throw new RequestParseException("JSON request body is empty");
+		if (!(content instanceof HttpJsonContent jsonContent)) {
+			throw new RequestParseException("contentType is not application/json");
 		}
-		// 序列化对象
-		return jsonSerializer.jsonToBean(jsonContent, beanType);
+		// 请求体已在装配期解码为字符串，空白体已规整为 {}，此处直接交序列化器绑定
+		return jsonSerializer.jsonToBean(jsonContent.jsonString(), beanType);
 	}
 
 	/**
@@ -229,9 +238,23 @@ public final class FullHttpContext implements HttpContext {
 	 */
 	@Override
 	public List<FileUpload> loadFiles(String fileName) {
-		List<FileUpload> fileUploads = httpContent.getFormFiles().get(fileName);
+		List<FileUpload> fileUploads = formContent().formFiles().get(fileName);
 		// 字段不存在归一为空集合
 		return fileUploads == null ? List.of() : fileUploads;
+	}
+
+	/**
+	 * 取表单内容对象，供表单字段与上传文件通道共用。
+	 *
+	 * @return 表单内容对象
+	 * @throws RequestParseException 当前请求体内容不是表单类型（urlencoded 或 multipart）时抛出
+	 */
+	private HttpFormContent formContent() {
+		if (!(content instanceof HttpFormContent formContent)) {
+			throw new RequestParseException(
+					"contentType is not application/x-www-form-urlencoded or multipart/form-data");
+		}
+		return formContent;
 	}
 
 	/**
@@ -245,9 +268,18 @@ public final class FullHttpContext implements HttpContext {
 
 	/**
 	 * {@inheritDoc}
+	 * <p>请求体内容为 {@link AutoCloseContent} 时关闭它，释放解码器持有的直接内存与磁盘临时文件；
+	 * 关闭抛出的异常只记录不外抛，不影响请求其余环节的收尾。内容不持有资源时为空操作，
+	 * 重复调用无副作用。</p>
 	 */
 	@Override
 	public void release() {
-		httpContent.release();
+		if (content instanceof AutoCloseContent autoCloseContent) {
+			try {
+				autoCloseContent.close();
+			} catch (Exception e) {
+				log.error("Failed to close http content", e);
+			}
+		}
 	}
 }

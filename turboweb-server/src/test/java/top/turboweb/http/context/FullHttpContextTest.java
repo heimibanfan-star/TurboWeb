@@ -4,8 +4,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.context.content.HttpContent;
 import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
@@ -13,6 +13,7 @@ import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.MemorySessionManager;
 import top.turboweb.http.exception.RequestParseException;
+import top.turboweb.http.testkit.Contexts;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
@@ -47,17 +48,56 @@ class FullHttpContextTest {
     }
 
     private static FullHttpContext context(FullHttpRequest request, HttpSession session) {
-        return new FullHttpContext(request, session,
+        return new FullHttpContext(Contexts.message(request, StandardCharsets.UTF_8),
+                Contexts.content(request, StandardCharsets.UTF_8), session,
                 new DefaultHttpCookies(request.headers()), CONNECT_SESSION, SERIALIZER, StandardCharsets.UTF_8);
     }
 
     // ---------- 构造器注入与基础 getter 面 ----------
 
     @Test
-    void getRequestReturnsTheSameInstance() {
+    void messageAndContentAreTheInjectedInstances() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            assertSame(req, context(req).getRequest());
+            HttpContext.Message message = Contexts.message(req, StandardCharsets.UTF_8);
+            HttpContext.Content content = Contexts.content(req, StandardCharsets.UTF_8);
+            FullHttpContext ctx = new FullHttpContext(message, content, newSession(),
+                    new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER, StandardCharsets.UTF_8);
+            assertSame(message, ctx.message(), "上下文按注入就位，不另建契约对象");
+            assertSame(content, ctx.content());
+        } finally {
+            Requests.release(req);
+        }
+    }
+
+    @Test
+    void messageExposesMethodAndPathOfTheRequest() {
+        FullHttpRequest req = Requests.get("/x?a=1");
+        try {
+            FullHttpContext ctx = context(req);
+            assertEquals("GET", ctx.message().method(), "请求方式取请求行方法字面量");
+            assertEquals("/x", ctx.message().url().url(true), "仅地址形态截除查询段");
+            assertEquals("/x?a=1", ctx.message().url().url(false));
+        } finally {
+            Requests.release(req);
+        }
+    }
+
+    @Test
+    void nullMessageOrContentRejectedAtConstruction() {
+        FullHttpRequest req = Requests.get("/x");
+        try {
+            HttpContext.Message message = Contexts.message(req, StandardCharsets.UTF_8);
+            HttpContext.Content content = Contexts.content(req, StandardCharsets.UTF_8);
+            HttpSession session = newSession();
+            NullPointerException e1 = assertThrows(NullPointerException.class, () -> new FullHttpContext(
+                    null, content, session, new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER,
+                    StandardCharsets.UTF_8));
+            assertEquals("message can not be null", e1.getMessage());
+            NullPointerException e2 = assertThrows(NullPointerException.class, () -> new FullHttpContext(
+                    message, null, session, new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER,
+                    StandardCharsets.UTF_8));
+            assertEquals("content can not be null", e2.getMessage());
         } finally {
             Requests.release(req);
         }
@@ -101,17 +141,19 @@ class FullHttpContextTest {
     }
 
     @Test
-    void headRequestGetsEmptyContentWhileGetGetsParsedContent() {
-        FullHttpRequest head = Requests.head("/x");
+    void contentReflectsTheBodyTypeDispatchedByTheParser() {
         FullHttpRequest json = Requests.postJson("/x", "{}");
+        FullHttpRequest csv = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/x",
+                "text/csv", "a,b", StandardCharsets.UTF_8);
         try {
-            assertNull(context(head).httpContent.getContentType(),
-                    "HEAD 走 HttpContent.empty()：无 Content-Type");
-            assertEquals("application/json", context(json).httpContent.getContentType(),
-                    "非 HEAD 走 new HttpContent(request, defaultCharset)：Content-Type 已解析");
+            assertEquals(ContentType.APPLICATION_JSON, context(json).content().contentType(),
+                    "JSON 体命中内置 JSON 解析器，内容侧类型就位");
+            HttpContext.Content csvContent = context(csv).content();
+            assertInstanceOf(HttpUnknowContent.class, csvContent, "无匹配解析器的类型回落未知内容，不解析体");
+            assertEquals("text/csv", csvContent.contentType().getMimeType(), "未知内容仍携带头声明的类型");
         } finally {
-            Requests.release(head);
             Requests.release(json);
+            Requests.release(csv);
         }
     }
 
@@ -273,8 +315,9 @@ class FullHttpContextTest {
         try {
             FullHttpContext utf8Ctx = context(req);
             assertEquals(StandardCharsets.UTF_8, utf8Ctx.defaultCharset());
-            FullHttpContext gbkCtx = new FullHttpContext(req, newSession(),
-                    new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER, Charset.forName("GBK"));
+            Charset gbk = Charset.forName("GBK");
+            FullHttpContext gbkCtx = new FullHttpContext(Contexts.message(req, gbk), Contexts.content(req, gbk),
+                    newSession(), new DefaultHttpCookies(req.headers()), CONNECT_SESSION, SERIALIZER, gbk);
             assertEquals(Charset.forName("GBK"), gbkCtx.defaultCharset(),
                     "defaultCharset() 直接给出传入的缺省编码，不读请求头");
         } finally {
@@ -287,8 +330,8 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/json",
                 "application/json; charset=GBK", "{\"name\":\"张三\"}", Charset.forName("GBK"));
         try {
-            // 缺省给 UTF-8，请求头声明 GBK 时请求体按 GBK 解码
-            assertEquals("{\"name\":\"张三\"}", new HttpContent(req, StandardCharsets.UTF_8).getJsonContent());
+            // 缺省给 UTF-8，请求头声明 GBK 时请求体按 GBK 解码（经内容解析器与上下文全链路）
+            assertEquals("{\"name\":\"张三\"}", ((HttpJsonContent) context(req).content()).jsonString());
         } finally {
             Requests.release(req);
         }
@@ -301,7 +344,7 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/json",
                 "application/json", "{\"name\":\"café\"}", charset);
         try {
-            assertEquals("{\"name\":\"café\"}", new HttpContent(req, charset).getJsonContent());
+            assertEquals("{\"name\":\"café\"}", new HttpJsonContent(req, charset).jsonString());
         } finally {
             Requests.release(req);
         }
@@ -310,26 +353,31 @@ class FullHttpContextTest {
     // ---------- release 状态 ----------
 
     @Test
-    void releaseIsRepeatableWhenNothingWasParsed() {
+    void releaseIsRepeatableWhenContentHoldsNoResources() {
         FullHttpRequest req = Requests.postJson("/json", "{}");
         try {
             FullHttpContext ctx = context(req);
             assertDoesNotThrow(() -> {
                 ctx.release();
                 ctx.release();
-            }, "未解析表单时 decoder 为 null，release 恒为 no-op");
+            }, "JSON 内容不持有资源，release 恒为 no-op");
         } finally {
             Requests.release(req);
         }
     }
 
     @Test
-    void releaseDelegatesToContentAfterFormParsing() {
+    void releaseClosesFormContentAndIsRepeatable() {
         FullHttpRequest req = Requests.postForm("/form", "name=alice");
         try {
             FullHttpContext ctx = context(req);
-            ctx.httpContent.getFormParams();   // 同包可见 protected 字段：让 decoder 落地
-            assertDoesNotThrow(ctx::release);
+            HttpFormContent content = (HttpFormContent) ctx.content();
+            assertInstanceOf(HttpContext.AutoCloseContent.class, content, "表单内容持有解码器，走关闭通道");
+            assertDoesNotThrow(() -> {
+                content.formParams();
+                ctx.release();
+                ctx.release();
+            }, "release 关闭持有的表单内容，重复调用幂等");
         } finally {
             Requests.release(req);
         }

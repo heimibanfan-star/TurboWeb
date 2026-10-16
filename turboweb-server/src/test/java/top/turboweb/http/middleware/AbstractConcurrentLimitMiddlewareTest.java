@@ -10,6 +10,7 @@ import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.AbstractConcurrentLimitMiddleware.LimitMatchResult;
 import top.turboweb.http.middleware.AbstractConcurrentLimitMiddleware.LimitMatchStatus;
+import top.turboweb.http.testkit.Contexts;
 import top.turboweb.http.testkit.RecordingMiddleware;
 
 import java.nio.charset.StandardCharsets;
@@ -103,7 +104,9 @@ class AbstractConcurrentLimitMiddlewareTest {
      */
     private static HttpContext ctx(HttpMethod method, String uri) {
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri);
-        return new FullHttpContext(request, null, null, null, null, StandardCharsets.UTF_8);
+        return new FullHttpContext(Contexts.message(request, StandardCharsets.UTF_8),
+                Contexts.content(request, StandardCharsets.UTF_8),
+                null, null, null, null, StandardCharsets.UTF_8);
     }
 
     // ---------- AbstractConcurrentLimitMiddleware（实例版） ----------

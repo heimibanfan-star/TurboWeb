@@ -1,6 +1,7 @@
 package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.testkit.Contexts;
 import top.turboweb.http.router.parameter.ParameterParser.Binder;
 import top.turboweb.http.router.parameter.ParameterParser;
 import top.turboweb.http.router.parameter.RequestParameter;
@@ -100,7 +102,9 @@ class RouteHandlerTest {
     }
 
     private static HttpContext ctx(HttpMethod method, String uri) {
-        return new FullHttpContext(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri),
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri);
+        return new FullHttpContext(Contexts.message(request, StandardCharsets.UTF_8),
+                Contexts.content(request, StandardCharsets.UTF_8),
                 null, null, null, null, StandardCharsets.UTF_8);
     }
 

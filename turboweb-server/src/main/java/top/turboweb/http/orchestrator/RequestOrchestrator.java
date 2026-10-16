@@ -4,8 +4,10 @@ import io.netty.handler.codec.http.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
+import top.turboweb.http.context.DefaultMessage;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.core.cookie.HttpCookies;
@@ -22,9 +24,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 请求编排器：以建造者装配九个协作组件——中间件链、虚拟线程资源、
+ * 请求编排器：以建造者装配十个协作组件——中间件链、虚拟线程资源、
  * 响应写出器管理器、结果转化器管理器、cors 配置、异常处理器管理器、
- * 会话管理器持有者、json 序列化器与缺省字符集。
+ * 会话管理器持有者、json 序列化器、缺省字符集与请求体内容解析器管理器
+ * （{@link HttpContentParserManager}，由装配方按缺省字符集与自定义解析器建立后传入）。
  * <p>
  * 组件全部 final、构造后不可变更；非空契约两级拒收：
  * 建造者配置方法对 null 入参即时拒绝，{@link Builder#build()} 对缺配组件拒绝并指名。
@@ -37,8 +40,9 @@ import java.util.Objects;
  * 已实现的流程：{@link #orchestrate} 把请求任务提交到虚拟线程资源，
  * 任务被拒（资源耗尽且不排队）时直接写出 HTTP 429 响应；
  * {@link #doOrchestrate} 在任务线程内执行完整编排——OPTIONS 预检不进中间件链、
- * 直接以空正文 200 携带 CORS 响应头应答，其余请求执行中间件链并经结果转化链
- * 产出响应，过程中抛出的异常交由异常处理器管理器产出处理结果后转化，
+ * 直接以空正文 200 携带 CORS 响应头应答；其余请求先把请求转化为上下文的消息、
+ * 并按内容类型解析请求体得到内容对象，两者一并装配进请求上下文（上下文不接触请求对象）
+ * 后执行中间件链并经结果转化链产出响应，过程中抛出的异常交由异常处理器管理器产出处理结果后转化，
  * 响应统一经 CORS 来源处理后写出，请求在写出提交后释放（含异常路径）；
  * 写出可监听时挂接完成回调以 DEBUG 级打印请求日志（方法、URI、耗时、写出成败），
  * 展示与否由日志级别控制，不可监听写出不记录。
@@ -68,11 +72,14 @@ public class RequestOrchestrator {
     private final JsonSerializer jsonSerializer;
     /** 缺省字符集（装配期由 HttpConfig 判定），随请求传入上下文，并用于响应转化与 Cookie 写出编码。 */
     private final Charset defaultCharset;
+    /** 请求体内容解析器管理器：由建造者装配传入，装配上下文时按内容类型解析请求体。 */
+    private final HttpContentParserManager contentParserManager;
 
     /**
-     * 由建造者装配产物，编排器对外不提供公有构造入口。
+     * 由建造者装配产物，编排器对外不提供公有构造入口；
+     * 组件实例原样持有，不在本构造期建立或复制。
      *
-     * @param builder 已收集完九组件的建造者
+     * @param builder 已收集完十组件的建造者
      */
     private RequestOrchestrator(Builder builder) {
         this.middleware = builder.middleware;
@@ -84,10 +91,11 @@ public class RequestOrchestrator {
         this.sessionManagerHolder = builder.sessionManagerHolder;
         this.jsonSerializer = builder.jsonSerializer;
         this.defaultCharset = builder.defaultCharset;
+        this.contentParserManager = builder.contentParserManager;
     }
 
     /**
-     * 创建建造者，九组件均无默认值，须逐一配置齐备后构建。
+     * 创建建造者，十组件均无默认值，须逐一配置齐备后构建。
      *
      * @return 新建造者
      */
@@ -250,9 +258,13 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 执行中间件链并善后结果：初始化 Cookie 集合与会话，构建请求上下文后调用链头，
-     * 链结果经结果转化链转化为响应；随后回写 Cookie，会话新建或路径变更时设置
-     * JSESSIONID 的 Set-Cookie 头。上下文释放与会话续期在返回前完成。
+     * 执行中间件链并善后结果：初始化 Cookie 集合与会话，把请求转化为上下文的消息
+     * （请求方式、请求头与请求地址）并按内容类型解析请求体得到内容对象，两者一并装配进
+     * 请求上下文后调用链头，链结果经结果转化链转化为响应；随后回写 Cookie，会话新建或
+     * 路径变更时设置 JSESSIONID 的 Set-Cookie 头。上下文释放与会话续期在返回前完成。
+     * <p>HEAD 请求无请求体，内容侧以未声明类型的未知内容承载，不走解析器。
+     * 请求体无效（内容类型命中解析器而体解析失败）时异常在装配上下文处抛出，
+     * 与链内异常同径交由异常处理器处置。</p>
      *
      * @param request        请求对象
      * @param connectSession 当前连接会话
@@ -268,8 +280,13 @@ public class RequestOrchestrator {
             // 初始化session
             String originSessionId = cookies.getCookie("JSESSIONID");
             HttpSession httpSession = new DefaultHttpSession(sessionManager, originSessionId);
+            // 请求对象在编排器内转化为上下文的对外契约：请求消息与请求体内容
+            HttpContext.Message message = new DefaultMessage(request, defaultCharset);
+            HttpContext.Content content = HttpMethod.HEAD == request.method()
+                    ? new HttpUnknowContent(null)
+                    : contentParserManager.parse(request);
             // 创建HttpContext对象
-            context = new FullHttpContext(request, httpSession, cookies, connectSession, jsonSerializer, defaultCharset);
+            context = new FullHttpContext(message, content, httpSession, cookies, connectSession, jsonSerializer, defaultCharset);
             // 执行中间件
             Object result = middleware.invoke(context);
             HttpResponse response = resultConverterManager.convert(result, defaultCharset);
@@ -325,7 +342,7 @@ public class RequestOrchestrator {
     }
 
     /**
-     * {@link RequestOrchestrator} 的建造者：九个组件各一个流式配置方法，
+     * {@link RequestOrchestrator} 的建造者：十个组件各一个流式配置方法，
      * 重复配置以最后一次为准；null 入参在配置方法即时拒绝，
      * 缺配在 {@link #build()} 拒绝且消息指名缺失组件。
      * {@link #build()} 可多次调用，产物互不影响。
@@ -341,6 +358,7 @@ public class RequestOrchestrator {
         private SessionManagerHolder sessionManagerHolder;
         private JsonSerializer jsonSerializer;
         private Charset defaultCharset;
+        private HttpContentParserManager contentParserManager;
 
         /** 设置中间件链链头。 */
         public Builder middleware(Middleware middleware) {
@@ -397,7 +415,20 @@ public class RequestOrchestrator {
         }
 
         /**
-         * 产出编排器：九组件逐一校验齐备后装配。
+         * 设置请求体内容解析器管理器，装配上下文时由它按内容类型解析请求体。
+         * <p>管理器由装配方建立：以缺省字符集与自定义解析器为构造参数，自定义解析器声明的
+         * 类型与内置类型冲突（或自定义之间重复声明同一类型）在管理器构造期抛出
+         * {@link IllegalArgumentException}，与本建造者无关。</p>
+         *
+         * @param contentParserManager 内容解析器管理器，不能为 null
+         */
+        public Builder contentParserManager(HttpContentParserManager contentParserManager) {
+            this.contentParserManager = Objects.requireNonNull(contentParserManager, "content parser manager must not be null");
+            return this;
+        }
+
+        /**
+         * 产出编排器：十组件逐一校验齐备后装配。
          *
          * @return 以当前收集值装配的新编排器
          * @throws NullPointerException 存在未配置的组件，消息指名缺失者
@@ -412,6 +443,7 @@ public class RequestOrchestrator {
             Objects.requireNonNull(sessionManagerHolder, "session manager holder must not be null");
             Objects.requireNonNull(jsonSerializer, "json serializer must not be null");
             Objects.requireNonNull(defaultCharset, "default charset must not be null");
+            Objects.requireNonNull(contentParserManager, "content parser manager must not be null");
             return new RequestOrchestrator(this);
         }
     }

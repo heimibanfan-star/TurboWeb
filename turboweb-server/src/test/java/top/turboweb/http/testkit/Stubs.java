@@ -5,13 +5,14 @@ import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.context.HttpContext;
 
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 /**
  * L1 用例的最小替身集合。
  * <p>
  * {@link #httpContext} 用 {@link Proxy} 实现 {@link HttpContext}：只覆盖本任务被测中间件真正读取的
- * {@code getRequest()} 入口，其余方法一律抛 {@link UnsupportedOperationException}——
+ * {@code message()} 入口（按编排器装配口径从请求建立），其余方法一律抛 {@link UnsupportedOperationException}——
  * 任何用例若意外走到未覆盖的入口会立刻暴露，而不是静默拿到 {@code null} 让断言失去意义。
  * <p>
  * {@link #threadPool()} 返回不启动任何线程的空实现，仅用于满足
@@ -31,7 +32,7 @@ public final class Stubs {
                 HttpContext.class.getClassLoader(),
                 new Class<?>[]{HttpContext.class},
                 (proxy, method, args) -> switch (method.getName()) {
-                    case "getRequest" -> request;
+                    case "message" -> Contexts.message(request, StandardCharsets.UTF_8);
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "StubHttpContext";
