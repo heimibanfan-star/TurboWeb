@@ -12,7 +12,6 @@ import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.MemorySessionManager;
-import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Contexts;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.serializer.JacksonJsonSerializer;
@@ -176,7 +175,7 @@ class FullHttpContextTest {
         }
     }
 
-    // ---------- bindBean / loadForm / loadJson 绑定 ----------
+    // ---------- bindBean / bindJson 绑定与内容能力契约通道 ----------
 
     @Test
     void bindBeanCollapsesSingleAndKeepsMultiValues() {
@@ -221,10 +220,13 @@ class FullHttpContextTest {
     }
 
     @Test
-    void loadFormMapsTheUrlEncodedBody() {
+    void formChannelBindsUrlEncodedBodyViaContract() {
         FullHttpRequest req = Requests.postForm("/form", "name=alice&age=30");
         try {
-            QueryBean bean = context(req).loadForm(QueryBean.class);
+            FullHttpContext ctx = context(req);
+            HttpContext.FormContent formContent = assertInstanceOf(HttpContext.FormContent.class, ctx.content(),
+                    "表单内容实现 FormContent 能力契约，参数封装权在内容侧");
+            QueryBean bean = ctx.bindBean(formContent.formParams(), QueryBean.class);
             assertEquals("alice", bean.getName());
             assertEquals(30, bean.getAge());
             assertNull(bean.getTag());
@@ -234,10 +236,13 @@ class FullHttpContextTest {
     }
 
     @Test
-    void loadJsonMapsTheJsonBody() {
+    void jsonChannelBindsBodyViaContract() {
         FullHttpRequest req = Requests.postJson("/json", "{\"name\":\"alice\",\"age\":30}");
         try {
-            QueryBean bean = context(req).loadJson(QueryBean.class);
+            FullHttpContext ctx = context(req);
+            HttpContext.JsonContent jsonContent = assertInstanceOf(HttpContext.JsonContent.class, ctx.content(),
+                    "JSON 内容实现 JsonContent 能力契约，字符串供数在内容侧");
+            QueryBean bean = ctx.bindJson(jsonContent.jsonString(), QueryBean.class);
             assertEquals("alice", bean.getName());
             assertEquals(30, bean.getAge());
         } finally {
@@ -246,24 +251,38 @@ class FullHttpContextTest {
     }
 
     @Test
-    void loadJsonWithoutJsonContentTypeThrows() {
-        FullHttpRequest req = Requests.get("/json");
+    void bindJsonMapsTheProvidedString() {
+        FullHttpRequest req = Requests.get("/x");
         try {
-            FullHttpContext ctx = context(req);
-            RequestParseException ex =
-                    assertThrows(RequestParseException.class, () -> ctx.loadJson(QueryBean.class));
-            assertEquals("contentType is not application/json", ex.getMessage());
+            QueryBean bean = context(req).bindJson("{\"name\":\"cindy\",\"age\":7}", QueryBean.class);
+            assertEquals("cindy", bean.getName());
+            assertEquals(7, bean.getAge(), "bindJson 只经序列化器绑定入料字符串，不读取请求");
         } finally {
             Requests.release(req);
         }
     }
 
     @Test
-    void loadJsonOnBlankBodyYieldsEmptyBean() {
+    void plainContentExposesNeitherFormNorJsonChannel() {
+        FullHttpRequest req = Requests.get("/json");
+        try {
+            HttpContext.Content content = context(req).content();
+            assertFalse(content instanceof HttpContext.FormContent, "未声明类型的未知内容不实现表单通道");
+            assertFalse(content instanceof HttpContext.JsonContent, "未声明类型的未知内容不实现 JSON 通道");
+        } finally {
+            Requests.release(req);
+        }
+    }
+
+    @Test
+    void blankJsonBodyYieldsEmptyBeanViaContract() {
         FullHttpRequest req = Requests.postJson("/json", "");
         try {
-            // getJsonContent 把空体规整成 "{}"，因此不会抛 "JSON request body is empty"
-            QueryBean bean = context(req).loadJson(QueryBean.class);
+            FullHttpContext ctx = context(req);
+            // 内容装配期把空体规整成 "{}"，能力契约取回的字符串即规整结果
+            HttpContext.JsonContent jsonContent = (HttpContext.JsonContent) ctx.content();
+            assertEquals("{}", jsonContent.jsonString());
+            QueryBean bean = ctx.bindJson(jsonContent.jsonString(), QueryBean.class);
             assertNull(bean.getName());
             assertEquals(0, bean.getAge());
         } finally {
@@ -271,10 +290,10 @@ class FullHttpContextTest {
         }
     }
 
-    // ---------- loadFile / loadFiles 上传通道 ----------
+    // ---------- FormContent 文件归档通道 ----------
 
     @Test
-    void loadFileReturnsFirstUploadOfMultipartField() {
+    void multipartFormChannelArchivesUploadedField() {
         FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/up",
                 "multipart/form-data; boundary=T",
                 "--T\r\nContent-Disposition: form-data; name=\"doc\"; filename=\"a.txt\"\r\n"
@@ -282,25 +301,10 @@ class FullHttpContextTest {
                 StandardCharsets.UTF_8);
         try {
             FullHttpContext ctx = context(req);
-            assertEquals(1, ctx.loadFiles("doc").size(), "multipart 文件段归档进 formFiles");
-            assertSame(ctx.loadFiles("doc").getFirst(), ctx.loadFile("doc"), "单文件通道返回该字段首文件");
-            ctx.release();
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void loadFilesOnMissingFieldReturnsEmptyList() {
-        FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/up",
-                "multipart/form-data; boundary=T",
-                "--T\r\nContent-Disposition: form-data; name=\"doc\"; filename=\"a.txt\"\r\n"
-                        + "Content-Type: text/plain\r\n\r\nhello\r\n--T--\r\n",
-                StandardCharsets.UTF_8);
-        try {
-            FullHttpContext ctx = context(req);
-            assertEquals(List.of(), ctx.loadFiles("absent"), "字段不存在按契约归一为空集合,不交 null");
-            assertNull(ctx.loadFile("absent"), "单文件通道未命中契约本就是 null");
+            HttpContext.FormContent formContent = assertInstanceOf(HttpContext.FormContent.class, ctx.content(),
+                    "multipart 内容实现 FormContent 能力契约");
+            assertEquals(1, formContent.formFiles().get("doc").size(), "multipart 文件段归档进 formFiles");
+            assertNull(formContent.formFiles().get("absent"), "缺名不建键,空值归一由取用方决定");
             ctx.release();
         } finally {
             Requests.release(req);

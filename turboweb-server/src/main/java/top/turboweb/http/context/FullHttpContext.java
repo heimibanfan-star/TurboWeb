@@ -2,7 +2,6 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.context.attchment.Attachment;
@@ -13,7 +12,6 @@ import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
-import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.serializer.JsonSerializer;
 
 import java.nio.charset.Charset;
@@ -26,8 +24,10 @@ import java.util.Objects;
  * {@code FullHttpContext} 是 TurboWeb 框架中 {@link HttpContext} 的唯一实现。
  * <p>
  * 它封装请求消息（{@link HttpContext.Message}）、请求体内容（{@link HttpContext.Content}）、
- * Session、Cookie、连接会话、JSON 序列化器、缺省编码与挂载对象，并据此提供 SSE 创建、
- * 请求体参数封装（表单/JSON/上传文件）与 bean 绑定服务。
+ * Session、Cookie、连接会话、JSON 序列化器、缺省编码与挂载对象，并据此提供 SSE 创建与
+ * bean 绑定服务（{@link #bindBean} 与 {@link #bindJson}，入料由调用方就位）；
+ * 请求体参数的封装与读取经内容对象的能力子契约（{@link HttpContext.FormContent}、
+ * {@link HttpContext.JsonContent}）完成，本类不按具体实现类分派。
  * <p>
  * 本类不持有 Netty 的请求对象：请求的方式、头与地址经 {@link HttpContext.Message} 读取，
  * 请求体经内容解析器产出的 {@link HttpContext.Content} 读取，两者均由编排器在装配上下文时就位。
@@ -195,6 +195,14 @@ public final class FullHttpContext implements HttpContext {
 	}
 
 	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public <T> T bindJson(String jsonString, Class<T> beanType) {
+		return jsonSerializer.jsonToBean(jsonString, beanType);
+	}
+
+	/**
 	 * 将 {@code Map<String, List<String>>} 转换为 {@code Map<String, Object>}:
 	 * 值列表仅一个元素时取该元素(可为 null),多个元素保留列表。
 	 *
@@ -211,59 +219,6 @@ public final class FullHttpContext implements HttpContext {
 			}
 		});
 		return newMap;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public <T> T loadForm(Class<T> beanType) {
-		return bindBean(formContent().formParams(), beanType);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public <T> T loadJson(Class<T> beanType) {
-		if (!(content instanceof HttpJsonContent jsonContent)) {
-			throw new RequestParseException("contentType is not application/json");
-		}
-		// 请求体已在装配期解码为字符串，空白体已规整为 {}，此处直接交序列化器绑定
-		return jsonSerializer.jsonToBean(jsonContent.jsonString(), beanType);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public List<FileUpload> loadFiles(String fileName) {
-		List<FileUpload> fileUploads = formContent().formFiles().get(fileName);
-		// 字段不存在归一为空集合
-		return fileUploads == null ? List.of() : fileUploads;
-	}
-
-	/**
-	 * 取表单内容对象，供表单字段与上传文件通道共用。
-	 *
-	 * @return 表单内容对象
-	 * @throws RequestParseException 当前请求体内容不是表单类型（urlencoded 或 multipart）时抛出
-	 */
-	private HttpFormContent formContent() {
-		if (!(content instanceof HttpFormContent formContent)) {
-			throw new RequestParseException(
-					"contentType is not application/x-www-form-urlencoded or multipart/form-data");
-		}
-		return formContent;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public FileUpload loadFile(String fileName) {
-		List<FileUpload> fileUploads = loadFiles(fileName);
-		return fileUploads.isEmpty() ? null : fileUploads.getFirst();
 	}
 
 	/**

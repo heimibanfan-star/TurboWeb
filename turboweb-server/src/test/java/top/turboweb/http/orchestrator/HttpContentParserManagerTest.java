@@ -137,6 +137,23 @@ class HttpContentParserManagerTest {
     }
 
     @Test
+    void builtinContentsImplementCapabilityContracts() throws Exception {
+        FullHttpRequest formReq = Requests.postForm("/x", "k=v");
+        FullHttpRequest jsonReq = Requests.postJson("/x", "{}");
+        try {
+            HttpFormContent form = (HttpFormContent) manager().parse(formReq);
+            assertInstanceOf(HttpContext.FormContent.class, form,
+                    "表单内容实现 FormContent 能力契约，取数方按契约认领不认具体类");
+            form.close();
+            assertInstanceOf(HttpContext.JsonContent.class, manager().parse(jsonReq),
+                    "JSON 内容实现 JsonContent 能力契约");
+        } finally {
+            Requests.release(formReq);
+            Requests.release(jsonReq);
+        }
+    }
+
+    @Test
     void jsonDecodedWithManagerDefaultCharsetWhenHeaderOmitsIt() {
         // 头不带 charset 段：体字节按 GBK 写入，管理器缺省字符集给 GBK，解析须按缺省解码
         FullHttpRequest req = Requests.raw(HttpMethod.POST, "/x", "application/json",

@@ -18,10 +18,11 @@ import java.util.Objects;
  * 与请求体其余解码口径一致。
  *
  * <p>本类不持有请求对象的引用，体字节在构造期即复制为字符串；构造返回后调用方可立即释放请求。
- * 实现纯 {@link HttpContext.Content} 读取契约：字符串是堆上对象，生命周期由 GC 管理，
+ * 实现 {@link HttpContext.JsonContent} 能力契约（扩展 {@link HttpContext.Content}）：
+ * 字符串是堆上对象，生命周期由 GC 管理，
  * 无需要归还的原生内存，因此不背负关闭义务。
  */
-public class HttpJsonContent implements HttpContext.Content {
+public class HttpJsonContent implements HttpContext.JsonContent {
 
     private final String jsonString;
 
@@ -58,6 +59,7 @@ public class HttpJsonContent implements HttpContext.Content {
      *
      * @return 去空白、空体已补 {@code {}} 的字符串本身
      */
+    @Override
     public String jsonString() {
         return this.jsonString;
     }

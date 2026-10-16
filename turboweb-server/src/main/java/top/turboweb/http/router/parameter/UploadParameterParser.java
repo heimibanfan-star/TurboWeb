@@ -2,6 +2,7 @@ package top.turboweb.http.router.parameter;
 
 import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.rest.param.UploadParam;
+import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
@@ -13,6 +14,7 @@ import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -21,7 +23,8 @@ import java.util.Set;
 public class UploadParameterParser extends AbstractParameterParser {
 
     /**
-     * 绑定上传文件参数
+     * 绑定上传文件参数：取数经请求体内容的 FormContent 能力契约按字段名查文件归档，
+     * 缺名归一为空集合；单文件通道未命中返回 {@code null}，命中取归档首文件
      *
      * @param collectionType 集合类型 0 单个对象 1 list集合 2 set集合
      */
@@ -32,14 +35,21 @@ public class UploadParameterParser extends AbstractParameterParser {
 
         @Override
         public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator) {
+            HttpContext.Content content = ctx.content();
+            if (!(content instanceof HttpContext.FormContent formContent)) {
+                throw new RequestParseException(
+                        "contentType is not application/x-www-form-urlencoded or multipart/form-data");
+            }
+            Map<String, List<FileUpload>> files = formContent.formFiles();
+            List<FileUpload> uploads = files.get(name);
+            List<FileUpload> normalized = uploads == null ? List.of() : uploads;
             if (collectionType == 0) {
-                return ctx.loadFile(name);
+                return normalized.isEmpty() ? null : normalized.getFirst();
             }
-            List<FileUpload> files = ctx.loadFiles(name);
             if (collectionType == 1) {
-                return files;
+                return normalized;
             }
-            return new HashSet<FileUpload>(files);
+            return new HashSet<FileUpload>(normalized);
         }
     }
 

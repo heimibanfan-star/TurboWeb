@@ -8,10 +8,12 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.constant.ContentType;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
+import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.rest.param.*;
@@ -183,6 +185,51 @@ class ParamInfoParsersTest {
     /** 空承载夹具:路径与查询都无参数的装配结果,表达"缺名"入料 */
     private static final RequestParameter NO_PARAMS = new RequestParameter(Map.of(), Map.of());
 
+    /** 表单内容夹具：实现 FormContent 能力契约，向绑定器投喂指定字段与文件归档。 */
+    private record FormContentFixture(
+            Map<String, List<String>> params,
+            Map<String, List<FileUpload>> files
+    ) implements HttpContext.FormContent {
+
+        @Override
+        public ContentType contentType() {
+            return ContentType.APPLICATION_FORM_URLENCODED;
+        }
+
+        @Override
+        public Map<String, List<String>> formParams() {
+            return params;
+        }
+
+        @Override
+        public Map<String, List<FileUpload>> formFiles() {
+            return files;
+        }
+    }
+
+    /** JSON 内容夹具：实现 JsonContent 能力契约，向绑定器投喂指定体字符串。 */
+    private record JsonContentFixture(String body) implements HttpContext.JsonContent {
+
+        @Override
+        public ContentType contentType() {
+            return ContentType.APPLICATION_JSON;
+        }
+
+        @Override
+        public String jsonString() {
+            return body;
+        }
+    }
+
+    /** 无通道内容夹具：只实现 Content 基础契约，供绑定器拒绑用例。 */
+    private record PlainContentFixture() implements HttpContext.Content {
+
+        @Override
+        public ContentType contentType() {
+            return ContentType.APPLICATION_OCTET_STREAM;
+        }
+    }
+
     /** 记录型 {@link BeanValidator} 替身：记录最近一次校验的 bean 与分组（单参重载记 null）及调用次数。 */
     private static final class RecordingValidator implements BeanValidator {
         private int count;
@@ -339,24 +386,37 @@ class ParamInfoParsersTest {
     @Test
     void uploadFileBindsSingleFile() {
         FileUpload file = proxy(FileUpload.class);
-        Stub stub = new Stub().returning("loadFile", file);
+        FileUpload other = proxy(FileUpload.class);
+        Stub stub = new Stub().returning("content",
+                new FormContentFixture(Map.of(), Map.of("f", List.of(file), "other", List.of(other))));
         ParameterParser.Binder b = new UploadParameterParser().parse(parameter("uploadFile"));
         assertNotNull(b);
-        assertSame(file, b.bindParameter(stub.ctx(), NO_PARAMS, NOOP));
-        assertEquals("f", stub.lastArgs("loadFile")[0]);
+        assertSame(file, b.bindParameter(stub.ctx(), NO_PARAMS, NOOP),
+                "注解的 value 即表单字段名：单文件通道取键 \"f\" 归档的首文件，不与他字段相混");
+        assertArrayEquals(new Object[0], stub.lastArgs("content"), "取数经上下文 content() 通道");
     }
 
     @Test
     void uploadObjectTypedParameterBindsSingleFile() {
-        // Object.isAssignableFrom(FileUpload) 为真 → 走单文件分支（collectionType 0）
-        // 夹具侧类型矫正（D2）：loadFile 的声明返回类型是 FileUpload（HttpContext 的 loadFile 声明），
-        // JDK 动态代理在把返回值交给调用方之前先按该类型强转，故哨兵不可能是 brief 夹具里的 "single"
-        // （String 会抛 ClassCastException）；换成 FileUpload 哨兵代理，断言语义仍是"拿回的就是 loadFile 的那个对象"。
+        // Object.isAssignableFrom(FileUpload) 为真 → 走单文件分支（collectionType 0）；
+        // 归档值由夹具内容对象直供，哨兵用 FileUpload 代理，断言语义仍是"拿回的就是该字段归档的首文件"
         FileUpload file = proxy(FileUpload.class);
-        Stub stub = new Stub().returning("loadFile", file);
+        Stub stub = new Stub().returning("content", new FormContentFixture(Map.of(), Map.of("f", List.of(file))));
         ParameterParser.Binder b = new UploadParameterParser().parse(parameter("uploadObject"));
         assertNotNull(b);
         assertSame(file, b.bindParameter(stub.ctx(), NO_PARAMS, NOOP));
+    }
+
+    @Test
+    void uploadBinderRejectsNonFormContent() {
+        // 内容不实现 FormContent 契约时拒绑，异常文案沿用原表单取数通道口径
+        Stub stub = new Stub().returning("content", new PlainContentFixture());
+        ParameterParser.Binder b = new UploadParameterParser().parse(parameter("uploadFile"));
+        assertNotNull(b);
+        RequestParseException ex = assertThrows(RequestParseException.class,
+                () -> b.bindParameter(stub.ctx(), NO_PARAMS, NOOP));
+        assertEquals("contentType is not application/x-www-form-urlencoded or multipart/form-data",
+                ex.getMessage());
     }
 
     @Test
@@ -365,23 +425,26 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    @DisplayName("HS-16 回归：@UploadParam 集合参数走 loadFiles 绑定，集合分支可达")
+    @DisplayName("HS-16 回归：@UploadParam 集合参数经 FormContent 文件归档绑定，集合分支可达")
     void uploadCollectionTypesBindFileCollections() {
-        // 守卫修正后：集合形参显式标注 @UploadParam 且元素类型相符才认领，collectionType 1/2 与 loadFiles/HashSet 分支可达
+        // 守卫修正后：集合形参显式标注 @UploadParam 且元素类型相符才认领，collectionType 1/2 与归档取数/HashSet 分支可达
         FileUpload a = proxy(FileUpload.class);
         FileUpload b = proxy(FileUpload.class);
-        Stub stub = new Stub().returning("loadFiles", List.of(a, b));
+        Stub stub = new Stub().returning("content", new FormContentFixture(Map.of(),
+                Map.of("f", List.of(a, b), "other", List.of(proxy(FileUpload.class)))));
         ParameterParser.Binder listBinder = new UploadParameterParser().parse(parameter("uploadList"));
         assertNotNull(listBinder, "List<FileUpload> + @UploadParam 应被认领");
-        assertEquals(List.of(a, b), listBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP));
-        assertEquals("f", stub.lastArgs("loadFiles")[0], "注解的 value 即表单字段名");
+        assertEquals(List.of(a, b), listBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP),
+                "注解的 value 即表单字段名：List 分支直传键 \"f\" 归档");
         ParameterParser.Binder setBinder = new UploadParameterParser().parse(parameter("uploadSet"));
         assertNotNull(setBinder, "Set<FileUpload> + @UploadParam 应被认领");
-        assertEquals(Set.of(a, b), setBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP), "Set 分支把 loadFiles 结果包装成 HashSet");
-        // 字段不存在:上下文按契约返空集合,绑定器直传/包装
-        Stub empty = new Stub().returning("loadFiles", List.of());
+        assertEquals(Set.of(a, b), setBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP), "Set 分支把归档结果包装成 HashSet");
+        // 字段不存在:集合分支归一空集合,单文件分支归一 null
+        Stub empty = new Stub().returning("content", new FormContentFixture(Map.of(), Map.of()));
         assertEquals(List.of(), listBinder.bindParameter(empty.ctx(), NO_PARAMS, NOOP));
         assertEquals(Set.of(), setBinder.bindParameter(empty.ctx(), NO_PARAMS, NOOP));
+        ParameterParser.Binder singleBinder = new UploadParameterParser().parse(parameter("uploadFile"));
+        assertNull(singleBinder.bindParameter(empty.ctx(), NO_PARAMS, NOOP), "单文件通道未命中归一 null");
         // 无 @UploadParam 的裸 List 不认领——不得截走其他渠道负责的参数
         assertNull(new UploadParameterParser().parse(parameter("uploadListWithoutAnnotation")));
         // 声明元素类型与 FileUpload 不符 → 不认领
@@ -408,23 +471,27 @@ class ParamInfoParsersTest {
     @Test
     void jsonModelBindsPlainLoad() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadJson", sentinel);
+        Stub stub = new Stub()
+                .returning("content", new JsonContentFixture("{\"name\":\"x\"}"))
+                .returning("bindJson", sentinel);
         RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonModel"));
         assertNotNull(b);
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator));
-        assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadJson"), "loadJson(参数声明类型)");
+        assertArrayEquals(new Object[]{"{\"name\":\"x\"}", Model.class}, stub.lastArgs("bindJson"),
+                "取数经 JsonContent 契约，绑定走无校验的 bindJson(字符串,声明类型)");
         assertEquals(0, validator.count, "validate=false 不触碰校验器");
     }
 
     @Test
     void jsonValidWithoutGroupsUsesSingleArgOverload() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadJson", sentinel);
+        Stub stub = new Stub()
+                .returning("content", new JsonContentFixture("{}"))
+                .returning("bindJson", sentinel);
         RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonValid"));
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator));
-        assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadJson"), "取数走无校验的 loadJson");
         assertEquals(1, validator.count);
         assertSame(sentinel, validator.bean, "校验的就是绑定出的 bean");
         assertNull(validator.groups, "无分组时经校验器单参重载 validate(bean)");
@@ -433,12 +500,25 @@ class ParamInfoParsersTest {
     @Test
     void jsonValidWithGroupsPassesGroups() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadJson", sentinel);
+        Stub stub = new Stub()
+                .returning("content", new JsonContentFixture("{}"))
+                .returning("bindJson", sentinel);
         RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonGroups"));
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator));
         assertEquals(1, validator.count);
         assertArrayEquals(new Class<?>[]{GroupA.class}, validator.groups, "注解分组透传给校验器");
+    }
+
+    @Test
+    void jsonBinderRejectsNonJsonContent() {
+        // 内容不实现 JsonContent 契约时拒绑，异常文案沿用原 JSON 取数通道口径
+        Stub stub = new Stub().returning("content", new PlainContentFixture());
+        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonModel"));
+        assertNotNull(b);
+        RequestParseException ex = assertThrows(RequestParseException.class,
+                () -> b.bindParameter(stub.ctx(), NO_PARAMS, new RecordingValidator()));
+        assertEquals("contentType is not application/json", ex.getMessage());
     }
 
     @Test
@@ -451,23 +531,29 @@ class ParamInfoParsersTest {
     @Test
     void formModelBindsPlainLoad() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadForm", sentinel);
+        Map<String, List<String>> params = Map.of("q", List.of("1"));
+        Stub stub = new Stub()
+                .returning("content", new FormContentFixture(params, Map.of()))
+                .returning("bindBean", sentinel);
         RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formModel"));
         assertNotNull(b);
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator));
-        assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadForm"));
+        assertSame(params, stub.lastArgs("bindBean")[0],
+                "入料就是 FormContent 归档的表单参数映射本体，数据源断链（改传空映射）此处必红");
+        assertEquals(Model.class, stub.lastArgs("bindBean")[1], "第二实参为声明类型");
         assertEquals(0, validator.count, "validate=false 不触碰校验器");
     }
 
     @Test
     void formValidWithoutGroupsUsesSingleArgOverload() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadForm", sentinel);
+        Stub stub = new Stub()
+                .returning("content", new FormContentFixture(Map.of(), Map.of()))
+                .returning("bindBean", sentinel);
         RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formValid"));
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator));
-        assertArrayEquals(new Object[]{Model.class}, stub.lastArgs("loadForm"), "取数走无校验的 loadForm");
         assertEquals(1, validator.count);
         assertSame(sentinel, validator.bean);
         assertNull(validator.groups, "无分组时经校验器单参重载 validate(bean)");
@@ -476,12 +562,26 @@ class ParamInfoParsersTest {
     @Test
     void formValidWithGroupsPassesGroups() {
         Model sentinel = new Model();
-        Stub stub = new Stub().returning("loadForm", sentinel);
+        Stub stub = new Stub()
+                .returning("content", new FormContentFixture(Map.of(), Map.of()))
+                .returning("bindBean", sentinel);
         RecordingValidator validator = new RecordingValidator();
         ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formGroups"));
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator));
         assertEquals(1, validator.count);
         assertArrayEquals(new Class<?>[]{GroupA.class}, validator.groups, "注解分组透传给校验器");
+    }
+
+    @Test
+    void formBinderRejectsNonFormContent() {
+        // 内容不实现 FormContent 契约时拒绑，异常文案沿用原表单取数通道口径
+        Stub stub = new Stub().returning("content", new PlainContentFixture());
+        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formModel"));
+        assertNotNull(b);
+        RequestParseException ex = assertThrows(RequestParseException.class,
+                () -> b.bindParameter(stub.ctx(), NO_PARAMS, new RecordingValidator()));
+        assertEquals("contentType is not application/x-www-form-urlencoded or multipart/form-data",
+                ex.getMessage());
     }
 
     @Test

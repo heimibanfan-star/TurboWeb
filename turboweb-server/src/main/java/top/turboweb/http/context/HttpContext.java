@@ -17,8 +17,10 @@ import java.util.Set;
 /**
  * {@code HttpContext} 表示 TurboWeb 框架中一次 HTTP 请求的上下文环境。
  * <p>
- * 它封装了请求信息、连接会话、Session 管理、Cookie 管理、请求体参数访问
- * （表单/JSON 封装与上传文件读取，见本接口末段方法）、
+ * 它封装了请求信息、连接会话、Session 管理、Cookie 管理、请求体内容
+ * （表单字段、JSON 字符串与上传文件的封装权在解析器产出的内容对象侧，读取通道见 {@link Content}
+ * 的能力子契约 {@link FormContent} 与 {@link JsonContent}）、bean 绑定服务
+ * （{@link #bindBean} 与 {@link #bindJson}，序列化器由容器就位、入料由调用方供）、
  * 以及用于创建 SSE（Server-Sent Events）流的相关方法。
  * <br>
  * 每个请求都拥有独立的 {@code HttpContext} 实例，生命周期与请求保持一致。
@@ -47,8 +49,9 @@ import java.util.Set;
  *     HttpSession session = ctx.httpSession();
  *     session.setAttr("user", "Alice");
  *
- *     // 表单绑定为对象
- *     SearchRequest query = ctx.loadForm(SearchRequest.class);
+ *     // 表单绑定为对象：参数取数经内容的 FormContent 能力契约，绑定经上下文序列化器组件
+ *     HttpContext.FormContent form = (HttpContext.FormContent) ctx.content();
+ *     SearchRequest query = ctx.bindBean(form.formParams(), SearchRequest.class);
  *
  *     // 释放上下文资源
  *     ctx.release();
@@ -80,6 +83,44 @@ public interface HttpContext {
 	 * 无此类资源的实现只实现 {@link Content}，不背负关闭义务。
 	 */
 	interface AutoCloseContent extends Content, AutoCloseable {
+	}
+
+	/**
+	 * 表单能力契约：可提供表单普通字段与上传文件归档的 {@link Content} 子类型，
+	 * 由承接 {@code application/x-www-form-urlencoded} 与 {@code multipart/form-data}
+	 * 的解析器产出的内容实现。字段映射键为参数名、值为按出现顺序的取值列表；
+	 * 文件归档键为表单字段名，缺名不建键，空值归一由取用方决定。
+	 */
+	interface FormContent extends Content {
+
+		/**
+		 * 获取表单普通字段集合。
+		 *
+		 * @return key 为参数名、value 为值列表的映射
+		 */
+		Map<String, List<String>> formParams();
+
+		/**
+		 * 获取上传文件集合。
+		 *
+		 * @return key 为文件字段名、value 为该字段文件列表的映射
+		 */
+		Map<String, List<FileUpload>> formFiles();
+	}
+
+	/**
+	 * JSON 能力契约：可提供 JSON 请求体字符串的 {@link Content} 子类型，
+	 * 由承接 {@code application/json} 的解析器产出的内容实现；
+	 * 字符串为装配期解码规整后的 JSON 对象文本。
+	 */
+	interface JsonContent extends Content {
+
+		/**
+		 * 获取 JSON 请求体字符串。
+		 *
+		 * @return 规整后的字符串本身
+		 */
+		String jsonString();
 	}
 
 	/**
@@ -382,38 +423,12 @@ public interface HttpContext {
 	<T> T bindBean(Map<String, List<String>> paramsMap, Class<T> beanType);
 
 	/**
-	 * 加载并反序列化表单参数,封装成对象。
+	 * 将 JSON 字符串反序列化为 bean。本方法不读取请求数据,字符串由调用方就位
+	 * (绑请求体时经 {@link JsonContent} 能力契约取数)。
 	 *
-	 * @param beanType 对象类型
-	 * @return 对象
+	 * @param jsonString JSON 字符串,不能为 null
+	 * @param beanType   目标 bean 类型,不能为 null
+	 * @return 绑定后的 bean;未知属性按序列化器忽略未知字段的口径跳过
 	 */
-	<T> T loadForm(Class<T> beanType);
-
-	/**
-	 * 反序列化 JSON 请求体为对象。
-	 *
-	 * @param beanType 对象类型
-	 * @return 对象
-	 * @throws top.turboweb.http.exception.RequestParseException 请求体 Content-Type 非 JSON 或内容无效时抛出
-	 */
-	<T> T loadJson(Class<T> beanType);
-
-	/**
-	 * 根据表单字段名获取对应的所有上传文件。
-	 *
-	 * @param fileName 表单中文件字段名
-	 * @return 上传文件列表；若字段不存在则返回空集合
-	 */
-	List<FileUpload> loadFiles(String fileName);
-
-	/**
-	 * 根据表单字段名获取对应的第一个上传文件。
-	 * <p>
-	 * 若字段存在多个文件，则仅返回第一个；
-	 * 若字段不存在或文件列表为空，则返回 {@code null}。
-	 *
-	 * @param fileName 表单中文件字段名
-	 * @return 第一个上传文件或 {@code null}
-	 */
-	FileUpload loadFile(String fileName);
+	<T> T bindJson(String jsonString, Class<T> beanType);
 }
