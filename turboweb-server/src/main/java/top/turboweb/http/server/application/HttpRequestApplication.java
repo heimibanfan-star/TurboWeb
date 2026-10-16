@@ -23,6 +23,7 @@ import top.turboweb.http.orchestrator.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 import top.turboweb.http.orchestrator.ResponseWriterManager;
+import top.turboweb.http.orchestrator.ResultConverter;
 import top.turboweb.http.orchestrator.ResultConverterManager;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.server.config.HttpConfig;
@@ -152,7 +153,7 @@ public class HttpRequestApplication implements Application {
     /**
      * {@link HttpRequestApplication} 的建造者：持有应用装配所需的全部组件对象
      * （业务中间件、路由处理器管理器、异常处理器管理器、session管理器、json序列化器、
-     * cors配置、结果转化器管理器、响应写出器管理器），纯参数配置（串行化开关、session回收参数、
+     * cors配置、自定义结果转化器集合、响应写出器管理器），纯参数配置（串行化开关、session回收参数、
      * 虚拟线程限流参数）全部由 {@link HttpConfig} 承载；组件均带默认值，按需覆盖即可，
      * 未传入者构建时补全默认实例，装配完成的编排器组件均不可为null。
      * <p>
@@ -187,7 +188,7 @@ public class HttpRequestApplication implements Application {
         private SessionManager sessionManager = new MemorySessionManager();
         /**
          * json序列化器，默认Jackson实现，用于响应体序列化与session数据转换；
-         * 未显式设置结果转化器管理器时，用它构建默认结果转化器管理器，使两者持有同一实例
+         * 构建期以它装配结果转化器管理器，使两者持有同一实例
          */
         private JsonSerializer jsonSerializer = new JacksonJsonSerializer();
         /**
@@ -195,9 +196,10 @@ public class HttpRequestApplication implements Application {
          */
         private HttpCorsConfig corsConfig = null;
         /**
-         * 结果转化器管理器，未显式设置时构建期以json序列化器补全 {@link ResultConverterManager}
+         * 自定义结果转化器集合，按注册顺序登记为自定义环节，构建期与json序列化器一起
+         * 装配成 {@link ResultConverterManager}；默认为空集合
          */
-        private ResultConverterManager resultConverterManager = null;
+        private final List<ResultConverter> resultConverters = new ArrayList<>();
         /**
          * 响应写出器管理器，未显式设置时构建期以磁盘IO线程池与空自定义写出器补全 {@link ResponseWriterManager}
          */
@@ -243,7 +245,7 @@ public class HttpRequestApplication implements Application {
         }
 
         /**
-         * 替换json序列化器；未显式设置结果转化器管理器时，用它补全默认结果转化器管理器
+         * 替换json序列化器；构建期以它装配结果转化器管理器
          */
         public Builder jsonSerializer(JsonSerializer jsonSerializer) {
             Objects.requireNonNull(jsonSerializer, "The json serializer must not be null");
@@ -274,12 +276,16 @@ public class HttpRequestApplication implements Application {
         }
 
         /**
-         * 替换结果转化器管理器（业务返回值到http响应的转化链），传null立即抛出
-         * {@link NullPointerException}
+         * 按顺序注册自定义结果转化器（业务返回值到http响应的转化链的自定义环节，
+         * 构建期与json序列化器装配成结果转化器管理器）；元素为null立即抛出
+         * {@link NullPointerException}；内置类型拒登、同一转化器类重复注册在构建时抛出
          */
-        public Builder resultConverterManager(ResultConverterManager resultConverterManager) {
-            Objects.requireNonNull(resultConverterManager, "The result converter manager must not be null");
-            this.resultConverterManager = resultConverterManager;
+        public Builder resultConverters(ResultConverter... resultConverters) {
+            this.resultConverters.addAll(
+                    Stream.of(resultConverters)
+                            .peek(converter -> Objects.requireNonNull(converter, "The result converter must not be null"))
+                            .toList()
+            );
             return this;
         }
 
@@ -346,9 +352,7 @@ public class HttpRequestApplication implements Application {
                     .responseWriterManager(this.responseWriterManager != null
                             ? this.responseWriterManager
                             : new ResponseWriterManager(diskOpeThreadPool, List.of()))
-                    .resultConverterManager(this.resultConverterManager != null
-                            ? this.resultConverterManager
-                            : new ResultConverterManager(this.jsonSerializer))
+                    .resultConverterManager(new ResultConverterManager(this.jsonSerializer, this.resultConverters))
                     .corsConfig(this.corsConfig != null
                             ? this.corsConfig
                             : HttpCorsConfig.builder().build())

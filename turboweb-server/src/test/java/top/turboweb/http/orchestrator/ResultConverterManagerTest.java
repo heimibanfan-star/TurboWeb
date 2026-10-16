@@ -20,6 +20,7 @@ import top.turboweb.serializer.exception.SerializerException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +41,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 文本类型（text/* 与 application/json）的 Content-Type 缺 charset 时在出口补写、
  * 已声明不覆盖、二进制与非文本类型不动；文件响应留待补写的文件名以传入字符集编码落头。
  * 序列化失败的行为奇偶：兜底环节上抛、流内环节转为流错误信号。
+ * 自定义环节契约：构造期以转化器具体类登记，内置类型（含 JSON 默认环节）拒登、
+ * 同类重复拒登、列表与元素为 null 拒登；分派时内置在前、自定义按登记次序在后，
+ * 两级都不认领时由 JSON 默认环节认领，自定义产出的响应与内置响应同受出口字符集善后。
  */
 class ResultConverterManagerTest {
 
@@ -47,7 +51,7 @@ class ResultConverterManagerTest {
     private static final Charset CHARSET = StandardCharsets.UTF_8;
 
     private static ResultConverterManager manager() {
-        return new ResultConverterManager(SERIALIZER);
+        return new ResultConverterManager(SERIALIZER, List.of());
     }
 
     private static String text(FullHttpResponse response) {
@@ -239,5 +243,145 @@ class ResultConverterManagerTest {
         NullPointerException ex = assertThrows(NullPointerException.class,
                 () -> manager().convert("hello", null));
         assertEquals("The charset must not be null", ex.getMessage());
+    }
+
+    // ---------- 自定义转化器注册契约 ----------
+
+    @Test
+    void nullSerializerAndNullCustomListRejectedAtConstruction() {
+        NullPointerException serializerEx = assertThrows(NullPointerException.class,
+                () -> new ResultConverterManager(null, List.of()));
+        assertEquals("The json serializer must not be null", serializerEx.getMessage());
+
+        NullPointerException listEx = assertThrows(NullPointerException.class,
+                () -> new ResultConverterManager(SERIALIZER, null));
+        assertEquals("The custom converter list must not be null", listEx.getMessage());
+    }
+
+    @Test
+    void nullCustomElementRejectedAtConstruction() {
+        NullPointerException ex = assertThrows(NullPointerException.class,
+                () -> new ResultConverterManager(SERIALIZER, Arrays.asList((ResultConverter) null)));
+        assertEquals("The result converter must not be null", ex.getMessage());
+    }
+
+    @Test
+    void builtinConverterClassRejectedFromCustomRegistration() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> new ResultConverterManager(SERIALIZER,
+                        List.of(new ResultConverterManager.StringResultConverter())));
+        assertEquals("Can not register a built-in result converter: "
+                + ResultConverterManager.StringResultConverter.class.getName(), ex.getMessage());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new ResultConverterManager(SERIALIZER,
+                        List.of(new ResultConverterManager.JsonResultConverter(SERIALIZER))),
+                "JSON 默认环节同为内置转化器，注册照样拒登");
+    }
+
+    @Test
+    void duplicateCustomConverterClassRejected() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> new ResultConverterManager(SERIALIZER,
+                        List.of(new FirstMarkerConverter(), new FirstMarkerConverter())));
+        assertEquals("Duplicate result converter registration: " + FirstMarkerConverter.class.getName(),
+                ex.getMessage());
+    }
+
+    // ---------- 内置、自定义、JSON 默认三级分派 ----------
+
+    @Test
+    void builtinConverterTakesPrecedenceOverCustom() {
+        ResultConverterManager manager = new ResultConverterManager(
+                SERIALIZER, List.of(new FirstMarkerConverter()));
+
+        FullHttpResponse response = (FullHttpResponse) manager.convert("hi", CHARSET);
+
+        assertEquals("hi", text(response), "String 已被内置环节认领，自定义环节拿不到");
+        assertEquals("text/html;charset=UTF-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE));
+    }
+
+    @Test
+    void customConverterIsConsultedBeforeJsonDefault() {
+        ResultConverterManager manager = new ResultConverterManager(
+                SERIALIZER, List.of(new FirstMarkerConverter()));
+
+        FullHttpResponse response = (FullHttpResponse) manager.convert(42, CHARSET);
+
+        assertEquals("first", text(response),
+                "内置环节都不认领 Integer，自定义环节先于 JSON 默认环节认领");
+    }
+
+    @Test
+    void customConvertersAreConsultedInRegistrationOrder() {
+        ResultConverterManager manager = new ResultConverterManager(
+                SERIALIZER, List.of(new FirstMarkerConverter(), new SecondMarkerConverter()));
+
+        FullHttpResponse response = (FullHttpResponse) manager.convert(42, CHARSET);
+
+        assertEquals("first", text(response), "多个自定义环节都认领时，登记在前者胜出");
+    }
+
+    @Test
+    void decliningCustomConverterFallsThroughToJsonDefault() {
+        ResultConverterManager manager = new ResultConverterManager(
+                SERIALIZER, List.of(new DeclineConverter()));
+        Map<String, Integer> payload = Map.of("a", 1);
+
+        FullHttpResponse response = (FullHttpResponse) manager.convert(payload, CHARSET);
+
+        assertEquals(SERIALIZER.beanToJson(payload), text(response),
+                "自定义环节不认领时落到 JSON 默认处理器");
+        assertEquals("application/json;charset=UTF-8",
+                response.headers().get(HttpHeaderNames.CONTENT_TYPE));
+    }
+
+    @Test
+    void customConverterResponseReceivesCharsetAftermath() {
+        ResultConverterManager manager = new ResultConverterManager(
+                SERIALIZER, List.of(new FirstMarkerConverter()));
+
+        HttpResponse response = manager.convert(42, CHARSET);
+
+        assertEquals("text/html;charset=UTF-8", response.headers().get(HttpHeaderNames.CONTENT_TYPE),
+                "自定义响应缺 charset 的 text/html 在出口补写，与内置响应同口径善后");
+    }
+
+    // ---------- 夹具 ----------
+
+    /** 构造自定义环节的应答：200、正文按给定字符集编码写入标记、Content-Type 声明 text/html 不带 charset。 */
+    private static FullHttpResponse markerResponse(String marker, Charset charset) {
+        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        response.content().writeBytes(marker.getBytes(charset));
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html");
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
+        return response;
+    }
+
+    /** 自定义环节夹具：认领任意返回值，正文为 first 的响应。 */
+    private static final class FirstMarkerConverter implements ResultConverter {
+
+        @Override
+        public ResultConverter.Result convert(Object result, Charset charset) {
+            return ResultConverter.Result.finished(markerResponse("first", charset));
+        }
+    }
+
+    /** 自定义环节夹具：认领任意返回值，正文为 second 的响应（与前一枚并存以测试登记次序）。 */
+    private static final class SecondMarkerConverter implements ResultConverter {
+
+        @Override
+        public ResultConverter.Result convert(Object result, Charset charset) {
+            return ResultConverter.Result.finished(markerResponse("second", charset));
+        }
+    }
+
+    /** 自定义环节夹具：恒不认领，全部放行。 */
+    private static final class DeclineConverter implements ResultConverter {
+
+        @Override
+        public ResultConverter.Result convert(Object result, Charset charset) {
+            return ResultConverter.Result.shouldContinue();
+        }
     }
 }

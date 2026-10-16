@@ -18,6 +18,7 @@ import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 import top.turboweb.http.orchestrator.ResponseWriterManager;
+import top.turboweb.http.orchestrator.ResultConverter;
 import top.turboweb.http.orchestrator.ResultConverterManager;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.server.config.HttpConfig;
@@ -66,7 +67,7 @@ class HttpRequestApplicationTest {
         assertThrows(NullPointerException.class, () -> builder.jsonSerializer(null));
         assertThrows(NullPointerException.class, () -> builder.corsConfig(null));
         assertThrows(NullPointerException.class, () -> builder.exceptionHandlerManager(null));
-        assertThrows(NullPointerException.class, () -> builder.resultConverterManager(null));
+        assertThrows(NullPointerException.class, () -> builder.resultConverters((ResultConverter) null));
         assertThrows(NullPointerException.class, () -> builder.responseWriterManager(null));
         assertThrows(NullPointerException.class, () -> builder.config(null));
         assertThrows(NullPointerException.class, () -> builder.middleware((Middleware) null));
@@ -188,7 +189,7 @@ class HttpRequestApplicationTest {
         JsonSerializer serializer = new JacksonJsonSerializer();
         HttpCorsConfig corsConfig = HttpCorsConfig.builder().build();
         ExceptionHandlerManager exceptionHandlerManager = new ExceptionHandlerManager(Set.of());
-        ResultConverterManager resultConverterManager = new ResultConverterManager(serializer);
+        ResultConverter customConverter = (result, charset) -> ResultConverter.Result.shouldContinue();
         ThreadPool extraPool = new ElasticThreadPool(1, 1, 1);
         ResponseWriterManager responseWriterManager = new ResponseWriterManager(extraPool, List.of());
         try {
@@ -197,7 +198,7 @@ class HttpRequestApplicationTest {
                     .sessionManager(new NoopSessionManager())
                     .routeHandlerManager(router)
                     .jsonSerializer(serializer)
-                    .resultConverterManager(resultConverterManager)
+                    .resultConverters(customConverter)
                     .responseWriterManager(responseWriterManager)
                     .corsConfig(corsConfig)
                     .config(HttpConfig.builder().serializePerConnection(true).build())
@@ -209,8 +210,12 @@ class HttpRequestApplicationTest {
                     "用户传入的cors配置原样进入编排器");
             assertSame(exceptionHandlerManager, componentOf(orchestrator, "exceptionHandlerManager"),
                     "用户传入的异常处理器管理器原样进入编排器");
-            assertSame(resultConverterManager, componentOf(orchestrator, "resultConverterManager"),
-                    "用户传入的结果转化器管理器原样进入编排器");
+            ResultConverterManager resultConverterManager =
+                    (ResultConverterManager) componentOf(orchestrator, "resultConverterManager");
+            assertNotNull(resultConverterManager, "结果转化器管理器由构建期装配进入编排器");
+            List<?> customConverters = (List<?>) fieldOf(resultConverterManager, "customConverters");
+            assertSame(customConverter, customConverters.get(0),
+                    "用户传入的自定义结果转化器经构建期装配进入管理器的自定义环节");
             assertSame(responseWriterManager, componentOf(orchestrator, "responseWriterManager"),
                     "用户传入的响应写出器管理器原样进入编排器");
             assertSame(serializer, componentOf(orchestrator, "jsonSerializer"),
@@ -350,6 +355,13 @@ class HttpRequestApplicationTest {
         Field field = RequestOrchestrator.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         return field.get(orchestrator);
+    }
+
+    /** 反射读取目标对象实际类上指定名称的私有字段值（与 componentOf 同一类取证手段）。 */
+    private static Object fieldOf(Object target, String fieldName) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(target);
     }
 
     /**
