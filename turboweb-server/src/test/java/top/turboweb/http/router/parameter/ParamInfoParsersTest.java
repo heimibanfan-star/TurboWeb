@@ -1,6 +1,7 @@
 package top.turboweb.http.router.parameter;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.core.constant.ContentType;
+import top.turboweb.http.core.cookie.HttpCookie;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
@@ -25,12 +27,14 @@ import top.turboweb.validation.BeanValidator;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.Proxy;
 import java.nio.channels.Channel;
+import java.nio.charset.Charset;
 import java.util.*;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * autoBind 七个参数解析器各自的解析逻辑（spec §5：autoBind 七 parser 认领与绑定契约）。
+ * autoBind 十个参数解析器各自的解析逻辑（spec §5：autoBind 解析器认领与绑定契约）。
  *
  * <p>分派那一侧（谁在前、谁先认领）归 Task 9；本类只钉"每个 parser 对单个
  * {@link Parameter} 怎么认领、认领后怎么绑定"。
@@ -101,6 +105,24 @@ class ParamInfoParsersTest {
         void pathInt(@PathParam("id") int v) {}
         void pathUnsupported(@PathParam("id") Map<String, String> v) {}
         void pathPlain(int v) {}
+
+        // —— @CookieParam ——
+        void cookieString(@CookieParam("c") String v) {}
+        void cookieInt(@CookieParam("n") int v) {}
+        void cookieUnsupported(@CookieParam("c") Map<String, String> v) {}
+        void cookiePlain(String v) {}
+
+        // —— @FormParam ——
+        void formString(@FormParam("f") String v) {}
+        void formInt(@FormParam("n") int v) {}
+        void formUnsupported(@FormParam("f") Map<String, String> v) {}
+        void formPlain(String v) {}
+
+        // —— @HeaderParam ——
+        void headerString(@HeaderParam("h") String v) {}
+        void headerInt(@HeaderParam("n") int v) {}
+        void headerUnsupported(@HeaderParam("h") Map<String, String> v) {}
+        void headerPlain(String v) {}
 
         void noAnnotation(String v) {}
     }
@@ -326,6 +348,117 @@ class ParamInfoParsersTest {
         @Override
         public ContentType contentType() {
             return ContentType.APPLICATION_OCTET_STREAM;
+        }
+    }
+
+    /** Cookie 集合夹具：仅 getCookie 读取通道向绑定器投喂指定名称归档，其余通道误调即响。 */
+    private record CookiesFixture(Map<String, String> values) implements HttpCookies {
+
+        @Override
+        public String getCookie(String key) {
+            return values.get(key);
+        }
+
+        @Override
+        public void setCookie(HttpCookie cookie) {
+            throw offChannel("setCookie");
+        }
+
+        @Override
+        public void setCookie(String key, String value) {
+            throw offChannel("setCookie");
+        }
+
+        @Override
+        public void setCookie(String key, String value, Consumer<HttpCookie> consumer) {
+            throw offChannel("setCookie");
+        }
+
+        @Override
+        public Map<String, String> getCookies() {
+            throw offChannel("getCookies");
+        }
+
+        @Override
+        public void removeCookie(String key) {
+            throw offChannel("removeCookie");
+        }
+
+        @Override
+        public void clearToWriteCookies() {
+            throw offChannel("clearToWriteCookies");
+        }
+
+        @Override
+        public void clearAll() {
+            throw offChannel("clearAll");
+        }
+
+        @Override
+        public void setCookieForResponse(HttpResponse response, Charset charset) {
+            throw offChannel("setCookieForResponse");
+        }
+
+        private static UnsupportedOperationException offChannel(String name) {
+            return new UnsupportedOperationException("参数绑定不经 Cookie 的 " + name + " 通道");
+        }
+    }
+
+    /** 请求头夹具：实现 Headers 只读契约，按指定头名映射投喂取值。 */
+    private record HeadersFixture(Map<String, String> headers) implements HttpContext.Headers {
+
+        @Override
+        public String get(String name) {
+            return headers.get(name);
+        }
+
+        @Override
+        public List<String> getAll(String name) {
+            String value = headers.get(name);
+            return value == null ? List.of() : List.of(value);
+        }
+
+        @Override
+        public boolean contains(String name) {
+            return headers.containsKey(name);
+        }
+
+        @Override
+        public Set<String> names() {
+            return headers.keySet();
+        }
+
+        @Override
+        public int size() {
+            return headers.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return headers.isEmpty();
+        }
+    }
+
+    /** 请求消息夹具：只承接请求头通道，方式与地址通道不经绑定，误调即响。 */
+    private record MessageFixture(HeadersFixture headersView) implements HttpContext.Message {
+
+        @Override
+        public String method() {
+            throw offChannel("method");
+        }
+
+        @Override
+        public HttpContext.Headers headers() {
+            return headersView;
+        }
+
+        @Override
+        public HttpContext.URL url() {
+            throw offChannel("url");
+        }
+
+        private static UnsupportedOperationException offChannel(String name) {
+            return new UnsupportedOperationException("参数绑定不经消息的 " + name + " 通道");
         }
     }
 
@@ -807,5 +940,124 @@ class ParamInfoParsersTest {
     void pathUnsupportedTypeYieldsNoBinder() {
         assertNull(new PathParameterParser().parse(parameter("pathUnsupported")),
                 "Map 没有转换器 → 该参数不归本解析器");
+    }
+
+    // ---------- CookieParameterParser ----------
+
+    @Test
+    void cookieParamBindsValueByName() {
+        ParameterParser.Binder b = new CookieParameterParser().parse(parameter("cookieString"));
+        assertNotNull(b, "@CookieParam 的 String 形态应被认领");
+        Stub stub = new Stub().returning("cookies", new CookiesFixture(Map.of("c", "v", "other", "x")));
+        assertEquals("v", b.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
+                "注解的 value 即 cookie 名称：经 getCookie 取值，与他名相混则取不到值必红");
+        assertArrayEquals(new Object[0], stub.lastArgs("cookies"), "取数经上下文 cookies() 通道");
+    }
+
+    @Test
+    void cookieMissingNormalizedByType() {
+        ParameterParser.Binder stringBinder = new CookieParameterParser().parse(parameter("cookieString"));
+        ParameterParser.Binder intBinder = new CookieParameterParser().parse(parameter("cookieInt"));
+        Stub stub = new Stub().returning("cookies", new CookiesFixture(Map.of()));
+        assertNull(stringBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
+                "cookie 缺失 → String 转换器 null 直通");
+        assertEquals(0, intBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
+                "int 转换器对 null 归一为 0");
+    }
+
+    @Test
+    void cookieUnsupportedTypeYieldsNoBinder() {
+        assertNull(new CookieParameterParser().parse(parameter("cookieUnsupported")),
+                "Map 没有转换器 → 该参数不归本解析器");
+    }
+
+    @Test
+    void cookieWithoutAnnotationIsIgnored() {
+        assertNull(new CookieParameterParser().parse(parameter("cookiePlain")),
+                "缺 @CookieParam 不认领");
+    }
+
+    // ---------- FormParameterParser ----------
+
+    @Test
+    void formParamBindsFirstValueOfField() {
+        ParameterParser.Binder b = new FormParameterParser().parse(parameter("formString"));
+        assertNotNull(b, "@FormParam 的 String 形态应被认领");
+        Stub stub = new Stub().returning("content",
+                new FormContentFixture(Map.of("f", List.of("v1", "v2"), "other", List.of("x")), Map.of()));
+        assertEquals("v1", b.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
+                "注解的 value 即表单字段名：同名多值取首值，不与他字段相混");
+        assertArrayEquals(new Object[0], stub.lastArgs("content"), "取数经上下文 content() 通道");
+    }
+
+    @Test
+    void formParamMissingNormalizedByType() {
+        ParameterParser.Binder stringBinder = new FormParameterParser().parse(parameter("formString"));
+        ParameterParser.Binder intBinder = new FormParameterParser().parse(parameter("formInt"));
+        Stub stub = new Stub().returning("content", new FormContentFixture(Map.of(), Map.of()));
+        assertNull(stringBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
+                "字段缺失 → String 转换器 null 直通");
+        assertEquals(0, intBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
+                "int 转换器对 null 归一为 0");
+    }
+
+    @Test
+    void formParamBinderRejectsNonFormContent() {
+        // 内容不实现 FormContent 契约时拒绑，异常文案沿用原表单取数通道口径
+        Stub stub = new Stub().returning("content", new PlainContentFixture());
+        ParameterParser.Binder b = new FormParameterParser().parse(parameter("formString"));
+        assertNotNull(b);
+        RequestParseException ex = assertThrows(RequestParseException.class,
+                () -> b.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
+        assertEquals("contentType is not application/x-www-form-urlencoded or multipart/form-data",
+                ex.getMessage());
+    }
+
+    @Test
+    void formParamUnsupportedTypeYieldsNoBinder() {
+        assertNull(new FormParameterParser().parse(parameter("formUnsupported")),
+                "Map 没有转换器 → 该参数不归本解析器");
+    }
+
+    @Test
+    void formParamWithoutAnnotationIsIgnored() {
+        assertNull(new FormParameterParser().parse(parameter("formPlain")),
+                "缺 @FormParam 不认领");
+    }
+
+    // ---------- HeaderParameterParser ----------
+
+    @Test
+    void headerParamBindsFirstValue() {
+        ParameterParser.Binder b = new HeaderParameterParser().parse(parameter("headerString"));
+        assertNotNull(b, "@HeaderParam 的 String 形态应被认领");
+        Stub stub = new Stub().returning("message",
+                new MessageFixture(new HeadersFixture(Map.of("h", "v", "other", "x"))));
+        assertEquals("v", b.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
+                "注解的 value 即头名：经请求头首值通道取值，与他名相混则取不到值必红");
+        assertArrayEquals(new Object[0], stub.lastArgs("message"), "取数经上下文 message() 通道");
+    }
+
+    @Test
+    void headerParamMissingNormalizedByType() {
+        ParameterParser.Binder stringBinder = new HeaderParameterParser().parse(parameter("headerString"));
+        ParameterParser.Binder intBinder = new HeaderParameterParser().parse(parameter("headerInt"));
+        Stub stub = new Stub().returning("message", new MessageFixture(new HeadersFixture(Map.of())));
+        assertNull(stringBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
+                "头缺失 → String 转换器 null 直通");
+        assertEquals(0, intBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
+                "int 转换器对 null 归一为 0");
+    }
+
+    @Test
+    void headerParamUnsupportedTypeYieldsNoBinder() {
+        assertNull(new HeaderParameterParser().parse(parameter("headerUnsupported")),
+                "Map 没有转换器 → 该参数不归本解析器");
+    }
+
+    @Test
+    void headerParamWithoutAnnotationIsIgnored() {
+        assertNull(new HeaderParameterParser().parse(parameter("headerPlain")),
+                "缺 @HeaderParam 不认领");
     }
 }

@@ -55,7 +55,7 @@ public class RestRouteRegister implements RouteRegister {
      */
     private final Map<Class<?>, Object> routeInstanceMap = new HashMap<>();
     /**
-     * 参数解析器表,构造期装入默认七枚,按表序依次认领形参
+     * 参数解析器表,构造期装入默认十枚,按表序依次认领形参
      */
     private final LinkedList<ParameterParser> parsers = new LinkedList<>();
 
@@ -92,6 +92,9 @@ public class RestRouteRegister implements RouteRegister {
         parsers.add(new BeanQueryParameterParser());
         parsers.add(new BeanFormParameterParser());
         parsers.add(new BeanJsonParameterParser());
+        parsers.add(new CookieParameterParser());
+        parsers.add(new FormParameterParser());
+        parsers.add(new HeaderParameterParser());
     }
 
     /**
