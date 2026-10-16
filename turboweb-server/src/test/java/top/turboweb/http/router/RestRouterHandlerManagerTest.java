@@ -34,8 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * RestRouterHandlerManager 单元测试:baseUrl 规整、四种注册入口的空值与重复拒绝、
- * build 的按 url 聚合与同路径同请求方式拒绝、请求分发(路径命中、查询串剥离、
+ * RestRouteRegister 生产出的管理器单元测试:baseUrl 规整、四种注册入口的空值与重复拒绝、
+ * 生产环节的按 url 聚合与同路径同请求方式拒绝、请求分发(路径命中、查询串剥离、
  * 尾斜杠容忍、路径参数解码绑定)、路由未命中的路由不匹配错误码、
  * 目标方法异常透传与非运行时异常的调用错误包装。
  */
@@ -128,11 +128,11 @@ class RestRouterHandlerManagerTest {
     }
 
     private static RouteHandlerManager built(Object... instances) {
-        RestRouterHandlerManager.Builder builder = new RestRouterHandlerManager.Builder();
+        RestRouteRegister register = new RestRouteRegister();
         for (Object instance : instances) {
-            builder.registerRoute(instance);
+            register.registerRoute(instance);
         }
-        return builder.build();
+        return register.newRouteHandlerManager(new JacksonJsonSerializer());
     }
 
     @Test
@@ -200,15 +200,18 @@ class RestRouterHandlerManagerTest {
 
     @Test
     void rootFormUrlIsPrefixedByBaseUrl() {
-        RouteHandlerManager manager = new RestRouterHandlerManager.Builder("/api").registerRoute(new PingController()).build();
+        RouteHandlerManager manager = new RestRouteRegister("/api")
+                .registerRoute(new PingController())
+                .newRouteHandlerManager(new JacksonJsonSerializer());
         assertEquals("pong", manager.handle(ctx(HttpMethod.GET, "/api/ping")));
     }
 
     @Test
     void baseUrlVariantsAreNormalizedToSamePrefix() {
         for (String baseUrl : List.of("api", "/api", "api/", "/api/", "/api//", "/api///")) {
-            RouteHandlerManager manager = new RestRouterHandlerManager.Builder(baseUrl)
-                    .registerRoute(new PingController()).build();
+            RouteHandlerManager manager = new RestRouteRegister(baseUrl)
+                    .registerRoute(new PingController())
+                    .newRouteHandlerManager(new JacksonJsonSerializer());
             assertEquals("pong", manager.handle(ctx(HttpMethod.GET, "/api/ping")), "前缀 " + baseUrl + " 规整为 /api");
         }
     }
@@ -216,8 +219,9 @@ class RestRouterHandlerManagerTest {
     @Test
     void emptyRootAndNullBaseUrlYieldNoPrefix() {
         for (String baseUrl : Arrays.asList("", "/", "//", null)) {
-            RouteHandlerManager manager = new RestRouterHandlerManager.Builder(baseUrl)
-                    .registerRoute(new PingController()).build();
+            RouteHandlerManager manager = new RestRouteRegister(baseUrl)
+                    .registerRoute(new PingController())
+                    .newRouteHandlerManager(new JacksonJsonSerializer());
             assertEquals("pong", manager.handle(ctx(HttpMethod.GET, "/ping")), "前缀 " + baseUrl + " 视作根,不加前缀");
         }
     }
@@ -225,30 +229,34 @@ class RestRouterHandlerManagerTest {
     @Test
     void rootPathControllerIsRejectedWhileBuilding() {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
-                () -> new RestRouterHandlerManager.Builder().registerRoute(new RootController()).build(),
+                () -> new RestRouteRegister().registerRoute(new RootController())
+                        .newRouteHandlerManager(new JacksonJsonSerializer()),
                 "各级都提不出段的根路由在合并环节即拒,不再撞基数树的空段异常、也不静默 404");
         assertTrue(error.getMessage().contains("root path routing is not supported"), "拒绝来自路径合并,消息可归因");
     }
 
     @Test
     void rootMethodUnderPrefixRegistersThePrefixItself() {
-        RouteHandlerManager manager = new RestRouterHandlerManager.Builder("/api")
-                .registerRoute(new RootController()).build();
+        RouteHandlerManager manager = new RestRouteRegister("/api")
+                .registerRoute(new RootController())
+                .newRouteHandlerManager(new JacksonJsonSerializer());
         assertEquals("root", manager.handle(ctx(HttpMethod.GET, "/api")), "方法路径是根而前缀有段时,取前缀为路径");
     }
 
     @Test
     void explicitTargetClassDrivesAnnotationScanAndInstanceDrivesInvocation() {
-        RouteHandlerManager manager = new RestRouterHandlerManager.Builder()
-                .registerRoute(ParentController.class, new ChildController()).build();
+        RouteHandlerManager manager = new RestRouteRegister()
+                .registerRoute(ParentController.class, new ChildController())
+                .newRouteHandlerManager(new JacksonJsonSerializer());
         assertEquals("child", manager.handle(ctx(HttpMethod.GET, "/p/m")),
                 "扫描按显式类取注解,调用落在传入实例上");
     }
 
     @Test
     void listOfInstancesRegistersEveryRoute() {
-        RouteHandlerManager manager = new RestRouterHandlerManager.Builder()
-                .registerRoute(List.of(new PingController(), new ParamController())).build();
+        RouteHandlerManager manager = new RestRouteRegister()
+                .registerRoute(List.of(new PingController(), new ParamController()))
+                .newRouteHandlerManager(new JacksonJsonSerializer());
         assertEquals("pong", manager.handle(ctx(HttpMethod.GET, "/ping")));
         assertEquals("id=7", manager.handle(ctx(HttpMethod.GET, "/u/user/7")), "同批注册的第二个控制器路由同样可用");
     }
@@ -258,14 +266,16 @@ class RestRouterHandlerManagerTest {
         Map<Class<?>, Object> routes = new HashMap<>();
         routes.put(PingController.class, new PingController());
         routes.put(ParamController.class, new ParamController());
-        RouteHandlerManager manager = new RestRouterHandlerManager.Builder().registerRoute(routes).build();
+        RouteHandlerManager manager = new RestRouteRegister().registerRoute(routes)
+                .newRouteHandlerManager(new JacksonJsonSerializer());
         assertEquals("pong", manager.handle(ctx(HttpMethod.GET, "/ping")));
         assertEquals("id=7", manager.handle(ctx(HttpMethod.GET, "/u/user/7")));
     }
 
     @Test
     void nullListIsTreatedAsNoRegistration() {
-        RouteHandlerManager manager = new RestRouterHandlerManager.Builder().registerRoute((List<Object>) null).build();
+        RouteHandlerManager manager = new RestRouteRegister().registerRoute((List<Object>) null)
+                .newRouteHandlerManager(new JacksonJsonSerializer());
         RouteHandlerException error = assertThrows(RouteHandlerException.class,
                 () -> manager.handle(ctx(HttpMethod.GET, "/ping")), "没有任何注册时一切请求都是路由找不到");
         assertEquals(ErrorCode.RouterNotMatch, error.getCode());
@@ -274,48 +284,49 @@ class RestRouterHandlerManagerTest {
     @Test
     void duplicateClassInListIsRejectedLikeMapEntry() {
         IllegalStateException error = assertThrows(IllegalStateException.class,
-                () -> new RestRouterHandlerManager.Builder().registerRoute(List.of(new PingController(), new PingController())),
+                () -> new RestRouteRegister().registerRoute(List.of(new PingController(), new PingController())),
                 "同类重复注册统一走已注册拒绝,不再因入口不同而异");
         assertEquals(PingController.class + " is already registered", error.getMessage());
     }
 
     @Test
     void secondRegistrationOfSameClassIsRejected() {
-        RestRouterHandlerManager.Builder builder = new RestRouterHandlerManager.Builder()
+        RestRouteRegister register = new RestRouteRegister()
                 .registerRoute(new PingController());
         IllegalStateException error = assertThrows(IllegalStateException.class,
-                () -> builder.registerRoute(Map.of(PingController.class, new PingController())));
+                () -> register.registerRoute(Map.of(PingController.class, new PingController())));
         assertEquals(PingController.class + " is already registered", error.getMessage());
     }
 
     @Test
     void nullArgumentsAreRejectedWithNamedMessages() {
-        RestRouterHandlerManager.Builder builder = new RestRouterHandlerManager.Builder();
+        RestRouteRegister register = new RestRouteRegister();
         NullPointerException nullInstance = assertThrows(NullPointerException.class,
-                () -> builder.registerRoute((Object) null));
+                () -> register.registerRoute((Object) null));
         assertEquals("routeInstance must not be null", nullInstance.getMessage());
         NullPointerException nullClass = assertThrows(NullPointerException.class,
-                () -> builder.registerRoute(null, new PingController()));
+                () -> register.registerRoute(null, new PingController()));
         assertEquals("targetClass must not be null", nullClass.getMessage());
         NullPointerException listWithNull = assertThrows(NullPointerException.class,
-                () -> builder.registerRoute(Arrays.asList(new PingController(), null)));
+                () -> register.registerRoute(Arrays.asList(new PingController(), null)));
         assertEquals("routeInstance must not be null", listWithNull.getMessage(), "列表里的空元素同样按实例判空消息失败");
         Map<Class<?>, Object> withNullValue = new HashMap<>();
         withNullValue.put(PingController.class, null);
         NullPointerException mapWithNullValue = assertThrows(NullPointerException.class,
-                () -> builder.registerRoute(withNullValue));
+                () -> register.registerRoute(withNullValue));
         assertEquals("routeInstance must not be null", mapWithNullValue.getMessage());
         Map<Class<?>, Object> withNullKey = new HashMap<>();
         withNullKey.put(null, new PingController());
         NullPointerException mapWithNullKey = assertThrows(NullPointerException.class,
-                () -> builder.registerRoute(withNullKey));
+                () -> register.registerRoute(withNullKey));
         assertEquals("targetClass must not be null", mapWithNullKey.getMessage(), "判空先于重复检查");
     }
 
     @Test
     void buildRejectsSameVerbTwiceOnOnePath() {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
-                () -> new RestRouterHandlerManager.Builder().registerRoute(new RepeatController()).build());
+                () -> new RestRouteRegister().registerRoute(new RepeatController())
+                        .newRouteHandlerManager(new JacksonJsonSerializer()));
         assertEquals("Route repeat:GET /dup", error.getMessage(), "同路径同请求方式在构建期即拒绝");
     }
 
@@ -454,11 +465,11 @@ class RestRouterHandlerManagerTest {
     }
 
     @Test
-    void registrationMethodsReturnSameBuilder() {
-        RestRouterHandlerManager.Builder builder = new RestRouterHandlerManager.Builder("/api");
-        assertSame(builder, builder.registerRoute(new PingController()));
-        assertSame(builder, builder.registerRoute(List.of(new ParamController())));
-        assertSame(builder, builder.registerRoute(Map.of(ThrowingController.class, new ThrowingController())));
-        assertSame(builder, builder.registerRoute(ParentController.class, new ChildController()));
+    void registrationMethodsReturnSameRegister() {
+        RestRouteRegister register = new RestRouteRegister("/api");
+        assertSame(register, register.registerRoute(new PingController()));
+        assertSame(register, register.registerRoute(List.of(new ParamController())));
+        assertSame(register, register.registerRoute(Map.of(ThrowingController.class, new ThrowingController())));
+        assertSame(register, register.registerRoute(ParentController.class, new ChildController()));
     }
 }

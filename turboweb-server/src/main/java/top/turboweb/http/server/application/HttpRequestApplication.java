@@ -27,6 +27,7 @@ import top.turboweb.http.orchestrator.ResponseWriterManager;
 import top.turboweb.http.orchestrator.ResultConverter;
 import top.turboweb.http.orchestrator.ResultConverterManager;
 import top.turboweb.http.router.RouteHandlerManager;
+import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
 import top.turboweb.http.server.handler.RequestSerializerChannelHandler;
@@ -40,10 +41,10 @@ import java.util.stream.Stream;
  * <p>
  * 对外只暴露 {@link #configure(ChannelPipeline)}：每条新连接建立时向pipeline尾部追加
  * 请求串行化处理器（可选，连接级新实例）与http请求调度处理器（无状态单例，跨连接复用）；
- * 对内通过 {@link Builder} 在构建期一次性完成请求编排器的装配：串联中间件链（业务中间件
- * 按注册顺序，存在路由处理器管理器时在其后追加路由调用中间件为链尾）、按 {@link HttpConfig}
- * 创建磁盘IO线程池与虚拟线程资源、未由调用方传入的组件补全默认实例，按十组件装定
- * {@link RequestOrchestrator} 后接入调度处理器。
+ * 对内通过 {@link Builder} 在构建期一次性完成请求编排器的装配：以应用自身的 json 序列化器生产
+ * 路由处理器管理器、串联中间件链（业务中间件按注册顺序，在其后追加路由调用中间件为链尾）、
+ * 按 {@link HttpConfig} 创建磁盘IO线程池与虚拟线程资源、未由调用方传入的组件补全默认实例，
+ * 按十组件装定 {@link RequestOrchestrator} 后接入调度处理器。
  * <p>
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
  * <p>
@@ -54,7 +55,7 @@ import java.util.stream.Stream;
  *
  * <pre>{@code
  * HttpRequestApplication application = new HttpRequestApplication.Builder()
- *         .routeHandlerManager(routeHandlerManager)
+ *         .routeRegister(routeRegister)
  *         .config(HttpConfig.builder()
  *                 .serializePerConnection(true)
  *                 .sessionMaxNotUseTime(1800000)
@@ -153,13 +154,14 @@ public class HttpRequestApplication implements Application {
 
     /**
      * {@link HttpRequestApplication} 的建造者：持有应用装配所需的全部组件对象
-     * （业务中间件、路由处理器管理器、异常处理器集合、session管理器、json序列化器、
+     * （业务中间件、路由登记表、异常处理器集合、session管理器、json序列化器、
      * cors配置、自定义结果转化器集合、自定义响应写出器集合），纯参数配置（串行化开关、session回收参数、
      * 虚拟线程限流参数）全部由 {@link HttpConfig} 承载；组件均带默认值，按需覆盖即可，
      * 未传入者构建时补全默认实例，装配完成的编排器组件均不可为null。
      * <p>
      * {@link #build()} 按以下顺序完成装配：
-     * 串联并初始化中间件链 -> 按 {@link HttpConfig} 的 diskOpeThread* 参数创建磁盘IO线程池 ->
+     * 以本建造者的 json 序列化器生产路由处理器管理器 -> 串联并初始化中间件链 ->
+     * 按 {@link HttpConfig} 的 diskOpeThread* 参数创建磁盘IO线程池 ->
      * 按限流参数创建虚拟线程资源（启用限流为 {@link LimitedVirtualThreadResource}，
      * 否则为 {@link UnlimitedVirtualThreadResource}）-> 补全未传入的组件默认值 ->
      * 按十组件装配 {@link RequestOrchestrator} -> 装配http请求调度处理器。
@@ -181,16 +183,18 @@ public class HttpRequestApplication implements Application {
          */
         private final List<Object> exceptionHandlers = new ArrayList<>();
         /**
-         * 路由处理器管理器，传null表示无路由：装配时不创建路由调用中间件
+         * 路由登记表，传null表示无路由：装配时不生产管理器、也不创建路由调用中间件；
+         * 非null时于构建期收到本建造者的 json 序列化器并生产管理器
          */
-        private RouteHandlerManager routeHandlerManager = null;
+        private RouteRegister routeRegister = null;
         /**
          * session管理器，默认内存实现 {@link MemorySessionManager}，装配时与session参数打包为会话管理器持有者
          */
         private SessionManager sessionManager = new MemorySessionManager();
         /**
          * json序列化器，默认Jackson实现，用于响应体序列化与session数据转换；
-         * 构建期以它装配结果转化器管理器，使两者持有同一实例
+         * 构建期以它装配结果转化器管理器，并交给路由登记表生产路由处理器管理器，
+         * 使序列化侧与路由侧持有同一实例
          */
         private JsonSerializer jsonSerializer = new JacksonJsonSerializer();
         /**
@@ -234,11 +238,11 @@ public class HttpRequestApplication implements Application {
         }
 
         /**
-         * 设置路由处理器管理器，装配时包装成路由调用中间件追加在中间件链的末端，
-         * 传null表示无路由（不创建该中间件）
+         * 设置路由登记表：构建期以本建造者的 json 序列化器生产路由处理器管理器，
+         * 装配时包装成路由调用中间件追加在中间件链的末端，传null表示无路由（不创建该中间件）
          */
-        public Builder routeHandlerManager(RouteHandlerManager routeHandlerManager) {
-            this.routeHandlerManager = routeHandlerManager;
+        public Builder routeRegister(RouteRegister routeRegister) {
+            this.routeRegister = routeRegister;
             return this;
         }
 
@@ -252,7 +256,8 @@ public class HttpRequestApplication implements Application {
         }
 
         /**
-         * 替换json序列化器；构建期以它装配结果转化器管理器
+         * 替换json序列化器；构建期以它装配结果转化器管理器，并交给路由登记表生产路由处理器管理器，
+         * 因此入口的调用顺序不影响路由侧拿到的实例（生产发生在构建期）
          */
         public Builder jsonSerializer(JsonSerializer jsonSerializer) {
             Objects.requireNonNull(jsonSerializer, "The json serializer must not be null");
@@ -320,7 +325,8 @@ public class HttpRequestApplication implements Application {
         }
 
         /**
-         * 构建应用：串联并初始化中间件链，按 {@link HttpConfig} 的 diskOpeThread* 参数创建
+         * 构建应用：先以本建造者的 json 序列化器生产路由处理器管理器（未挂登记表则无路由），
+         * 再串联并初始化中间件链，按 {@link HttpConfig} 的 diskOpeThread* 参数创建
          * 磁盘IO线程池，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按十组件装配
          * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}，内容解析器管理器
          * 以同一字符集与内置解析器建立），最后装配http请求调度处理器；
@@ -339,8 +345,12 @@ public class HttpRequestApplication implements Application {
             log.info("Assembling http request application...");
             // 应用持有的资源作用域：装配期创建的可关闭资源逐个登记进来，关闭时按登记顺序统一释放
             ScopedResource scopedResource = new ScopedResource();
+            // 路由生产：以本建造者的json序列化器装配登记表，使路由侧与结果转化侧共用同一序列化实例
+            RouteHandlerManager routeHandlerManager = this.routeRegister != null
+                    ? this.routeRegister.newRouteHandlerManager(this.jsonSerializer)
+                    : null;
             // 串联并初始化中间件链：链头为哨兵，存在路由处理器管理器时路由调用中间件追加链尾
-            Middleware middlewareChain = initMiddlewareChain();
+            Middleware middlewareChain = initMiddlewareChain(routeHandlerManager);
             // 中间件链销毁适配器先登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
             scopedResource.register(() -> destroyMiddlewareChain(middlewareChain));
             // 创建磁盘IO线程池，构建期注入响应写出器管理器供文件流写出器调度分块读取；应用只是使用者，关闭责任留在应用
@@ -387,9 +397,10 @@ public class HttpRequestApplication implements Application {
          * {@link IllegalStateException}），存在路由处理器管理器时创建路由调用中间件追加在链尾，
          * 不存在则不创建；随后按链序依次执行各中间件的init与锁定
          *
+         * @param routeHandlerManager 构建期由路由登记表生产出的路由处理器管理器，为null时链尾不挂路由节点
          * @return 中间件链链头（哨兵中间件）
          */
-        private Middleware initMiddlewareChain() {
+        private Middleware initMiddlewareChain(RouteHandlerManager routeHandlerManager) {
             final Middleware sentinel = new SentinelMiddleware();
             Middleware tail = sentinel;
             // 用Set集合，防止middleware重复

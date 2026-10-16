@@ -23,6 +23,7 @@ import top.turboweb.http.orchestrator.ResponseWriterManager;
 import top.turboweb.http.orchestrator.ResultConverter;
 import top.turboweb.http.orchestrator.ResultConverterManager;
 import top.turboweb.http.router.RouteHandlerManager;
+import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
 import top.turboweb.http.core.session.SessionManager;
@@ -74,8 +75,8 @@ class HttpRequestApplicationTest {
         assertThrows(NullPointerException.class, () -> builder.responseWriters((ResponseWriter) null));
         assertThrows(NullPointerException.class, () -> builder.config(null));
         assertThrows(NullPointerException.class, () -> builder.middleware((Middleware) null));
-        // 路由处理器管理器传null合法：表示无路由，不创建路由调用中间件
-        builder.routeHandlerManager(null);
+        // 路由登记表传null合法：表示无路由，不创建路由调用中间件
+        builder.routeRegister(null);
     }
 
     @Test
@@ -93,7 +94,7 @@ class HttpRequestApplicationTest {
     // ---------- 路由调用中间件在链尾的两态 ----------
 
     @Test
-    void routeHandlerManagerNullLeavesChainTailAtLastMiddleware() {
+    void noRouteRegisterLeavesChainTailAtLastMiddleware() {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
         HttpRequestApplication app = new HttpRequestApplication.Builder()
@@ -101,7 +102,7 @@ class HttpRequestApplicationTest {
                 .middleware(mw)
                 .build();
 
-        assertNull(mw.getNext(), "routeHandlerManager==null 时链尾就是最后一个业务中间件，其后无路由节点");
+        assertNull(mw.getNext(), "未挂路由登记表时链尾就是最后一个业务中间件，其后无路由节点");
         app.close();
     }
 
@@ -113,7 +114,7 @@ class HttpRequestApplicationTest {
         HttpRequestApplication app = new HttpRequestApplication.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(mw)
-                .routeHandlerManager(router)
+                .routeRegister(new TestRouteRegister(router))
                 .build();
 
         Middleware routeMiddleware = mw.getNext();
@@ -123,6 +124,38 @@ class HttpRequestApplicationTest {
         assertSame("route-result", routeMiddleware.invoke(null),
                 "路由调用中间件把上下文交给管理器handle，其返回结果原样作为链结果");
         assertTrue(events.contains("handle:router"), "handle必须被路由调用中间件转交给路由处理器管理器");
+        app.close();
+    }
+
+    // ---------- 登记表在生产时刻收到应用的序列化器 ----------
+
+    @Test
+    void routeRegisterIsProducedWithApplicationSerializer() {
+        List<String> events = new ArrayList<>();
+        JsonSerializer serializer = new JacksonJsonSerializer();
+        TestRouteRegister register = new TestRouteRegister(new TestRouteHandlerManager(events));
+        HttpRequestApplication app = new HttpRequestApplication.Builder()
+                .sessionManager(new NoopSessionManager())
+                .jsonSerializer(serializer)
+                .routeRegister(register)
+                .build();
+
+        assertSame(serializer, register.producedWith, "构建期把应用的json序列化器交给登记表生产管理器");
+        app.close();
+    }
+
+    @Test
+    void routeRegisterReceivesDefaultSerializerWhenNotPassed() throws Exception {
+        List<String> events = new ArrayList<>();
+        TestRouteRegister register = new TestRouteRegister(new TestRouteHandlerManager(events));
+        HttpRequestApplication app = new HttpRequestApplication.Builder()
+                .sessionManager(new NoopSessionManager())
+                .routeRegister(register)
+                .build();
+
+        assertInstanceOf(JacksonJsonSerializer.class, register.producedWith, "未指定序列化器时生产用应用的默认实例");
+        assertSame(componentOf(orchestratorOf(app), "jsonSerializer"), register.producedWith,
+                "登记表拿到的默认序列化器与编排器持有的是同一实例");
         app.close();
     }
 
@@ -197,7 +230,7 @@ class HttpRequestApplicationTest {
         HttpRequestApplication app = new HttpRequestApplication.Builder()
                 .exceptionHandlers(customHandler)
                 .sessionManager(new NoopSessionManager())
-                .routeHandlerManager(router)
+                .routeRegister(new TestRouteRegister(router))
                 .jsonSerializer(serializer)
                 .resultConverters(customConverter)
                 .responseWriters(customWriter)
@@ -410,6 +443,27 @@ class HttpRequestApplicationTest {
         @Override
         public void destroy() {
             events.add("destroy:probe:poolShutdown=" + diskPool.isShutdown());
+        }
+    }
+
+    /**
+     * 记录生产时刻收到的 json 序列化器并返回给定管理器的路由登记表：
+     * 用于断言应用在构建期把自家序列化器交给登记表生产，而不是让调用方自备成品。
+     */
+    private static final class TestRouteRegister implements RouteRegister {
+
+        private final RouteHandlerManager manager;
+
+        private JsonSerializer producedWith;
+
+        TestRouteRegister(RouteHandlerManager manager) {
+            this.manager = manager;
+        }
+
+        @Override
+        public RouteHandlerManager newRouteHandlerManager(JsonSerializer jsonSerializer) {
+            this.producedWith = jsonSerializer;
+            return manager;
         }
     }
 
