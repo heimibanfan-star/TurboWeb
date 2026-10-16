@@ -22,6 +22,7 @@ import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
+import top.turboweb.http.orchestrator.ResponseWriter;
 import top.turboweb.http.orchestrator.ResponseWriterManager;
 import top.turboweb.http.orchestrator.ResultConverter;
 import top.turboweb.http.orchestrator.ResultConverterManager;
@@ -153,7 +154,7 @@ public class HttpRequestApplication implements Application {
     /**
      * {@link HttpRequestApplication} 的建造者：持有应用装配所需的全部组件对象
      * （业务中间件、路由处理器管理器、异常处理器管理器、session管理器、json序列化器、
-     * cors配置、自定义结果转化器集合、响应写出器管理器），纯参数配置（串行化开关、session回收参数、
+     * cors配置、自定义结果转化器集合、自定义响应写出器集合），纯参数配置（串行化开关、session回收参数、
      * 虚拟线程限流参数）全部由 {@link HttpConfig} 承载；组件均带默认值，按需覆盖即可，
      * 未传入者构建时补全默认实例，装配完成的编排器组件均不可为null。
      * <p>
@@ -201,9 +202,10 @@ public class HttpRequestApplication implements Application {
          */
         private final List<ResultConverter> resultConverters = new ArrayList<>();
         /**
-         * 响应写出器管理器，未显式设置时构建期以磁盘IO线程池与空自定义写出器补全 {@link ResponseWriterManager}
+         * 自定义响应写出器集合，按注册顺序登记为自定义表，构建期与磁盘IO线程池一起
+         * 装配成 {@link ResponseWriterManager}；默认为空集合
          */
-        private ResponseWriterManager responseWriterManager = null;
+        private final List<ResponseWriter> responseWriters = new ArrayList<>();
         /**
          * 应用纯参数配置（串行化开关、session回收参数、虚拟线程限流参数等），
          * 默认为 {@link HttpConfig} 的默认值
@@ -290,12 +292,16 @@ public class HttpRequestApplication implements Application {
         }
 
         /**
-         * 替换响应写出器管理器（按响应声明的写出器类型路由写出），传null立即抛出
-         * {@link NullPointerException}
+         * 按顺序注册自定义响应写出器（http响应写出的自定义表环节，构建期与磁盘IO线程池
+         * 装配成响应写出器管理器）；元素为null立即抛出 {@link NullPointerException}；
+         * 内置类型拒登、同一写出器类重复注册在构建时抛出
          */
-        public Builder responseWriterManager(ResponseWriterManager responseWriterManager) {
-            Objects.requireNonNull(responseWriterManager, "The response writer manager must not be null");
-            this.responseWriterManager = responseWriterManager;
+        public Builder responseWriters(ResponseWriter... responseWriters) {
+            this.responseWriters.addAll(
+                    Stream.of(responseWriters)
+                            .peek(writer -> Objects.requireNonNull(writer, "The response writer must not be null"))
+                            .toList()
+            );
             return this;
         }
 
@@ -332,7 +338,7 @@ public class HttpRequestApplication implements Application {
             Middleware middlewareChain = initMiddlewareChain();
             // 中间件链销毁适配器先登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
             scopedResource.register(() -> destroyMiddlewareChain(middlewareChain));
-            // 创建磁盘IO线程池，默认响应写出器管理器注入它供文件流写出器调度分块读取；应用只是使用者，关闭责任留在应用
+            // 创建磁盘IO线程池，构建期注入响应写出器管理器供文件流写出器调度分块读取；应用只是使用者，关闭责任留在应用
             ThreadPool diskOpeThreadPool = new ElasticThreadPool(
                     httpConfig.getDiskOpeThreadCacheQueue(),
                     httpConfig.getDiskOpeThreadCoreQueue(),
@@ -349,9 +355,7 @@ public class HttpRequestApplication implements Application {
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
                     .virtualThreadResource(virtualThreadResource)
-                    .responseWriterManager(this.responseWriterManager != null
-                            ? this.responseWriterManager
-                            : new ResponseWriterManager(diskOpeThreadPool, List.of()))
+                    .responseWriterManager(new ResponseWriterManager(diskOpeThreadPool, this.responseWriters))
                     .resultConverterManager(new ResultConverterManager(this.jsonSerializer, this.resultConverters))
                     .corsConfig(this.corsConfig != null
                             ? this.corsConfig

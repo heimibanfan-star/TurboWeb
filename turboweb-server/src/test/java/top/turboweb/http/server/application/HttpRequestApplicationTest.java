@@ -1,22 +1,24 @@
 package top.turboweb.http.server.application;
 
+import io.netty.handler.codec.http.HttpResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.common.utils.resource.ScopedResource;
-import top.turboweb.concurrent.thread.ElasticThreadPool;
 import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
+import top.turboweb.http.orchestrator.ResponseWriter;
 import top.turboweb.http.orchestrator.ResponseWriterManager;
 import top.turboweb.http.orchestrator.ResultConverter;
 import top.turboweb.http.orchestrator.ResultConverterManager;
@@ -29,6 +31,7 @@ import top.turboweb.http.testkit.RecordingMiddleware;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -68,7 +71,7 @@ class HttpRequestApplicationTest {
         assertThrows(NullPointerException.class, () -> builder.corsConfig(null));
         assertThrows(NullPointerException.class, () -> builder.exceptionHandlerManager(null));
         assertThrows(NullPointerException.class, () -> builder.resultConverters((ResultConverter) null));
-        assertThrows(NullPointerException.class, () -> builder.responseWriterManager(null));
+        assertThrows(NullPointerException.class, () -> builder.responseWriters((ResponseWriter) null));
         assertThrows(NullPointerException.class, () -> builder.config(null));
         assertThrows(NullPointerException.class, () -> builder.middleware((Middleware) null));
         // 路由处理器管理器传null合法：表示无路由，不创建路由调用中间件
@@ -190,46 +193,45 @@ class HttpRequestApplicationTest {
         HttpCorsConfig corsConfig = HttpCorsConfig.builder().build();
         ExceptionHandlerManager exceptionHandlerManager = new ExceptionHandlerManager(Set.of());
         ResultConverter customConverter = (result, charset) -> ResultConverter.Result.shouldContinue();
-        ThreadPool extraPool = new ElasticThreadPool(1, 1, 1);
-        ResponseWriterManager responseWriterManager = new ResponseWriterManager(extraPool, List.of());
-        try {
-            HttpRequestApplication app = new HttpRequestApplication.Builder()
-                    .exceptionHandlerManager(exceptionHandlerManager)
-                    .sessionManager(new NoopSessionManager())
-                    .routeHandlerManager(router)
-                    .jsonSerializer(serializer)
-                    .resultConverters(customConverter)
-                    .responseWriterManager(responseWriterManager)
-                    .corsConfig(corsConfig)
-                    .config(HttpConfig.builder().serializePerConnection(true).build())
-                    .middleware(mw)
-                    .build();
+        MarkerResponseWriter customWriter = new MarkerResponseWriter();
+        HttpRequestApplication app = new HttpRequestApplication.Builder()
+                .exceptionHandlerManager(exceptionHandlerManager)
+                .sessionManager(new NoopSessionManager())
+                .routeHandlerManager(router)
+                .jsonSerializer(serializer)
+                .resultConverters(customConverter)
+                .responseWriters(customWriter)
+                .corsConfig(corsConfig)
+                .config(HttpConfig.builder().serializePerConnection(true).build())
+                .middleware(mw)
+                .build();
 
-            RequestOrchestrator orchestrator = orchestratorOf(app);
-            assertSame(corsConfig, componentOf(orchestrator, "corsConfig"),
-                    "用户传入的cors配置原样进入编排器");
-            assertSame(exceptionHandlerManager, componentOf(orchestrator, "exceptionHandlerManager"),
-                    "用户传入的异常处理器管理器原样进入编排器");
-            ResultConverterManager resultConverterManager =
-                    (ResultConverterManager) componentOf(orchestrator, "resultConverterManager");
-            assertNotNull(resultConverterManager, "结果转化器管理器由构建期装配进入编排器");
-            List<?> customConverters = (List<?>) fieldOf(resultConverterManager, "customConverters");
-            assertSame(customConverter, customConverters.get(0),
-                    "用户传入的自定义结果转化器经构建期装配进入管理器的自定义环节");
-            assertSame(responseWriterManager, componentOf(orchestrator, "responseWriterManager"),
-                    "用户传入的响应写出器管理器原样进入编排器");
-            assertSame(serializer, componentOf(orchestrator, "jsonSerializer"),
-                    "用户传入的json序列化器原样进入编排器");
-            Middleware head = (Middleware) componentOf(orchestrator, "middleware");
-            assertInstanceOf(SentinelMiddleware.class, head, "编排器的中间件组件是链头哨兵");
-            assertSame(mw, head.getNext(), "业务中间件紧随哨兵");
-            assertEquals("RouteHandlerInvokeMiddleware", mw.getNext().getClass().getSimpleName(),
-                    "路由调用中间件追加在链尾");
-            assertNull(mw.getNext().getNext(), "路由调用中间件之后无节点");
-            app.close();
-        } finally {
-            extraPool.close();
-        }
+        RequestOrchestrator orchestrator = orchestratorOf(app);
+        assertSame(corsConfig, componentOf(orchestrator, "corsConfig"),
+                "用户传入的cors配置原样进入编排器");
+        assertSame(exceptionHandlerManager, componentOf(orchestrator, "exceptionHandlerManager"),
+                "用户传入的异常处理器管理器原样进入编排器");
+        ResultConverterManager resultConverterManager =
+                (ResultConverterManager) componentOf(orchestrator, "resultConverterManager");
+        assertNotNull(resultConverterManager, "结果转化器管理器由构建期装配进入编排器");
+        List<?> customConverters = (List<?>) fieldOf(resultConverterManager, "customConverters");
+        assertSame(customConverter, customConverters.get(0),
+                "用户传入的自定义结果转化器经构建期装配进入管理器的自定义环节");
+        ResponseWriterManager responseWriterManager =
+                (ResponseWriterManager) componentOf(orchestrator, "responseWriterManager");
+        assertNotNull(responseWriterManager, "响应写出器管理器由构建期装配进入编排器");
+        Map<?, ?> customWriters = (Map<?, ?>) fieldOf(responseWriterManager, "customerResponseWriter");
+        assertSame(customWriter, customWriters.get(customWriter.getClass()),
+                "用户传入的自定义响应写出器经构建期装配进入管理器的自定义表");
+        assertSame(serializer, componentOf(orchestrator, "jsonSerializer"),
+                "用户传入的json序列化器原样进入编排器");
+        Middleware head = (Middleware) componentOf(orchestrator, "middleware");
+        assertInstanceOf(SentinelMiddleware.class, head, "编排器的中间件组件是链头哨兵");
+        assertSame(mw, head.getNext(), "业务中间件紧随哨兵");
+        assertEquals("RouteHandlerInvokeMiddleware", mw.getNext().getClass().getSimpleName(),
+                "路由调用中间件追加在链尾");
+        assertNull(mw.getNext().getNext(), "路由调用中间件之后无节点");
+        app.close();
     }
 
     @Test
@@ -429,6 +431,22 @@ class HttpRequestApplicationTest {
         @Override
         protected String getBranchKey(HttpContext ctx) {
             return "b";
+        }
+    }
+
+    /**
+     * 自定义写出器夹具：线程池注入为空操作、写出恒不被调用（用例只核查构建期登记结果），
+     * 用于钉住用户传入的自定义写出器经构建期装配进入响应写出器管理器的自定义表。
+     */
+    private static final class MarkerResponseWriter implements ResponseWriter {
+
+        @Override
+        public void injectThreadPool(ThreadPool threadPool) {
+        }
+
+        @Override
+        public WriteResult write(HttpResponse httpResponse, InternalConnectSession session) {
+            return WriteResult.notListenable();
         }
     }
 
