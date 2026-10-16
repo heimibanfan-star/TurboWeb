@@ -14,10 +14,10 @@ import java.lang.reflect.Parameter;
 public class BeanFormParameterParser extends AbstractParameterParser{
 
     /**
-     * 绑定表单模型参数:取数经请求体内容的 FormContent 能力契约，折叠后经传入的 json 序列化器绑定为 bean,
+     * 绑定表单参数:取数经请求体内容的 FormContent 能力契约，折叠后经传入的 json 序列化器绑定为 bean,
      * 注解要求校验时在绑定器内经传入的 Bean 校验器执行
      */
-    private record FormModelParameterBinder(
+    private record BeanFormParameterBinder(
             Class<?> type,
             boolean validate,
             Class<?>[] groups
@@ -49,11 +49,11 @@ public class BeanFormParameterParser extends AbstractParameterParser{
         if (!parameter.isAnnotationPresent(BeanForm.class)) {
             return null;
         }
-        BeanForm formModel = parameter.getAnnotation(BeanForm.class);
-        return new FormModelParameterBinder(
+        BeanForm beanForm = parameter.getAnnotation(BeanForm.class);
+        return new BeanFormParameterBinder(
                 parameter.getType(),
-                formModel.value(),
-                formModel.groups()
+                beanForm.value(),
+                beanForm.groups()
         );
     }
 }

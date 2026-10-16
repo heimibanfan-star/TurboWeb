@@ -14,9 +14,9 @@ public class PathParameterParser extends AbstractParameterParser {
 
 
     /**
-     * rest参数绑定器
+     * 路径参数绑定器
      */
-    private record RestParameterBinder(
+    private record PathParameterBinder(
             String name,
             SimpleTypeHandler simpleTypeHandler
     ) implements ParameterParser.Binder{
@@ -44,6 +44,6 @@ public class PathParameterParser extends AbstractParameterParser {
         PathParam param = parameter.getAnnotation(PathParam.class);
         String name = param.value();
         // 创建绑定器
-        return new RestParameterBinder(name, simpleTypeHandler);
+        return new PathParameterBinder(name, simpleTypeHandler);
     }
 }

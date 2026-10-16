@@ -17,7 +17,7 @@ public class BeanQueryParameterParser extends AbstractParameterParser{
      * 查询参数映射为实体的绑定器:取数为承载对象的查询映射,折叠后经传入的 json 序列化器绑定为 bean,
      * 注解要求校验时在绑定器内经传入的 Bean 校验器执行
      */
-    private record QueryModelParameterBinder(
+    private record BeanQueryParameterBinder(
             Class<?> type,
             boolean validate,
             Class<?>[] groups
@@ -44,11 +44,11 @@ public class BeanQueryParameterParser extends AbstractParameterParser{
         if (!parameter.isAnnotationPresent(BeanQuery.class)) {
             return null;
         }
-        BeanQuery queryModel = parameter.getAnnotation(BeanQuery.class);
-        return new QueryModelParameterBinder(
+        BeanQuery beanQuery = parameter.getAnnotation(BeanQuery.class);
+        return new BeanQueryParameterBinder(
                 parameter.getType(),
-                queryModel.value(),
-                queryModel.groups()
+                beanQuery.value(),
+                beanQuery.groups()
         );
     }
 }

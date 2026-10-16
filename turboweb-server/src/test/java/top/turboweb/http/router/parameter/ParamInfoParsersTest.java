@@ -77,34 +77,34 @@ class ParamInfoParsersTest {
         void uploadFileWithoutAnnotation(FileUpload v) {}
         void uploadObjectWithoutAnnotation(Object v) {}
 
-        // —— 模型 ——
-        void jsonModel(@BeanJson Model v) {}
-        void jsonValid(@BeanJson(true) Model v) {}
-        void jsonGroups(@BeanJson(value = true, groups = GroupA.class) Model v) {}
-        void jsonPlain(Model v) {}
-        void jsonModelBound(@BeanJson Bound v) {}
+        // —— Bean ——
+        void beanJson(@BeanJson Bean v) {}
+        void beanJsonValid(@BeanJson(true) Bean v) {}
+        void beanJsonGroups(@BeanJson(value = true, groups = GroupA.class) Bean v) {}
+        void beanJsonPlain(Bean v) {}
+        void beanJsonBound(@BeanJson Bound v) {}
 
-        void formModel(@BeanForm Model v) {}
-        void formValid(@BeanForm(true) Model v) {}
-        void formGroups(@BeanForm(value = true, groups = GroupA.class) Model v) {}
-        void formPlain(Model v) {}
-        void formModelBound(@BeanForm Bound v) {}
+        void beanForm(@BeanForm Bean v) {}
+        void beanFormValid(@BeanForm(true) Bean v) {}
+        void beanFormGroups(@BeanForm(value = true, groups = GroupA.class) Bean v) {}
+        void beanFormPlain(Bean v) {}
+        void beanFormBound(@BeanForm Bound v) {}
 
-        void queryModel(@BeanQuery Model v) {}
-        void queryModelValid(@BeanQuery(true) Model v) {}
-        void queryModelGroups(@BeanQuery(value = true, groups = GroupA.class) Model v) {}
-        void queryModelPlain(Model v) {}
-        void queryModelBound(@BeanQuery Bound v) {}
+        void beanQuery(@BeanQuery Bean v) {}
+        void beanQueryValid(@BeanQuery(true) Bean v) {}
+        void beanQueryGroups(@BeanQuery(value = true, groups = GroupA.class) Bean v) {}
+        void beanQueryPlain(Bean v) {}
+        void beanQueryBound(@BeanQuery Bound v) {}
 
-        // —— @PathParam（Rest） ——
-        void restInt(@PathParam("id") int v) {}
-        void restUnsupported(@PathParam("id") Map<String, String> v) {}
-        void restPlain(int v) {}
+        // —— @PathParam ——
+        void pathInt(@PathParam("id") int v) {}
+        void pathUnsupported(@PathParam("id") Map<String, String> v) {}
+        void pathPlain(int v) {}
 
         void noAnnotation(String v) {}
     }
 
-    private static final class Model {}
+    private static final class Bean {}
 
     private static final class GroupA {}
 
@@ -567,27 +567,27 @@ class ParamInfoParsersTest {
     // ---------- BeanJsonParameterParser ----------
 
     @Test
-    void jsonModelBindsPlainLoad() {
-        Model sentinel = new Model();
+    void beanJsonBindsPlainLoad() {
+        Bean sentinel = new Bean();
         Stub stub = new Stub().returning("content", new JsonContentFixture("{\"name\":\"x\"}"));
         RecordingSerializer serializer = new RecordingSerializer().bound(sentinel);
         RecordingValidator validator = new RecordingValidator();
-        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonModel"));
+        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("beanJson"));
         assertNotNull(b);
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator, serializer));
-        assertArrayEquals(new Object[]{"{\"name\":\"x\"}", Model.class}, serializer.lastArgs,
+        assertArrayEquals(new Object[]{"{\"name\":\"x\"}", Bean.class}, serializer.lastArgs,
                 "取数经 JsonContent 契约，绑定直调序列化器 jsonToBean(体字符串,声明类型)");
         assertEquals("jsonToBean", serializer.lastMethod);
         assertEquals(0, validator.count, "validate=false 不触碰校验器");
     }
 
     @Test
-    void jsonValidWithoutGroupsUsesSingleArgOverload() {
-        Model sentinel = new Model();
+    void beanJsonValidWithoutGroupsUsesSingleArgOverload() {
+        Bean sentinel = new Bean();
         Stub stub = new Stub().returning("content", new JsonContentFixture("{}"));
         RecordingSerializer serializer = new RecordingSerializer().bound(sentinel);
         RecordingValidator validator = new RecordingValidator();
-        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonValid"));
+        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("beanJsonValid"));
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator, serializer));
         assertEquals(1, validator.count);
         assertSame(sentinel, validator.bean, "校验的就是绑定出的 bean");
@@ -595,12 +595,12 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    void jsonValidWithGroupsPassesGroups() {
-        Model sentinel = new Model();
+    void beanJsonValidWithGroupsPassesGroups() {
+        Bean sentinel = new Bean();
         Stub stub = new Stub().returning("content", new JsonContentFixture("{}"));
         RecordingSerializer serializer = new RecordingSerializer().bound(sentinel);
         RecordingValidator validator = new RecordingValidator();
-        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonGroups"));
+        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("beanJsonGroups"));
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator, serializer));
         assertEquals(1, validator.count);
         assertArrayEquals(new Class<?>[]{GroupA.class}, validator.groups, "注解分组透传给校验器");
@@ -610,7 +610,7 @@ class ParamInfoParsersTest {
     void jsonBinderRejectsNonJsonContent() {
         // 内容不实现 JsonContent 契约时拒绑，异常文案沿用原 JSON 取数通道口径
         Stub stub = new Stub().returning("content", new PlainContentFixture());
-        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonModel"));
+        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("beanJson"));
         assertNotNull(b);
         RequestParseException ex = assertThrows(RequestParseException.class,
                 () -> b.bindParameter(stub.ctx(), NO_PARAMS, new RecordingValidator(), new RecordingSerializer()));
@@ -619,12 +619,12 @@ class ParamInfoParsersTest {
 
     @Test
     void jsonWithoutAnnotationIsIgnored() {
-        assertNull(new BeanJsonParameterParser().parse(parameter("jsonPlain")));
+        assertNull(new BeanJsonParameterParser().parse(parameter("beanJsonPlain")));
     }
 
     @Test
-    void jsonModelBinderDeserializesBodyWithRealSerializer() {
-        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("jsonModelBound"));
+    void beanJsonBinderDeserializesBodyWithRealSerializer() {
+        ParameterParser.Binder b = new BeanJsonParameterParser().parse(parameter("beanJsonBound"));
         assertNotNull(b);
         Stub stub = new Stub().returning("content",
                 new JsonContentFixture("{\"name\":\"cindy\",\"tag\":[\"x\",\"y\"]}"));
@@ -636,29 +636,29 @@ class ParamInfoParsersTest {
     // ---------- BeanFormParameterParser ----------
 
     @Test
-    void formModelBindsPlainLoad() {
-        Model sentinel = new Model();
+    void beanFormBindsPlainLoad() {
+        Bean sentinel = new Bean();
         Map<String, List<String>> params = Map.of("q", List.of("1"));
         Stub stub = new Stub().returning("content", new FormContentFixture(params, Map.of()));
         RecordingSerializer serializer = new RecordingSerializer().bound(sentinel);
         RecordingValidator validator = new RecordingValidator();
-        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formModel"));
+        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("beanForm"));
         assertNotNull(b);
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator, serializer));
         assertEquals("mapToBean", serializer.lastMethod, "表单参数折叠后经 mapToBean 通道交序列化器");
         assertEquals(Map.of("q", "1"), serializer.lastArgs[0],
                 "入料是 FormContent 归档的表单参数,单值折叠为字符串,数据源断链(改传空映射)此处必红");
-        assertEquals(Model.class, serializer.lastArgs[1], "第二实参为声明类型");
+        assertEquals(Bean.class, serializer.lastArgs[1], "第二实参为声明类型");
         assertEquals(0, validator.count, "validate=false 不触碰校验器");
     }
 
     @Test
-    void formValidWithoutGroupsUsesSingleArgOverload() {
-        Model sentinel = new Model();
+    void beanFormValidWithoutGroupsUsesSingleArgOverload() {
+        Bean sentinel = new Bean();
         Stub stub = new Stub().returning("content", new FormContentFixture(Map.of(), Map.of()));
         RecordingSerializer serializer = new RecordingSerializer().bound(sentinel);
         RecordingValidator validator = new RecordingValidator();
-        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formValid"));
+        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("beanFormValid"));
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator, serializer));
         assertEquals(1, validator.count);
         assertSame(sentinel, validator.bean);
@@ -666,12 +666,12 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    void formValidWithGroupsPassesGroups() {
-        Model sentinel = new Model();
+    void beanFormValidWithGroupsPassesGroups() {
+        Bean sentinel = new Bean();
         Stub stub = new Stub().returning("content", new FormContentFixture(Map.of(), Map.of()));
         RecordingSerializer serializer = new RecordingSerializer().bound(sentinel);
         RecordingValidator validator = new RecordingValidator();
-        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formGroups"));
+        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("beanFormGroups"));
         assertSame(sentinel, b.bindParameter(stub.ctx(), NO_PARAMS, validator, serializer));
         assertEquals(1, validator.count);
         assertArrayEquals(new Class<?>[]{GroupA.class}, validator.groups, "注解分组透传给校验器");
@@ -681,7 +681,7 @@ class ParamInfoParsersTest {
     void formBinderRejectsNonFormContent() {
         // 内容不实现 FormContent 契约时拒绑，异常文案沿用原表单取数通道口径
         Stub stub = new Stub().returning("content", new PlainContentFixture());
-        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formModel"));
+        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("beanForm"));
         assertNotNull(b);
         RequestParseException ex = assertThrows(RequestParseException.class,
                 () -> b.bindParameter(stub.ctx(), NO_PARAMS, new RecordingValidator(), new RecordingSerializer()));
@@ -691,12 +691,12 @@ class ParamInfoParsersTest {
 
     @Test
     void formWithoutAnnotationIsIgnored() {
-        assertNull(new BeanFormParameterParser().parse(parameter("formPlain")));
+        assertNull(new BeanFormParameterParser().parse(parameter("beanFormPlain")));
     }
 
     @Test
-    void formModelBinderCollapsesSingleAndKeepsMultiValues() {
-        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("formModelBound"));
+    void beanFormBinderCollapsesSingleAndKeepsMultiValues() {
+        ParameterParser.Binder b = new BeanFormParameterParser().parse(parameter("beanFormBound"));
         assertNotNull(b);
         Stub stub = new Stub().returning("content", new FormContentFixture(
                 Map.of("name", List.of("alice"), "tag", List.of("a", "b")), Map.of()));
@@ -708,27 +708,27 @@ class ParamInfoParsersTest {
     // ---------- BeanQueryParameterParser ----------
 
     @Test
-    void queryModelBindsPlainLoad() {
-        Model sentinel = new Model();
+    void beanQueryBindsPlainLoad() {
+        Bean sentinel = new Bean();
         RecordingSerializer serializer = new RecordingSerializer().bound(sentinel);
         RecordingValidator validator = new RecordingValidator();
-        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("queryModel"));
+        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("beanQuery"));
         assertNotNull(b);
         RequestParameter params = new RequestParameter(Map.of(), Map.of("q", List.of("1")));
         assertSame(sentinel, b.bindParameter(new Stub().ctx(), params, validator, serializer));
         assertEquals("mapToBean", serializer.lastMethod, "查询参数折叠后经 mapToBean 通道交序列化器");
         assertEquals(Map.of("q", "1"), serializer.lastArgs[0],
                 "入料是承载对象的查询映射,单值折叠为字符串,数据源断链(改传空映射)此处必红");
-        assertEquals(Model.class, serializer.lastArgs[1], "第二实参为声明类型");
+        assertEquals(Bean.class, serializer.lastArgs[1], "第二实参为声明类型");
         assertEquals(0, validator.count, "validate=false 不触碰校验器");
     }
 
     @Test
-    void queryModelValidWithoutGroupsUsesSingleArgOverload() {
-        Model sentinel = new Model();
+    void beanQueryValidWithoutGroupsUsesSingleArgOverload() {
+        Bean sentinel = new Bean();
         RecordingSerializer serializer = new RecordingSerializer().bound(sentinel);
         RecordingValidator validator = new RecordingValidator();
-        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("queryModelValid"));
+        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("beanQueryValid"));
         RequestParameter params = new RequestParameter(Map.of(), Map.of("q", List.of("1")));
         assertSame(sentinel, b.bindParameter(new Stub().ctx(), params, validator, serializer));
         assertEquals(1, validator.count);
@@ -737,24 +737,24 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    void queryModelValidWithGroupsPassesGroups() {
-        Model sentinel = new Model();
+    void beanQueryValidWithGroupsPassesGroups() {
+        Bean sentinel = new Bean();
         RecordingSerializer serializer = new RecordingSerializer().bound(sentinel);
         RecordingValidator validator = new RecordingValidator();
-        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("queryModelGroups"));
+        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("beanQueryGroups"));
         assertSame(sentinel, b.bindParameter(new Stub().ctx(), NO_PARAMS, validator, serializer));
         assertEquals(1, validator.count);
         assertArrayEquals(new Class<?>[]{GroupA.class}, validator.groups, "注解分组透传给校验器");
     }
 
     @Test
-    void queryModelWithoutAnnotationIsIgnored() {
-        assertNull(new BeanQueryParameterParser().parse(parameter("queryModelPlain")));
+    void beanQueryWithoutAnnotationIsIgnored() {
+        assertNull(new BeanQueryParameterParser().parse(parameter("beanQueryPlain")));
     }
 
     @Test
-    void queryModelBinderCollapsesSingleAndKeepsMultiValues() {
-        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("queryModelBound"));
+    void beanQueryBinderCollapsesSingleAndKeepsMultiValues() {
+        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("beanQueryBound"));
         assertNotNull(b);
         RequestParameter params = new RequestParameter(Map.of(),
                 Map.of("name", List.of("alice"), "tag", List.of("a", "b")));
@@ -764,8 +764,8 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    void queryModelBinderPassesNullValuedFlagThrough() {
-        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("queryModelBound"));
+    void beanQueryBinderPassesNullValuedFlagThrough() {
+        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("beanQueryBound"));
         RequestParameter params = new RequestParameter(Map.of(),
                 Map.of("name", Collections.singletonList(null)));
         Bound bean = (Bound) b.bindParameter(new Stub().ctx(), params, NOOP, JACKSON);
@@ -773,8 +773,8 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    void queryModelBinderOnEmptyMapYieldsEmptyBean() {
-        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("queryModelBound"));
+    void beanQueryBinderOnEmptyMapYieldsEmptyBean() {
+        ParameterParser.Binder b = new BeanQueryParameterParser().parse(parameter("beanQueryBound"));
         Bound bean = (Bound) b.bindParameter(new Stub().ctx(), NO_PARAMS, NOOP, JACKSON);
         assertNull(bean.getName());
         assertNull(bean.getTag(), "空映射绑出属性全 null 的 bean");
@@ -783,8 +783,8 @@ class ParamInfoParsersTest {
     // ---------- PathParameterParser ----------
 
     @Test
-    void restParamBindsConvertedValue() {
-        ParameterParser.Binder b = new PathParameterParser().parse(parameter("restInt"));
+    void pathParamBindsConvertedValue() {
+        ParameterParser.Binder b = new PathParameterParser().parse(parameter("pathInt"));
         assertNotNull(b);
         HttpContext ctx = new Stub().ctx();
         assertEquals(42, b.bindParameter(ctx, new RequestParameter(Map.of("id", "42"), Map.of()), NOOP, NOOP_SERIALIZER), "按注解 value 从路径参数映射取键并转换");
@@ -792,13 +792,13 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    void restWithoutAnnotationIsIgnored() {
-        assertNull(new PathParameterParser().parse(parameter("restPlain")));
+    void pathWithoutAnnotationIsIgnored() {
+        assertNull(new PathParameterParser().parse(parameter("pathPlain")));
     }
 
     @Test
-    void restUnsupportedTypeYieldsNoBinder() {
-        assertNull(new PathParameterParser().parse(parameter("restUnsupported")),
+    void pathUnsupportedTypeYieldsNoBinder() {
+        assertNull(new PathParameterParser().parse(parameter("pathUnsupported")),
                 "Map 没有转换器 → 该参数不归本解析器");
     }
 }

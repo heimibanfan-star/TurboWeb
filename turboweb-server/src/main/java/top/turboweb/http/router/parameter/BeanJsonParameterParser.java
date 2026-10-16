@@ -14,10 +14,10 @@ import java.lang.reflect.Parameter;
 public class BeanJsonParameterParser extends AbstractParameterParser{
 
     /**
-     * json模型参数绑定器:取数经请求体内容的 JsonContent 能力契约，体字符串经传入的 json 序列化器反序列化为 bean,
+     * json参数绑定器:取数经请求体内容的 JsonContent 能力契约，体字符串经传入的 json 序列化器反序列化为 bean,
      * 注解要求校验时在绑定器内经传入的 Bean 校验器执行
      */
-    private record JsonModelParameterBinder(
+    private record BeanJsonParameterBinder(
             Class<?> type,
             boolean validate,
             Class<?>[] groups
@@ -47,11 +47,11 @@ public class BeanJsonParameterParser extends AbstractParameterParser{
         if (!parameter.isAnnotationPresent(BeanJson.class)) {
             return null;
         }
-        BeanJson jsonModel = parameter.getAnnotation(BeanJson.class);
-        return new JsonModelParameterBinder(
+        BeanJson beanJson = parameter.getAnnotation(BeanJson.class);
+        return new BeanJsonParameterBinder(
                 parameter.getType(),
-                jsonModel.value(),
-                jsonModel.groups()
+                beanJson.value(),
+                beanJson.groups()
         );
     }
 }
