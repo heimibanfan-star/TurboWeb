@@ -3,7 +3,6 @@ package top.turboweb.http.router.parameter;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -416,8 +415,8 @@ class ParamInfoParsersTest {
         }
 
         @Override
-        public void setCookieForResponse(HttpResponse response, Charset charset) {
-            throw offChannel("setCookieForResponse");
+        public List<String> toSetCookies(Charset charset) {
+            throw offChannel("toSetCookies");
         }
 
         private static UnsupportedOperationException offChannel(String name) {

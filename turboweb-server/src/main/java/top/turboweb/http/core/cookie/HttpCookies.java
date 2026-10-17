@@ -1,8 +1,7 @@
 package top.turboweb.http.core.cookie;
 
-import io.netty.handler.codec.http.HttpResponse;
-
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -78,12 +77,16 @@ public interface HttpCookies {
     void clearAll();
 
     /**
-     * 将当前上下文中的 Cookie 状态写入响应头，Cookie 值按给定字符集 URL 编码。
-     * 常用于中间件或控制器中设置 Cookie。
+     * 将当前上下文中的 Cookie 状态序列化为 {@code Set-Cookie} 头值列表，
+     * Cookie 值按给定字符集 URL 编码。
+     * <p>
+     * 先输出本次新增或更新的 Cookie，再输出待删除 Cookie 的过期形态（{@code Max-Age=0}）；
+     * 调用后不清空待写与待删集合，重复调用会重复产出。
      *
-     * @param response 要写入 Cookie 的响应对象
-     * @param charset  Cookie 值编码字符集（写出侧以装配期判定的缺省字符集传入）
+     * @param charset Cookie 值编码字符集（写出侧以装配期判定的缺省字符集传入），不能为 null
+     * @return Set-Cookie 头值列表；无待写与待删 Cookie 时返回空列表
+     * @throws NullPointerException charset 为 null
      */
-    void setCookieForResponse(HttpResponse response, Charset charset);
+    List<String> toSetCookies(Charset charset);
 }
 

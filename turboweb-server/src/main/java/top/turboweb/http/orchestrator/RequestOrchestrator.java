@@ -331,7 +331,9 @@ public class RequestOrchestrator {
             Object result = middleware.invoke(context);
             HttpResponse response = resultConverterManager.convert(result, defaultCharset);
             // 处理Cookie
-            cookies.setCookieForResponse(response, defaultCharset);
+            for (String setCookie : cookies.toSetCookies(defaultCharset)) {
+                response.headers().add(HttpHeaderNames.SET_COOKIE, setCookie);
+            }
             // 处理session
             if (httpSession.sessionId() != null
                     && (!Objects.equals(httpSession.sessionId(), originSessionId)
