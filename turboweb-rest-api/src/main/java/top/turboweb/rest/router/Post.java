@@ -1,4 +1,4 @@
-package top.turboweb.rest.param;
+package top.turboweb.rest.router;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,11 +6,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标注请求头参数获取的注解
+ * post请求方式
  */
-@Target(ElementType.PARAMETER)
+@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface HeaderParam {
-    // 请求头名称
-    String value();
+public @interface Post {
+    /**
+     * 请求路径
+     */
+    String value() default "/";
 }

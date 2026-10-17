@@ -1,9 +1,9 @@
 package org.example.exception;
 
 
-import top.turboweb.rest.route.Get;
-import top.turboweb.rest.route.Post;
-import top.turboweb.rest.route.Route;
+import top.turboweb.rest.router.Get;
+import top.turboweb.rest.router.Post;
+import top.turboweb.rest.router.Route;
 import top.turboweb.http.context.HttpContext;
 
 @Route("/excep")

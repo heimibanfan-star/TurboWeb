@@ -1,4 +1,4 @@
-package top.turboweb.rest.param;
+package top.turboweb.rest.parameter;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,11 +6,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标注rest路径参数获取的注解
+ * 封装查询参数的注解
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface PathParam {
-    // 参数名称
+public @interface QueryParam {
+    // 参数名
     String value();
+
+    /**
+     * 是否不能为null, 默认可以为null
+     * @return true代表不能为null
+     */
+    boolean nonNull() default false;
 }

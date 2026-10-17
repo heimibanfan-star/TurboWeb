@@ -1,7 +1,7 @@
 package top.turboweb.http.router.parameter;
 
 import top.turboweb.rest.Http;
-import top.turboweb.rest.param.BeanForm;
+import top.turboweb.rest.parameter.BeanForm;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.serializer.JsonSerializer;

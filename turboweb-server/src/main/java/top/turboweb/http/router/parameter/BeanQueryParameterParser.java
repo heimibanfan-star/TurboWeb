@@ -1,6 +1,6 @@
 package top.turboweb.http.router.parameter;
 
-import top.turboweb.rest.param.BeanQuery;
+import top.turboweb.rest.parameter.BeanQuery;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;

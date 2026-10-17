@@ -2,12 +2,12 @@ package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.Test;
-import top.turboweb.rest.route.Delete;
-import top.turboweb.rest.route.Get;
-import top.turboweb.rest.route.Patch;
-import top.turboweb.rest.route.Post;
-import top.turboweb.rest.route.Put;
-import top.turboweb.rest.route.Route;
+import top.turboweb.rest.router.Delete;
+import top.turboweb.rest.router.Get;
+import top.turboweb.rest.router.Patch;
+import top.turboweb.rest.router.Post;
+import top.turboweb.rest.router.Put;
+import top.turboweb.rest.router.Route;
 
 import java.util.List;
 

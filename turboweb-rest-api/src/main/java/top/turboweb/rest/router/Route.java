@@ -1,4 +1,4 @@
-package top.turboweb.rest.route;
+package top.turboweb.rest.router;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,13 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * delete请求方式
+ * 请求路径的注解
  */
-@Target(ElementType.METHOD)
+@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Delete {
-    /**
-     * 请求路径
-     */
-    String value() default "/";
+public @interface Route {
+    // 请求路径
+    String value() default "";
 }

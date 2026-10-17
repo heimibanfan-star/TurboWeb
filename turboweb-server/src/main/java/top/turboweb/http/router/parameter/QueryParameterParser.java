@@ -1,6 +1,6 @@
 package top.turboweb.http.router.parameter;
 
-import top.turboweb.rest.param.QueryParam;
+import top.turboweb.rest.parameter.QueryParam;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;

@@ -1,4 +1,4 @@
-package top.turboweb.rest.param;
+package top.turboweb.rest.parameter;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,13 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 将路径参数封装为实体对象
+ * 标注请求头参数获取的注解
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface BeanQuery {
-    // 是否开启数据校验，默认关闭
-    boolean value() default false;
-    // 校验组
-    Class<?>[] groups() default {};
+public @interface HeaderParam {
+    // 请求头名称
+    String value();
 }

@@ -1,8 +1,8 @@
 package org.example.sse;
 
 import reactor.core.publisher.Flux;
-import top.turboweb.rest.route.Get;
-import top.turboweb.rest.route.Route;
+import top.turboweb.rest.router.Get;
+import top.turboweb.rest.router.Route;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;

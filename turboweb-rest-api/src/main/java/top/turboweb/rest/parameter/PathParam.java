@@ -1,4 +1,4 @@
-package top.turboweb.rest.route;
+package top.turboweb.rest.parameter;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,11 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 请求路径的注解
+ * 标注rest路径参数获取的注解
  */
-@Target(ElementType.TYPE)
+@Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Route {
-    // 请求路径
-    String value() default "";
+public @interface PathParam {
+    // 参数名称
+    String value();
 }

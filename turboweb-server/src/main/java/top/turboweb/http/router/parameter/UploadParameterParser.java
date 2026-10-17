@@ -2,7 +2,7 @@ package top.turboweb.http.router.parameter;
 
 import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.rest.Http;
-import top.turboweb.rest.param.UploadParam;
+import top.turboweb.rest.parameter.UploadParam;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;

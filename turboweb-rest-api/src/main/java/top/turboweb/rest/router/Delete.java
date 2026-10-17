@@ -1,4 +1,4 @@
-package top.turboweb.rest.param;
+package top.turboweb.rest.router;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,11 +6,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标注文件上传的注解
+ * delete请求方式
  */
-@Target(ElementType.PARAMETER)
+@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface UploadParam {
-    // 文件名
-    String value();
+public @interface Delete {
+    /**
+     * 请求路径
+     */
+    String value() default "/";
 }

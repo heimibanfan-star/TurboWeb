@@ -20,7 +20,7 @@ import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.exception.SseBufferException;
-import top.turboweb.rest.param.*;
+import top.turboweb.rest.parameter.*;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;

@@ -1,7 +1,7 @@
 package top.turboweb.http.router.parameter;
 
 import top.turboweb.rest.Http;
-import top.turboweb.rest.param.FormParam;
+import top.turboweb.rest.parameter.FormParam;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.serializer.JsonSerializer;
