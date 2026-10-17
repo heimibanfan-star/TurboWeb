@@ -1,5 +1,6 @@
 package top.turboweb.http.server.application;
 
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,8 @@ import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
+import top.turboweb.http.orchestrator.HttpContentParser;
+import top.turboweb.http.orchestrator.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 import top.turboweb.http.orchestrator.ResponseWriter;
@@ -28,8 +31,11 @@ import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
 import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
+import top.turboweb.rest.core.ContentType;
+import top.turboweb.rest.core.HttpContent;
 
 import java.lang.reflect.Field;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +79,7 @@ class HttpRequestApplicationTest {
         assertThrows(NullPointerException.class, () -> builder.exceptionHandlers((Object) null));
         assertThrows(NullPointerException.class, () -> builder.resultConverters((ResultConverter) null));
         assertThrows(NullPointerException.class, () -> builder.responseWriters((ResponseWriter) null));
+        assertThrows(NullPointerException.class, () -> builder.contentParsers((HttpContentParser) null));
         assertThrows(NullPointerException.class, () -> builder.config(null));
         assertThrows(NullPointerException.class, () -> builder.middleware((Middleware) null));
         // 路由登记表传null合法：表示无路由，不创建路由调用中间件
@@ -269,6 +276,22 @@ class HttpRequestApplicationTest {
         assertEquals("RouteHandlerInvokeMiddleware", mw.getNext().getClass().getSimpleName(),
                 "路由调用中间件追加在链尾");
         assertNull(mw.getNext().getNext(), "路由调用中间件之后无节点");
+        app.close();
+    }
+
+    @Test
+    void customContentParsersAreRegisteredIntoManager() throws Exception {
+        MarkerContentParser parser = new MarkerContentParser();
+        HttpRequestApplication app = new HttpRequestApplication.Builder()
+                .sessionManager(new NoopSessionManager())
+                .contentParsers(parser)
+                .build();
+
+        HttpContentParserManager manager = (HttpContentParserManager)
+                componentOf(orchestratorOf(app), "contentParserManager");
+        Map<?, ?> customParsers = (Map<?, ?>) fieldOf(manager, "customParsers");
+        assertSame(parser, customParsers.get("text/csv"),
+                "用户传入的自定义内容解析器经构建期装配进入管理器的自定义表");
         app.close();
     }
 
@@ -506,6 +529,23 @@ class HttpRequestApplicationTest {
         @Override
         public WriteResult write(HttpResponse httpResponse, InternalConnectSession session) {
             return WriteResult.notListenable();
+        }
+    }
+
+    /**
+     * 自定义内容解析器夹具：只声明 text/csv 类型，parse 不被调用（用例只核查构建期登记结果），
+     * 用于钉住用户传入的自定义内容解析器经构建期装配进入内容解析器管理器的自定义表。
+     */
+    private static final class MarkerContentParser implements HttpContentParser {
+
+        @Override
+        public Set<ContentType> contentTypes() {
+            return Set.of(ContentType.create("text/csv"));
+        }
+
+        @Override
+        public HttpContent parse(FullHttpRequest request, Charset defaultCharset) {
+            throw new AssertionError("marker parser must not be invoked during assembly");
         }
     }
 

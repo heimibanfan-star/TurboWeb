@@ -19,6 +19,7 @@ import top.turboweb.http.core.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
+import top.turboweb.http.orchestrator.HttpContentParser;
 import top.turboweb.http.orchestrator.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
@@ -155,7 +156,7 @@ public class HttpRequestApplication implements Application {
     /**
      * {@link HttpRequestApplication} 的建造者：持有应用装配所需的全部组件对象
      * （业务中间件、路由登记表、异常处理器集合、session管理器、json序列化器、
-     * cors配置、自定义结果转化器集合、自定义响应写出器集合），纯参数配置（串行化开关、session回收参数、
+     * cors配置、自定义结果转化器集合、自定义响应写出器集合、自定义内容解析器集合），纯参数配置（串行化开关、session回收参数、
      * 虚拟线程限流参数）全部由 {@link HttpConfig} 承载；组件均带默认值，按需覆盖即可，
      * 未传入者构建时补全默认实例，装配完成的编排器组件均不可为null。
      * <p>
@@ -211,6 +212,11 @@ public class HttpRequestApplication implements Application {
          * 装配成 {@link ResponseWriterManager}；默认为空集合
          */
         private final List<ResponseWriter> responseWriters = new ArrayList<>();
+        /**
+         * 自定义内容解析器集合，构建期与缺省字符集一起装配成 {@link HttpContentParserManager}；
+         * 默认为空集合，此时只有内置的表单与JSON解析器生效
+         */
+        private final List<HttpContentParser> contentParsers = new ArrayList<>();
         /**
          * 应用纯参数配置（串行化开关、session回收参数、虚拟线程限流参数等），
          * 默认为 {@link HttpConfig} 的默认值
@@ -316,6 +322,21 @@ public class HttpRequestApplication implements Application {
         }
 
         /**
+         * 按顺序注册自定义内容解析器（构建期与缺省字符集一起装配成内容解析器管理器，
+         * 按请求头声明的Content-Type路由）；元素为null立即抛出 {@link NullPointerException}；
+         * 声明的类型与内置解析器冲突、或多个解析器声明同一类型在构建时抛出
+         * {@link IllegalArgumentException}
+         */
+        public Builder contentParsers(HttpContentParser... contentParsers) {
+            this.contentParsers.addAll(
+                    Stream.of(contentParsers)
+                            .peek(parser -> Objects.requireNonNull(parser, "The content parser must not be null"))
+                            .toList()
+            );
+            return this;
+        }
+
+        /**
          * 整体替换应用纯参数配置（串行化开关、session回收与虚拟线程限流参数等），不能为null
          */
         public Builder config(HttpConfig config) {
@@ -329,7 +350,7 @@ public class HttpRequestApplication implements Application {
          * 再串联并初始化中间件链，按 {@link HttpConfig} 的 diskOpeThread* 参数创建
          * 磁盘IO线程池，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按九组件装配
          * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}，内容解析器管理器
-         * 以同一字符集与内置解析器建立），最后装配http请求调度处理器；
+         * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
          * 装配出的中间件链销毁适配器先登记、创建的磁盘IO线程池后登记进资源作用域交给应用持有，
          * 由 {@link Application#close()} 的默认实现按登记顺序释放。
@@ -378,7 +399,7 @@ public class HttpRequestApplication implements Application {
                     .exceptionHandlerManager(new ExceptionHandlerManager(Set.copyOf(this.exceptionHandlers)))
                     .sessionManagerHolder(createSessionManagerHolder())
                     .defaultCharset(httpConfig.getDefaultCharset())
-                    .contentParserManager(new HttpContentParserManager(httpConfig.getDefaultCharset(), List.of()))
+                    .contentParserManager(new HttpContentParserManager(httpConfig.getDefaultCharset(), this.contentParsers))
                     .build();
             HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
                     .orchestrator(orchestrator)
