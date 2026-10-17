@@ -1,555 +1,448 @@
-# 请求数据的处理
+# 请求体系
 
-## 提取URL中的参数
+控制器方法的形参有两种来源：
 
-在 TurboWeb 中，客户端通过 URL 请求参数传递的数据，可以通过 `HttpContext` 提供的系列方法进行提取。TurboWeb 支持单值提取、多值提取、类型自动转换以及默认值设置。
+- 形参上标注取参注解，框架按注解从请求的对应位置取值，并转换为形参声明的类型；
+- 形参直接声明框架对象（如 `HttpContext`），由框架注入。
 
-### 单值参数提取
+取值的转换失败会抛异常，不会静默给出一个错误的值。没有解析器认领的形参绑定为 `null`。
 
-示例：
+## 变更说明
 
-```java
-@Get("/user01")
-public String user01(HttpContext context) {
-    String name = context.query("name");
-    return "name=" + name;
-}
-```
+旧版把取参入口挂在 `HttpContext` 上：`query()`、`queries()`、`queryInt()`、`loadQuery()`、`loadForm()`、`loadJson()`、`loadFiles()`、`loadFile()` 等方法各自完成取数、类型转换与实体绑定。同一类数据有多条取用路径，控制器签名也与上下文 API 绑定。
 
-访问：
+重构后取参只保留注解一种写法，各段数据各有固定来源：
 
-```http
-GET http://localhost:8080/user01?name=张三
-```
+- 路径参数与查询参数在路由命中后统一装配为 `RequestParameter`，解码完成后交给参数绑定器，不再经上下文取数；
+- 请求体按 `Content-Type` 解析为 `HttpFormContent` 或 `HttpJsonContent`，绑定器认具体内容类取数；
+- 上下文的查询族与实体装载族方法全部下线，只保留请求消息、Session、Cookie、连接会话等请求级状态。
 
-**_带默认值提取_**
+随这次收敛一起变化的行为：
 
-```java
-String name = context.query("name", "TurboWeb");
-```
+| 项 | 旧行为 | 现行为 |
+| --- | --- | --- |
+| 查询串解码字符集 | 固定 UTF-8 | `HttpConfig` 的缺省字符集 |
+| 路径或查询参数的百分号转义畸形 | 各处处理不一致 | 统一返回 400 |
+| 上传文件注解 | 独立的 `@UploadParam` | 统一用 `@FormParam`，按形参类型判定 |
+| 文件读取契约 | `HttpFile` | `MultipartFile` |
 
-当请求中没有对应参数时，可以通过提供默认值避免返回 null：
+使用旧 API 的代码不能直接编译通过，需要改写为注解形参。
 
-### 多值参数提取（同名参数）
+## 1. 取参方式总览
 
-示例：
+| 注解 | 取数位置 | 可声明的类型 |
+| --- | --- | --- |
+| `@PathParam` | 路由路径中的 `:name` 段 | 简单类型 |
+| `@QueryParam` | URL 查询串 | 简单类型、`List<简单类型>`、`Set<简单类型>` |
+| `@HeaderParam` | 请求头 | 简单类型 |
+| `@CookieParam` | Cookie | 简单类型 |
+| `@FormParam` | 表单字段或上传文件 | 简单类型、`MultipartFile`、`List<MultipartFile>`、`Set<MultipartFile>` |
+| `@BeanQuery` | 整个查询串 | 任意 bean |
+| `@BeanForm` | 整个表单体 | 任意 bean |
+| `@BeanJson` | 整个 JSON 体 | 任意 bean |
 
-```java
-@Get("/user02")
-public String user02(HttpContext context) {
-    List<String> names = context.queries("name");
-    return "name:" + names;
-}
-```
+简单类型指下面这些，取参与校验的转换口径一致：
 
-访问：
+`String`、`Integer`/`int`、`Long`/`long`、`Double`/`double`、`Boolean`/`boolean`、`LocalDate`、`LocalDateTime`、`LocalTime`。
 
-```http
-GET http://localhost:8080/user02?name=张三&name=李四
-```
+数值按 `Integer.parseInt`、`Long.parseLong` 这类方法转换，布尔按 `Boolean.parseBoolean` 转换，三个时间类型按 ISO 格式调用 `parse`。声明成表外的类型时注解不会被识别，形参绑成 `null`。
 
-### 自动类型转换
+框架对象的注入不需要注解，见本文最后一节。表里没有的取参方式可以自定义解析器，写法见[定制：参数解析器](./custom-parameter-parser.md)。
 
-当你确定参数是整数、长整型或布尔类型时，TurboWeb 提供了便捷的类型转换方法。如果参数格式不合法，会抛出相应的转换异常（如 `NumberFormatException`）。
+## 2. 路径参数
 
-示例：整数参数
-
-```java
-@Get("/user03")
-public String user03(HttpContext context) {
-    Integer age = context.queryInt("age");
-    return "age:" + age;
-}
-```
-
-访问：
-
-```http
-GET http://localhost:8080/user03?age=18
-```
-
-### 参数提取方法汇总
-
-| 方法                                                   | 说明                                         |
-| ------------------------------------------------------ | -------------------------------------------- |
-| `String query(String name)`                            | 获取指定参数名的值，返回第一个匹配项         |
-| `String query(String name, String defaultValue)`       | 获取参数值，如果未提供则返回默认值           |
-| `List<String> queries(String name)`                    | 获取所有同名参数，返回字符串列表             |
-| `Integer queryInt(String name)`                        | 获取参数并转换为 Integer                     |
-| `Integer queryInt(String name, int defaultValue)`      | 获取参数并转换为 Integer，不存在则返回默认值 |
-| `List<Integer> queriesInt(String name)`                | 获取所有同名参数并转换为 Integer 列表        |
-| `Long queryLong(String name)`                          | 获取参数并转换为 Long                        |
-| `Long queryLong(String name, long defaultValue)`       | 同上，带默认值                               |
-| `List<Long> queriesLong(String name)`                  | 获取并转换所有 Long 类型参数                 |
-| `Boolean queryBool(String name)`                       | 获取参数并转换为 Boolean                     |
-| `Boolean queryBool(String name, Boolean defaultValue)` | 同上，带默认值                               |
-| `List<Boolean> queriesBool(String name)`               | 获取所有参数并转换为 Boolean 列表            |
-
-## 请求参数与Java实体对象的映射
-
-当 URL 参数较多时，如果逐个使用 `query(..)` 方法进行提取，代码会显得繁琐。为此，**TurboWeb 提供了一系列以 `load` 开头的方法**，用于将 URL 参数、表单参数、JSON 请求体等内容自动绑定为 Java 实体对象。
-
-### 将URL参数映射为实体对象
-
-假设我们要实现一个分页接口，URL 参数为：
-
-```http
-GET http://localhost:8080/user04?pageNum=2&pageSize=20
-```
-
-我们可以定义一个分页实体类：
+路径参数名必须与路由中的 `:name` 一致。路径写法的规则见[路由体系](./router.md)。
 
 ```java
-public class PageDTO {
-    private int pageNum;
-    private int pageSize;
-    
-	// Getter / Setter / toString 省略
-}
-```
+package demo;
 
-然后在接口中使用 `loadQuery(..)` 自动将请求参数映射为实体对象：
+import top.turboweb.rest.annotation.binder.PathParam;
+import top.turboweb.rest.annotation.router.Get;
+import top.turboweb.rest.annotation.router.Route;
 
-```java
-@Get("/user04")
-public String user04(HttpContext context) {
-    PageDTO pageDTO = context.loadQuery(PageDTO.class);
-    return "pageNum:" + pageDTO.getPageNum() + " pageSize:" + pageDTO.getPageSize();
-}
-```
+@Route("/order")
+public class OrderController {
 
-只要参数名与实体属性名一致，TurboWeb 就会自动完成映射。
-
-若某些参数为可选项，可以直接在实体类中为字段设置默认值：
-
-```java
-public class PageDTO {
-    private int pageNum = 1;
-    private int pageSize = 10;
-
-    ...
-}
-```
-
-当 URL 中不提供 `pageNum` 或 `pageSize` 时，就会使用实体中的默认值。
-
-### 表单参数映射为实体对象
-
-对于 `application/x-www-form-urlencoded` 类型的请求（常见于 HTML 表单提交），TurboWeb 提供了 `loadForm(..)` 方法，可将表单数据直接映射为 Java 实体对象。
-
-定义一个用户实体类：
-
-```java
-public class UserDTO {
-    private String username;
-    private String nickname;
-    private String password;
-
-    // Getter / Setter / toString 省略
-}
-```
-
-处理表单提交：
-
-```java
-@Post("/user05")
-public String user05(HttpContext context) {
-    UserDTO userDTO = context.loadForm(UserDTO.class);
-    System.out.println(userDTO);
-    return "user05";
-}
-```
-
-请求示例：
-
-```http
-POST http://localhost:8080/user05
-Content-Type: application/x-www-form-urlencoded
-
-username=zhangsan&nickname=张三&password=123456
-```
-
-和 URL 参数一样，实体类字段也可设置默认值：
-
-```java
-private String nickname = "默认昵称";
-```
-
-### JSON 请求体映射为实体对象
-
-对于 `application/json` 类型的请求，TurboWeb 提供 `loadJson(..)` 方法，可以将 JSON 请求体直接反序列化为 Java 对象。
-
-复用 `UserDTO` 实体类，处理 JSON 请求：
-
-```java
-@Post("/user06")
-public String user06(HttpContext context) {
-    UserDTO userDTO = context.loadJson(UserDTO.class);
-    System.out.println(userDTO);
-    return "user06";
-}
-```
-
-请求示例：
-
-```http
-POST http://localhost:8080/user06
-Content-Type: application/json
-
-{
-  "username": "lisi",
-  "nickname": "李四",
-  "password": "123456"
-}
-```
-
-与前面方式一致，在实体类中直接给字段赋值即可：
-
-```java
-private String password = "默认密码";
-```
-
-### 参数的有效性校验
-
-TurboWeb 支持基于 **JSR-303（Jakarta Bean Validation）** 的参数校验机制，可配合 `loadXXX` 系列方法对 URL 参数、表单参数和 JSON 请求体进行校验。
-
-在实体类中添加校验注解：
-
-以 `UserDTO` 为例，我们通过添加 JSR-303 注解实现字段的非空校验：
-
-```java
-public class UserDTO {
-
-    @NotBlank(message = "用户名不能为空")
-    private String username;
-
-    @NotBlank(message = "昵称不能为空")
-    private String nickname;
-
-    @NotBlank(message = "密码不能为空")
-    private String password;
-
-    // Getter / Setter / toString 略
-}
-```
-
-在接口中执行校验：
-
-使用 `context.validate(..)` 手动校验已封装的对象：
-
-```java
-@Post("/user07")
-public String user07(HttpContext context) {
-    UserDTO userDTO = context.loadJson(UserDTO.class);
-    context.validate(userDTO); // 触发校验
-    return "user07";
-}
-```
-
-当字段校验不通过时，将抛出 `TurboArgsValidationException`，可以捕获该异常并提取具体错误信息：
-
-```java
-try {
-    context.validate(userDTO);
-} catch (TurboArgsValidationException e) {
-    List<String> errorMsg = e.getErrorMsg();
-    for (String msg : errorMsg) {
-        System.out.println(msg);
+    @Get("/:orderId")
+    public String detail(@PathParam("orderId") Long orderId) {
+        return "order " + orderId;
     }
 }
 ```
 
-**_一步封装 + 校验：loadValidXXX_**
-
-为了简化封装与校验的调用，TurboWeb 提供了快捷方法：
-
-| 方法                       | 说明                           |
-| -------------------------- | ------------------------------ |
-| `loadValidQuery(Class<T>)` | 从 URL 参数中封装并校验实体    |
-| `loadValidForm(Class<T>)`  | 从表单数据中封装并校验实体     |
-| `loadValidJson(Class<T>)`  | 从 JSON 请求体中封装并校验实体 |
-
-示例：
-
-```java
-UserDTO userDTO = context.loadValidJson(UserDTO.class);
+```bash
+curl http://localhost:8080/order/1001
+# order 1001
 ```
 
-等价于：
+路径参数在路由命中时已经确定存在，不会有缺参的情况。值无法转换为声明类型时（例如 `Long` 形参收到 `abc`）抛运行时异常，默认按 500 处理。
+
+路径参数按 `URLDecoder` 解码：百分号转义会被还原，加号 `+` 也会被还原成空格。需要传递字面加号时，发送 `%2B`。
+
+## 3. 查询参数
+
+`@QueryParam` 从 URI 的查询串取值，不读取请求体。
 
 ```java
-UserDTO userDTO = context.loadJson(UserDTO.class);
-context.validate(userDTO);
+@Route("/user")
+public class UserController {
+
+    @Get("/search")
+    public String search(@QueryParam("keyword") String keyword,
+                         @QueryParam("page") int page,
+                         @QueryParam("tag") List<String> tags) {
+        return keyword + ", page " + page + ", tags " + tags;
+    }
+}
 ```
 
-**_分组校验的支持_**
+```bash
+curl "http://localhost:8080/user/search?keyword=turbo&page=2&tag=a&tag=b"
+# turbo, page 2, tags [a, b]
+```
 
-TurboWeb 支持 JSR-303 的 **分组校验** 功能，可满足新增、修改等不同场景下的校验要求。
+取数规则：
 
-定义校验分组：
+| 形参声明 | 规则 |
+| --- | --- |
+| 单值 | 同名参数出现多次时取第一个 |
+| `List<T>` | 按出现顺序保留全部取值 |
+| `Set<T>` | 保留全部取值并去重 |
+| 缺参 | `String` 与包装类型为 `null`；`int`/`long`/`double` 为 `0`；`boolean` 为 `false`；集合为空集合 |
+| `?flag`（无等号） | 取值为 `null`，单值形参按缺参处理 |
+
+缺省值没有注解参数可设。需要默认值时使用包装类型判空，或者用下一节的 `@BeanQuery` 在字段上直接赋初始值。
+
+**_必填_**
+
+`nonNull = true` 表示单值形参的绑定结果为 `null` 时报错。原始类型缺参时得到 `0` 或 `false`，不是 `null`，因此不会被这项检查拦下：
+
+```java
+@Get("/search")
+public String search(@QueryParam(value = "keyword", nonNull = true) String keyword) {
+    return keyword;
+}
+```
+
+缺参时抛 `RouteHandlerException`，错误码 `MissingParamError`，响应 400。集合形参不做这项检查。
+
+**_解码_**
+
+查询串按 `HttpConfig` 的缺省字符集做百分号解码，`+` 保持字面值，不视为空格。转义不完整（例如 `%zz`、末尾单个 `%`）时返回 400。
+
+## 4. 请求头
+
+```java
+@Get("/profile")
+public String profile(@HeaderParam("X-Request-Id") String requestId,
+                      @HeaderParam("User-Agent") String userAgent) {
+    return requestId + " " + userAgent;
+}
+```
+
+头名大小写不敏感，同名头有多个时取第一个。头未发送时按缺参处理：引用类型为 `null`，原始类型为 `0` 或 `false`。
+
+## 5. Cookie
+
+```java
+@Get("/me")
+public String me(@CookieParam("uid") Long uid) {
+    return "uid " + uid;
+}
+```
+
+Cookie 名称按原样精确匹配，取请求携带的值。名称不存在时包装类型为 `null`，基本类型为零值。响应侧写 Cookie 的用法见 [Cookie 管理](./cookie.md)。
+
+## 6. 表单字段
+
+`@FormParam` 同时用于表单字段和上传文件，声明类型决定走哪条通道。
+
+```java
+@Post("/signup")
+public String signup(@FormParam("username") String username,
+                     @FormParam("age") int age) {
+    return username + " " + age;
+}
+```
+
+```bash
+curl -X POST http://localhost:8080/user/signup \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=zhangsan&age=20"
+```
+
+规则：
+
+- 请求体必须是 `application/x-www-form-urlencoded` 或 `multipart/form-data`，否则抛 `RequestParseException`；
+- 同名字段出现多次时只取第一个；
+- `multipart/form-data` 中的普通文本字段与 urlencoded 字段同样处理；
+- 缺字段时按缺参处理，原始类型取 `0` 或 `false`。
+
+## 7. 上传文件
+
+形参声明为 `MultipartFile`，或声明为元素类型是 `MultipartFile` 的 `List`、`Set` 时，`@FormParam` 按上传文件绑定，注解的值就是表单字段名。
+
+```java
+package demo;
+
+import top.turboweb.rest.annotation.binder.FormParam;
+import top.turboweb.rest.annotation.router.Post;
+import top.turboweb.rest.annotation.router.Route;
+import top.turboweb.rest.core.MultipartFile;
+
+import java.io.IOException;
+import java.util.List;
+
+@Route("/user")
+public class UserController {
+
+    @Post("/avatar")
+    public String upload(@FormParam("avatar") MultipartFile avatar,
+                         @FormParam("attachments") List<MultipartFile> attachments) throws IOException {
+        if (avatar == null || avatar.isEmpty()) {
+            return "no avatar";
+        }
+        System.out.println(avatar.filename() + ": " + avatar.length() + " bytes");
+        System.out.println("attachments: " + attachments.size());
+        byte[] bytes = avatar.readAll();
+        return "uploaded " + bytes.length;
+    }
+}
+```
+
+```bash
+curl -X POST http://localhost:8080/user/avatar \
+  -F "avatar=@./me.png" \
+  -F "attachments=@./a.txt" \
+  -F "attachments=@./b.txt"
+```
+
+`MultipartFile` 的读取接口：
+
+| 方法 | 说明 |
+| --- | --- |
+| `filename()` | 浏览器提交的原始文件名，未提供时为 `null` |
+| `contentType()` | 该文件声明的类型，未声明时为 `null` |
+| `length()` | 内容字节数 |
+| `isEmpty()` | 内容长度为 0 时为 `true` |
+| `inputStream()` | 自起始处打开输入流，每次调用互不影响 |
+| `readAll()` | 读取全部内容，返回字节数组 |
+
+文件数据由框架随请求处理结束统一释放，`MultipartFile` 只在本次请求内有效。需要跨请求保存时，在处理结束前通过 `readAll()` 或 `inputStream()` 复制出去。
+
+同一字段没有文件时：单个形参为 `null`，`List`、`Set` 为空集合。声明为裸集合、`Object` 或通配符元素类型时不会按文件绑定，形参得到 `null`；元素类型不是 `MultipartFile` 的集合同样不按文件绑定。集合形态只支持 `List` 与 `Set`，声明为其他集合类型时构建路由表直接拒绝。
+
+## 8. 查询参数映射为对象
+
+查询参数多时，逐个写 `@QueryParam` 很啰嗦。`@BeanQuery` 把整个查询串绑定为一个 bean。
+
+```java
+public class PageQuery {
+    private int pageNum = 1;
+    private int pageSize = 10;
+
+    // getter / setter 省略
+}
+```
+
+```java
+@Get("/list")
+public String list(@BeanQuery PageQuery query) {
+    return "page " + query.getPageNum() + ", size " + query.getPageSize();
+}
+```
+
+```bash
+curl "http://localhost:8080/user/list?pageNum=3"
+# page 3, size 10
+```
+
+参数名与属性名一致即完成映射，未出现的参数保留字段的初始值。绑定经应用配置的 `JsonSerializer` 完成，Bean 的属性类型按其转换能力处理。替换与配置写法见[定制：序列化与实体校验](./custom-serializer-validation.md)。
+
+同名参数折叠规则：只有一个值时以字符串传入，多个值时以列表传入。因此属性声明要与实际形状匹配，例如多值参数对应 `List<String>` 字段；只传一个值时仍按单值折叠，列表字段会转换失败。
+
+## 9. 表单映射为对象
+
+```java
+public class UserForm {
+    private String username;
+    private String nickname;
+    private Integer age;
+
+    // getter / setter 省略
+}
+```
+
+```java
+@Post("/create")
+public String create(@BeanForm UserForm form) {
+    return form.getUsername() + " " + form.getNickname();
+}
+```
+
+```bash
+curl -X POST http://localhost:8080/user/create \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=zhangsan&nickname=张三&age=20"
+```
+
+请求体不是表单类型时抛 `RequestParseException`。字段映射与 `@BeanQuery` 相同，同样经 `JsonSerializer` 完成。
+
+## 10. JSON 映射为对象
+
+```java
+@Post("/json")
+public String json(@BeanJson UserForm form) {
+    return form.getUsername() + " " + form.getAge();
+}
+```
+
+```bash
+curl -X POST http://localhost:8080/user/json \
+  -H "Content-Type: application/json" \
+  -d '{"username":"lisi","nickname":"李四","age":18}'
+```
+
+约束：
+
+- `Content-Type` 必须是 `application/json`，否则抛 `RequestParseException`；
+- 请求体为空时按 `{}` 处理，bean 全部保留初始值；
+- 请求体去掉首尾空白后必须由花括号包裹，数组、字符串等非对象体抛 `RequestParseException`；
+- 体内部结构不合法（例如 `{"age":}`）由序列化器报错，默认按 500 处理；
+- 未知字段按序列化器的配置跳过，不会因为多传字段而失败。
+
+## 11. 参数校验
+
+`@BeanQuery`、`@BeanForm`、`@BeanJson` 都支持 Jakarta Bean Validation（JSR-380）：
+
+```java
+public class UserForm {
+
+    @NotBlank(message = "用户名不能为空")
+    private String username;
+
+    @Min(value = 1, message = "年龄必须大于 0")
+    private Integer age;
+
+    // getter / setter 省略
+}
+```
+
+注解的 `value` 打开校验，默认关闭：
+
+```java
+@Post("/create")
+public String create(@BeanForm(true) UserForm form) {
+    return form.getUsername();
+}
+```
+
+分组校验通过 `groups` 指定：
 
 ```java
 public interface Groups {
     interface Add {}
     interface Update {}
 }
-```
 
-实体字段中指定校验分组：
-
-```java
-public class Student {
-
-    @NotNull(message = "id不能为空", groups = Groups.Update.class)
-    private Long id;
-
-    @NotBlank(message = "name不能为空", groups = {Groups.Add.class, Groups.Update.class})
-    private String name;
-
-    // Getter / Setter / toString 略
+@Post("/create")
+public String create(@BeanForm(value = true, groups = Groups.Add.class) UserForm form) {
+    return form.getUsername();
 }
 ```
 
-执行指定分组的校验：
+校验失败抛 `BeanValidationException`，异常按字段承载全部违规信息，`failMessages()` 返回失败消息列表。校验发生在调用目标方法之前，业务方法里捕不到，需要统一在异常处理器中处理：
 
 ```java
-// 新增操作（不校验 id）
-Student student = context.loadValidJson(Student.class, Groups.Add.class);
+public class ValidationExceptionHandler {
 
-// 更新操作（必须传 id）
-Student student = context.loadValidJson(Student.class, Groups.Update.class);
-```
-
-## REST风格的路径占位符
-
-除了 URL 查询参数、表单参数和 JSON 参数，TurboWeb 还支持 **REST 风格的路径占位符**，可以直接从请求路径中提取参数。
-
-**_基本用法_**
-
-定义路径时，可以在路由中使用 `{paramName}` 作为占位符：
-
-```java
-@Get("/user09/{name}")
-public String user09(HttpContext context) {
-    String name = context.param("name");
-    return "name=" + name;
+    public HttpResult<String> handle(BeanValidationException e) {
+        return HttpResult.create(400, String.join("; ", e.failMessages()));
+    }
 }
 ```
 
-请求示例：
-
-```http
-GET http://localhost:8080/user09/zhangsan
+```java
+HttpRequestApplication application = new HttpRequestApplication.Builder()
+        .exceptionHandlers(new ValidationExceptionHandler())
+        .routeRegister(routeRegister)
+        .build();
 ```
 
-这里的 `param("name")` 会提取路径中的 `zhangsan`。
+不注册处理器时走兜底逻辑，返回 500。异常处理器的匹配规则见[异常处理器](./exceptionhandler.md)。
 
-**_路径占位符的类型声明_**
-
-默认情况下，路径参数类型为字符串（`str`），也可以显式声明类型：
+默认校验器是 Hibernate Validator。需要替换时在生成路由表之前指定：
 
 ```java
-@Get("/user09/{name:str}")
-public String user09(HttpContext context) {
-    String name = context.param("name");
-    return "name=" + name;
+RestRouteRegister routeRegister = new RestRouteRegister()
+        .beanValidator(myBeanValidator)
+        .registerRoute(new UserController());
+```
+
+校验器的契约、默认实现与自定义写法见[定制：序列化与实体校验](./custom-serializer-validation.md)。
+
+## 12. 框架对象注入
+
+形参声明下列类型时不需要注解，框架直接注入：
+
+| 类型 | 含义 |
+| --- | --- |
+| `HttpContext` | 当前请求上下文 |
+| `HttpSession` | 当前会话 |
+| `HttpCookies` | 当前请求的 Cookie 集合 |
+| `SseResponse` | SSE 响应对象，按本次请求构造 |
+| `SseEmitter` | SSE 发射器，按本次请求构造 |
+| `ConnectSession` | 当前连接会话 |
+| `Channel` | 当前连接的 Netty 通道 |
+
+```java
+@Get("/context")
+public String context(HttpContext ctx, HttpSession session, HttpCookies cookies) {
+    session.setAttr("lastPath", ctx.message().url().url(true));
+    return cookies.getCookie("uid");
 }
 ```
 
-TurboWeb 支持以下内置类型：
+注入按形参声明类型精确匹配，不做子类匹配。`HttpContext` 上保留 `message()`、`httpSession()`、`cookies()`、`getConnectSession()`、`defaultCharset()`、`attachment()`，不再提供取参方法。
 
-| 类型   | 说明                                 |
-| ------ | ------------------------------------ |
-| `str`  | 字符串（默认类型）                   |
-| `num`  | 数字，匹配整数和浮点数（正负号可选） |
-| `int`  | 整数（不带小数）                     |
-| `bool` | 布尔值，支持 `true` / `false`        |
-| `date` | 日期，格式为 `yyyy-MM-dd`            |
-| `ipv4` | IPv4 地址格式                        |
+## 13. 请求体与字符集
 
-示例：
+请求体在进入控制器之前已按 `Content-Type` 解析：
+
+| `Content-Type` | 内容类 | 可读取 |
+| --- | --- | --- |
+| `application/x-www-form-urlencoded`、`multipart/form-data` | `HttpFormContent` | `formParams()`、`formFiles()` |
+| `application/json` | `HttpJsonContent` | `jsonString()` |
+| 其他或未声明 | `HttpUnknowContent` | 仅 `contentType()` |
+
+其他 `Content-Type` 可以通过自定义内容解析器接入，写法见[定制：参数解析器](./custom-parameter-parser.md)第 3 节。
+
+需要绕开注解直接读体时，经 `ctx.message().content()` 转型取数：
 
 ```java
-@Get("/user/{id:int}")
-public String getUserById(HttpContext context) {
-    Integer id = context.paramInt("id");
-    return "userId=" + id;
+@Post("/raw")
+public String raw(HttpContext ctx) {
+    HttpJsonContent json = (HttpJsonContent) ctx.message().content();
+    return json.jsonString();
 }
 ```
 
-**_支持正则表达式定义路径参数_**
+字符集规则：
 
-如果内置类型无法满足需求，可以通过正则表达式自定义匹配规则：
+- 请求体按 `Content-Type` 中声明的 `charset` 解码，未声明时回落到 `HttpConfig` 的缺省字符集；
+- 路径参数与查询参数不受请求头影响，一律按 `HttpConfig` 的缺省字符集解码。
 
-```java
-@Get("/order/{orderId:regex=\\d{4}-[A-Z]{3}}")
-public String getOrder(HttpContext context) {
-    String orderId = context.param("orderId");
-    return "orderId=" + orderId;
-}
-```
+## 14. 出错时的响应
 
-**_路径参数的自动类型转换_**
+| 情形 | 默认结果 |
+| --- | --- |
+| 路径或查询参数百分号转义畸形 | 400，`ParamDecodeError` |
+| `@QueryParam(nonNull = true)` 缺值 | 400，`MissingParamError` |
+| 声明类型转换失败（如 `Long` 收到 `abc`） | 运行时异常，500 |
+| `@FormParam`/`@BeanForm`/`@BeanJson` 与请求体类型不符 | `RequestParseException`，500 |
+| 校验不通过 | `BeanValidationException`，500 |
+| 形参没有解析器认领 | 绑成 `null`；原始类型在调用时拆箱失败，500 |
 
-类似于 `queryInt()` 等方法，TurboWeb 提供了多种自动转换方法方便直接获取对应类型的路径参数：
+后四类可以通过注册对应的异常处理器改成业务需要的状态码与响应体，见[异常处理器](./exceptionhandler.md)。
 
-| 方法                       | 说明                                         |
-| -------------------------- | -------------------------------------------- |
-| `param(String name)`       | 返回字符串类型参数                           |
-| `paramInt(String name)`    | 返回整型参数                                 |
-| `paramLong(String name)`   | 返回长整型参数                               |
-| `paramBool(String name)`   | 返回布尔类型参数                             |
-| `paramDouble(String name)` | 返回浮点类型参数                             |
-| `paramDate(String name)`   | 返回 `LocalDate` 类型参数，格式 `yyyy-MM-dd` |
-
-**_注意事项_**
-
-路径参数名称必须与 `param(..)` 中使用的名称一致。
-
-路径参数自动转换如格式不正确，会抛出转换异常。
-
-## 请求参数自动注入
-
-为了简化开发，TurboWeb在`AnnoRouterManager` 中引入了参数自动注入的功能，默认是关闭的，需要手动开启。
-
-```java
-AnnoRouterManager routerManager = new AnnoRouterManager(true);
-```
-
-当开启参数自动注入时，控制器的方法不再要求必须是一个参数并且是 `HttpContext` ，而是会根据参数列表自动进行注入。
-
-**TurboWeb的参数注入的性能也是比较高的**，因为在项目启动的时候TurboWeb会对所有的方法签名进行一次**编译**，编译为对应的函数调用，当请求到达的时候直接一次执行每个参数的函数调用即可完成参数的注入，避免了运行期间进行反射操作。
-
-注入的参数有两种类型：框架对象、请求数据
-
-**TurboWeb支持部分框架内部对象的自动注入，支持的类型如下：**
-
-HttpContext、HttpSession、HttpCookies、SseResponse、SseEmitter。
-
-```java
-@Get("/1")
-public String bind01(
-        HttpContext ctx,
-        HttpSession session,
-        HttpCookies cookies,
-        SseResponse sseResponse,
-        SseEmitter sseEmitter
-        ) {
-    System.out.println(ctx);
-    System.out.println(session);
-    System.out.println(cookies);
-    System.out.println(sseResponse);
-    System.out.println(sseEmitter);
-    return "success";
-}
-```
-
-**请求数据的自动注入**
-
-获取路径参数：
-
-```java
-@Get("/2/{id:num}")
-public String bind02(@Param("id") Long id) {
-    System.out.println(id);
-    return "success";
-}
-```
-
-> 等价于调用`HttpContext` 的 `paramXX(..)` 方法。
-
-获取url查询参数：
-
-```java
-@Get("/3")
-public String bind03(@Query("id") Long id) {
-    System.out.println(id);
-    return "success";
-}
-```
-
-> 等价于调用 `HttpContext` 的 `queryXX(..)` 方法。
-
-封装多个同名的url查询参数：
-
-```java
-@Get("/4")
-public String bind04(@Query("ids") List<Long> ids) {
-    System.out.println(ids);
-    return "success";
-}
-```
-
-> 等价于调用 `HttpContext` 的 `queriesXX()`。
-
-如果需要去重可以使用set来接收：
-
-```java
-@Get("/5")
-public String bind05(@Query("ids") Set<Long> ids) {
-    System.out.println(ids);
-    return "success";
-}
-```
-
-将url参数映射为实体对象：
-
-```java
-@Get("/6")
-public String bind06(@QueryModel Student student) {
-    System.out.println(student);
-    return "success";
-}
-```
-
-> 等价于调用 `HttpContext` 的 `loadQuery(..)` 方法。
-
-将表单参数映射为实体对象：
-
-```java
-@Post("/7")
-public String bind07(@FormModel Student student) {
-    System.out.println(student);
-    return "success";
-}
-```
-
-> 等价于调用 `HttpContext` 的 `loadForm(..)` 方法。
-
-将json参数映射为实体对象：
-
-```java
-@Post("/8")
-public String bind08(@JsonModel Student student) {
-    System.out.println(student);
-    return "success";
-}
-```
-
-> 等价于调用 `HttpContext` 的 `loadJson(..)` 方法。
-
-除此之外 `@QueryModel` 、`@FormModel` 、`@JsonModel` 还支持数据校验，以 `@QueryModel`为例：
-
-```java
-@Get("/9")
-public String bind09(@QueryModel(true) Student student) {
-    System.out.println(student);
-    return "success";
-}
-```
-
-传入true开启数据校验，默认是关闭的。
-
-也支持校验组，这就需要用到该注解的第二个参数了：
-
-```java
-@Get("/9")
-public String bind09(@QueryModel(value = true, groups = Groups.Add.class) Student student) {
-    System.out.println(student);
-    return "success";
-}
-```
-
-
-
-[首页](../README.md) | [路由体系](./router.md) | [响应数据的处理](./response.md)
+[首页](../README.md) | [路由体系](./router.md) | [响应体系](./response.md)
