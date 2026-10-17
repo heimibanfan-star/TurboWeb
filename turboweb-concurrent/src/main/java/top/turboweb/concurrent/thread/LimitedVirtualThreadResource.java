@@ -10,8 +10,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 任务获取到资源后在新建虚拟线程中执行，执行结束（含抛出异常）释放资源。
  * 资源耗尽时按最大挂起数与最大挂起时间排队：挂起额度未满的任务在新建虚拟线程中
  * 带超时预算等待资源，等到即执行；等待预算耗尽或等待被中断时放弃，
- * 并在新线程触发拒绝回调；挂起额度已满或最大挂起时间不大于零时不创建新线程，
- * 直接在当前线程触发拒绝回调。
+ * 并在新线程以拒绝情形收尾；挂起额度已满或最大挂起时间不大于零时不创建新线程，
+ * 直接在当前线程以拒绝情形收尾。
  * </p>
  * <p>
  * 挂起额度采用比较并交换（CAS）方式在提交侧条件递增：额度未满原子占位，
@@ -43,6 +43,10 @@ public final class LimitedVirtualThreadResource extends VirtualThreadResource {
      * 最大挂起时间（毫秒）。
      */
     private final long timeout;
+    /**
+     * 启动失败时归还已取得的资源许可。
+     */
+    private final Runnable releasePermitOnStartFailure;
 
     /**
      * 构造受限虚拟线程资源。
@@ -72,36 +76,40 @@ public final class LimitedVirtualThreadResource extends VirtualThreadResource {
         this.permission = new Semaphore(resourceCount, fair);
         this.maxSuspendThreadNum = maxSuspendThreadNum;
         this.timeout = timeout;
+        this.releasePermitOnStartFailure = permission::release;
     }
 
     /**
      * 提交任务执行。
      * <p>
-     * 资源空闲时立即取得资源，任务在新建虚拟线程中执行，执行结束（含抛出异常）后释放资源；
+     * 资源空闲时立即取得资源，任务在新建虚拟线程中执行，执行结束（含抛出异常）后释放资源，
+     * 收尾回调以 {@link FinallyType#EXECUTED} 触发；
      * 资源耗尽且允许排队时，新建虚拟线程在最大挂起时间预算内限时等待，等到资源即执行任务，
-     * 预算耗尽或被中断时放弃等待并在新线程触发 {@link RejectionThread#NEW_THREAD} 拒绝回调；
+     * 预算耗尽或被中断时放弃等待并在等待线程以 {@link FinallyType#REJECTED} 收尾；
      * 最大挂起时间不大于零或挂起额度已满时不创建新线程，
-     * 直接在当前线程触发 {@link RejectionThread#CURRENT_THREAD} 拒绝回调并返回 null。
+     * 直接在当前线程以 {@link FinallyType#REJECTED} 收尾并返回 null。
      * </p>
      * <p>
      * 任务抛出的异常不做拦截，随虚拟线程默认未捕获异常处理器输出，资源照常释放；
-     * 对返回的等待线程调用 {@link Thread#interrupt()} 可使其放弃排队并按新线程拒绝回调；
-     * 新线程创建失败（含资源耗尽类错误）时，已占用的许可或挂起额度即时归还后异常原样抛出。
+     * 对返回的等待线程调用 {@link Thread#interrupt()} 可使其放弃排队并按拒绝情形收尾；
+     * 新线程创建失败（含资源耗尽类错误）时，已占用的许可或挂起额度即时归还，
+     * 收尾回调以 {@link FinallyType#NOT_STARTED} 触发后异常原样抛出。
      * </p>
      *
-     * @param task             获取到资源后执行的任务，不能为 null
-     * @param rejectionHandler 任务被拒绝时的回调，不能为 null
+     * @param task           获取到资源后执行的任务，不能为 null
+     * @param finallyHandler 任务提交的收尾回调，不能为 null
      * @return 承载任务执行或排队等待的新虚拟线程；在当前线程直接拒绝时为 null
-     * @throws NullPointerException task 或 rejectionHandler 为 null
+     * @throws NullPointerException task 或 finallyHandler 为 null
      */
     @Override
-    public Thread run(Runnable task, RejectionHandler rejectionHandler) {
-        requireArguments(task, rejectionHandler);
+    public Thread run(Runnable task, FinallyHandler finallyHandler) {
+        requireArguments(task, finallyHandler);
         if (permission.tryAcquire()) {
-            return startThread(() -> executeWithPermit(task), () -> permission.release());
+            return startThread(() -> executeWithPermit(withExecuteFinally(task, finallyHandler)),
+                    releasePermitOnStartFailure, finallyHandler);
         }
         if (timeout <= 0 || !trySuspend()) {
-            rejectionHandler.onRejected(RejectionThread.CURRENT_THREAD);
+            finallyHandler.onFinally(FinallyType.REJECTED);
             return null;
         }
         return startThread(() -> {
@@ -112,11 +120,11 @@ public final class LimitedVirtualThreadResource extends VirtualThreadResource {
                 suspendThreads.decrementAndGet();
             }
             if (acquired) {
-                executeWithPermit(task);
+                executeWithPermit(withExecuteFinally(task, finallyHandler));
             } else {
-                rejectionHandler.onRejected(RejectionThread.NEW_THREAD);
+                finallyHandler.onFinally(FinallyType.REJECTED);
             }
-        }, suspendThreads::decrementAndGet);
+        }, suspendThreads::decrementAndGet, finallyHandler);
     }
 
     /**

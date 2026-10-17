@@ -3,7 +3,7 @@ package top.turboweb.concurrent.thread;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import top.turboweb.concurrent.thread.VirtualThreadResource.RejectionThread;
+import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -20,15 +20,19 @@ import static org.junit.jupiter.api.Assertions.fail;
 /**
  * {@link UnlimitedVirtualThreadResource} 的构造校验与无资源控制提交语义。
  *
- * <p>非受限实现不排队、不拒绝：每个提交即刻返回承载虚拟线程，拒绝回调在任何用例下都不得触发；
- * 执行与否的取证靠任务内闩与计数，线程名断言经任务体内自取。
+ * <p>非受限实现不排队、不拒绝：每个提交即刻返回承载虚拟线程，收尾回调不会以拒绝情形触发，
+ * 任务结束后以执行完毕情形触发一次；执行与否的取证靠任务内闩与计数，线程名断言经任务体内自取。
  */
 @Timeout(value = 20, unit = TimeUnit.SECONDS)
 class UnlimitedVirtualThreadResourceTest {
 
-    /** 不应发生的拒绝：一旦回调直接判失败。 */
-    private static VirtualThreadResource.RejectionHandler neverRejected() {
-        return thread -> fail("非受限实现不应触发拒绝回调，实际收到 " + thread);
+    /** 不应发生的拒绝：收尾情形为 REJECTED 直接判失败，EXECUTED 为任务正常收尾。 */
+    private static VirtualThreadResource.FinallyHandler neverRejected() {
+        return type -> {
+            if (type == FinallyType.REJECTED) {
+                fail("非受限实现不应触发拒绝收尾");
+            }
+        };
     }
 
     @Test
@@ -56,12 +60,13 @@ class UnlimitedVirtualThreadResourceTest {
         UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-worker");
         CountDownLatch done = new CountDownLatch(1);
         AtomicInteger observed = new AtomicInteger();
+        List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
         Thread worker = resource.run(() -> {
             assertTrue(Thread.currentThread().isVirtual(), "承载线程应为虚拟线程");
             observed.set(1);
             done.countDown();
-        }, neverRejected());
+        }, finishes::add);
 
         assertNotNull(worker, "非受限实现应始终返回承载线程");
         assertTrue(worker.isVirtual());
@@ -69,6 +74,7 @@ class UnlimitedVirtualThreadResourceTest {
         assertTrue(done.await(5, TimeUnit.SECONDS), "任务应被执行");
         assertEquals(1, observed.get());
         worker.join(5_000);
+        assertEquals(List.of(FinallyType.EXECUTED), finishes, "任务结束后收尾回调以执行完毕情形触发一次");
     }
 
     @Test
@@ -76,12 +82,14 @@ class UnlimitedVirtualThreadResourceTest {
     void taskFailureDoesNotBlockLaterSubmissions() throws InterruptedException {
         UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-fail");
         CountDownLatch done = new CountDownLatch(1);
+        List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
         Thread failing = resource.run(() -> {
             throw new IllegalStateException("boom");
-        }, neverRejected());
+        }, finishes::add);
         assertNotNull(failing);
         failing.join(5_000);
+        assertEquals(List.of(FinallyType.EXECUTED), finishes, "任务抛出异常后仍以执行完毕情形收尾");
 
         Thread next = resource.run(done::countDown, neverRejected());
         assertNotNull(next, "前一任务失败不应影响后续受理");
@@ -95,23 +103,25 @@ class UnlimitedVirtualThreadResourceTest {
         int total = 16;
         CountDownLatch done = new CountDownLatch(total);
         AtomicInteger executed = new AtomicInteger();
-        List<RejectionThread> rejections = new CopyOnWriteArrayList<>();
+        List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
         List<Thread> workers = new CopyOnWriteArrayList<>();
         for (int i = 0; i < total; i++) {
             Thread worker = resource.run(() -> {
                 executed.incrementAndGet();
                 done.countDown();
-            }, thread -> rejections.add(thread));
+            }, finishes::add);
             assertNotNull(worker, "非受限实现任何提交都应受理");
             workers.add(worker);
         }
 
         assertTrue(done.await(10, TimeUnit.SECONDS), "全部任务都应完成");
         assertEquals(total, executed.get());
-        assertTrue(rejections.isEmpty(), "不应发生任何拒绝");
         for (Thread worker : workers) {
             worker.join(5_000);
         }
+        assertEquals(total, finishes.size(), "每次提交恰好一次收尾");
+        assertTrue(finishes.stream().allMatch(type -> type == FinallyType.EXECUTED),
+                "全部提交均以执行完毕情形收尾，不应出现拒绝");
     }
 }

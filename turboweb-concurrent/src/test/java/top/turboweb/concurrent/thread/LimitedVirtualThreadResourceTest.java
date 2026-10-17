@@ -3,8 +3,8 @@ package top.turboweb.concurrent.thread;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import top.turboweb.concurrent.thread.VirtualThreadResource.RejectionHandler;
-import top.turboweb.concurrent.thread.VirtualThreadResource.RejectionThread;
+import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyHandler;
+import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -24,15 +24,15 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static top.turboweb.concurrent.thread.VirtualThreadResource.RejectionThread.CURRENT_THREAD;
-import static top.turboweb.concurrent.thread.VirtualThreadResource.RejectionThread.NEW_THREAD;
+import static top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType.EXECUTED;
+import static top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType.REJECTED;
 
 /**
- * {@link LimitedVirtualThreadResource} 的构造校验、资源获取、排队挂起与双线程位拒绝回调。
+ * {@link LimitedVirtualThreadResource} 的构造校验、资源获取、排队挂起与双线程位拒绝收尾。
  *
  * <p>并发语义的取证口径：挂起额度以 CAS 在提交侧条件递增，超限直接拒绝且计数不上探，
  * 因此 run 返回后即可直接断言计数；等待结果一律用带超时的闩或轮询等待收敛，
- * 拒绝回调记录发生线程与枚举值；占用资源的任务以门闩释放，保证"资源被占住"这一前提对每个用例成立。
+ * 收尾回调记录发生线程与收尾情形；占用资源的任务以门闩释放，保证"资源被占住"这一前提对每个用例成立。
  */
 @Timeout(value = 20, unit = TimeUnit.SECONDS)
 class LimitedVirtualThreadResourceTest {
@@ -61,32 +61,36 @@ class LimitedVirtualThreadResourceTest {
         return condition.getAsBoolean();
     }
 
-    /** 拒绝回调记录器：记录拒绝枚举与回调发生线程，并放行等待中的用例线程。 */
+    /** 收尾回调记录器：记录收尾情形与回调发生线程，并放行等待中的用例线程。 */
     private static final class RejectionRecord {
         final CountDownLatch rejected = new CountDownLatch(1);
-        volatile RejectionThread rejectionThread;
+        volatile FinallyType finallyType;
         volatile Thread callbackThread;
 
-        RejectionHandler handler() {
+        FinallyHandler handler() {
             return this::accept;
         }
 
-        void accept(RejectionThread thread) {
-            rejectionThread = thread;
+        void accept(FinallyType type) {
+            finallyType = type;
             callbackThread = Thread.currentThread();
             rejected.countDown();
         }
 
         /** 当前线程同步拒绝的取证：run 返回即应已回调，不允许还需要再等。 */
-        RejectionThread requireSyncRejected() {
+        FinallyType requireSyncRejected() {
             assertEquals(0, rejected.getCount(), "当前线程拒绝应在 run 返回前完成");
-            return rejectionThread;
+            return finallyType;
         }
     }
 
-    /** 不应发生的拒绝：一旦回调直接判失败。 */
-    private static RejectionHandler neverRejected() {
-        return thread -> fail("任务不应被拒绝，实际拒绝于 " + thread);
+    /** 不应发生的拒绝：收尾情形为 REJECTED 直接判失败；执行完毕情形放行。 */
+    private static FinallyHandler neverRejected() {
+        return type -> {
+            if (type == REJECTED) {
+                fail("任务不应被拒绝");
+            }
+        };
     }
 
     /** 占住资源的阻塞任务：started 证明已运行并占住，gate 释放后结束。 */
@@ -163,14 +167,16 @@ class LimitedVirtualThreadResourceTest {
     void availableResourceRunsTaskOnNamedVirtualThread() throws InterruptedException {
         LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(2, 1, 1_000, "vtr-worker", true);
         ObservedTask task = new ObservedTask(null, null);
+        List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
-        Thread worker = resource.run(task, neverRejected());
+        Thread worker = resource.run(task, finishes::add);
 
         assertNotNull(worker, "接受提交应返回承载线程");
         assertTrue(worker.isVirtual(), "承载线程应为虚拟线程");
         assertTrue(task.done.await(5, TimeUnit.SECONDS), "任务应被执行");
         assertEquals("vtr-worker", task.threadName.get(), "任务应运行在配置名称的线程上");
         worker.join(5_000);
+        assertEquals(List.of(EXECUTED), finishes, "任务结束后以执行完毕情形收尾一次");
         assertEquals(2, resource.availableResources(), "执行后资源应全部归还");
         assertEquals(0, resource.suspendedThreads());
     }
@@ -179,20 +185,22 @@ class LimitedVirtualThreadResourceTest {
     @DisplayName("任务抛出异常资源照常释放")
     void taskFailureStillReleasesResource() throws InterruptedException {
         LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 0, 0, "vtr-fail", false);
+        List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
         Thread worker = resource.run(() -> {
             throw new IllegalStateException("boom");
-        }, neverRejected());
+        }, finishes::add);
 
         assertNotNull(worker);
         worker.join(5_000);
         assertFalse(worker.isAlive());
+        assertEquals(List.of(EXECUTED), finishes, "任务抛出异常后仍以执行完毕情形收尾");
         assertEquals(1, resource.availableResources(), "任务抛出异常后资源照常释放");
         assertEquals(0, resource.suspendedThreads());
     }
 
     @Test
-    @DisplayName("挂起额度已满：超限提交直接拒绝、计数不上探，在当前线程同步收到 CURRENT_THREAD 拒绝并返回 null")
+    @DisplayName("挂起额度已满：超限提交直接拒绝、计数不上探，在当前线程同步收到拒绝收尾并返回 null")
     void queueFullRejectsSynchronouslyOnCurrentThread() throws InterruptedException {
         LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 1, 5_000, "vtr-queue", false);
         BlockedHolder holder = new BlockedHolder();
@@ -211,7 +219,7 @@ class LimitedVirtualThreadResourceTest {
         Thread waiter2 = resource.run(waiter2Task, record.handler());
 
         assertNull(waiter2, "额度已满不应创建线程");
-        assertEquals(CURRENT_THREAD, record.requireSyncRejected());
+        assertEquals(REJECTED, record.requireSyncRejected());
         assertSame(Thread.currentThread(), record.callbackThread, "同步拒绝回调应发生在当前线程");
         assertFalse(waiter2Task.ran.get());
         assertEquals(1, resource.suspendedThreads(), "CAS 超限判定失败不产生写入，计数不上探也不泄漏");
@@ -237,7 +245,7 @@ class LimitedVirtualThreadResourceTest {
         Thread worker = resource.run(task, record.handler());
 
         assertNull(worker);
-        assertEquals(CURRENT_THREAD, record.requireSyncRejected());
+        assertEquals(REJECTED, record.requireSyncRejected());
         assertSame(Thread.currentThread(), record.callbackThread);
         assertFalse(task.ran.get());
         assertEquals(0, resource.suspendedThreads(), "零预算拒绝不应登记挂起额度");
@@ -259,7 +267,7 @@ class LimitedVirtualThreadResourceTest {
         Thread worker = resource.run(task, record.handler());
 
         assertNull(worker);
-        assertEquals(CURRENT_THREAD, record.requireSyncRejected());
+        assertEquals(REJECTED, record.requireSyncRejected());
         assertSame(Thread.currentThread(), record.callbackThread);
         assertFalse(task.ran.get());
         assertEquals(0, resource.suspendedThreads());
@@ -301,7 +309,7 @@ class LimitedVirtualThreadResourceTest {
     }
 
     @Test
-    @DisplayName("等待预算耗尽：在新线程回调 NEW_THREAD，额度先归还、任务未执行、资源仍被占用")
+    @DisplayName("等待预算耗尽：等待线程以拒绝情形收尾，额度先归还、任务未执行、资源仍被占用")
     void timedWaitBudgetExhaustedRejectsOnNewThread() throws InterruptedException {
         LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 5, 50, "vtr-reject", false);
         BlockedHolder holder = new BlockedHolder();
@@ -315,7 +323,7 @@ class LimitedVirtualThreadResourceTest {
         assertEquals(1, resource.suspendedThreads());
 
         assertTrue(record.rejected.await(5, TimeUnit.SECONDS), "限时等待耗尽应触发拒绝");
-        assertEquals(NEW_THREAD, record.rejectionThread);
+        assertEquals(REJECTED, record.finallyType);
         assertNotSame(Thread.currentThread(), record.callbackThread, "超时拒绝应发生在等待线程自身");
         assertEquals("vtr-reject", record.callbackThread.getName());
         assertFalse(task.ran.get(), "被拒任务不得执行");
@@ -329,7 +337,7 @@ class LimitedVirtualThreadResourceTest {
     }
 
     @Test
-    @DisplayName("等待中被中断：放弃等待并在新线程回调 NEW_THREAD，额度归还、任务未执行")
+    @DisplayName("等待中被中断：放弃等待并在等待线程以拒绝情形收尾，额度归还、任务未执行")
     void interruptedWaiterRejectsOnNewThread() throws InterruptedException {
         LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 5, 10_000, "vtr-interrupt", false);
         BlockedHolder holder = new BlockedHolder();
@@ -343,7 +351,7 @@ class LimitedVirtualThreadResourceTest {
         waiter.interrupt();
 
         assertTrue(record.rejected.await(5, TimeUnit.SECONDS), "中断应触发拒绝回调");
-        assertEquals(NEW_THREAD, record.rejectionThread);
+        assertEquals(REJECTED, record.finallyType);
         assertSame(waiter, record.callbackThread, "中断拒绝应发生在等待线程自身");
         assertFalse(task.ran.get());
         assertEquals(0, resource.suspendedThreads(), "中断归还额度后才回调");
@@ -411,9 +419,13 @@ class LimitedVirtualThreadResourceTest {
                     Thread.currentThread().interrupt();
                     return;
                 }
+                Thread submitterThread = Thread.currentThread();
                 Thread waiter = resource.run(() -> {
-                }, thread -> {
-                    if (thread == CURRENT_THREAD) {
+                }, type -> {
+                    if (type != REJECTED) {
+                        return;
+                    }
+                    if (submitterThread == Thread.currentThread()) {
                         currentThreadRejections.incrementAndGet();
                     } else {
                         newThreadRejections.incrementAndGet();
@@ -447,10 +459,11 @@ class LimitedVirtualThreadResourceTest {
     }
 
     @Test
-    @DisplayName("拒绝线程枚举：两枚取值，values 与 valueOf 往返一致")
-    void rejectionThreadEnumIsTwoValuedAndRoundTrips() {
-        assertEquals(2, RejectionThread.values().length);
-        assertSame(CURRENT_THREAD, RejectionThread.valueOf("CURRENT_THREAD"));
-        assertSame(NEW_THREAD, RejectionThread.valueOf("NEW_THREAD"));
+    @DisplayName("收尾情形枚举：三枚取值，values 与 valueOf 往返一致")
+    void finallyTypeEnumIsThreeValuedAndRoundTrips() {
+        assertEquals(3, FinallyType.values().length);
+        assertSame(EXECUTED, FinallyType.valueOf("EXECUTED"));
+        assertSame(REJECTED, FinallyType.valueOf("REJECTED"));
+        assertSame(FinallyType.NOT_STARTED, FinallyType.valueOf("NOT_STARTED"));
     }
 }
