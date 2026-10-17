@@ -59,11 +59,9 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
             channelHandlerContext.fireChannelRead(fullHttpRequest);
             return;
         }
-        // 增加引用，防止被当前处理器给释放内存
-        fullHttpRequest.retain();
         // 封装连接的会话对象
         InternalConnectSession connectSession = new InternalConnectSession(channelHandlerContext.channel());
-        // 执行异步任务
+        // 请求引用由编排器在提交前自行持有，本处理器返回后由基类归还本处理器的引用
         requestOrchestrator.orchestrate(fullHttpRequest, connectSession);
     }
 

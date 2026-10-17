@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -15,6 +16,8 @@ import top.turboweb.rest.HttpRequestMethod;
 import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
+import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyHandler;
+import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType;
 import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpFormContent;
@@ -66,7 +69,8 @@ import static org.junit.jupiter.api.Assertions.fail;
  * CORS 来源处理流程的响应头写出契约；以及消费流程契约——
  * 入口参数判空、中间件结果转化写出与请求释放、挂载的响应元信息不回填响应、
  * OPTIONS 预检空 200 不进链、未注册异常落 500 兜底页、路由未匹配落 404 页、
- * 注册处理器返回值透传写出、异常响应同样带 CORS 头、提交被拒写出 429 并释放请求；
+ * 注册处理器返回值透传写出、异常响应同样带 CORS 头、提交被拒写出 429 并释放请求、
+ * 会话缺失与线程创建失败同样在异常抛出前释放请求；
  * 另锚请求日志文案的格式化契约——耗时按阈值分毫秒与微秒两档、写出状态措辞。
  */
 class RequestOrchestratorTest {
@@ -365,24 +369,21 @@ class RequestOrchestratorTest {
         RequestOrchestrator orchestrator = orchestratorWith(HttpCorsConfig.builder().build());
         EmbeddedChannel channel = new EmbeddedChannel();
         InternalConnectSession session = new InternalConnectSession(channel);
-        FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
         NullPointerException e1 = assertThrows(NullPointerException.class, () -> orchestrator.orchestrate(null, session));
         assertEquals("request must not be null", e1.getMessage());
-        NullPointerException e2 = assertThrows(NullPointerException.class, () -> orchestrator.orchestrate(request, null));
+        FullHttpRequest submissionRequest = requestWith(HttpMethod.GET, null);
+        NullPointerException e2 = assertThrows(NullPointerException.class, () -> orchestrator.orchestrate(submissionRequest, null));
         assertEquals("connect session must not be null", e2.getMessage());
-        NullPointerException e3 = assertThrows(NullPointerException.class, () -> orchestrator.doOrchestrate(null, session));
-        assertEquals("request must not be null", e3.getMessage());
-        NullPointerException e4 = assertThrows(NullPointerException.class, () -> orchestrator.doOrchestrate(request, null));
-        assertEquals("connect session must not be null", e4.getMessage());
+        assertEquals(1, submissionRequest.refCnt(), "会话缺失时只归还编排器自持的引用，调用方引用不受影响");
+        submissionRequest.release();
 
         assertNull(channel.readOutbound(), "入口判空拒收不产生任何出站");
-        request.release();
         channel.finishAndReleaseAll();
     }
 
     @Test
-    void chainResultWrittenWithCorsAndRequestReleased() {
+    void chainResultWrittenWithCorsAndCallerReferenceKept() {
         FixedResultMiddleware chain = new FixedResultMiddleware("hello");
         RequestOrchestrator orchestrator = flowOrchestrator(chain, new ExceptionHandlerManager(Set.of()));
         EmbeddedChannel channel = new EmbeddedChannel();
@@ -397,7 +398,8 @@ class RequestOrchestratorTest {
         assertEquals(HttpResponseStatus.OK, written.getStatus());
         assertEquals("hello", written.content().toString(StandardCharsets.UTF_8), "链结果经转化链按字符串产出响应");
         assertEquals("https://a.com", written.headers().get("Access-Control-Allow-Origin"), "正常响应写出 CORS 头");
-        assertEquals(0, request.refCnt(), "写出提交后请求已释放");
+        assertEquals(1, request.refCnt(), "写出后编排器归还自持引用，调用方引用仍在");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -424,7 +426,8 @@ class RequestOrchestratorTest {
         assertEquals("text/html;charset=GBK", written.headers().get("Content-Type"),
                 "装配期缺省字符集贯通转化链决定响应编码");
         assertEquals("你好", written.content().toString(gbk), "正文与声明同源编码");
-        assertEquals(0, request.refCnt(), "写出提交后请求已释放");
+        assertEquals(1, request.refCnt(), "写出后编排器归还自持引用，调用方引用仍在");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -454,6 +457,7 @@ class RequestOrchestratorTest {
 
         assertEquals(List.of("enter", "chain", "exit"), events,
                 "编排器把链执行整体放入会话管理器的安全作用域，链结果产出后作用域退出");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -472,6 +476,7 @@ class RequestOrchestratorTest {
                 "链抛出异常时作用域同样先退出再进入异常处理路径，兜底页不泄漏读锁");
         FullHttpResponse written = channel.readOutbound();
         assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, written.getStatus());
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -487,6 +492,7 @@ class RequestOrchestratorTest {
         orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
 
         assertTrue(events.isEmpty(), "OPTIONS 预检不进 startMiddleware，不进入安全作用域");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -505,7 +511,8 @@ class RequestOrchestratorTest {
         assertTrue(contentType.startsWith("text/html"), "挂载的响应元信息不再回填内容类型，按转化链字符串支产出");
         assertFalse(contentType.contains("application/json"));
         assertEquals("hello", written.content().toString(StandardCharsets.UTF_8));
-        assertEquals(0, request.refCnt(), "写出提交后请求已释放");
+        assertEquals(1, request.refCnt(), "写出后编排器归还自持引用，调用方引用仍在");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -525,7 +532,8 @@ class RequestOrchestratorTest {
         assertEquals("0", written.headers().get("Content-Length"), "预检空正文");
         assertEquals("https://a.com", written.headers().get("Access-Control-Allow-Origin"), "预检写出 CORS 头");
         assertEquals("3600", written.headers().get("Access-Control-Max-Age"));
-        assertEquals(0, request.refCnt(), "预检路径同样释放请求");
+        assertEquals(1, request.refCnt(), "预检路径同样只归还编排器自持的引用");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -545,7 +553,8 @@ class RequestOrchestratorTest {
         assertTrue(body.contains("500 Internal Server Error"), "兜底页为 500 错误页");
         assertTrue(body.contains("java.lang.IllegalStateException"), "页面携带异常类型");
         assertEquals("https://a.com", written.headers().get("Access-Control-Allow-Origin"), "异常响应同样写出 CORS 头");
-        assertEquals(0, request.refCnt(), "异常路径同样释放请求");
+        assertEquals(1, request.refCnt(), "异常路径同样只归还编排器自持的引用");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -564,7 +573,8 @@ class RequestOrchestratorTest {
         String body = written.content().toString(StandardCharsets.UTF_8);
         assertTrue(body.contains("404 Not Found"), "页面为 404 错误页");
         assertTrue(body.contains("router not found: GET /missing"), "页面携带未匹配消息");
-        assertEquals(0, request.refCnt());
+        assertEquals(1, request.refCnt());
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -581,7 +591,8 @@ class RequestOrchestratorTest {
         FullHttpResponse written = channel.readOutbound();
         assertEquals(HttpResponseStatus.OK, written.getStatus(), "处理器返回值经结果转化链正常产出");
         assertEquals("handled:boom", written.content().toString(StandardCharsets.UTF_8), "透传处理器返回值");
-        assertEquals(0, request.refCnt());
+        assertEquals(1, request.refCnt());
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -597,7 +608,11 @@ class RequestOrchestratorTest {
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             }
-        }, rejectionThread -> fail("占额任务不应被拒绝"));
+        }, finallyType -> {
+            if (finallyType == FinallyType.REJECTED) {
+                fail("占额任务不应被拒绝");
+            }
+        });
         assertTrue(started.await(2, TimeUnit.SECONDS), "占额任务已启动并持有唯一资源");
         try {
             FixedResultMiddleware chain = new FixedResultMiddleware("not-used");
@@ -612,7 +627,8 @@ class RequestOrchestratorTest {
             assertEquals(HttpResponseStatus.TOO_MANY_REQUESTS, written.getStatus(), "拒绝分支写出 429");
             assertEquals("too many request", written.content().toString(StandardCharsets.UTF_8), "429 正文与旧线一致");
             assertFalse(written.headers().contains("Access-Control-Allow-Origin"), "拒绝分支不经 CORS 处理");
-            assertEquals(0, request.refCnt(), "拒绝分支同样释放请求");
+            assertEquals(1, request.refCnt(), "拒绝分支只归还编排器自持的引用，调用方引用仍在");
+            request.release();
             channel.finishAndReleaseAll();
         } finally {
             hold.countDown();
@@ -682,6 +698,7 @@ class RequestOrchestratorTest {
         assertInstanceOf(HttpJsonContent.class, context.message().content(), "JSON 请求体分派给内置 JSON 解析器");
         assertEquals("{\"name\":\"alice\"}", ((HttpJsonContent) context.message().content()).jsonString(),
                 "请求体在装配上下文时已解码为字符串");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -697,6 +714,7 @@ class RequestOrchestratorTest {
         HttpContent content = chain.captured().message().content();
         assertInstanceOf(HttpUnknowContent.class, content, "HEAD 不进内容解析器");
         assertNull(content.contentType(), "HEAD 无请求体，内容侧不声明类型（夹具的类型头不被读取）");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -713,6 +731,7 @@ class RequestOrchestratorTest {
         FullHttpResponse written = channel.readOutbound();
         assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, written.getStatus(),
                 "解析异常与链内异常同径交异常处理器，未注册时落 500 兜底页");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -729,12 +748,14 @@ class RequestOrchestratorTest {
 
         assertSame(MarkedContentParser.MARKER, chain.captured().message().content(),
                 "注入的管理器所持有的自定义解析器按类型分派，其产出进上下文");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
     @Test
-    void requestBodyMemoryReleasedBeforeChainRuns() {
-        // 解析即还的钉：链入口时请求引用计数已归零，表单字段经消息仍可读——装配产物独立于请求内存
+    void requestStaysAliveThroughChainAndSelfReferenceReleasedAfterResponseWrite() {
+        // 请求生命周期的钉：链执行期间请求仍有效，表单字段经消息可读；
+        // 编排器自持的引用在响应写出后的流程收尾归还，调用方引用不受影响
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = Requests.postForm("/submit", "name=alice");
         AtomicInteger refCntAtChain = new AtomicInteger(-1);
@@ -753,8 +774,63 @@ class RequestOrchestratorTest {
 
         orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
 
-        assertEquals(0, refCntAtChain.get(), "链进入时请求体已在消息装配处即时回收");
-        assertEquals("alice", nameAtChain.get(), "请求体释放后表单字段仍可读：装配产物不回读请求");
+        assertEquals(2, refCntAtChain.get(), "链执行期间调用方引用与编排器自持引用均未被归还");
+        assertEquals("alice", nameAtChain.get(), "请求体内容经消息可读");
+        assertEquals(1, request.refCnt(), "响应写出后编排器归还自持引用，调用方引用仍在");
+        request.release();
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void requestIsAliveUntilResponseWrittenEvenOnChainFailure() {
+        // 释放时机的钉：链内异常与兜底页写出期间请求始终有效，CORS 头按来源快照写出，
+        // 响应写出后编排器才归还自持引用
+        EmbeddedChannel channel = new EmbeddedChannel();
+        RequestOrchestrator orchestrator = flowOrchestrator(
+                new ThrowingMiddleware(new IllegalStateException("boom")), new ExceptionHandlerManager(Set.of()));
+        ReleaseAwareRequest request = new ReleaseAwareRequest(HttpMethod.GET, "/guard", "https://a.com");
+
+        ResponseWriter.WriteResult result = orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
+        assertEquals(1, request.refCnt(), "响应写出后编排器归还自持引用，调用方引用仍在");
+        request.release();
+        FullHttpResponse written = channel.readOutbound();
+        assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, written.getStatus(), "链内异常落兜底页");
+        assertEquals("https://a.com", written.headers().get("Access-Control-Allow-Origin"),
+                "CORS 头按来源快照写出");
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void missingConnectSessionReleasesOwnReferenceBeforeThrowing() {
+        // 入口校验的钉：会话缺失在提交前拒收，不进入虚拟线程；编排入口先归还自持引用再抛出
+        RequestOrchestrator orchestrator = flowOrchestrator(new SentinelMiddleware(),
+                new ExceptionHandlerManager(Set.of()), new ThrowingVirtualThreadResource());
+        FullHttpRequest request = requestWith(HttpMethod.GET, null);
+
+        NullPointerException failure = assertThrows(NullPointerException.class,
+                () -> orchestrator.orchestrate(request, null));
+
+        assertEquals("connect session must not be null", failure.getMessage(), "提交前拒收而非提交失败");
+        assertEquals(1, request.refCnt(), "会话缺失时只归还编排器自持的引用，调用方引用不受影响");
+        request.release();
+    }
+
+    @Test
+    void submissionFailureReleasesOwnReferenceBeforeThrowing() {
+        // 提交失败的钉：线程创建失败时任务不执行，编排入口自持引用由未启动收尾回调归还
+        EmbeddedChannel channel = new EmbeddedChannel();
+        RequestOrchestrator orchestrator = flowOrchestrator(new SentinelMiddleware(),
+                new ExceptionHandlerManager(Set.of()), new ThrowingVirtualThreadResource());
+        FullHttpRequest request = requestWith(HttpMethod.GET, null);
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> orchestrator.orchestrate(request, new InternalConnectSession(channel)));
+
+        assertEquals("thread start failed", failure.getMessage(), "提交失败原样抛出");
+        assertEquals(1, request.refCnt(), "提交失败时只归还编排器自持的引用，调用方引用仍在");
+        request.release();
         channel.finishAndReleaseAll();
     }
 
@@ -772,6 +848,28 @@ class RequestOrchestratorTest {
         orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
 
         assertTrue(probe.closed, "持有资源的内容由编排器在请求收尾关闭");
+        request.release();
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void closeableContentClosedWhenChainThrows() {
+        // 异常边界的钉：内容产出后链内抛出，内容仍由编排器在同一异常边界内关闭，不随异常逃逸
+        EmbeddedChannel channel = new EmbeddedChannel();
+        ClosableProbeContent probe = new ClosableProbeContent();
+        HttpContentParserManager parserManager = new HttpContentParserManager(StandardCharsets.UTF_8,
+                List.of(new FixedContentParser(probe)));
+        RequestOrchestrator orchestrator = builderWith(
+                new ThrowingMiddleware(new IllegalStateException("boom")), parserManager).build();
+        FullHttpRequest request = Requests.raw(HttpMethod.GET, "/x", "x-test/probe", "body", StandardCharsets.UTF_8);
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        assertTrue(probe.closed, "链内异常时内容仍在编排器异常边界内关闭");
+        assertEquals(1, request.refCnt(), "请求的调用方引用仍在");
+        request.release();
+        FullHttpResponse written = channel.readOutbound();
+        assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, written.getStatus(), "链内异常落兜底页");
         channel.finishAndReleaseAll();
     }
 
@@ -787,6 +885,53 @@ class RequestOrchestratorTest {
 
         HttpContext captured() {
             return captured.get();
+        }
+    }
+
+    /** 释放感知请求：引用计数归零后再读取请求行或请求头即抛错，用于钉住释放发生在全部请求读取之后。 */
+    private static final class ReleaseAwareRequest extends DefaultFullHttpRequest {
+        ReleaseAwareRequest(HttpMethod method, String uri, String origin) {
+            super(HttpVersion.HTTP_1_1, method, uri);
+            if (origin != null) {
+                super.headers().set("Origin", origin);
+            }
+        }
+
+        private void requireAlive(String accessor) {
+            if (refCnt() == 0) {
+                throw new IllegalStateException("request released, but " + accessor + " was called");
+            }
+        }
+
+        @Override
+        public HttpMethod method() {
+            requireAlive("method");
+            return super.method();
+        }
+
+        @Override
+        public String uri() {
+            requireAlive("uri");
+            return super.uri();
+        }
+
+        @Override
+        public HttpHeaders headers() {
+            requireAlive("headers");
+            return super.headers();
+        }
+    }
+
+    /** 提交即失败的虚拟线程资源：模拟线程创建失败，任务不执行，收尾以未启动情形触发后抛出。 */
+    private static final class ThrowingVirtualThreadResource extends VirtualThreadResource {
+        ThrowingVirtualThreadResource() {
+            super("throwing-resource");
+        }
+
+        @Override
+        public Thread run(Runnable task, FinallyHandler finallyHandler) {
+            finallyHandler.onFinally(FinallyType.NOT_STARTED);
+            throw new IllegalStateException("thread start failed");
         }
     }
 

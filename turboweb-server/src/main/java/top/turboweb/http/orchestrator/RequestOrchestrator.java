@@ -3,14 +3,8 @@ package top.turboweb.http.orchestrator;
 import io.netty.handler.codec.http.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.rest.HttpContent;
-import top.turboweb.rest.HttpRequestMessage;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
-import top.turboweb.http.context.AutoCloseContent;
-import top.turboweb.http.context.DefaultMessage;
-import top.turboweb.http.context.FullHttpContext;
-import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.context.HttpUnknowContent;
+import top.turboweb.http.context.*;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.core.cookie.HttpCookies;
@@ -19,6 +13,8 @@ import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.core.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.rest.HttpContent;
+import top.turboweb.rest.HttpRequestMessage;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -40,11 +36,15 @@ import java.util.Objects;
  * 已实现的流程：{@link #orchestrate} 把请求任务提交到虚拟线程资源，
  * 任务被拒（资源耗尽且不排队）时直接写出 HTTP 429 响应；
  * {@link #doOrchestrate} 在任务线程内执行完整编排——OPTIONS 预检不进中间件链、
- * 直接以空正文 200 携带 CORS 响应头应答；其余请求先把请求转化为上下文的消息、
- * 并按内容类型解析请求体得到内容对象，两者一并装配进请求上下文（上下文不接触请求对象）
- * 后执行中间件链并经结果转化链产出响应，过程中抛出的异常交由异常处理器管理器产出处理结果后转化，
- * 响应统一经 CORS 来源处理后写出；请求体内存在消息装配完成处即时释放，
- * OPTIONS 预检与提前失败路径在编排收尾兜底释放，每条路径恰好释放一次；
+ * 直接以空正文 200 携带 CORS 响应头应答；其余请求先转化为上下文的消息、
+ * 按内容类型解析请求体得到内容对象，随后执行中间件链并经结果转化链产出响应，
+ * 过程中抛出的异常交由异常处理器管理器产出处理结果后转化，响应统一经 CORS
+ * 来源处理后写出。两个入口都在使用前自行持有请求引用、用完归还自己持有的那一份，
+ * 不触碰调用方的引用：经 {@link #orchestrate} 提交时先 retain 自持，再由虚拟线程资源的
+ * 收尾回调在每次提交的收尾处统一归还——任务执行完毕、被拒绝、线程未能启动三种收尾
+ * 必然触发且仅触发一次，被拒路径在回调内先写出 429 再归还；直接调用
+ * {@link #doOrchestrate} 时同理，在响应写出后的收尾处归还自持引用。
+ * 请求方法、URI 与来源头在流程入口快照，链执行后写 CORS 头与请求日志只读快照。
  * 写出可监听时挂接完成回调以 DEBUG 级打印请求日志（方法、URI、耗时、写出成败），
  * 展示与否由日志级别控制，不可监听写出不记录。
  * {@link #handleCorsHeaders} 亦可独立调用。
@@ -102,11 +102,15 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 编排请求入口：取起始时刻后把请求提交到虚拟线程资源，获取资源后在任务线程内
-     * 执行 {@link #doOrchestrate}；任务被拒时（资源耗尽且不允许排队或排队失败）
-     * 不经中间件链与 CORS 处理，直接写出 HTTP 429 响应并释放请求。
+     * 编排请求入口：使用前先自行持有请求引用，再取起始时刻把请求提交到虚拟线程资源，
+     * 获取资源后在任务线程内执行 {@link #doOrchestrate}；任务被拒时（资源耗尽且不允许排队
+     * 或排队失败）不经中间件链与 CORS 处理，直接写出 HTTP 429 响应。
      * 正常与拒绝两路写出均可监听时挂接完成回调打印 DEBUG 级请求日志，
      * 耗时自本入口起始时刻起算、含任务提交前的排队等待。
+     * 请求引用由本入口 retain 自持：任务执行完毕、被拒绝、线程未能启动三种收尾
+     * 均由收尾回调统一归还这一份，被拒路径先写出 429 再归还；调用方的引用不受影响，
+     * 由调用方自行归还。会话缺失则在本入口归还自持引用后提交前拒收。
+     * 收尾回调的必然执行使提交入口无需自行兜底归还。
      *
      * @param request        完整的 HTTP 请求，不能为 null
      * @param connectSession 当前连接会话，不能为 null，响应经其通道写出
@@ -114,15 +118,24 @@ public class RequestOrchestrator {
      */
     public void orchestrate(FullHttpRequest request, ConnectSession connectSession) {
         Objects.requireNonNull(request, "request must not be null");
-        Objects.requireNonNull(connectSession, "connect session must not be null");
+        // 使用前自行持有引用：入站处理器在本次调用返回后即归还自己的引用
+        request.retain();
+        if (connectSession == null) {
+            // 会话缺失属系统装配问题，提交前拒收：先归还本入口自持的引用再抛出
+            request.release();
+            throw new NullPointerException("connect session must not be null");
+        }
         long startTime = System.nanoTime();
         virtualThreadResource.run(
                 () -> doOrchestrate(request, connectSession, startTime),
-                rejectionThread -> {
+                finallyType -> {
                     try {
-                        attachRequestLog(request, startTime,
-                                responseWriterManager.write(toManyRequestsResponse(), connectSession));
+                        if (finallyType == VirtualThreadResource.FinallyType.REJECTED) {
+                            attachRequestLog(request.method().name(), request.uri(), startTime,
+                                    responseWriterManager.write(toManyRequestsResponse(), connectSession));
+                        }
                     } finally {
+                        // 执行完毕、被拒、线程未启动三路收尾统一归还本入口自持的引用
                         request.release();
                     }
                 });
@@ -130,28 +143,38 @@ public class RequestOrchestrator {
 
     /**
      * 在当前线程执行完整编排流程并返回写出凭据：OPTIONS 请求以空正文 200
-     * 携带 CORS 响应头直接应答、不进中间件链；其余请求执行中间件链并把结果
-     * 经结果转化链转化为响应，链执行或转化过程中抛出的异常交由
-     * {@link ExceptionHandlerManager#handle(Throwable)} 产出处理结果后再转化；
-     * 正常与异常响应统一经 {@link #handleCorsHeaders} 写出 CORS 头后交
-     * {@link ResponseWriterManager#write} 写出。写出可监听时挂接完成回调，
+     * 携带 CORS 响应头直接应答、不进中间件链；其余请求先装配请求消息与内容，
+     * 再执行中间件链并把结果经结果转化链转化为响应，
+     * 链执行或转化过程中抛出的异常交由 {@link ExceptionHandlerManager#handle(Throwable)}
+     * 产出处理结果后再转化；正常与异常响应统一经 CORS 来源处理写出 CORS 头后交
+     * {@link ResponseWriterManager#write} 写出。请求引用由本入口使用前 retain 自持、
+     * 链执行期间保持有效，在响应写出后的收尾处统一归还这一份，预检、正常与异常路径
+     * 共用同一归还点；调用方的引用不受影响，由调用方自行归还。请求方法、URI 与来源头
+     * 在流程入口快照，链执行后写 CORS 头与请求日志只读快照。
+     * 写出可监听时挂接完成回调，
      * 以 DEBUG 级打印请求日志（方法、URI、自起点耗时、写出成败），展示与否由日志级别控制，
-     * 不可监听写出不记录。正常编排路径的请求体已在消息装配处即时回收，本方法收尾仅对
-     * 尚未释放的路径（OPTIONS 预检、装配前异常）兜底归还请求；释放判护以引用计数为准，
-     * 已释放请求不重复归还。
+     * 不可监听写出不记录。
      *
-     * @param request        完整的 HTTP 请求，不能为 null
-     * @param connectSession 当前连接会话，不能为 null，响应经其通道写出
+     * @param request        完整的 HTTP 请求
+     * @param connectSession 当前连接会话，响应经其通道写出
      * @return 写出结果，永不为 null
-     * @throws NullPointerException 任一参数为 null
      */
     public ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, ConnectSession connectSession) {
-        return doOrchestrate(request, connectSession, System.nanoTime());
+        // 使用前自行持有引用，收尾只归还这一份，调用方的引用不受影响
+        request.retain();
+        try {
+            return doOrchestrate(request, connectSession, System.nanoTime());
+        } finally {
+            request.release();
+        }
     }
 
     /**
      * 编排流程实体，起点时刻由调用方给定（{@link #orchestrate} 传入提交前取的时刻，
      * 使直调与经调度提交两路的耗时口径一致）。
+     * 请求对象在流程执行期间保持有效，引用由调用方负责持有与归还：经 {@link #orchestrate}
+     * 提交时由虚拟线程资源的收尾回调归还自持引用，直接调用时由公开重载归还自持引用；
+     * 本方法不 retain、不释放请求。
      *
      * @param request        完整的 HTTP 请求
      * @param connectSession 当前连接会话
@@ -160,48 +183,40 @@ public class RequestOrchestrator {
      */
     private ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, ConnectSession connectSession,
                                                      long startTime) {
-        Objects.requireNonNull(request, "request must not be null");
-        Objects.requireNonNull(connectSession, "connect session must not be null");
-        try {
-            HttpResponse response;
-            if ("OPTIONS".equalsIgnoreCase(request.method().name())) {
-                response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-                handleCorsHeaders(request, response);
-            } else {
-                try {
-                    response = startMiddleware(request, connectSession);
-                } catch (Throwable throwable) {
-                    Object handled = exceptionHandlerManager.handle(throwable);
-                    response = resultConverterManager.convert(handled, defaultCharset);
-                }
-                handleCorsHeaders(request, response);
-            }
-            return attachRequestLog(request, startTime, responseWriterManager.write(response, connectSession));
-        } finally {
-            // 正常编排路径的请求体已在消息装配处回收（refCnt 归零），不在此重复归还；
-            // OPTIONS 预检与装配前异常路径由此兜底释放
-            if (request.refCnt() > 0) {
-                request.release();
+        // 请求行与来源头在流程入口快照：链执行后写 CORS 头与请求日志只读快照
+        String method = request.method().name();
+        String uri = request.uri();
+        String origin = request.headers().get("Origin");
+        HttpResponse response;
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        } else {
+            try {
+                response = startMiddleware(request, connectSession);
+            } catch (Throwable throwable) {
+                Object handled = exceptionHandlerManager.handle(throwable);
+                response = resultConverterManager.convert(handled, defaultCharset);
             }
         }
+        handleCorsHeaders(origin, response);
+        return attachRequestLog(method, uri, startTime, responseWriterManager.write(response, connectSession));
     }
 
     /**
-     * 写出后挂接请求日志：写出可监听时先把请求方法取成字符串，再在完成凭据上注册回调，
-     * 回调内以 DEBUG 级输出方法、URI、耗时（回调时刻减起点）与写出成败；
+     * 写出后挂接请求日志：写出可监听时在完成凭据上注册回调，回调内以 DEBUG 级输出
+     * 方法、URI、耗时（回调时刻减起点）与写出成败；方法与地址为释放前取得的快照，
      * 回调触发时请求已释放，故回调不触碰请求对象。不可监听写出无完成凭据，
      * 不挂接、不记录。
      *
-     * @param request     请求对象，挂接时尚未释放，仅用于取方法字面量
+     * @param method      请求方法名快照
+     * @param uri         请求 URI 快照
      * @param startTime   请求起始时刻（纳秒）
      * @param writeResult 写出结果
      * @return 原样返回写出结果，便于流程内联
      */
-    private ResponseWriter.WriteResult attachRequestLog(FullHttpRequest request, long startTime,
+    private ResponseWriter.WriteResult attachRequestLog(String method, String uri, long startTime,
                                                         ResponseWriter.WriteResult writeResult) {
         if (writeResult.writeType() == ResponseWriter.WriteType.LISTENABLE) {
-            String method = request.method().name();
-            String uri = request.uri();
             writeResult.channelFuture().addListener(future -> log.debug(
                     buildRequestLogMessage(method, uri, System.nanoTime() - startTime, future.isSuccess())));
         }
@@ -209,20 +224,30 @@ public class RequestOrchestrator {
     }
 
     /**
-     * CORS 来源处理：按请求的 Origin 与持有的 {@link HttpCorsConfig} 为响应写出 CORS 响应头。
+     * CORS 来源处理：从请求的来源头读取来源后，按
+     * {@link #handleCorsHeaders(String, HttpResponse)} 的口径写出 CORS 响应头。
+     *
+     * @param request  请求对象，仅用于读取 Origin 头
+     * @param response 响应对象，CORS 头直接写入其头域
+     */
+    public void handleCorsHeaders(FullHttpRequest request, HttpResponse response) {
+        handleCorsHeaders(request.headers().get("Origin"), response);
+    }
+
+    /**
+     * CORS 来源处理：按来源头快照与持有的 {@link HttpCorsConfig} 为响应写出 CORS 响应头。
      * <p>
-     * 处理次序：Origin 头缺失或为空回落字面量 null；允许凭证时，来源为字面星号属
+     * 处理次序：来源头缺失或为空回落字面量 null；允许凭证时，来源为字面星号属
      * 标准禁止的组合、整体跳过不写任何头，否则先写出凭证许可头；来源通过放行门
      * （通配或精确白名单命中）时写出允许来源（回声实际值）、允许方法、允许请求头、
      * 可暴露响应头与预检缓存时长——各列表含通配项时写字面星号，否则逗号 join。
      * 来源未通过放行门时除凭证许可头外不写任何 CORS 头。
      * </p>
      *
-     * @param request  请求对象，从其头域读取 Origin
+     * @param origin   请求来源头快照，可为 null
      * @param response 响应对象，CORS 头直接写入其头域
      */
-    public void handleCorsHeaders(FullHttpRequest request, HttpResponse response) {
-        String origin = request.headers().get("Origin");
+    private void handleCorsHeaders(String origin, HttpResponse response) {
         if (origin == null || origin.isEmpty()) {
             origin = "null";
         }
@@ -247,11 +272,12 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 启动中间件链：把链执行整体放入会话管理器的会话安全作用域——链执行期与会话
-     * 垃圾回收的互斥由管理器在作用域内收口，作用域退出时自动释放；无共享状态的
-     * 管理器实现直接透传执行回调。
+     * 启动中间件链：在会话管理器的会话安全作用域内完成一次请求处理——请求装配、
+     * 会话初始化、链执行、Cookie 回写与会话续期均在作用域内完成，与垃圾回收的
+     * 互斥由管理器在作用域内收口，作用域退出时自动释放；无共享状态的管理器实现
+     * 直接透传执行回调。
      *
-     * @param request        请求对象
+     * @param request        请求对象，由提交入口统一释放，本方法内不归还
      * @param connectSession 当前连接会话
      * @return 链结果经转化与善后产出的响应，不为 null
      */
@@ -262,46 +288,45 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 执行中间件链并善后结果：初始化 Cookie 集合与会话，先按内容类型解析请求体得到内容对象，
-     * 再连同请求装配为上下文的消息（请求方式、请求头、请求地址与请求体内容），装配进
-     * 请求上下文后调用链头，链结果经结果转化链转化为响应；随后回写 Cookie，会话新建或
-     * 路径变更时设置 JSESSIONID 的 Set-Cookie 头。请求的取数在消息装配完成处全部结束，
-     * 请求体内存随即在此释放；内容资源关闭与会话续期在返回前完成——资源释放是创建方
-     * （本编排器）的职责，请求上下文不承载释放入口。
-     * <p>HEAD 请求无请求体，内容侧以未声明类型的未知内容承载，不走解析器。
-     * 请求体无效（内容类型命中解析器而体解析失败）时异常在装配上下文处抛出，
+     * 装配请求并在会话安全作用域内执行中间件链：初始化 Cookie 集合并读取会话标识，
+     * 按内容类型解析请求体得到内容对象，再连同请求装配为请求消息（请求方式、请求头、
+     * 请求地址与请求体内容）；以装配产物初始化会话与请求上下文，调用链头，链结果经
+     * 结果转化链转化为响应；随后回写 Cookie，会话新建或路径变更时设置 JSESSIONID
+     * 的 Set-Cookie 头。请求对象在链执行期间保持有效，由提交入口统一释放，
+     * 本方法不归还请求。
+     * <p>内容资源的关闭在方法退出时无条件执行，与装配、会话初始化、链执行同处一个
+     * 异常边界：装配成功后的任何异常都不会使内容逃过关闭。资源释放是创建方
+     * （本编排器）的职责，请求上下文不承载释放入口。</p>
+     * <p>HEAD 请求无请求体，内容侧以未声明类型的未知内容承载，不走解析器；
+     * 请求体无效（内容类型命中解析器而体解析失败）时异常在装配阶段抛出，
      * 与链内异常同径交由异常处理器处置。</p>
      *
-     * @param request        请求对象
+     * @param request        请求对象，不能为 null；其释放归提交入口，本方法不归还
      * @param connectSession 当前连接会话
      * @param sessionManager 会话管理器
      * @return 链结果经转化与善后产出的响应，不为 null
      */
     private HttpResponse executeMiddleware(FullHttpRequest request, ConnectSession connectSession,
                                            SessionManager sessionManager) {
-        HttpCookies cookies;
-        String originSessionId;
-        HttpSession httpSession;
-        HttpContent content;
-        HttpRequestMessage message;
+        HttpContent content = null;
+        HttpSession httpSession = null;
         try {
+            HttpCookies cookies;
+            String originSessionId;
+            HttpRequestMessage message;
             // 初始化Cookie
             cookies = new DefaultHttpCookies(request.headers());
             originSessionId = cookies.getCookie("JSESSIONID");
-            // 初始化session
-            httpSession = new DefaultHttpSession(sessionManager, originSessionId);
             // 请求对象在编排器内转化为上下文的对外契约：请求体内容先就位，再连同请求装配为请求消息
             content = HttpMethod.HEAD == request.method()
                     ? new HttpUnknowContent(null)
                     : contentParserManager.parse(request);
             message = new DefaultMessage(request, content, defaultCharset);
-        } finally {
-            // 装配产物（头字段视图、URL 快照、内容拷贝）均不回读请求体，取数结束后请求内存就地回收
-            request.release();
-        }
-        // 创建HttpContext对象
-        HttpContext context = new FullHttpContext(message, httpSession, cookies, connectSession, defaultCharset);
-        try {
+            // 初始化session
+            httpSession = new DefaultHttpSession(sessionManager, originSessionId);
+            // 创建HttpContext对象
+            HttpContext context = new FullHttpContext(message, httpSession, cookies,
+                    connectSession, defaultCharset);
             // 执行中间件
             Object result = middleware.invoke(context);
             HttpResponse response = resultConverterManager.convert(result, defaultCharset);
@@ -309,14 +334,18 @@ public class RequestOrchestrator {
             cookies.setCookieForResponse(response, defaultCharset);
             // 处理session
             if (httpSession.sessionId() != null
-                    && (!Objects.equals(httpSession.sessionId(), originSessionId) || httpSession.pathIsUpdate())) {
+                    && (!Objects.equals(httpSession.sessionId(), originSessionId)
+                    || httpSession.pathIsUpdate())) {
                 response.headers().add("Set-Cookie",
                         "JSESSIONID=" + httpSession.sessionId() + "; Path=" + httpSession.getPath() + "; HttpOnly");
             }
             return response;
         } finally {
+            // 内容自产出起即由本方法负责关闭，装配成功后的异常位置全部落在此边界内
             closeContentQuietly(content);
-            httpSession.expireAt();
+            if (httpSession != null) {
+                httpSession.expireAt();
+            }
         }
     }
 
@@ -325,7 +354,8 @@ public class RequestOrchestrator {
      * 磁盘临时文件等需归还资源）时调用其 {@link AutoCloseable#close()}；关闭抛出的异常
      * 只记录不外抛，不影响请求其余环节的收尾。内容不持有资源时为空操作，重复调用无副作用。
      *
-     * @param content 内容解析与装配阶段产出的内容对象，不能为 null
+     * @param content 内容解析与装配阶段产出的内容对象，可为 null（装配在产出内容前失败），
+     *                为 null 时为空操作
      */
     private void closeContentQuietly(HttpContent content) {
         if (content instanceof AutoCloseContent autoCloseContent) {
