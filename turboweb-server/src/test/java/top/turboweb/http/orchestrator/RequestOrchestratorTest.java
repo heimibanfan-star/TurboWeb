@@ -10,6 +10,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
+import top.turboweb.rest.Http;
 import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
@@ -19,7 +20,7 @@ import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.context.respmeta.DefaultResponseMeta;
 import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.core.connect.InternalConnectSession;
-import top.turboweb.http.core.constant.ContentType;
+import top.turboweb.rest.ContentType;
 import top.turboweb.http.core.session.BackHoleSessionManager;
 import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.exception.RouteHandlerException;
@@ -689,7 +690,7 @@ class RequestOrchestratorTest {
 
         orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
 
-        HttpContext.Content content = chain.captured().content();
+        Http.Content content = chain.captured().content();
         assertInstanceOf(HttpUnknowContent.class, content, "HEAD 不进内容解析器");
         assertNull(content.contentType(), "HEAD 无请求体，内容侧不声明类型（夹具的类型头不被读取）");
         channel.finishAndReleaseAll();
@@ -745,7 +746,7 @@ class RequestOrchestratorTest {
     /** 自定义解析器：承接 text/csv 并返回标记内容对象，用于证明注册后的分派。 */
     private static class MarkedContentParser implements HttpContentParser {
 
-        static final HttpContext.Content MARKER = new HttpContext.Content() {
+        static final Http.Content MARKER = new Http.Content() {
             @Override
             public ContentType contentType() {
                 return ContentType.create("text/csv");
@@ -758,7 +759,7 @@ class RequestOrchestratorTest {
         }
 
         @Override
-        public HttpContext.Content parse(FullHttpRequest request, Charset defaultCharset) {
+        public Http.Content parse(FullHttpRequest request, Charset defaultCharset) {
             return MARKER;
         }
     }

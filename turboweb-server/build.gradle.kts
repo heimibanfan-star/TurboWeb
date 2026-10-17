@@ -11,11 +11,11 @@ dependencies {
     api(project(":turboweb-concurrent"))
     // JSON 序列化器契约与 Jackson 实现由 turboweb-serializer 提供；JsonSerializer 出现在本模块公开签名（Builder 与上下文、响应类构造参数），用 api 暴露
     api(project(":turboweb-serializer"))
-    // 服务器线程模型直接使用 netty（http/websocketx 与 http2 编解码），响应写出使用 reactor-core，均不涉 reactor-netty 本体；媒体类型与 URI 查询解析由仓内 core.constant 与 core.helper 自实现
+    // 服务器线程模型直接使用 netty（http/websocketx 与 http2 编解码），响应写出使用 reactor-core，均不涉 reactor-netty 本体；URI 查询解析由仓内 core.helper 自实现
     api(libs.netty.codec.http)
     api(libs.netty.codec.http2)
     api(libs.reactor.core)
-    // 参数绑定与路由注解由 turboweb-rest-api 提供
+    // 参数绑定与路由注解、上下文消息契约与媒体类型由 turboweb-rest-api 提供
     api(project(":turboweb-rest-api"))
     // Bean 校验器契约由 turboweb-validation 提供；BeanValidator 出现在绑定接口与路由处理器公开签名，用 api 暴露
     api(project(":turboweb-validation"))

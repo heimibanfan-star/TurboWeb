@@ -3,8 +3,9 @@ package top.turboweb.http.context;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpRequest;
 import org.junit.jupiter.api.Test;
+import top.turboweb.rest.Http;
 import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.http.core.constant.ContentType;
+import top.turboweb.rest.ContentType;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.core.session.HttpSession;
@@ -50,8 +51,8 @@ class FullHttpContextTest {
     void messageAndContentAreTheInjectedInstances() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            HttpContext.Message message = Contexts.message(req, StandardCharsets.UTF_8);
-            HttpContext.Content content = Contexts.content(req, StandardCharsets.UTF_8);
+            Http.Message message = Contexts.message(req, StandardCharsets.UTF_8);
+            Http.Content content = Contexts.content(req, StandardCharsets.UTF_8);
             FullHttpContext ctx = new FullHttpContext(message, content, newSession(),
                     new DefaultHttpCookies(req.headers()), CONNECT_SESSION, StandardCharsets.UTF_8);
             assertSame(message, ctx.message(), "上下文按注入就位，不另建契约对象");
@@ -78,8 +79,8 @@ class FullHttpContextTest {
     void nullMessageOrContentRejectedAtConstruction() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            HttpContext.Message message = Contexts.message(req, StandardCharsets.UTF_8);
-            HttpContext.Content content = Contexts.content(req, StandardCharsets.UTF_8);
+            Http.Message message = Contexts.message(req, StandardCharsets.UTF_8);
+            Http.Content content = Contexts.content(req, StandardCharsets.UTF_8);
             HttpSession session = newSession();
             NullPointerException e1 = assertThrows(NullPointerException.class, () -> new FullHttpContext(
                     null, content, session, new DefaultHttpCookies(req.headers()), CONNECT_SESSION,
@@ -139,7 +140,7 @@ class FullHttpContextTest {
         try {
             assertEquals(ContentType.APPLICATION_JSON, context(json).content().contentType(),
                     "JSON 体命中内置 JSON 解析器，内容侧类型就位");
-            HttpContext.Content csvContent = context(csv).content();
+            Http.Content csvContent = context(csv).content();
             assertInstanceOf(HttpUnknowContent.class, csvContent, "无匹配解析器的类型回落未知内容，不解析体");
             assertEquals("text/csv", csvContent.contentType().getMimeType(), "未知内容仍携带头声明的类型");
         } finally {
@@ -183,7 +184,7 @@ class FullHttpContextTest {
     void plainContentExposesNeitherFormNorJsonChannel() {
         FullHttpRequest req = Requests.get("/json");
         try {
-            HttpContext.Content content = context(req).content();
+            Http.Content content = context(req).content();
             assertFalse(content instanceof HttpContext.FormContent, "未声明类型的未知内容不实现表单通道");
             assertFalse(content instanceof HttpContext.JsonContent, "未声明类型的未知内容不实现 JSON 通道");
         } finally {

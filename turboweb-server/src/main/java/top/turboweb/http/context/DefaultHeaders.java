@@ -2,20 +2,21 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
+import top.turboweb.rest.Http;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 /**
- * {@code DefaultHeaders} 是 {@link HttpContext.Headers} 的默认实现：实时委托 Netty
+ * {@code DefaultHeaders} 是 {@link Http.Headers} 的默认实现：实时委托 Netty
  * 的 {@link HttpHeaders} 集合，不拷贝快照；头名大小写不敏感的查询口径、多值保持与
  * 条目计数均由 Netty 视图保证，在请求头集合的可见生命周期内均可读取。
  *
  * <p>本视图只读，不提供任何写通道；常用请求头便捷方法继承接口默认实现，
  * 经由 {@link #get(String)} 落到委托集合。
  */
-public final class DefaultHeaders implements HttpContext.Headers {
+public final class DefaultHeaders implements Http.Headers {
 
     /** 被委托的 Netty 请求头集合 */
     private final HttpHeaders headers;

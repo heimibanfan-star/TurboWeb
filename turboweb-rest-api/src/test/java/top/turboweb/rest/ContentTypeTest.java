@@ -1,4 +1,4 @@
-package top.turboweb.http.core.constant;
+package top.turboweb.rest;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

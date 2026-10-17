@@ -1,6 +1,7 @@
 package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.HttpMethod;
+import top.turboweb.rest.Http;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
@@ -121,7 +122,7 @@ public class RouteHandler {
      * @throws Throwable 目标方法抛出的异常原样透传
      */
     public Object handle(HttpContext context, RequestParameter requestParameter) throws Throwable {
-        HttpContext.Message message = context.message();
+        Http.Message message = context.message();
         String httpMethod = message.method();
         // 按请求方式匹配调用器,命中即绑定参数并展开调用目标方法
         for (RouteHandlerInvoker invoker : invokers) {

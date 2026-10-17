@@ -1,4 +1,4 @@
-package top.turboweb.http.core.constant;
+package top.turboweb.rest;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;

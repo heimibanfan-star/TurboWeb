@@ -7,6 +7,7 @@ import top.turboweb.http.context.attchment.DefaultAttachment;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.session.HttpSession;
+import top.turboweb.rest.Http;
 
 import java.nio.charset.Charset;
 import java.util.Objects;
@@ -14,13 +15,13 @@ import java.util.Objects;
 /**
  * {@code FullHttpContext} 是 TurboWeb 框架中 {@link HttpContext} 的唯一实现。
  * <p>
- * 它封装请求消息（{@link HttpContext.Message}）、请求体内容（{@link HttpContext.Content}）、
+ * 它封装请求消息（{@link Http.Message}）、请求体内容（{@link Http.Content}）、
  * Session、Cookie、连接会话、缺省编码与挂载对象；
  * 请求体参数的封装与读取经内容对象的能力子契约（{@link HttpContext.FormContent}、
  * {@link HttpContext.JsonContent}）完成，本类不按具体实现类分派。
  * <p>
- * 本类不持有 Netty 的请求对象：请求的方式、头与地址经 {@link HttpContext.Message} 读取，
- * 请求体经内容解析器产出的 {@link HttpContext.Content} 读取，两者均由编排器在装配上下文时就位。
+ * 本类不持有 Netty 的请求对象：请求的方式、头与地址经 {@link Http.Message} 读取，
+ * 请求体经内容解析器产出的 {@link Http.Content} 读取，两者均由编排器在装配上下文时就位。
  * 请求体内容为 {@link HttpContext.AutoCloseContent} 时，其资源在 {@link #release()} 时关闭。
  * <p>
  * 该类主要面向业务层使用者，提供统一的参数访问能力。
@@ -40,10 +41,10 @@ public final class FullHttpContext implements HttpContext {
 	private static final InternalLogger log = InternalLoggerFactory.getInstance(FullHttpContext.class);
 
 	/** 请求消息：请求方式、请求头与请求地址 */
-	private final HttpContext.Message message;
+	private final Http.Message message;
 
 	/** 请求体内容：由内容解析器产出，持有资源的实现在释放时关闭 */
-	private final HttpContext.Content content;
+	private final Http.Content content;
 
 	/** 当前请求关联的会话对象 */
 	private final HttpSession session;
@@ -73,8 +74,8 @@ public final class FullHttpContext implements HttpContext {
 	 * @throws NullPointerException message、content 或 defaultCharset 为 null
 	 */
 	public FullHttpContext(
-			HttpContext.Message message,
-			HttpContext.Content content,
+			Http.Message message,
+			Http.Content content,
 			HttpSession httpSession,
 			HttpCookies cookies,
 			ConnectSession connectSession,
@@ -92,7 +93,7 @@ public final class FullHttpContext implements HttpContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public HttpContext.Message message() {
+	public Http.Message message() {
 		return this.message;
 	}
 
@@ -100,7 +101,7 @@ public final class FullHttpContext implements HttpContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public HttpContext.Content content() {
+	public Http.Content content() {
 		return this.content;
 	}
 

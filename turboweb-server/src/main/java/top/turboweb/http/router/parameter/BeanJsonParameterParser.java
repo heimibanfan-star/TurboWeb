@@ -1,5 +1,6 @@
 package top.turboweb.http.router.parameter;
 
+import top.turboweb.rest.Http;
 import top.turboweb.rest.param.BeanJson;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.exception.RequestParseException;
@@ -26,7 +27,7 @@ public class BeanJsonParameterParser extends AbstractParameterParser{
         @Override
         public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
                                     JsonSerializer jsonSerializer) {
-            HttpContext.Content content = ctx.content();
+            Http.Content content = ctx.content();
             if (!(content instanceof HttpContext.JsonContent jsonContent)) {
                 throw new RequestParseException("contentType is not application/json");
             }

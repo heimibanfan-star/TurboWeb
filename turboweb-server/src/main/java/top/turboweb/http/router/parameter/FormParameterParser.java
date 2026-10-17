@@ -1,5 +1,6 @@
 package top.turboweb.http.router.parameter;
 
+import top.turboweb.rest.Http;
 import top.turboweb.rest.param.FormParam;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.exception.RequestParseException;
@@ -27,7 +28,7 @@ public class FormParameterParser extends AbstractParameterParser {
         @Override
         public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
                                     JsonSerializer jsonSerializer) {
-            HttpContext.Content content = ctx.content();
+            Http.Content content = ctx.content();
             if (!(content instanceof HttpContext.FormContent formContent)) {
                 throw new RequestParseException(
                         "contentType is not application/x-www-form-urlencoded or multipart/form-data");

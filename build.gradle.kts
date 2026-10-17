@@ -79,7 +79,7 @@ subprojects {
     }
 
     // ---------- 变异测试（PITest）：机制在此授予，作用域（targetClasses）留在各模块脚本 ----------
-    // 仅 commons 与 server 在此集中授予；其余有测试源码的模块（turboweb-struct、turboweb-serializer）
+    // 仅 commons 与 server 在此集中授予；其余有测试源码的模块（turboweb-struct、turboweb-serializer、turboweb-rest-api）
     // 按先例在各自构建脚本自启 pitest，本列表不再扩充。
     if (name in setOf("turboweb-common", "turboweb-server")) {
         apply(plugin = "info.solidsoft.pitest")

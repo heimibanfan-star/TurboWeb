@@ -5,10 +5,11 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import top.turboweb.rest.Http;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
-import top.turboweb.http.core.constant.ContentType;
+import top.turboweb.rest.ContentType;
 import top.turboweb.http.core.cookie.HttpCookie;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
@@ -343,7 +344,7 @@ class ParamInfoParsersTest {
     }
 
     /** 无通道内容夹具：只实现 Content 基础契约，供绑定器拒绑用例。 */
-    private record PlainContentFixture() implements HttpContext.Content {
+    private record PlainContentFixture() implements Http.Content {
 
         @Override
         public ContentType contentType() {
@@ -405,7 +406,7 @@ class ParamInfoParsersTest {
     }
 
     /** 请求头夹具：实现 Headers 只读契约，按指定头名映射投喂取值。 */
-    private record HeadersFixture(Map<String, String> headers) implements HttpContext.Headers {
+    private record HeadersFixture(Map<String, String> headers) implements Http.Headers {
 
         @Override
         public String get(String name) {
@@ -440,7 +441,7 @@ class ParamInfoParsersTest {
     }
 
     /** 请求消息夹具：只承接请求头通道，方式与地址通道不经绑定，误调即响。 */
-    private record MessageFixture(HeadersFixture headersView) implements HttpContext.Message {
+    private record MessageFixture(HeadersFixture headersView) implements Http.Message {
 
         @Override
         public String method() {
@@ -448,12 +449,12 @@ class ParamInfoParsersTest {
         }
 
         @Override
-        public HttpContext.Headers headers() {
+        public Http.Headers headers() {
             return headersView;
         }
 
         @Override
-        public HttpContext.URL url() {
+        public Http.URL url() {
             throw offChannel("url");
         }
 

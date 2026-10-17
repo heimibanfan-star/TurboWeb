@@ -1,8 +1,9 @@
 package top.turboweb.http.context;
 
-import top.turboweb.http.core.constant.ContentType;
+import top.turboweb.rest.ContentType;
+import top.turboweb.rest.Http;
 
-public class HttpUnknowContent implements HttpContext.Content {
+public class HttpUnknowContent implements Http.Content {
 
     private final ContentType contentType;
 

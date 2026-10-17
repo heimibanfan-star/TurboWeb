@@ -2,6 +2,7 @@ package top.turboweb.http.testkit;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
+import top.turboweb.rest.Http;
 import top.turboweb.http.context.DefaultMessage;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpUnknowContent;
@@ -33,7 +34,7 @@ public final class Contexts {
      * @param defaultCharset 装配期缺省字符集
      * @return 请求消息
      */
-    public static HttpContext.Message message(FullHttpRequest request, Charset defaultCharset) {
+    public static Http.Message message(FullHttpRequest request, Charset defaultCharset) {
         return new DefaultMessage(request, defaultCharset);
     }
 
@@ -44,7 +45,7 @@ public final class Contexts {
      * @param defaultCharset 装配期缺省字符集
      * @return 内容对象；HEAD 请求返回未声明类型的未知内容
      */
-    public static HttpContext.Content content(FullHttpRequest request, Charset defaultCharset) {
+    public static Http.Content content(FullHttpRequest request, Charset defaultCharset) {
         if (HttpMethod.HEAD == request.method()) {
             return new HttpUnknowContent(null);
         }

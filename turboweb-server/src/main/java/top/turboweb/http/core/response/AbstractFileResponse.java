@@ -2,7 +2,7 @@ package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.http.core.constant.ContentType;
+import top.turboweb.rest.ContentType;
 
 import java.io.File;
 import java.net.URLEncoder;

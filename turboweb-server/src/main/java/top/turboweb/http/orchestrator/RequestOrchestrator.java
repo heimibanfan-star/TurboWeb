@@ -3,6 +3,7 @@ package top.turboweb.http.orchestrator;
 import io.netty.handler.codec.http.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
+import top.turboweb.rest.Http;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
 import top.turboweb.http.context.DefaultMessage;
 import top.turboweb.http.context.FullHttpContext;
@@ -275,8 +276,8 @@ public class RequestOrchestrator {
             String originSessionId = cookies.getCookie("JSESSIONID");
             HttpSession httpSession = new DefaultHttpSession(sessionManager, originSessionId);
             // 请求对象在编排器内转化为上下文的对外契约：请求消息与请求体内容
-            HttpContext.Message message = new DefaultMessage(request, defaultCharset);
-            HttpContext.Content content = HttpMethod.HEAD == request.method()
+            Http.Message message = new DefaultMessage(request, defaultCharset);
+            Http.Content content = HttpMethod.HEAD == request.method()
                     ? new HttpUnknowContent(null)
                     : contentParserManager.parse(request);
             // 创建HttpContext对象

@@ -1,5 +1,6 @@
 package top.turboweb.http.router;
 
+import top.turboweb.rest.Http;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
@@ -393,8 +394,8 @@ public class RestRouteRegister implements RouteRegister {
          */
         @Override
         public Object handle(HttpContext context) {
-            HttpContext.Message message = context.message();
-            HttpContext.URL url = message.url();
+            Http.Message message = context.message();
+            Http.URL url = message.url();
             String path = url.url(true);
             RouteTree.Result<RouteHandler> matched = this.routeHandlerRadixTree.match(path);
             if (matched == null) {
