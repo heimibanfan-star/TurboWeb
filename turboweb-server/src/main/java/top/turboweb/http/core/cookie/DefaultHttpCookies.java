@@ -3,7 +3,8 @@ package top.turboweb.http.core.cookie;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponse;
+import top.turboweb.rest.HttpCookie;
+import top.turboweb.rest.HttpCookies;
 
 import java.nio.charset.Charset;
 import java.util.*;
@@ -12,7 +13,7 @@ import java.util.function.Consumer;
 /**
  * 默认的 {@link HttpCookies} 实现。
  * <p>
- * 该类负责解析请求头中的 Cookie 信息，并在响应阶段统一管理新增与删除的 Cookie。
+ * 该类负责解析请求头中的 Cookie 信息，并在写出阶段统一管理新增与删除的 Cookie。
  * 它在请求到达时从 {@link HttpHeaders} 中解析 {@code Cookie} 字段，
  * 并维护三类数据结构：
  * <ul>
@@ -21,8 +22,8 @@ import java.util.function.Consumer;
  *     <li>{@code toRemoveHttpCookies}：本次请求需要删除的 Cookie。</li>
  * </ul>
  * <p>
- * 在响应阶段通过 {@link #setCookieForResponse(HttpResponse, Charset)} 方法，
- * 自动将新增和删除的 Cookie 以 {@code Set-Cookie} 头写入响应。
+ * 写出阶段经 {@link #toSetCookies(Charset)} 把新增和删除的 Cookie 序列化为
+ * {@code Set-Cookie} 头取值，由调用方写入响应。
  *
  * <p><b>线程安全性：</b>本类实例与请求绑定，不应在多线程间共享。</p>
  */
@@ -54,7 +55,7 @@ public class DefaultHttpCookies implements HttpCookies {
                         continue;
                     }
                     String value = s.substring(index + 1).trim();
-                    httpCookieMap.put(key, new HttpCookie(key, value));
+                    httpCookieMap.put(key, new DefaultHttpCookie(key, value));
                 }
             }
         } else {
@@ -99,7 +100,7 @@ public class DefaultHttpCookies implements HttpCookies {
      */
     @Override
     public void setCookie(String key, String value) {
-        setCookie(new HttpCookie(key, value));
+        setCookie(new DefaultHttpCookie(key, value));
     }
 
     /**
@@ -119,7 +120,7 @@ public class DefaultHttpCookies implements HttpCookies {
      */
     @Override
     public void setCookie(String key, String value, Consumer<HttpCookie> consumer) {
-        HttpCookie cookie = new HttpCookie(key, value);
+        HttpCookie cookie = new DefaultHttpCookie(key, value);
         consumer.accept(cookie);
         setCookie(cookie);
     }
@@ -146,7 +147,7 @@ public class DefaultHttpCookies implements HttpCookies {
      * <p>
      * 若 Cookie 属于新写入列表（即本次请求中新增），
      * 则直接从新增集合中移除；
-     * 否则会标记为待删除，并在响应中设置 {@code Max-Age=0}。
+     * 否则会标记为待删除，并在取值中写出 {@code Max-Age=0}。
      *
      * @param key 要删除的 Cookie 名称
      */
@@ -193,39 +194,38 @@ public class DefaultHttpCookies implements HttpCookies {
     }
 
     /**
-     * 将 Cookie 写入响应。
+     * 收集待写入与待删除的 Cookie 取值。
      * <p>
      * 该方法会将：
      * <ul>
-     *     <li>新增的 Cookie（{@code toWriteHttpCookies}）以 {@code Set-Cookie} 头形式添加；</li>
-     *     <li>待删除的 Cookie（{@code toRemoveHttpCookies}）以 {@code Max-Age=0} 形式添加。</li>
+     *     <li>新增的 Cookie（{@code toWriteHttpCookies}）按当前属性序列化为 {@code Set-Cookie} 取值；</li>
+     *     <li>待删除的 Cookie（{@code toRemoveHttpCookies}）序列化为 {@code Max-Age=0} 的过期取值。</li>
      * </ul>
+     * 待写入的取值在前、待删除的在后，同一组内顺序不保证。
      * 调用后不自动清空集合，应在适当时机调用 {@link #clearToWriteCookies()}。
      *
-     * @param response 当前响应对象
-     * @param charset  Cookie 值 URL 编码字符集（装配期判定的缺省字符集），不能为null
+     * @param charset Cookie 值 URL 编码字符集（装配期判定的缺省字符集），不能为null
+     * @return {@code Set-Cookie} 头取值列表；无待写入与待删除 Cookie 时为空列表
      * @throws NullPointerException charset 为 null
      */
     @Override
-    public void setCookieForResponse(HttpResponse response, Charset charset) {
+    public List<String> toSetCookies(Charset charset) {
         Objects.requireNonNull(charset, "charset can not be null");
-        // 判断是否有要新写入的cookie
-        if (!toWriteHttpCookies.isEmpty()) {
-            for (String key : toWriteHttpCookies) {
-                HttpCookie cookie = httpCookieMap.get(key);
-                if (cookie == null) {
-                    continue;
-                }
-                response.headers().add(HttpHeaderNames.SET_COOKIE, cookie.toHeaderString(charset));
+        List<String> setCookies = new ArrayList<>(toWriteHttpCookies.size() + toRemoveHttpCookies.size());
+        // 收集要新写入的cookie
+        for (String key : toWriteHttpCookies) {
+            HttpCookie cookie = httpCookieMap.get(key);
+            if (cookie == null) {
+                continue;
             }
+            setCookies.add(cookie.toSetCookie(charset));
         }
-        // 判断是否有待删除的Cookie
-        if (!toRemoveHttpCookies.isEmpty()) {
-            for (String key : toRemoveHttpCookies) {
-                HttpCookie cookie = new HttpCookie(key, "");
-                cookie.setMaxAge(0);
-                response.headers().add(HttpHeaderNames.SET_COOKIE, cookie.toHeaderString(charset));
-            }
+        // 收集待删除的Cookie
+        for (String key : toRemoveHttpCookies) {
+            HttpCookie cookie = new DefaultHttpCookie(key, "");
+            cookie.setMaxAge(0);
+            setCookies.add(cookie.toSetCookie(charset));
         }
+        return setCookies;
     }
 }

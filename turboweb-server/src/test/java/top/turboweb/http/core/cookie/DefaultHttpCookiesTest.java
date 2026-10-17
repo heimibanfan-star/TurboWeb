@@ -11,9 +11,10 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * {@link DefaultHttpCookies} 的请求头解析与 {@code Set-Cookie} 写出（spec §5：cookie 行）。
+ * {@link DefaultHttpCookies} 的请求头解析与 {@code Set-Cookie} 取值产出（spec §5：cookie 行）。
  *
- * <p>夹具全是纯 Netty 对象（无通道），响应用 {@link DefaultHttpResponse}。
+ * <p>夹具只用 Netty 请求头对象（无通道）：解析侧以 {@link DefaultHttpHeaders} 承载 Cookie 头，
+ * 产出侧直接取 {@link DefaultHttpCookies#toSetCookies(java.nio.charset.Charset)} 的返回列表，不构造响应对象。
  * 请求头默认启用 netty 校验（与真实解码路径一致）；只有"以 0x20 开头的头值"这一形态
  * 需要 {@code new DefaultHttpHeaders(false)}——真实 decoder 产出的报文会经过该校验。
  */
@@ -26,10 +27,7 @@ class DefaultHttpCookiesTest {
 
         assertNull(cookies.getCookie("a"));
         assertTrue(cookies.getCookies().isEmpty());
-
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertTrue(setCookies(response).isEmpty(), "无任何状态时不得写出 Set-Cookie");
+        assertTrue(cookies.toSetCookies(StandardCharsets.UTF_8).isEmpty(), "无任何状态时不得产出 Set-Cookie 取值");
     }
 
     @Test
@@ -106,7 +104,7 @@ class DefaultHttpCookiesTest {
     @DisplayName("HS-7 回归：空键段（空白+等号）与'等号在首'一样被静默跳过，不再让构造期抛 IAE")
     void blankKeySegmentIsSkipped() {
         // 修复前钉住的现状：'=' 前有空白、等号不在段首的段（" =oops"）通过 index>0 守卫后，
-        // 键 trim 成空串、HttpCookie.checkKey 抛 "key can not be empty"，同头其它 Cookie 全部丢失。
+        // 键 trim 成空串、DefaultHttpCookie.checkKey 抛 "key can not be empty"，同头其它 Cookie 全部丢失。
         // 修复后按登记注翻正：空键段与 '='/无 '=' 的畸形段同样被跳过，其余键值照常收录。
         DefaultHttpCookies cookies = assertDoesNotThrow(
                 () -> new DefaultHttpCookies(cookieHeader("a=1; =oops; b=2")));
@@ -136,10 +134,7 @@ class DefaultHttpCookiesTest {
 
         assertEquals("1", cookies.getCookie("a"));
         assertEquals(Map.of("a", "1"), cookies.getCookies());
-
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertEquals(List.of("a=1; Path=/"), setCookies(response));
+        assertEquals(List.of("a=1; Path=/"), cookies.toSetCookies(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -152,24 +147,19 @@ class DefaultHttpCookiesTest {
             c.setHttpOnly(true);
         });
 
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertEquals(List.of("t=v; Path=/app; Max-Age=60; HttpOnly"), setCookies(response));
+        assertEquals(List.of("t=v; Path=/app; Max-Age=60; HttpOnly"), cookies.toSetCookies(StandardCharsets.UTF_8));
     }
 
     @Test
     @DisplayName("setCookie(HttpCookie) 同名覆盖，写出只有一条")
     void setCookieInstanceOverwritesSameName() {
         DefaultHttpCookies cookies = new DefaultHttpCookies(new DefaultHttpHeaders());
-        cookies.setCookie(new HttpCookie("a", "1"));
-        cookies.setCookie(new HttpCookie("a", "2"));
+        cookies.setCookie(new DefaultHttpCookie("a", "1"));
+        cookies.setCookie(new DefaultHttpCookie("a", "2"));
 
         assertEquals("2", cookies.getCookie("a"));
-
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertEquals(List.of("a=2; Path=/"), setCookies(response),
-                "toWriteHttpCookies 是按名字的集合，同名只产出一条头");
+        assertEquals(List.of("a=2; Path=/"), cookies.toSetCookies(StandardCharsets.UTF_8),
+                "toWriteHttpCookies 是按名字的集合，同名只产出一条头取值");
     }
 
     @Test
@@ -184,17 +174,14 @@ class DefaultHttpCookiesTest {
     }
 
     @Test
-    @DisplayName("删除请求携带的 Cookie：写 Max-Age=0 的过期头")
+    @DisplayName("删除请求携带的 Cookie：产出 Max-Age=0 的过期取值")
     void removingRequestCookieExpiresItInResponse() {
         DefaultHttpCookies cookies = new DefaultHttpCookies(cookieHeader("a=1; b=2"));
         cookies.removeCookie("a");
 
         assertNull(cookies.getCookie("a"));
         assertEquals("2", cookies.getCookie("b"));
-
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertEquals(List.of("a=; Path=/; Max-Age=0"), setCookies(response), "只过期 a，b 不受影响");
+        assertEquals(List.of("a=; Path=/; Max-Age=0"), cookies.toSetCookies(StandardCharsets.UTF_8), "只过期 a，b 不受影响");
     }
 
     @Test
@@ -205,10 +192,7 @@ class DefaultHttpCookiesTest {
         cookies.removeCookie("a");
 
         assertNull(cookies.getCookie("a"));
-
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertTrue(setCookies(response).isEmpty(), "既没写新值，也没写过期的空值");
+        assertTrue(cookies.toSetCookies(StandardCharsets.UTF_8).isEmpty(), "既没写新值，也没写过期的空值");
     }
 
     @Test
@@ -217,9 +201,7 @@ class DefaultHttpCookiesTest {
         DefaultHttpCookies cookies = new DefaultHttpCookies(new DefaultHttpHeaders());
         cookies.removeCookie("nope");
 
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertTrue(setCookies(response).isEmpty());
+        assertTrue(cookies.toSetCookies(StandardCharsets.UTF_8).isEmpty());
         assertTrue(cookies.getCookies().isEmpty());
     }
 
@@ -231,10 +213,7 @@ class DefaultHttpCookiesTest {
         cookies.clearToWriteCookies();
 
         assertEquals("1", cookies.getCookie("a"), "清的是待写队列，不是 Cookie 映射");
-
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertTrue(setCookies(response).isEmpty());
+        assertTrue(cookies.toSetCookies(StandardCharsets.UTF_8).isEmpty());
     }
 
     @Test
@@ -244,14 +223,11 @@ class DefaultHttpCookiesTest {
         cookies.setCookie("new", "2");
         cookies.clearAll();
 
-        // clearAll 只把"本次新写入"的移出映射并撤销（:186-189）；请求原有的键留在映射里、
-        // 仅被快照进待删集合（:190）——写出前仍可读，直到响应头发出才由浏览器删除。
+        // clearAll 只把"本次新写入"的移出映射并撤销；请求原有的键留在映射里、
+        // 仅被快照进待删集合——写出前仍可读，直到取值随响应发出才由浏览器删除。
         assertEquals("1", cookies.getCookie("old"), "存量 Cookie 只被标记过期，不被 clearAll 提前移出映射");
         assertNull(cookies.getCookie("new"));
-
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertEquals(List.of("old=; Path=/; Max-Age=0"), setCookies(response),
+        assertEquals(List.of("old=; Path=/; Max-Age=0"), cookies.toSetCookies(StandardCharsets.UTF_8),
                 "新写入的被直接丢弃，原有的一条写出过期头");
     }
 
@@ -262,34 +238,28 @@ class DefaultHttpCookiesTest {
         cookies.setCookie("new", "2");
         cookies.removeCookie("old");
 
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertEquals(List.of("new=2; Path=/", "old=; Path=/; Max-Age=0"), setCookies(response),
+        assertEquals(List.of("new=2; Path=/", "old=; Path=/; Max-Age=0"), cookies.toSetCookies(StandardCharsets.UTF_8),
                 "两个循环各只有一个元素，顺序确定：先写待写入，再写过期");
     }
 
     @Test
-    @DisplayName("写出不自动清空队列，重复调用会重复追加")
-    void setCookieForResponseDoesNotClearQueue() {
+    @DisplayName("取值不自动清空队列，重复调用产出同一批")
+    void toSetCookiesDoesNotClearQueue() {
         DefaultHttpCookies cookies = new DefaultHttpCookies(new DefaultHttpHeaders());
         cookies.setCookie("a", "1");
 
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertEquals(List.of("a=1; Path=/", "a=1; Path=/"), setCookies(response),
+        assertEquals(List.of("a=1; Path=/"), cookies.toSetCookies(StandardCharsets.UTF_8));
+        assertEquals(List.of("a=1; Path=/"), cookies.toSetCookies(StandardCharsets.UTF_8),
                 "javadoc 明示调用后不自动清空，需显式 clearToWriteCookies()");
     }
 
     @Test
-    @DisplayName("写出时复用 HttpCookie 的 URL 编码")
+    @DisplayName("取值时复用 HttpCookie 的 URL 编码")
     void writtenValueGoesThroughCookieEncoding() {
         DefaultHttpCookies cookies = new DefaultHttpCookies(new DefaultHttpHeaders());
-        cookies.setCookie(new HttpCookie("n", "a b"));
+        cookies.setCookie(new DefaultHttpCookie("n", "a b"));
 
-        HttpResponse response = response();
-        cookies.setCookieForResponse(response, StandardCharsets.UTF_8);
-        assertEquals(List.of("n=a+b; Path=/"), setCookies(response), "空格编码为 '+'");
+        assertEquals(List.of("n=a+b; Path=/"), cookies.toSetCookies(StandardCharsets.UTF_8), "空格编码为 '+'");
     }
 
     /** 夹具：构造一个带 Cookie 头的请求头集合（启用 netty 校验，与真实解码路径一致）。 */
@@ -297,15 +267,5 @@ class DefaultHttpCookiesTest {
         HttpHeaders headers = new DefaultHttpHeaders();
         headers.set(HttpHeaderNames.COOKIE, rawValue);
         return headers;
-    }
-
-    /** 夹具：一个空的响应对象，用来接住写出的 Set-Cookie。 */
-    private static HttpResponse response() {
-        return new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-    }
-
-    /** 夹具：读回全部 Set-Cookie 头（保序）。 */
-    private static List<String> setCookies(HttpResponse response) {
-        return response.headers().getAll(HttpHeaderNames.SET_COOKIE);
     }
 }

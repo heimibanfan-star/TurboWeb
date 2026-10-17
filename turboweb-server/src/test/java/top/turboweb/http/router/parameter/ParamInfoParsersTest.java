@@ -1,7 +1,6 @@
 package top.turboweb.http.router.parameter;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,8 +9,8 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.rest.ContentType;
-import top.turboweb.http.core.cookie.HttpCookie;
-import top.turboweb.http.core.cookie.HttpCookies;
+import top.turboweb.rest.HttpCookie;
+import top.turboweb.rest.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
@@ -396,8 +395,8 @@ class ParamInfoParsersTest {
         }
 
         @Override
-        public void setCookieForResponse(HttpResponse response, Charset charset) {
-            throw offChannel("setCookieForResponse");
+        public List<String> toSetCookies(Charset charset) {
+            throw offChannel("toSetCookies");
         }
 
         private static UnsupportedOperationException offChannel(String name) {

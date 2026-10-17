@@ -1,14 +1,16 @@
 package top.turboweb.http.core.cookie;
 
+import top.turboweb.rest.HttpCookie;
+
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.Objects;
 
 /**
- * 表示一个 HTTP Cookie，封装 Cookie 的基本属性。
- * 适用于 TurboWeb 框架当前不支持 HTTPS 的场景。
+ * 默认的 {@link HttpCookie} 实现：以字段承载 Cookie 的名称、值，以及路径、域、
+ * 最大存活时间、HttpOnly 四项可选属性。
  */
-public class HttpCookie {
+public class DefaultHttpCookie implements HttpCookie {
     /**
      * Cookie 的名称（键），用于标识 Cookie。
      * 不能为空且不能包含控制字符。
@@ -49,7 +51,7 @@ public class HttpCookie {
      */
     private boolean httpOnly = false;
 
-    public HttpCookie(String key, String value) {
+    public DefaultHttpCookie(String key, String value) {
         checkKey(key);
         Objects.requireNonNull(value, "value can not be null");
         this.key = key;
@@ -64,30 +66,36 @@ public class HttpCookie {
         // 你可以根据需要增加更严格的控制字符校验
     }
 
+    @Override
     public String getKey() {
         return key;
     }
 
+    @Override
     public String getValue() {
         return value;
     }
 
+    @Override
     public void setPath(String path) {
         if (path != null && !path.isEmpty()) {
             this.path = path;
         }
     }
 
+    @Override
     public void setDomain(String domain) {
         if (domain != null && !domain.isEmpty()) {
             this.domain = domain;
         }
     }
 
+    @Override
     public void setMaxAge(long maxAge) {
         this.maxAge = maxAge;
     }
 
+    @Override
     public void setHttpOnly(boolean httpOnly) {
         this.httpOnly = httpOnly;
     }
@@ -100,7 +108,8 @@ public class HttpCookie {
      * @return Set-Cookie 头字符串
      * @throws NullPointerException charset 为 null
      */
-    public String toHeaderString(Charset charset) {
+    @Override
+    public String toSetCookie(Charset charset) {
         Objects.requireNonNull(charset, "charset can not be null");
         StringBuilder sb = new StringBuilder();
         sb.append(key).append("=");
@@ -130,7 +139,7 @@ public class HttpCookie {
 
     @Override
     public String toString() {
-        return "HttpCookie{" +
+        return "DefaultHttpCookie{" +
                 "key='" + key + '\'' +
                 ", value='" + value + '\'' +
                 ", path='" + path + '\'' +
@@ -143,7 +152,7 @@ public class HttpCookie {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof HttpCookie that)) return false;
+        if (!(o instanceof DefaultHttpCookie that)) return false;
         return maxAge == that.maxAge &&
                 httpOnly == that.httpOnly &&
                 key.equals(that.key) &&

@@ -11,7 +11,7 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
-import top.turboweb.http.core.cookie.HttpCookies;
+import top.turboweb.rest.HttpCookies;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.SessionManager;
@@ -286,7 +286,9 @@ public class RequestOrchestrator {
             Object result = middleware.invoke(context);
             HttpResponse response = resultConverterManager.convert(result, defaultCharset);
             // 处理Cookie
-            cookies.setCookieForResponse(response, defaultCharset);
+            for (String setCookie : cookies.toSetCookies(defaultCharset)) {
+                response.headers().add("Set-Cookie", setCookie);
+            }
             // 处理session
             if (httpSession.sessionId() != null
                     && (!Objects.equals(httpSession.sessionId(), originSessionId) || httpSession.pathIsUpdate())) {
