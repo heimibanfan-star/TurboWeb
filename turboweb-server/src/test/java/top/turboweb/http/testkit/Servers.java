@@ -1,7 +1,7 @@
 package top.turboweb.http.testkit;
 
 import io.netty.channel.ChannelFuture;
-import top.turboweb.http.server.TurboWebHttpServer;
+import top.turboweb.http.server.BootStrapWebServer;
 import top.turboweb.http.server.application.Application;
 import top.turboweb.http.server.config.ServerConfig;
 
@@ -16,10 +16,10 @@ import java.net.InetSocketAddress;
  */
 public final class Servers implements AutoCloseable {
 
-    private final TurboWebHttpServer server;
+    private final BootStrapWebServer server;
     private final int port;
 
-    private Servers(TurboWebHttpServer server, int port) {
+    private Servers(BootStrapWebServer server, int port) {
         this.server = server;
         this.port = port;
     }
@@ -33,7 +33,7 @@ public final class Servers implements AutoCloseable {
     }
 
     public static Servers start(ServerConfig serverConfig, Application... applications) {
-        TurboWebHttpServer server = new TurboWebHttpServer(serverConfig);
+        BootStrapWebServer server = new BootStrapWebServer(serverConfig);
         for (Application application : applications) {
             server.registerApplicationLast(application);
         }

@@ -12,7 +12,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * 连接限流器。
  * <p>
  * 服务器级单例处理器，标注了 {@link ChannelHandler.Sharable}，同一实例可跨channel复用，
- * 由 {@link top.turboweb.http.server.TurboWebHttpServer} 启动时创建，经
+ * 由 {@link top.turboweb.http.server.BootStrapWebServer} 启动时创建，经
  * {@link top.turboweb.http.server.channel.ServerChannelInitializer} 装配到每条管道首位。
  */
 @ChannelHandler.Sharable

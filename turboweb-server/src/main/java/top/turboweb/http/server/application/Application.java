@@ -15,7 +15,7 @@ import top.turboweb.common.utils.resource.ScopedResource;
  * 装配期创建的生命周期资源（线程池、中间件链、缓存等）逐个登记进来，关闭由本接口的默认
  * {@link #close()} 统一触发——按登记顺序释放整个作用域，作用域只释放一次（重复关闭幂等），
  * 单个资源释放失败只记录日志不中断其余释放，因此实现类无须自己编写关闭逻辑。
- * {@code TurboWebHttpServer} 关闭时会按注册顺序统一触发全部已注册应用的 {@code close()}，
+ * {@code BootStrapWebServer} 关闭时会按注册顺序统一触发全部已注册应用的 {@code close()}，
  * 调用方也可对应用实例直接使用try-with-resources或显式关闭。
  */
 public interface Application extends AutoCloseable {

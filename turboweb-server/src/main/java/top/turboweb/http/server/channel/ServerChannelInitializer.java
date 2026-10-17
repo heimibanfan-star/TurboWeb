@@ -33,7 +33,7 @@ import java.util.Objects;
  * 装配顺序固定为：
  * <ol>
  *     <li>限流：连接限流器为服务器级单例（{@code @Sharable}）跨连接复用，由
- *     {@link top.turboweb.http.server.TurboWebHttpServer} 启动时创建并传入，addFirst置于管道最前；</li>
+ *     {@link top.turboweb.http.server.BootStrapWebServer} 启动时创建并传入，addFirst置于管道最前；</li>
  *     <li>ssl：ssl上下文可共享，{@link SslHandler} 每连接新建，未配置ssl上下文时不装配；</li>
  *     <li>编解码：未启用http2时每连接新建 {@link HttpServerCodec} 与 {@link HttpObjectAggregator}
  *     （聚合器最大内容长度取传入配置），随后委托应用管理器装配应用；启用http2时改装

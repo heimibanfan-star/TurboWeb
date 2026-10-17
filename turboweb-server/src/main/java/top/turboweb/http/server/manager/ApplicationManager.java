@@ -76,7 +76,7 @@ public class ApplicationManager implements AutoCloseable {
      * {@link top.turboweb.common.utils.resource.ScopedResource} 作用域中登记的资源
      * （http应用按登记顺序销毁中间件链、关闭磁盘IO线程池，websocket应用释放消息处理线程池）。
      * <p>
-     * 由 {@code TurboWebHttpServer#close()} 在传输层线程组关闭之后发起；单个应用关闭抛出的异常
+     * 由 {@code BootStrapWebServer#close()} 在传输层线程组关闭之后发起；单个应用关闭抛出的异常
      * 只记录日志，不阻断其余应用的关闭。应用自身的close是幂等的，因此本方法可安全地重复调用
      */
     @Override

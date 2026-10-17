@@ -20,15 +20,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link TurboWebHttpServer} 的未启动面：构造、应用注册顺序、h2/ssl fail-fast、未启动关闭。
+ * {@link BootStrapWebServer} 的未启动面：构造、应用注册顺序、h2/ssl fail-fast、未启动关闭。
  *
  * <p>全部在不创建线程组、通道与端口的前提下完成：构造器只持有配置；h2 校验位于任何资源创建
- * 之前（{@code TurboWebHttpServer.java:224-227}），故反射直调私有 {@code startup()} 取证而不是
+ * 之前（{@code BootStrapWebServer.java:224-227}），故反射直调私有 {@code startup()} 取证而不是
  * {@code start(0)}；关闭走 {@code serverChannel == null} 与 {@code shutdown()} 的空操作分支。
  * {@code $ZeroCopyThreadFactory} 只构造 {@link Thread} 对象、绝不 {@code start}，用来钉住命名与
  * 守护属性。真实启停属 L3，见本任务末尾"移交阶段 3/4"。
  */
-class TurboWebHttpServerTest {
+class BootStrapWebServerTest {
 
     /** 只记录关闭的应用替身，用于观察 server.close() 是否按注册顺序触达应用管理器。 */
     private static final class CloseRecordingApplication implements Application {
@@ -60,7 +60,7 @@ class TurboWebHttpServerTest {
     @DisplayName("构造器拒绝 null 配置")
     void constructorRejectsNullConfig() {
         NullPointerException ex = assertThrows(NullPointerException.class,
-                () -> new TurboWebHttpServer((ServerConfig) null));
+                () -> new BootStrapWebServer((ServerConfig) null));
 
         assertEquals("The ServerConfig must not be null", ex.getMessage());
     }
@@ -69,7 +69,7 @@ class TurboWebHttpServerTest {
     @DisplayName("未启动就 close：不抛异常，仍经应用管理器按注册顺序释放应用")
     void closeWithoutStartReleasesRegisteredApplications() {
         List<String> closed = new ArrayList<>();
-        TurboWebHttpServer server = new TurboWebHttpServer();   // 默认配置，覆盖无参构造器
+        BootStrapWebServer server = new BootStrapWebServer();   // 默认配置，覆盖无参构造器
         server.registerApplicationLast(new CloseRecordingApplication("app", closed));
 
         assertDoesNotThrow(server::close);
@@ -81,7 +81,7 @@ class TurboWebHttpServerTest {
     @DisplayName("registerApplicationFirst/Last 的顺序在关闭时按注册序复现")
     void registrationOrderIsPreservedAtClose() {
         List<String> closed = new ArrayList<>();
-        TurboWebHttpServer server = new TurboWebHttpServer(ServerConfig.builder().build());
+        BootStrapWebServer server = new BootStrapWebServer(ServerConfig.builder().build());
         server.registerApplicationLast(new CloseRecordingApplication("A", closed));
         server.registerApplicationFirst(new CloseRecordingApplication("B", closed));
         server.registerApplicationLast(new CloseRecordingApplication("C", closed));
@@ -95,7 +95,7 @@ class TurboWebHttpServerTest {
     @DisplayName("重复 close 不抛异常")
     void closeIsRepeatable() {
         List<String> closed = new ArrayList<>();
-        TurboWebHttpServer server = new TurboWebHttpServer(ServerConfig.builder().build());
+        BootStrapWebServer server = new BootStrapWebServer(ServerConfig.builder().build());
         server.registerApplicationLast(new CloseRecordingApplication("app", closed));
 
         assertDoesNotThrow(server::close);
@@ -107,7 +107,7 @@ class TurboWebHttpServerTest {
     @Test
     @DisplayName("未启动就 shutdown：空操作，不抛异常")
     void shutdownBeforeStartIsNoOp() {
-        TurboWebHttpServer server = new TurboWebHttpServer(ServerConfig.builder().build());
+        BootStrapWebServer server = new BootStrapWebServer(ServerConfig.builder().build());
 
         assertDoesNotThrow(server::shutdown);
         assertDoesNotThrow(server::shutdown);
@@ -116,9 +116,9 @@ class TurboWebHttpServerTest {
     @Test
     @DisplayName("enableHttp2 且未配置 ssl：startup 在任何资源创建前 fail-fast")
     void http2WithoutSslFailsFastBeforeCreatingResources() throws Exception {
-        TurboWebHttpServer server = new TurboWebHttpServer(
+        BootStrapWebServer server = new BootStrapWebServer(
                 ServerConfig.builder().enableHttp2(true).build());
-        Method startup = TurboWebHttpServer.class.getDeclaredMethod("startup");
+        Method startup = BootStrapWebServer.class.getDeclaredMethod("startup");
         startup.setAccessible(true);
 
         Throwable thrown = null;
@@ -141,7 +141,7 @@ class TurboWebHttpServerTest {
     @DisplayName("$ZeroCopyThreadFactory 给线程命名为 zero-copy-thread-N 并设为守护线程")
     void zeroCopyThreadFactoryNamesAndDaemonizesThreads() throws Exception {
         Class<?> factoryClass =
-                Class.forName("top.turboweb.http.server.TurboWebHttpServer$ZeroCopyThreadFactory");
+                Class.forName("top.turboweb.http.server.BootStrapWebServer$ZeroCopyThreadFactory");
         Constructor<?> constructor = factoryClass.getDeclaredConstructor();
         constructor.setAccessible(true);
         Object factory = constructor.newInstance();

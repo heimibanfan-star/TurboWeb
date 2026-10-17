@@ -8,7 +8,7 @@ import java.util.Objects;
 /**
  * 服务器配置类（不可变），承载与服务器相关的纯参数配置：连接限流参数（最大连接数、
  * io线程数、零拷贝线程数、cpu核数）、ssl上下文与聚合器最大内容长度、http2开关与参数。
- * 配置有两条消费路径：{@link top.turboweb.http.server.TurboWebHttpServer} 在启动时消费，
+ * 配置有两条消费路径：{@link top.turboweb.http.server.BootStrapWebServer} 在启动时消费，
  * 按io线程数与零拷贝线程数创建线程资源、按ssl上下文决定通道类型、按限流参数创建连接限流器，
  * 并完成http2需ssl等校验；启动时创建的
  * {@link top.turboweb.http.server.channel.ServerChannelInitializer} 持有同一份配置，

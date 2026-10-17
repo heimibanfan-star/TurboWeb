@@ -57,19 +57,19 @@ import java.util.concurrent.atomic.AtomicLong;
  *         .ioThreadNum(4)
  *         .maxConnect(20000)
  *         .build();
- * TurboWebHttpServer server = new TurboWebHttpServer(config)
+ * BootStrapWebServer server = new BootStrapWebServer(config)
  *         .registerApplicationFirst(httpRequestApplication)  // 最先装配
  *         .registerApplicationLast(webSocketApplication);    // 最后装配
- * // 不传配置即使用默认配置：new TurboWebHttpServer().registerApplicationLast(app);
+ * // 不传配置即使用默认配置：new BootStrapWebServer().registerApplicationLast(app);
  * // 异步启动（此时才创建线程组与通道资源并绑定端口），需要阻塞等待时自行 sync
  * server.start(8080);
  * // 停止（实现AutoCloseable，close会关闭监听通道并优雅停机，也可try-with-resources）
  * server.close();
  * }</pre>
  */
-public final class TurboWebHttpServer implements AutoCloseable {
+public final class BootStrapWebServer implements AutoCloseable {
 
-    private static final InternalLogger log = InternalLoggerFactory.getInstance(TurboWebHttpServer.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(BootStrapWebServer.class);
 
     /**
      * 自定义零拷贝线程工厂。
@@ -125,7 +125,7 @@ public final class TurboWebHttpServer implements AutoCloseable {
     /**
      * 构造服务器，使用默认的服务器配置（{@code ServerConfig.builder().build()}，各参数取建造者默认值）
      */
-    public TurboWebHttpServer() {
+    public BootStrapWebServer() {
         this(ServerConfig.builder().build());
     }
 
@@ -136,7 +136,7 @@ public final class TurboWebHttpServer implements AutoCloseable {
      *
      * @param serverConfig 服务器配置
      */
-    public TurboWebHttpServer(ServerConfig serverConfig) {
+    public BootStrapWebServer(ServerConfig serverConfig) {
         this.applicationManager = new ApplicationManager();
         this.serverConfig = Objects.requireNonNull(serverConfig, "The ServerConfig must not be null");
     }
@@ -149,7 +149,7 @@ public final class TurboWebHttpServer implements AutoCloseable {
      * @param application 应用
      * @return 本服务器实例
      */
-    public TurboWebHttpServer registerApplicationFirst(Application application) {
+    public BootStrapWebServer registerApplicationFirst(Application application) {
         checkNotStarted();
         applicationManager.addFirst(application);
         return this;
@@ -163,7 +163,7 @@ public final class TurboWebHttpServer implements AutoCloseable {
      * @param application 应用
      * @return 本服务器实例
      */
-    public TurboWebHttpServer registerApplicationLast(Application application) {
+    public BootStrapWebServer registerApplicationLast(Application application) {
         checkNotStarted();
         applicationManager.addLast(application);
         return this;
@@ -203,10 +203,10 @@ public final class TurboWebHttpServer implements AutoCloseable {
         channelFuture.addListener(future -> {
             if (future.isSuccess()) {
                 long time = System.currentTimeMillis() - begin;
-                log.info("TurboWebHttpServer start on: http://{}:{}, time: {}ms", host, port, time);
+                log.info("BootStrapWebServer start on: http://{}:{}, time: {}ms", host, port, time);
             } else {
                 shutdown();
-                log.error("TurboWebHttpServer start failed: {}", future.cause().getMessage(), future.cause());
+                log.error("BootStrapWebServer start failed: {}", future.cause().getMessage(), future.cause());
             }
         });
         return channelFuture;
