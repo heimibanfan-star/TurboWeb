@@ -2,8 +2,8 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderValues;
-import top.turboweb.rest.HttpContent;
-import top.turboweb.rest.ContentType;
+import top.turboweb.rest.core.HttpContent;
+import top.turboweb.rest.core.ContentType;
 import top.turboweb.http.core.helper.HttpRequestHelper;
 import top.turboweb.http.exception.RequestParseException;
 

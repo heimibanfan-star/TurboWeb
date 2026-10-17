@@ -1,7 +1,7 @@
 package top.turboweb.http.context.respmeta;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
-import top.turboweb.rest.ContentType;
+import top.turboweb.rest.core.ContentType;
 
 /**
  * {@code ResponseMeta} 表示响应元信息的配置接口。

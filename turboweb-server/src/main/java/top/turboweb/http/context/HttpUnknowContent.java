@@ -1,7 +1,7 @@
 package top.turboweb.http.context;
 
-import top.turboweb.rest.ContentType;
-import top.turboweb.rest.HttpContent;
+import top.turboweb.rest.core.ContentType;
+import top.turboweb.rest.core.HttpContent;
 
 public class HttpUnknowContent implements HttpContent {
 

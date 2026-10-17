@@ -1,7 +1,7 @@
 package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.HttpMethod;
-import top.turboweb.rest.HttpRequestMessage;
+import top.turboweb.rest.core.HttpRequestMessage;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;

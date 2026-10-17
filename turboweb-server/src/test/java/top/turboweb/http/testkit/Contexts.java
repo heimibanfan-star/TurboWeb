@@ -2,8 +2,8 @@ package top.turboweb.http.testkit;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
-import top.turboweb.rest.HttpContent;
-import top.turboweb.rest.HttpRequestMessage;
+import top.turboweb.rest.core.HttpContent;
+import top.turboweb.rest.core.HttpRequestMessage;
 import top.turboweb.http.context.DefaultMessage;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpUnknowContent;

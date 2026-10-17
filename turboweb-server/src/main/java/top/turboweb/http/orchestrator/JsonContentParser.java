@@ -1,9 +1,9 @@
 package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.rest.HttpContent;
+import top.turboweb.rest.core.HttpContent;
 import top.turboweb.http.context.HttpJsonContent;
-import top.turboweb.rest.ContentType;
+import top.turboweb.rest.core.ContentType;
 
 import java.nio.charset.Charset;
 import java.util.Set;

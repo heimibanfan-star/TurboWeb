@@ -13,8 +13,8 @@ import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.http.core.session.SessionManager;
 import top.turboweb.http.core.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.rest.HttpContent;
-import top.turboweb.rest.HttpRequestMessage;
+import top.turboweb.rest.core.HttpContent;
+import top.turboweb.rest.core.HttpRequestMessage;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;

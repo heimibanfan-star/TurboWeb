@@ -1,6 +1,6 @@
 package top.turboweb.http.router.parameter;
 
-import top.turboweb.rest.parameter.PathParam;
+import top.turboweb.rest.annotation.binder.PathParam;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;

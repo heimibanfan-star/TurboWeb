@@ -3,7 +3,7 @@ package top.turboweb.http.middleware;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.rest.HttpRequestMessage;
+import top.turboweb.rest.core.HttpRequestMessage;
 import top.turboweb.http.context.HttpContext;
 
 import java.util.HashMap;

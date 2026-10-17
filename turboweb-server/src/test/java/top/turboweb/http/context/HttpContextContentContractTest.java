@@ -1,6 +1,6 @@
 package top.turboweb.http.context;
 
-import top.turboweb.rest.HttpContent;
+import top.turboweb.rest.core.HttpContent;
 
 import org.junit.jupiter.api.Test;
 

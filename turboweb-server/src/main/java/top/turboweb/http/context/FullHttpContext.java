@@ -5,7 +5,7 @@ import top.turboweb.http.context.attchment.DefaultAttachment;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.session.HttpSession;
-import top.turboweb.rest.HttpRequestMessage;
+import top.turboweb.rest.core.HttpRequestMessage;
 
 import java.nio.charset.Charset;
 import java.util.Objects;

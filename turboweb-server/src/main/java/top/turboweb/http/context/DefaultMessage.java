@@ -2,9 +2,9 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
-import top.turboweb.rest.HttpContent;
-import top.turboweb.rest.HttpRequestMessage;
-import top.turboweb.rest.HttpRequestMethod;
+import top.turboweb.rest.core.HttpContent;
+import top.turboweb.rest.core.HttpRequestMessage;
+import top.turboweb.rest.core.HttpRequestMethod;
 
 import java.nio.charset.Charset;
 import java.util.List;

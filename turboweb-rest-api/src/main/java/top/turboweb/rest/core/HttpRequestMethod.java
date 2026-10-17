@@ -1,4 +1,4 @@
-package top.turboweb.rest;
+package top.turboweb.rest.core;
 
 /**
  * HTTP 请求方式枚举：标注请求行方法字段对应的标准方法，覆盖 RFC 9110 定义的

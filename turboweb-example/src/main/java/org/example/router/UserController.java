@@ -1,8 +1,8 @@
 package org.example.router;
 
 
-import top.turboweb.rest.router.Get;
-import top.turboweb.rest.router.Route;
+import top.turboweb.rest.annotation.router.Get;
+import top.turboweb.rest.annotation.router.Route;
 import top.turboweb.http.context.HttpContext;
 
 @Route("/user")

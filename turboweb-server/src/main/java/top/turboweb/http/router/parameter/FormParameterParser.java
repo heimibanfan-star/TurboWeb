@@ -1,8 +1,8 @@
 package top.turboweb.http.router.parameter;
 
-import top.turboweb.rest.HttpContent;
-import top.turboweb.rest.MultipartFile;
-import top.turboweb.rest.parameter.FormParam;
+import top.turboweb.rest.core.HttpContent;
+import top.turboweb.rest.core.MultipartFile;
+import top.turboweb.rest.annotation.binder.FormParam;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.exception.RequestParseException;

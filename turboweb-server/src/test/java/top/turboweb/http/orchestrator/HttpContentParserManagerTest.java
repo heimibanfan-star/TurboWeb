@@ -3,13 +3,13 @@ package top.turboweb.http.orchestrator;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.Test;
-import top.turboweb.rest.HttpContent;
-import top.turboweb.rest.MultipartFile;
+import top.turboweb.rest.core.HttpContent;
+import top.turboweb.rest.core.MultipartFile;
 import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.context.HttpJsonContent;
 import top.turboweb.http.context.HttpUnknowContent;
-import top.turboweb.rest.ContentType;
+import top.turboweb.rest.core.ContentType;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Requests;
 

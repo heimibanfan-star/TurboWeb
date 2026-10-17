@@ -1,4 +1,4 @@
-package top.turboweb.rest.router;
+package top.turboweb.rest.annotation.router;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

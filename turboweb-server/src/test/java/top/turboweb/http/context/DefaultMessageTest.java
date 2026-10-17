@@ -4,8 +4,8 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.testkit.Requests;
-import top.turboweb.rest.HttpContent;
-import top.turboweb.rest.HttpRequestMethod;
+import top.turboweb.rest.core.HttpContent;
+import top.turboweb.rest.core.HttpRequestMethod;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;

@@ -1,4 +1,4 @@
-package top.turboweb.rest;
+package top.turboweb.rest.core;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

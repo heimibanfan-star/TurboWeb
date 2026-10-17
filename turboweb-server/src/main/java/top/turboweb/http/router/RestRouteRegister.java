@@ -1,7 +1,7 @@
 package top.turboweb.http.router;
 
-import top.turboweb.rest.HttpRequestMessage;
-import top.turboweb.rest.HttpUrl;
+import top.turboweb.rest.core.HttpRequestMessage;
+import top.turboweb.rest.core.HttpUrl;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;

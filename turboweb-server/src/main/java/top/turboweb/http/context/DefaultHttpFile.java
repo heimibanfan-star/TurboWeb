@@ -3,8 +3,8 @@ package top.turboweb.http.context;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.handler.codec.http.multipart.FileUpload;
-import top.turboweb.rest.ContentType;
-import top.turboweb.rest.MultipartFile;
+import top.turboweb.rest.core.ContentType;
+import top.turboweb.rest.core.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;

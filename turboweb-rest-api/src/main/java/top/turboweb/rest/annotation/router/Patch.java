@@ -1,4 +1,4 @@
-package top.turboweb.rest.router;
+package top.turboweb.rest.annotation.router;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,11 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 请求路径的注解
+ * put请求方式
  */
-@Target(ElementType.TYPE)
+@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Route {
-    // 请求路径
-    String value() default "";
+public @interface Patch {
+    String value() default "/";
 }

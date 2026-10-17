@@ -1,4 +1,4 @@
-package top.turboweb.rest;
+package top.turboweb.rest.core;
 
 import java.util.List;
 import java.util.Map;

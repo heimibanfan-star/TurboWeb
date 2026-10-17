@@ -1,10 +1,10 @@
 package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.rest.HttpContent;
+import top.turboweb.rest.core.HttpContent;
 import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpUnknowContent;
-import top.turboweb.rest.ContentType;
+import top.turboweb.rest.core.ContentType;
 import top.turboweb.http.core.helper.HttpRequestHelper;
 
 import java.nio.charset.Charset;

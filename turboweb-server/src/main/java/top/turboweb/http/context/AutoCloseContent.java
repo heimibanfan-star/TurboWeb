@@ -1,6 +1,6 @@
 package top.turboweb.http.context;
 
-import top.turboweb.rest.HttpContent;
+import top.turboweb.rest.core.HttpContent;
 
 /**
  * 可关闭的请求体内容：组合 {@link HttpContent} 与 {@link AutoCloseable} 的公共子类型，

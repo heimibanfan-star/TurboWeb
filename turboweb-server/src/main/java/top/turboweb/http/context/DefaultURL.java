@@ -2,7 +2,7 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import top.turboweb.http.core.helper.UrlHelper;
-import top.turboweb.rest.HttpUrl;
+import top.turboweb.rest.core.HttpUrl;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;

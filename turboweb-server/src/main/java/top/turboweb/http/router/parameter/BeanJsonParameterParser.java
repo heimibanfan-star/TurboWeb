@@ -1,7 +1,7 @@
 package top.turboweb.http.router.parameter;
 
-import top.turboweb.rest.HttpContent;
-import top.turboweb.rest.parameter.BeanJson;
+import top.turboweb.rest.core.HttpContent;
+import top.turboweb.rest.annotation.binder.BeanJson;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpJsonContent;
 import top.turboweb.http.exception.RequestParseException;
