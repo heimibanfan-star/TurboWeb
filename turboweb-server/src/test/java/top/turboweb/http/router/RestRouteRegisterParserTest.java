@@ -12,7 +12,6 @@ import top.turboweb.http.router.parameter.FormParameterParser;
 import top.turboweb.http.router.parameter.HeaderParameterParser;
 import top.turboweb.http.router.parameter.QueryParameterParser;
 import top.turboweb.http.router.parameter.PathParameterParser;
-import top.turboweb.http.router.parameter.UploadParameterParser;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Parameter;
@@ -88,14 +87,13 @@ class RestRouteRegisterParserTest {
                 InternTypeParameterParser.class.getSimpleName(),
                 PathParameterParser.class.getSimpleName(),
                 QueryParameterParser.class.getSimpleName(),
-                UploadParameterParser.class.getSimpleName(),
                 BeanQueryParameterParser.class.getSimpleName(),
                 BeanFormParameterParser.class.getSimpleName(),
                 BeanJsonParameterParser.class.getSimpleName(),
                 CookieParameterParser.class.getSimpleName(),
                 FormParameterParser.class.getSimpleName(),
                 HeaderParameterParser.class.getSimpleName());
-        assertEquals(expected, classNamesOf(new RestRouteRegister()), "默认十个解析器按注册顺序排列");
+        assertEquals(expected, classNamesOf(new RestRouteRegister()), "默认九个解析器按注册顺序排列");
     }
 
     @Test
@@ -105,7 +103,7 @@ class RestRouteRegisterParserTest {
         register.registerParameterParserFirst(alpha);
         List<ParameterParser> parsers = parsersOf(register);
         assertSame(alpha, parsers.get(0), "开头添加落在表头");
-        assertEquals(11, parsers.size());
+        assertEquals(10, parsers.size());
     }
 
     @Test
@@ -115,7 +113,7 @@ class RestRouteRegisterParserTest {
         register.registerParameterParserLast(beta);
         List<ParameterParser> parsers = parsersOf(register);
         assertSame(beta, parsers.get(parsers.size() - 1), "结尾添加落在表尾,默认解析器之后");
-        assertEquals(11, parsers.size());
+        assertEquals(10, parsers.size());
     }
 
     @Test
@@ -124,7 +122,7 @@ class RestRouteRegisterParserTest {
         AlphaParser alpha = new AlphaParser();
         register.registerParameterParserBefore(new BeanJsonParameterParser(), alpha);
         List<String> names = classNamesOf(register);
-        assertEquals(11, names.size());
+        assertEquals(10, names.size());
         int alphaIndex = names.indexOf("AlphaParser");
         assertEquals(names.indexOf("BeanJsonParameterParser") - 1, alphaIndex, "传入同类新实例即可定位默认目标,插在其前");
     }
@@ -143,15 +141,15 @@ class RestRouteRegisterParserTest {
     void registerAtReplacesTargetKeepingPosition() throws Exception {
         RestRouteRegister register = new RestRouteRegister();
         AlphaParser alpha = new AlphaParser();
-        register.registerParameterParser(new UploadParameterParser(), alpha);
+        register.registerParameterParser(new BeanQueryParameterParser(), alpha);
         List<String> names = classNamesOf(register);
-        assertEquals(10, names.size(), "替换不改变解析器总数");
+        assertEquals(9, names.size(), "替换不改变解析器总数");
         assertEquals("AlphaParser", names.get(3), "替换发生在目标原位置");
         assertEquals(List.of("InternTypeParameterParser", "PathParameterParser", "QueryParameterParser"),
                 names.subList(0, 3), "目标之前的次序不动");
-        assertEquals(List.of("BeanQueryParameterParser", "BeanFormParameterParser", "BeanJsonParameterParser",
+        assertEquals(List.of("BeanFormParameterParser", "BeanJsonParameterParser",
                         "CookieParameterParser", "FormParameterParser", "HeaderParameterParser"),
-                names.subList(4, 10), "目标之后的次序不动");
+                names.subList(4, 9), "目标之后的次序不动");
     }
 
     @Test
@@ -217,10 +215,10 @@ class RestRouteRegisterParserTest {
         BetaParser beta = new BetaParser();
         register.registerParameterParserLast(alpha);
         register.registerParameterParserLast(beta);
-        assertEquals(12, parsersOf(register).size());
+        assertEquals(11, parsersOf(register).size());
         register.removeParameterParser(alpha, beta, new PathParameterParser(), null);
         List<ParameterParser> parsers = parsersOf(register);
-        assertEquals(9, parsers.size(), "按 class 剔除,同类的 Rest 默认解析器一并移除,null 参数无副作用");
+        assertEquals(8, parsers.size(), "按 class 剔除,同类的 Rest 默认解析器一并移除,null 参数无副作用");
         assertTrue(parsers.stream().noneMatch(parser -> parser instanceof AlphaParser || parser instanceof BetaParser));
         assertTrue(parsers.stream().noneMatch(parser -> parser instanceof PathParameterParser));
     }

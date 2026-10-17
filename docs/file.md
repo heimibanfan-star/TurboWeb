@@ -8,40 +8,35 @@ TurboWeb 的文件上传功能基于 Netty 的 FileUpload 组件实现，提供�
 
 **_单文件上传_**
 
-通过`HttpContext`的`loadFile(...)`方法可获取上传的单个文件，返回`FileUpload`对象。示例代码如下：
+参数声明为`MultipartFile`并经`@FormParam`指定表单字段名，即可绑定上传的单个文件。示例代码如下：
 
 ```java
 @Post("/upload")
-public String upload01(HttpContext context) throws IOException {
-    // 加载名为"file"的上传文件
-    FileUpload fileUpload = context.loadFile("file");
-    // 将文件重命名并保存为临时文件
-    fileUpload.renameTo(File.createTempFile("testFile", ".tmp"));
+public String upload01(@FormParam("file") MultipartFile file) throws IOException {
+    // 将文件内容写入临时文件
+    file.inputStream().transferTo(Files.newOutputStream(
+            File.createTempFile("testFile", ".tmp").toPath()));
     return "upload success";
 }
 ```
 
 **_多文件上传_**
 
-当存在多个同名文件上传时，可使用`loadFiles(...)`方法批量获取文件列表，返回`List<FileUpload>`集合。示例代码如下：
+当存在多个同名文件上传时，将参数声明为`List<MultipartFile>`即可获取该字段的全部文件。示例代码如下：
 
 ```java
 @Post("/upload")
-public String upload01(HttpContext context) throws IOException {
-    // 加载所有名为"file"的上传文件
-    List<FileUpload> fileUploads = context.loadFiles("file");
-    // 遍历文件列表并逐个保存
-    fileUploads.forEach(fileUpload -> {
-        try {
-            // 使用UUID生成唯一文件名，避免冲突
-            fileUpload.renameTo(File.createTempFile(UUID.randomUUID().toString(), ".tmp"));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    });
+public String upload02(@FormParam("file") List<MultipartFile> files) throws IOException {
+    for (MultipartFile file : files) {
+        file.inputStream().transferTo(Files.newOutputStream(
+                File.createTempFile(UUID.randomUUID().toString(), ".tmp").toPath()));
+    }
     return "upload success";
 }
 ```
+
+上传文件的读取受请求生命周期约束：`MultipartFile`的引用不可带出本次请求处理，
+需要保留内容时应在处理结束前经`readAll()`或`inputStream()`完成复制。
 
 > ⚠️ 重要提示：
 > 在 TurboWeb 的实现中，为追求性能，将 Netty 的文件落盘阈值设置为了最大值。这意味着**即使是大文件，也会通过`FileUpload`的子类`MemoryFileUpload`以纯内存方式处理**，而非写入磁盘临时文件。
@@ -71,9 +66,9 @@ BootStrapTurboWebServer.create()
 
 对于需要上传大文件的场景，建议结合分布式文件存储服务（如 MinIO、阿里云 OSS 等）实现，并在前端进行分片上传处理。
 
-`FileUpload`对象的`renameTo(...)`方法用于将内存中的文件数据写入磁盘，建议在调用该方法前验证文件类型、大小等信息，确保系统安全。
+`MultipartFile`的`inputStream()`与`readAll()`用于读取上传内容，建议在处理前验证文件类型、大小等信息，确保系统安全。
 
-### 基于注解的方式实现文件下载
+### 基于注解的方式实现文件上传
 
 使用这种方式来获取上传的文件需要开启自动绑定的功能：
 
@@ -85,20 +80,20 @@ AnnoRouterManager routerManager = new AnnoRouterManager(true);
 
 ```java
 @Post("/upload2")
-public String upload02(@Upload("file") FileUpload file) {
-    System.out.println(file);
+public String upload02(@FormParam("file") MultipartFile file) {
+    System.out.println(file.filename());
     return "upload";
 }
 ```
 
-`@Upload` 告诉TurboWeb这里需要注入一个文件上传类型的对象，属性是文件名，形参类型需要是 `FileUpload`。
+`@FormParam`指定表单字段名，形参类型声明为 `MultipartFile` 即按文件绑定。
 
 也可以接收多个上传的文件，使用 `List` 或者 `Set` 即可：
 
 ```java
 @Post("/upload3")
-public String upload03(@Upload("file") List<FileUpload> files) {
-    files.forEach(System.out::println);
+public String upload03(@FormParam("file") List<MultipartFile> files) {
+    files.forEach(file -> System.out.println(file.filename()));
     return "upload";
 }
 ```

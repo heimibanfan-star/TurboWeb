@@ -2,9 +2,9 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.Test;
 import top.turboweb.rest.HttpContent;
+import top.turboweb.rest.MultipartFile;
 import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.context.HttpJsonContent;
@@ -116,7 +116,7 @@ class HttpContentParserManagerTest {
             HttpContent content = manager().parse(req);
             HttpFormContent form = assertInstanceOf(HttpFormContent.class, content);
             assertSame(ContentType.MULTIPART_FORM_DATA, form.contentType());
-            List<FileUpload> docs = form.formFiles().get("doc");
+            List<MultipartFile> docs = form.formFiles().get("doc");
             assertEquals(1, docs.size(), "multipart 与 urlencoded 同由表单解析器承接");
             form.close();
         } finally {

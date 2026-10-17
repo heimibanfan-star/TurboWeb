@@ -11,10 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link HttpFile} 的 default 方法：readAll 经输入流读取全部内容并关闭流，
+ * {@link MultipartFile} 的 default 方法：readAll 经输入流读取全部内容并关闭流，
  * isEmpty 按内容长度判定。
  */
-class HttpFileTest {
+class MultipartFileTest {
 
     /** 记录关闭状态的字节流：readAll 未关闭流即断言失配 */
     private static final class TrackingStream extends ByteArrayInputStream {
@@ -33,9 +33,9 @@ class HttpFileTest {
     }
 
     /** 仅数据通道可用的桩实现：元信息方法给最小行为，default 方法不触碰它们 */
-    private static HttpFile stub(byte[] content) {
+    private static MultipartFile stub(byte[] content) {
         TrackingStream stream = new TrackingStream(content);
-        return new HttpFile() {
+        return new MultipartFile() {
             @Override
             public InputStream inputStream() {
                 return stream;
@@ -61,7 +61,7 @@ class HttpFileTest {
     @Test
     void readAllReturnsWholeContentAndClosesStream() throws IOException {
         byte[] content = {'a', 'b', 'c'};
-        HttpFile file = stub(content);
+        MultipartFile file = stub(content);
 
         assertArrayEquals(content, file.readAll());
         assertTrue(((TrackingStream) file.inputStream()).closed, "readAll 应关闭自己打开的输入流");

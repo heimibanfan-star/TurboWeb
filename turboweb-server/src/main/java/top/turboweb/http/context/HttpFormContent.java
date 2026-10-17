@@ -10,6 +10,7 @@ import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.rest.ContentType;
+import top.turboweb.rest.MultipartFile;
 import top.turboweb.http.core.helper.HttpRequestHelper;
 import top.turboweb.http.exception.RequestParseException;
 
@@ -28,13 +29,14 @@ import java.util.Objects;
  * <p>解码器在构造期即完成请求体解码；普通字段（取值为堆上字符串）与上传文件段
  * （{@link FileUpload}，数据体由 Netty 解码器管理，可能占用直接内存或磁盘临时文件）
  * 的分类归档不即时进行，改由首个访问器调用时遍历解码数据建立，一次建立后缓存复用。
+ * 上传文件段经 {@link DefaultHttpFile} 包装后以 {@link MultipartFile} 暴露，不直接对外透出 Netty 类型。
  * 本类不持有请求对象的引用，因此<b>不负责释放传入的 {@link FullHttpRequest}</b>：
  * 请求体字节在构造期已转入解码器持有的数据对象，构造返回后调用方可立即释放请求。
  *
  * <p><b>内存安全契约：</b>本类所持有的解码器及其归档数据必须在请求处理结束后经
  * {@link #close()} 释放；close 销毁解码器并回收全部上传数据，解码器为构造期建立的
  * final 持有、经释放闩保证幂等，二次调用无副作用。close 之后 {@link #formFiles()}
- * 中的 {@link FileUpload} 即失效，对其继续访问的后果由使用者自行承担，框架不做守护。
+ * 中的 {@link MultipartFile} 即失效，对其继续访问的后果由使用者自行承担，框架不做守护。
  *
  * <p>解码字符集按请求头 Content-Type 声明优先、未声明时回落到构造传入的缺省字符集，
  * 与请求体其余解码口径一致。
@@ -50,7 +52,7 @@ public class HttpFormContent implements AutoCloseContent {
     private Map<String, List<String>> formParams;
 
     /** 上传文件缓存：首个访问器调用时建立，数据体生命周期随解码器 */
-    private Map<String, List<FileUpload>> formFiles;
+    private Map<String, List<MultipartFile>> formFiles;
 
     /** 表单解码器：构造期解析完成后持有，终身不替换，close 经释放闩保证仅销毁一次 */
     private final HttpPostRequestDecoder decoder;
@@ -104,7 +106,7 @@ public class HttpFormContent implements AutoCloseContent {
             return;
         }
         Map<String, List<String>> params = new HashMap<>();
-        Map<String, List<FileUpload>> files = new HashMap<>();
+        Map<String, List<MultipartFile>> files = new HashMap<>();
         for (InterfaceHttpData httpData : decoder.getBodyHttpDatas()) {
             if (httpData instanceof Attribute attribute) {
                 String name = attribute.getName();
@@ -125,7 +127,7 @@ public class HttpFormContent implements AutoCloseContent {
                 if (name == null || name.isBlank()) {
                     log.error("Empty name found in file upload, name: {}", name);
                 }
-                files.computeIfAbsent(name, k -> new ArrayList<>(1)).add(fileUpload);
+                files.computeIfAbsent(name, k -> new ArrayList<>(1)).add(new DefaultHttpFile(fileUpload));
             }
         }
         this.formParams = params;
@@ -135,9 +137,9 @@ public class HttpFormContent implements AutoCloseContent {
     /**
      * 获取上传文件集合，缓存未建立时先完成归档遍历。
      *
-     * @return key 为文件字段名、value 为该字段文件列表的映射；urlencoded 请求为空 Map
+     * @return key 为文件字段名、value 为该字段 {@link MultipartFile} 列表的映射；urlencoded 请求为空 Map
      */
-    public Map<String, List<FileUpload>> formFiles() {
+    public Map<String, List<MultipartFile>> formFiles() {
         ensureParsed();
         return formFiles;
     }

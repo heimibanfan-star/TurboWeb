@@ -3,13 +3,13 @@ package top.turboweb.http.router.parameter;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.rest.HttpContent;
 import top.turboweb.rest.HttpRequestMessage;
 import top.turboweb.rest.HttpRequestMethod;
 import top.turboweb.rest.HttpUrl;
+import top.turboweb.rest.MultipartFile;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.context.HttpJsonContent;
@@ -43,7 +43,7 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * autoBind 十个参数解析器各自的解析逻辑（spec §5：autoBind 解析器认领与绑定契约）。
+ * autoBind 九个参数解析器各自的解析逻辑（spec §5：autoBind 解析器认领与绑定契约）。
  *
  * <p>分派那一侧（谁在前、谁先认领）归 Task 9；本类只钉"每个 parser 对单个
  * {@link Parameter} 怎么认领、认领后怎么绑定"。
@@ -80,16 +80,16 @@ class ParamInfoParsersTest {
         void internChannel(Channel v) {}
         void internUnsupported(String v) {}
 
-        // —— @UploadParam ——
-        void uploadFile(@UploadParam("f") FileUpload v) {}
-        void uploadObject(@UploadParam("f") Object v) {}
-        void uploadList(@UploadParam("f") List<FileUpload> v) {}
-        void uploadSet(@UploadParam("f") Set<FileUpload> v) {}
-        void uploadListWithoutAnnotation(List<FileUpload> v) {}
-        void uploadStringList(@UploadParam("f") List<String> v) {}
-        void uploadRawCollection(@UploadParam("f") Collection<FileUpload> v) {}
-        void uploadString(@UploadParam("f") String v) {}
-        void uploadFileWithoutAnnotation(FileUpload v) {}
+        // —— @FormParam 文件形态 ——
+        void uploadFile(@FormParam("f") MultipartFile v) {}
+        void uploadObject(@FormParam("f") Object v) {}
+        void uploadList(@FormParam("f") List<MultipartFile> v) {}
+        void uploadSet(@FormParam("f") Set<MultipartFile> v) {}
+        void uploadListWithoutAnnotation(List<MultipartFile> v) {}
+        void uploadStringList(@FormParam("f") List<String> v) {}
+        void uploadRawCollection(@FormParam("f") Collection<MultipartFile> v) {}
+        void uploadWildcardList(@FormParam("f") List<?> v) {}
+        void uploadFileWithoutAnnotation(MultipartFile v) {}
         void uploadObjectWithoutAnnotation(Object v) {}
 
         // —— Bean ——
@@ -688,14 +688,14 @@ class ParamInfoParsersTest {
         assertNull(new InternTypeParameterParser().parse(parameter("internUnsupported")));
     }
 
-    // ---------- UploadParameterParser ----------
+    // ---------- FormParameterParser 文件形态 ----------
 
     @Test
     void uploadFileBindsSingleFile() throws Exception {
         HttpFormContent form = multipartContentOf(
                 new String[]{"f", "a.txt", "first"}, new String[]{"other", "o.txt", "second"});
         Stub stub = new Stub().returning("content", form);
-        ParameterParser.Binder b = new UploadParameterParser().parse(parameter("uploadFile"));
+        ParameterParser.Binder b = new FormParameterParser().parse(parameter("uploadFile"));
         assertNotNull(b);
         assertSame(form.formFiles().get("f").getFirst(),
                 b.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
@@ -705,22 +705,16 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    void uploadObjectTypedParameterBindsSingleFile() throws Exception {
-        // Object.isAssignableFrom(FileUpload) 为真 → 走单文件分支（collectionType 0）；
-        // 归档值由内置表单内容直供，断言语义仍是"拿回的就是该字段归档的首文件"
-        HttpFormContent form = multipartContentOf(new String[]{"f", "a.txt", "payload"});
-        Stub stub = new Stub().returning("content", form);
-        ParameterParser.Binder b = new UploadParameterParser().parse(parameter("uploadObject"));
-        assertNotNull(b);
-        assertSame(form.formFiles().get("f").getFirst(), b.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
-        form.close();
+    void uploadObjectTypedParameterIsNotOurs() {
+        // 文件与普通字段共用 @FormParam 后，Object 声明与文本参数无法区分，不按文件认领
+        assertNull(new FormParameterParser().parse(parameter("uploadObject")));
     }
 
     @Test
     void uploadBinderRejectsNonFormContent() {
         // 内容不是内置表单内容类时拒绑，异常文案沿用原表单取数通道口径
         Stub stub = new Stub().returning("content", new PlainContentFixture());
-        ParameterParser.Binder b = new UploadParameterParser().parse(parameter("uploadFile"));
+        ParameterParser.Binder b = new FormParameterParser().parse(parameter("uploadFile"));
         assertNotNull(b);
         RequestParseException ex = assertThrows(RequestParseException.class,
                 () -> b.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
@@ -729,53 +723,50 @@ class ParamInfoParsersTest {
     }
 
     @Test
-    void uploadStringTypedParameterIsNotOurs() {
-        assertNull(new UploadParameterParser().parse(parameter("uploadString")));
-    }
-
-    @Test
-    @DisplayName("HS-16 回归：@UploadParam 集合参数经内置表单内容的文件归档绑定，集合分支可达")
+    @DisplayName("HS-16 回归：@FormParam 集合参数经内置表单内容的文件归档绑定，集合分支可达")
     void uploadCollectionTypesBindFileCollections() throws Exception {
-        // 守卫修正后：集合形参显式标注 @UploadParam 且元素类型相符才认领，collectionType 1/2 与归档取数/HashSet 分支可达
+        // 集合形参经 @FormParam 标注且元素类型为 MultipartFile 才认领，collectionType 1/2 与归档取数/HashSet 分支可达
         HttpFormContent form = multipartContentOf(
                 new String[]{"f", "a.txt", "1"}, new String[]{"f", "b.txt", "2"},
                 new String[]{"other", "c.txt", "3"});
         Stub stub = new Stub().returning("content", form);
-        List<FileUpload> archived = form.formFiles().get("f");
-        ParameterParser.Binder listBinder = new UploadParameterParser().parse(parameter("uploadList"));
-        assertNotNull(listBinder, "List<FileUpload> + @UploadParam 应被认领");
+        List<MultipartFile> archived = form.formFiles().get("f");
+        ParameterParser.Binder listBinder = new FormParameterParser().parse(parameter("uploadList"));
+        assertNotNull(listBinder, "List<MultipartFile> + @FormParam 应被认领");
         assertSame(archived, listBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
                 "注解的 value 即表单字段名：List 分支直传键 \"f\" 归档");
-        ParameterParser.Binder setBinder = new UploadParameterParser().parse(parameter("uploadSet"));
-        assertNotNull(setBinder, "Set<FileUpload> + @UploadParam 应被认领");
+        ParameterParser.Binder setBinder = new FormParameterParser().parse(parameter("uploadSet"));
+        assertNotNull(setBinder, "Set<MultipartFile> + @FormParam 应被认领");
         assertEquals(Set.copyOf(archived), setBinder.bindParameter(stub.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER),
                 "Set 分支把归档结果包装成 HashSet");
         // 字段不存在:集合分支归一空集合,单文件分支归一 null
         Stub empty = new Stub().returning("content", formContentOf(""));
         assertEquals(List.of(), listBinder.bindParameter(empty.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
         assertEquals(Set.of(), setBinder.bindParameter(empty.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
-        ParameterParser.Binder singleBinder = new UploadParameterParser().parse(parameter("uploadFile"));
+        ParameterParser.Binder singleBinder = new FormParameterParser().parse(parameter("uploadFile"));
         assertNull(singleBinder.bindParameter(empty.ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER), "单文件通道未命中归一 null");
-        // 无 @UploadParam 的裸 List 不认领——不得截走其他渠道负责的参数
-        assertNull(new UploadParameterParser().parse(parameter("uploadListWithoutAnnotation")));
-        // 声明元素类型与 FileUpload 不符 → 不认领
-        assertNull(new UploadParameterParser().parse(parameter("uploadStringList")));
+        // 无 @FormParam 的裸 List 不认领——不得截走其他渠道负责的参数
+        assertNull(new FormParameterParser().parse(parameter("uploadListWithoutAnnotation")));
+        // 声明元素类型与 MultipartFile 不符 → 不认领
+        assertNull(new FormParameterParser().parse(parameter("uploadStringList")));
+        // 通配符元素类型无法判定为文件 → 不认领
+        assertNull(new FormParameterParser().parse(parameter("uploadWildcardList")));
         // List/Set 之外的裸集合类型 → 注册期异常，与查询侧同款
         RouteHandlerException ex = assertThrows(RouteHandlerException.class,
-                () -> new UploadParameterParser().parse(parameter("uploadRawCollection")));
+                () -> new FormParameterParser().parse(parameter("uploadRawCollection")));
         assertEquals("not support type of collection:java.util.Collection", ex.getMessage());
         form.close();
     }
 
     @Test
-    @DisplayName("HS-17 回归：缺 @UploadParam 的上传类型参数不认领，不再抛 NPE")
+    @DisplayName("HS-17 回归：缺 @FormParam 的上传类型参数不认领，不再抛 NPE")
     void uploadParameterWithoutAnnotationIsNotClaimed() {
-        // 修正后：注解存在性前置判定，缺 @UploadParam 直接返回 null 交还解析链，upload.value() 的 NPE 不可达；
-        // 判定发生在类型分流之前，FileUpload 与 Object 两型同样不认领
-        assertNull(new UploadParameterParser().parse(parameter("uploadFileWithoutAnnotation")),
-                "缺 @UploadParam 的 FileUpload 参数应不认领");
-        assertNull(new UploadParameterParser().parse(parameter("uploadObjectWithoutAnnotation")),
-                "缺 @UploadParam 的 Object 参数应不认领");
+        // 注解存在性前置判定，缺 @FormParam 直接返回 null 交还解析链；
+        // 判定发生在类型分流之前，MultipartFile 与 Object 两型同样不认领
+        assertNull(new FormParameterParser().parse(parameter("uploadFileWithoutAnnotation")),
+                "缺 @FormParam 的 MultipartFile 参数应不认领");
+        assertNull(new FormParameterParser().parse(parameter("uploadObjectWithoutAnnotation")),
+                "缺 @FormParam 的 Object 参数应不认领");
     }
 
     // ---------- BeanJsonParameterParser ----------

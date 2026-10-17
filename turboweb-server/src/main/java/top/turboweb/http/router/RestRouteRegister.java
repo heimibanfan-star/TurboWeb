@@ -90,7 +90,6 @@ public class RestRouteRegister implements RouteRegister {
         parsers.add(new InternTypeParameterParser());
         parsers.add(new PathParameterParser());
         parsers.add(new QueryParameterParser());
-        parsers.add(new UploadParameterParser());
         parsers.add(new BeanQueryParameterParser());
         parsers.add(new BeanFormParameterParser());
         parsers.add(new BeanJsonParameterParser());

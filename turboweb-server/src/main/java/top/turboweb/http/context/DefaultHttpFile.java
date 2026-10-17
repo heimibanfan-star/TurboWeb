@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import top.turboweb.rest.ContentType;
-import top.turboweb.rest.HttpFile;
+import top.turboweb.rest.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,7 +14,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * {@code DefaultHttpFile} 是 {@link HttpFile} 在服务端的默认实现，内部聚合 Netty 解码器产出的
+ * {@code DefaultHttpFile} 是 {@link MultipartFile} 在服务端的默认实现，内部聚合 Netty 解码器产出的
  * {@link FileUpload}：文件名、内容类型、内容长度与内容读取均委托给被聚合的上传段。
  *
  * <p>上传段可能驻留堆外内存或磁盘临时文件，其生命周期由持有解码器的 {@link HttpFormContent}
@@ -26,7 +26,7 @@ import java.util.Objects;
  * <p>{@link #inputStream()} 每次调用都自内容起始处新建互不干扰的读取通道：内存驻留的上传段包装
  * 底层缓冲区读取，磁盘驻留的上传段打开其临时文件读取，均不把整段内容载入内存。</p>
  */
-public class DefaultHttpFile implements HttpFile {
+public class DefaultHttpFile implements MultipartFile {
 
     /** 被聚合的 Netty 上传段，数据体生命周期归其解码器所有 */
     private final FileUpload fileUpload;
