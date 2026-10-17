@@ -3,7 +3,7 @@ package top.turboweb.http.middleware;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.rest.Http;
+import top.turboweb.rest.HttpRequestMessage;
 import top.turboweb.http.context.HttpContext;
 
 import java.util.HashMap;
@@ -24,8 +24,8 @@ public abstract class AbstractConcurrentLimitMiddleware extends Middleware{
 
     @Override
     public Object invoke(HttpContext ctx) {
-        Http.Message message = ctx.message();
-        String method = message.method();
+        HttpRequestMessage message = ctx.message();
+        String method = message.method().name();
         // 判断是否可以放行
         LimitMatchResult limitMatchResult = couldEnter(method, message.url().url(false));
         if (limitMatchResult.status == LimitMatchStatus.REJECT) {

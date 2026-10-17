@@ -3,8 +3,10 @@ package top.turboweb.http.orchestrator;
 import io.netty.handler.codec.http.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.rest.Http;
+import top.turboweb.rest.HttpContent;
+import top.turboweb.rest.HttpRequestMessage;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
+import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.DefaultMessage;
 import top.turboweb.http.context.FullHttpContext;
 import top.turboweb.http.context.HttpContext;
@@ -41,7 +43,8 @@ import java.util.Objects;
  * 直接以空正文 200 携带 CORS 响应头应答；其余请求先把请求转化为上下文的消息、
  * 并按内容类型解析请求体得到内容对象，两者一并装配进请求上下文（上下文不接触请求对象）
  * 后执行中间件链并经结果转化链产出响应，过程中抛出的异常交由异常处理器管理器产出处理结果后转化，
- * 响应统一经 CORS 来源处理后写出，请求在写出提交后释放（含异常路径）；
+ * 响应统一经 CORS 来源处理后写出；请求体内存在消息装配完成处即时释放，
+ * OPTIONS 预检与提前失败路径在编排收尾兜底释放，每条路径恰好释放一次；
  * 写出可监听时挂接完成回调以 DEBUG 级打印请求日志（方法、URI、耗时、写出成败），
  * 展示与否由日志级别控制，不可监听写出不记录。
  * {@link #handleCorsHeaders} 亦可独立调用。
@@ -133,7 +136,9 @@ public class RequestOrchestrator {
      * 正常与异常响应统一经 {@link #handleCorsHeaders} 写出 CORS 头后交
      * {@link ResponseWriterManager#write} 写出。写出可监听时挂接完成回调，
      * 以 DEBUG 级打印请求日志（方法、URI、自起点耗时、写出成败），展示与否由日志级别控制，
-     * 不可监听写出不记录。请求在写出提交后释放，异常上抛路径同样释放。
+     * 不可监听写出不记录。正常编排路径的请求体已在消息装配处即时回收，本方法收尾仅对
+     * 尚未释放的路径（OPTIONS 预检、装配前异常）兜底归还请求；释放判护以引用计数为准，
+     * 已释放请求不重复归还。
      *
      * @param request        完整的 HTTP 请求，不能为 null
      * @param connectSession 当前连接会话，不能为 null，响应经其通道写出
@@ -173,7 +178,11 @@ public class RequestOrchestrator {
             }
             return attachRequestLog(request, startTime, responseWriterManager.write(response, connectSession));
         } finally {
-            request.release();
+            // 正常编排路径的请求体已在消息装配处回收（refCnt 归零），不在此重复归还；
+            // OPTIONS 预检与装配前异常路径由此兜底释放
+            if (request.refCnt() > 0) {
+                request.release();
+            }
         }
     }
 
@@ -253,10 +262,12 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 执行中间件链并善后结果：初始化 Cookie 集合与会话，把请求转化为上下文的消息
-     * （请求方式、请求头与请求地址）并按内容类型解析请求体得到内容对象，两者一并装配进
+     * 执行中间件链并善后结果：初始化 Cookie 集合与会话，先按内容类型解析请求体得到内容对象，
+     * 再连同请求装配为上下文的消息（请求方式、请求头、请求地址与请求体内容），装配进
      * 请求上下文后调用链头，链结果经结果转化链转化为响应；随后回写 Cookie，会话新建或
-     * 路径变更时设置 JSESSIONID 的 Set-Cookie 头。上下文释放与会话续期在返回前完成。
+     * 路径变更时设置 JSESSIONID 的 Set-Cookie 头。请求的取数在消息装配完成处全部结束，
+     * 请求体内存随即在此释放；内容资源关闭与会话续期在返回前完成——资源释放是创建方
+     * （本编排器）的职责，请求上下文不承载释放入口。
      * <p>HEAD 请求无请求体，内容侧以未声明类型的未知内容承载，不走解析器。
      * 请求体无效（内容类型命中解析器而体解析失败）时异常在装配上下文处抛出，
      * 与链内异常同径交由异常处理器处置。</p>
@@ -268,20 +279,29 @@ public class RequestOrchestrator {
      */
     private HttpResponse executeMiddleware(FullHttpRequest request, ConnectSession connectSession,
                                            SessionManager sessionManager) {
-        HttpContext context = null;
+        HttpCookies cookies;
+        String originSessionId;
+        HttpSession httpSession;
+        HttpContent content;
+        HttpRequestMessage message;
         try {
             // 初始化Cookie
-            HttpCookies cookies = new DefaultHttpCookies(request.headers());
+            cookies = new DefaultHttpCookies(request.headers());
+            originSessionId = cookies.getCookie("JSESSIONID");
             // 初始化session
-            String originSessionId = cookies.getCookie("JSESSIONID");
-            HttpSession httpSession = new DefaultHttpSession(sessionManager, originSessionId);
-            // 请求对象在编排器内转化为上下文的对外契约：请求消息与请求体内容
-            Http.Message message = new DefaultMessage(request, defaultCharset);
-            Http.Content content = HttpMethod.HEAD == request.method()
+            httpSession = new DefaultHttpSession(sessionManager, originSessionId);
+            // 请求对象在编排器内转化为上下文的对外契约：请求体内容先就位，再连同请求装配为请求消息
+            content = HttpMethod.HEAD == request.method()
                     ? new HttpUnknowContent(null)
                     : contentParserManager.parse(request);
-            // 创建HttpContext对象
-            context = new FullHttpContext(message, content, httpSession, cookies, connectSession, defaultCharset);
+            message = new DefaultMessage(request, content, defaultCharset);
+        } finally {
+            // 装配产物（头字段视图、URL 快照、内容拷贝）均不回读请求体，取数结束后请求内存就地回收
+            request.release();
+        }
+        // 创建HttpContext对象
+        HttpContext context = new FullHttpContext(message, httpSession, cookies, connectSession, defaultCharset);
+        try {
             // 执行中间件
             Object result = middleware.invoke(context);
             HttpResponse response = resultConverterManager.convert(result, defaultCharset);
@@ -295,9 +315,24 @@ public class RequestOrchestrator {
             }
             return response;
         } finally {
-            if (context != null) {
-                context.release();
-                context.httpSession().expireAt();
+            closeContentQuietly(content);
+            httpSession.expireAt();
+        }
+    }
+
+    /**
+     * 静默关闭内容对象持有的资源：内容为 {@link AutoCloseContent}（持有解码器、直接内存或
+     * 磁盘临时文件等需归还资源）时调用其 {@link AutoCloseable#close()}；关闭抛出的异常
+     * 只记录不外抛，不影响请求其余环节的收尾。内容不持有资源时为空操作，重复调用无副作用。
+     *
+     * @param content 内容解析与装配阶段产出的内容对象，不能为 null
+     */
+    private void closeContentQuietly(HttpContent content) {
+        if (content instanceof AutoCloseContent autoCloseContent) {
+            try {
+                autoCloseContent.close();
+            } catch (Exception e) {
+                log.error("Failed to close http content", e);
             }
         }
     }

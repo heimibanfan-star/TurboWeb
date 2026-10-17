@@ -13,7 +13,7 @@ import java.lang.reflect.Parameter;
 public class HeaderParameterParser extends AbstractParameterParser {
 
     /**
-     * 请求头参数绑定器:按注解 value 从请求消息的请求头只读视图取首值,再按声明类型转化
+     * 请求头参数绑定器:按注解 value 从请求消息取该请求头首值,再按声明类型转化
      */
     private record HeaderParameterBinder(
             String name,
@@ -23,7 +23,7 @@ public class HeaderParameterParser extends AbstractParameterParser {
         @Override
         public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
                                     JsonSerializer jsonSerializer) {
-            return simpleTypeHandler.handle(ctx.message().headers().get(name));
+            return simpleTypeHandler.handle(ctx.message().header(name));
         }
     }
 

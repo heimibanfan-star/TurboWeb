@@ -1,8 +1,9 @@
 package top.turboweb.http.router.parameter;
 
-import top.turboweb.rest.Http;
+import top.turboweb.rest.HttpContent;
 import top.turboweb.rest.parameter.FormParam;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
@@ -17,8 +18,8 @@ import java.util.Map;
 public class FormParameterParser extends AbstractParameterParser {
 
     /**
-     * 表单参数绑定器:取数经请求体内容的 FormContent 能力契约,按注解 value 取该字段归档的首值,
-     * 再按声明类型转化;内容不实现 FormContent 契约时拒绑
+     * 表单参数绑定器:取数经请求体内容转型内置表单内容类（{@link HttpFormContent}）,按注解 value 取该字段归档的首值,
+     * 再按声明类型转化;内容不是内置表单内容类时拒绑
      */
     private record FormParameterBinder(
             String name,
@@ -28,8 +29,8 @@ public class FormParameterParser extends AbstractParameterParser {
         @Override
         public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
                                     JsonSerializer jsonSerializer) {
-            Http.Content content = ctx.content();
-            if (!(content instanceof HttpContext.FormContent formContent)) {
+            HttpContent content = ctx.message().content();
+            if (!(content instanceof HttpFormContent formContent)) {
                 throw new RequestParseException(
                         "contentType is not application/x-www-form-urlencoded or multipart/form-data");
             }

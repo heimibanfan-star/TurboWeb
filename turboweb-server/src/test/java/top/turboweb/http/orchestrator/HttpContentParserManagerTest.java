@@ -4,8 +4,8 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import org.junit.jupiter.api.Test;
-import top.turboweb.rest.Http;
-import top.turboweb.http.context.HttpContext;
+import top.turboweb.rest.HttpContent;
+import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.context.HttpJsonContent;
 import top.turboweb.http.context.HttpUnknowContent;
@@ -61,13 +61,13 @@ class HttpContentParserManagerTest {
         }
 
         @Override
-        public Http.Content parse(FullHttpRequest request, Charset defaultCharset) {
+        public HttpContent parse(FullHttpRequest request, Charset defaultCharset) {
             this.seenCharset = defaultCharset;
             return new MarkerContent();
         }
     }
 
-    private static final class MarkerContent implements Http.Content {
+    private static final class MarkerContent implements HttpContent {
         @Override
         public ContentType contentType() {
             return ContentType.APPLICATION_OCTET_STREAM;
@@ -98,7 +98,7 @@ class HttpContentParserManagerTest {
     void urlencodedRequestRoutesToFormContent() throws Exception {
         FullHttpRequest req = Requests.postForm("/x", "name=alice&tag=a&tag=b");
         try {
-            Http.Content content = manager().parse(req);
+            HttpContent content = manager().parse(req);
             HttpFormContent form = assertInstanceOf(HttpFormContent.class, content);
             assertEquals(List.of("alice"), form.formParams().get("name"));
             assertEquals(List.of("a", "b"), form.formParams().get("tag"));
@@ -113,7 +113,7 @@ class HttpContentParserManagerTest {
     void multipartRequestRoutesToFormContent() throws Exception {
         FullHttpRequest req = multipart();
         try {
-            Http.Content content = manager().parse(req);
+            HttpContent content = manager().parse(req);
             HttpFormContent form = assertInstanceOf(HttpFormContent.class, content);
             assertSame(ContentType.MULTIPART_FORM_DATA, form.contentType());
             List<FileUpload> docs = form.formFiles().get("doc");
@@ -128,7 +128,7 @@ class HttpContentParserManagerTest {
     void jsonRequestRoutesToJsonContent() {
         FullHttpRequest req = Requests.postJson("/x", "{\"a\":1}");
         try {
-            Http.Content content = manager().parse(req);
+            HttpContent content = manager().parse(req);
             HttpJsonContent json = assertInstanceOf(HttpJsonContent.class, content);
             assertEquals("{\"a\":1}", json.jsonString());
             assertSame(ContentType.APPLICATION_JSON, json.contentType());
@@ -138,16 +138,17 @@ class HttpContentParserManagerTest {
     }
 
     @Test
-    void builtinContentsImplementCapabilityContracts() throws Exception {
+    void builtinContentsAreTheChannelTypes() throws Exception {
         FullHttpRequest formReq = Requests.postForm("/x", "k=v");
         FullHttpRequest jsonReq = Requests.postJson("/x", "{}");
         try {
-            HttpFormContent form = (HttpFormContent) manager().parse(formReq);
-            assertInstanceOf(HttpContext.FormContent.class, form,
-                    "表单内容实现 FormContent 能力契约，取数方按契约认领不认具体类");
+            HttpFormContent form = assertInstanceOf(HttpFormContent.class, manager().parse(formReq),
+                    "表单渠道就是内置表单内容类，取数方按具体类认领");
+            assertInstanceOf(AutoCloseContent.class, form,
+                    "持有解码器的表单内容经 AutoCloseContent 进入统一关闭通道");
             form.close();
-            assertInstanceOf(HttpContext.JsonContent.class, manager().parse(jsonReq),
-                    "JSON 内容实现 JsonContent 能力契约");
+            assertInstanceOf(HttpJsonContent.class, manager().parse(jsonReq),
+                    "JSON 渠道就是内置 JSON 内容类");
         } finally {
             Requests.release(formReq);
             Requests.release(jsonReq);
@@ -174,7 +175,7 @@ class HttpContentParserManagerTest {
         FullHttpRequest req = Requests.raw(HttpMethod.POST, "/x", "text/plain; charset=UTF-8",
                 "hello", StandardCharsets.UTF_8);
         try {
-            Http.Content content = manager().parse(req);
+            HttpContent content = manager().parse(req);
             HttpUnknowContent unknow = assertInstanceOf(HttpUnknowContent.class, content);
             assertEquals("text/plain", unknow.contentType().getMimeType(),
                     "未知内容携带头声明的类型，编码段不参与路由");

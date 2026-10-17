@@ -1,7 +1,7 @@
 package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.rest.Http;
+import top.turboweb.rest.HttpContent;
 import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.rest.ContentType;
 
@@ -26,7 +26,7 @@ public class FormContentParser implements HttpContentParser {
      * {@inheritDoc}
      */
     @Override
-    public Http.Content parse(FullHttpRequest request, Charset defaultCharset) {
+    public HttpContent parse(FullHttpRequest request, Charset defaultCharset) {
         return new HttpFormContent(request, defaultCharset);
     }
 }

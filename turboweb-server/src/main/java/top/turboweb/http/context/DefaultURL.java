@@ -2,7 +2,7 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import top.turboweb.http.core.helper.UrlHelper;
-import top.turboweb.rest.Http;
+import top.turboweb.rest.HttpUrl;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -13,14 +13,14 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * {@code DefaultURL} 是 {@link Http.URL} 的默认实现：构造期从请求快照地址
+ * {@code DefaultURL} 是 {@link HttpUrl} 的默认实现：构造期从请求快照地址
  * 字符串与缺省字符集，不持有请求对象，构造返回后调用方可立即释放请求；查询参数
  * 不即时解析，由首访 {@link #queryParams()} 时按 {@link UrlHelper} 的纯百分号解码
  * 口径建立并缓存，此后复用。
  *
  * <p>本类按请求单线程使用，缓存建立不加同步。
  */
-public final class DefaultURL implements Http.URL {
+public final class DefaultURL implements HttpUrl {
 
     /** 请求行原始地址的快照 */
     private final String uri;

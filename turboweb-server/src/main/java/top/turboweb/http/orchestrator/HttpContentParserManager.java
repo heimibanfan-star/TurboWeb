@@ -1,8 +1,8 @@
 package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.rest.Http;
-import top.turboweb.http.context.HttpContext;
+import top.turboweb.rest.HttpContent;
+import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.rest.ContentType;
 import top.turboweb.http.core.helper.HttpRequestHelper;
@@ -18,7 +18,7 @@ import java.util.Set;
 
 /**
  * {@code HttpContentParserManager} 按请求头声明的 Content-Type 把请求体路由给内容解析器，
- * 产出 {@link Http.Content}。
+ * 产出 {@link HttpContent}。
  *
  * <p><b>路由顺序：</b>请求头有类型声明时，先遍历内置解析器（内置数量少，线性遍历优于哈希查找），
  * 未命中再查自定义解析器表（按归一化 MIME 类型哈希定位）；两者皆未命中、或请求头未声明类型时，
@@ -33,7 +33,7 @@ import java.util.Set;
  * 由各内容对象按"请求头声明优先、缺省回落"口径解码请求体。
  *
  * <p>本管理器构造后只读，可跨请求共享、多线程并发调用；产出的内容对象按请求单线程使用，
- * 其中持有资源的实现（{@link HttpContext.AutoCloseContent}）由持有方在请求处理结束后关闭。
+ * 其中持有资源的实现（{@link AutoCloseContent}）由请求编排器在请求处理结束后关闭。
  */
 public class HttpContentParserManager {
 
@@ -89,7 +89,7 @@ public class HttpContentParserManager {
      * @throws NullPointerException  当 {@code request} 为 {@code null} 时抛出
      * @throws top.turboweb.http.exception.RequestParseException 命中解析器后请求体无效时由解析器抛出，原样传播
      */
-    public Http.Content parse(FullHttpRequest request) {
+    public HttpContent parse(FullHttpRequest request) {
         Objects.requireNonNull(request, "request can not be null");
         String mimeType = HttpRequestHelper.getContentType(request);
         if (mimeType == null) {

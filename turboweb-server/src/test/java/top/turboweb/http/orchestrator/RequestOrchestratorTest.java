@@ -10,11 +10,14 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.rest.Http;
+import top.turboweb.rest.HttpContent;
+import top.turboweb.rest.HttpRequestMethod;
 import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.VirtualThreadResource;
+import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.context.HttpJsonContent;
 import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.context.respmeta.DefaultResponseMeta;
@@ -40,6 +43,7 @@ import java.util.function.Function;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -673,10 +677,10 @@ class RequestOrchestratorTest {
 
         HttpContext context = chain.captured();
         assertNotNull(context, "链进入时上下文已装配");
-        assertEquals("POST", context.message().method(), "请求方式来自请求行");
+        assertEquals(HttpRequestMethod.POST, context.message().method(), "请求方式来自请求行");
         assertEquals("/submit", context.message().url().url(true), "地址由请求转化为消息");
-        assertInstanceOf(HttpJsonContent.class, context.content(), "JSON 请求体分派给内置 JSON 解析器");
-        assertEquals("{\"name\":\"alice\"}", ((HttpJsonContent) context.content()).jsonString(),
+        assertInstanceOf(HttpJsonContent.class, context.message().content(), "JSON 请求体分派给内置 JSON 解析器");
+        assertEquals("{\"name\":\"alice\"}", ((HttpJsonContent) context.message().content()).jsonString(),
                 "请求体在装配上下文时已解码为字符串");
         channel.finishAndReleaseAll();
     }
@@ -690,7 +694,7 @@ class RequestOrchestratorTest {
 
         orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
 
-        Http.Content content = chain.captured().content();
+        HttpContent content = chain.captured().message().content();
         assertInstanceOf(HttpUnknowContent.class, content, "HEAD 不进内容解析器");
         assertNull(content.contentType(), "HEAD 无请求体，内容侧不声明类型（夹具的类型头不被读取）");
         channel.finishAndReleaseAll();
@@ -723,8 +727,51 @@ class RequestOrchestratorTest {
 
         orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
 
-        assertSame(MarkedContentParser.MARKER, chain.captured().content(),
+        assertSame(MarkedContentParser.MARKER, chain.captured().message().content(),
                 "注入的管理器所持有的自定义解析器按类型分派，其产出进上下文");
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void requestBodyMemoryReleasedBeforeChainRuns() {
+        // 解析即还的钉：链入口时请求引用计数已归零，表单字段经消息仍可读——装配产物独立于请求内存
+        EmbeddedChannel channel = new EmbeddedChannel();
+        FullHttpRequest request = Requests.postForm("/submit", "name=alice");
+        AtomicInteger refCntAtChain = new AtomicInteger(-1);
+        AtomicReference<String> nameAtChain = new AtomicReference<>();
+        Middleware chain = new Middleware() {
+            @Override
+            public Object invoke(HttpContext ctx) {
+                refCntAtChain.set(request.refCnt());
+                HttpContent content = ctx.message().content();
+                nameAtChain.set(content instanceof HttpFormContent form
+                        ? form.formParams().get("name").getFirst() : null);
+                return "hello";
+            }
+        };
+        RequestOrchestrator orchestrator = builderWith(chain).build();
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        assertEquals(0, refCntAtChain.get(), "链进入时请求体已在消息装配处即时回收");
+        assertEquals("alice", nameAtChain.get(), "请求体释放后表单字段仍可读：装配产物不回读请求");
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void closeableContentIsClosedByOrchestratorAtFinish() {
+        // 释放收口归属的钉：持有资源的内容（AutoCloseContent）由编排器在请求收尾统一关闭，上下文不承载释放入口
+        EmbeddedChannel channel = new EmbeddedChannel();
+        ContextCapturingMiddleware chain = new ContextCapturingMiddleware();
+        ClosableProbeContent probe = new ClosableProbeContent();
+        HttpContentParserManager parserManager = new HttpContentParserManager(StandardCharsets.UTF_8,
+                List.of(new FixedContentParser(probe)));
+        RequestOrchestrator orchestrator = builderWith(chain, parserManager).build();
+        FullHttpRequest request = Requests.raw(HttpMethod.GET, "/x", "x-test/probe", "body", StandardCharsets.UTF_8);
+
+        orchestrator.doOrchestrate(request, new InternalConnectSession(channel));
+
+        assertTrue(probe.closed, "持有资源的内容由编排器在请求收尾关闭");
         channel.finishAndReleaseAll();
     }
 
@@ -746,7 +793,7 @@ class RequestOrchestratorTest {
     /** 自定义解析器：承接 text/csv 并返回标记内容对象，用于证明注册后的分派。 */
     private static class MarkedContentParser implements HttpContentParser {
 
-        static final Http.Content MARKER = new Http.Content() {
+        static final HttpContent MARKER = new HttpContent() {
             @Override
             public ContentType contentType() {
                 return ContentType.create("text/csv");
@@ -759,8 +806,37 @@ class RequestOrchestratorTest {
         }
 
         @Override
-        public Http.Content parse(FullHttpRequest request, Charset defaultCharset) {
+        public HttpContent parse(FullHttpRequest request, Charset defaultCharset) {
             return MARKER;
+        }
+    }
+
+    /** 关闭通道探针内容：实现 AutoCloseContent，记录 close 是否被触发。 */
+    private static final class ClosableProbeContent implements AutoCloseContent {
+        private boolean closed;
+
+        @Override
+        public ContentType contentType() {
+            return ContentType.create("x-test/probe");
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+        }
+    }
+
+    /** 自定义解析器：恒产出给定内容对象，供关闭时机钉用例投喂持有资源的内容。 */
+    private record FixedContentParser(HttpContent produced) implements HttpContentParser {
+
+        @Override
+        public Set<ContentType> contentTypes() {
+            return Set.of(ContentType.create("x-test/probe"));
+        }
+
+        @Override
+        public HttpContent parse(FullHttpRequest request, Charset defaultCharset) {
+            return produced;
         }
     }
 

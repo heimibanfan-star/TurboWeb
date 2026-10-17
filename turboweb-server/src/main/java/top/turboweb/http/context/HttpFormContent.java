@@ -39,7 +39,7 @@ import java.util.Objects;
  * <p>解码字符集按请求头 Content-Type 声明优先、未声明时回落到构造传入的缺省字符集，
  * 与请求体其余解码口径一致。
  */
-public class HttpFormContent implements HttpContext.AutoCloseContent, HttpContext.FormContent {
+public class HttpFormContent implements AutoCloseContent {
 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(HttpFormContent.class);
 
@@ -137,7 +137,6 @@ public class HttpFormContent implements HttpContext.AutoCloseContent, HttpContex
      *
      * @return key 为文件字段名、value 为该字段文件列表的映射；urlencoded 请求为空 Map
      */
-    @Override
     public Map<String, List<FileUpload>> formFiles() {
         ensureParsed();
         return formFiles;
@@ -148,7 +147,6 @@ public class HttpFormContent implements HttpContext.AutoCloseContent, HttpContex
      *
      * @return key 为参数名、value 为值列表的映射
      */
-    @Override
     public Map<String, List<String>> formParams() {
         ensureParsed();
         return formParams;

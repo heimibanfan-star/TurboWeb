@@ -123,7 +123,6 @@ class RestRouterHandlerManagerTest {
     private static HttpContext ctx(HttpMethod method, String uri) {
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri);
         return new FullHttpContext(Contexts.message(request, StandardCharsets.UTF_8),
-                Contexts.content(request, StandardCharsets.UTF_8),
                 null, null, null, StandardCharsets.UTF_8);
     }
 
@@ -363,7 +362,7 @@ class RestRouterHandlerManagerTest {
 
     private static HttpContext ctx(HttpMethod method, String uri, Charset charset) {
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, method, uri);
-        return new FullHttpContext(Contexts.message(request, charset), Contexts.content(request, charset),
+        return new FullHttpContext(Contexts.message(request, charset),
                 null, null, null, charset);
     }
 
@@ -458,7 +457,7 @@ class RestRouterHandlerManagerTest {
         FullHttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET,
                 "/qb?name=alice&tags=a&tags=b");
         HttpContext context = new FullHttpContext(Contexts.message(req, StandardCharsets.UTF_8),
-                Contexts.content(req, StandardCharsets.UTF_8), null, null, null, StandardCharsets.UTF_8);
+                null, null, null, StandardCharsets.UTF_8);
         assertEquals("alice/a,b", manager.handle(context),
                 "@BeanQuery 端到端:承载查询映射经序列化器折叠绑定,数据源断链时该断言必红");
     }

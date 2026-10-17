@@ -1,13 +1,11 @@
 package top.turboweb.http.context;
 
-import io.netty.util.internal.logging.InternalLogger;
-import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.context.attchment.DefaultAttachment;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.session.HttpSession;
-import top.turboweb.rest.Http;
+import top.turboweb.rest.HttpRequestMessage;
 
 import java.nio.charset.Charset;
 import java.util.Objects;
@@ -15,14 +13,16 @@ import java.util.Objects;
 /**
  * {@code FullHttpContext} 是 TurboWeb 框架中 {@link HttpContext} 的唯一实现。
  * <p>
- * 它封装请求消息（{@link Http.Message}）、请求体内容（{@link Http.Content}）、
+ * 它封装请求消息（{@link HttpRequestMessage}，承载请求方式、请求头、请求地址与请求体内容）、
  * Session、Cookie、连接会话、缺省编码与挂载对象；
- * 请求体参数的封装与读取经内容对象的能力子契约（{@link HttpContext.FormContent}、
- * {@link HttpContext.JsonContent}）完成，本类不按具体实现类分派。
+ * 请求体参数的封装由内置解析器产出的具体内容类承载（表单字段与上传文件在
+ * {@link HttpFormContent}、JSON 体字符串在 {@link HttpJsonContent}），读取侧认其具体类转型取数，
+ * 本类不分派内容。
  * <p>
- * 本类不持有 Netty 的请求对象：请求的方式、头与地址经 {@link Http.Message} 读取，
- * 请求体经内容解析器产出的 {@link Http.Content} 读取，两者均由编排器在装配上下文时就位。
- * 请求体内容为 {@link HttpContext.AutoCloseContent} 时，其资源在 {@link #release()} 时关闭。
+ * 本类不持有 Netty 的请求对象：请求的方式、头、地址与请求体内容统一经
+ * {@link HttpRequestMessage} 读取，由编排器在装配上下文时就位。
+ * 本类也不负责任何资源的关闭与释放：请求体内容的资源由创建方（请求编排器）
+ * 在请求处理结束时统一释放。
  * <p>
  * 该类主要面向业务层使用者，提供统一的参数访问能力。
  * 它不关心路由分发或请求调度，仅负责当前请求作用域的数据封装与访问。
@@ -37,14 +37,8 @@ import java.util.Objects;
  */
 public final class FullHttpContext implements HttpContext {
 
-	/** 内容关闭失败的记录器，走 netty 标准日志通道 */
-	private static final InternalLogger log = InternalLoggerFactory.getInstance(FullHttpContext.class);
-
-	/** 请求消息：请求方式、请求头与请求地址 */
-	private final Http.Message message;
-
-	/** 请求体内容：由内容解析器产出，持有资源的实现在释放时关闭 */
-	private final Http.Content content;
+	/** 请求消息：请求方式、请求头、请求地址与请求体内容 */
+	private final HttpRequestMessage message;
 
 	/** 当前请求关联的会话对象 */
 	private final HttpSession session;
@@ -63,26 +57,23 @@ public final class FullHttpContext implements HttpContext {
 
 	/**
 	 * 构造完整的 HTTP 上下文，装配请求上下文的核心依赖。
-	 * <p>请求消息与请求体内容都由调用方（编排器）就位，本构造不再从请求对象取数。</p>
+	 * <p>请求消息（含请求体内容）由调用方（编排器）就位，本构造不再从请求对象取数。</p>
 	 *
-	 * @param message         请求消息（方式、头与地址），不能为 null
-	 * @param content         请求体内容，不能为 null
+	 * @param message         请求消息（方式、头、地址与请求体内容），不能为 null
 	 * @param httpSession     HTTP 会话对象
 	 * @param cookies         当前请求的 Cookie 集合
 	 * @param connectSession  当前连接会话（用于 WebSocket / SSE）
 	 * @param defaultCharset  缺省编码（装配期由 HttpConfig 判定并随请求传递），不能为 null
-	 * @throws NullPointerException message、content 或 defaultCharset 为 null
+	 * @throws NullPointerException message 或 defaultCharset 为 null
 	 */
 	public FullHttpContext(
-			Http.Message message,
-			Http.Content content,
+			HttpRequestMessage message,
 			HttpSession httpSession,
 			HttpCookies cookies,
 			ConnectSession connectSession,
 			Charset defaultCharset
 	) {
 		this.message = Objects.requireNonNull(message, "message can not be null");
-		this.content = Objects.requireNonNull(content, "content can not be null");
 		this.session = httpSession;
 		this.httpCookies = cookies;
 		this.connectSession = connectSession;
@@ -93,16 +84,8 @@ public final class FullHttpContext implements HttpContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Http.Message message() {
+	public HttpRequestMessage message() {
 		return this.message;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Http.Content content() {
-		return this.content;
 	}
 
 	/**
@@ -143,22 +126,5 @@ public final class FullHttpContext implements HttpContext {
 	@Override
 	public Attachment attachment() {
 		return this.attachment;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 * <p>请求体内容为 {@link AutoCloseContent} 时关闭它，释放解码器持有的直接内存与磁盘临时文件；
-	 * 关闭抛出的异常只记录不外抛，不影响请求其余环节的收尾。内容不持有资源时为空操作，
-	 * 重复调用无副作用。</p>
-	 */
-	@Override
-	public void release() {
-		if (content instanceof AutoCloseContent autoCloseContent) {
-			try {
-				autoCloseContent.close();
-			} catch (Exception e) {
-				log.error("Failed to close http content", e);
-			}
-		}
 	}
 }
