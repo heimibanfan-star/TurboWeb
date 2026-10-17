@@ -1,6 +1,6 @@
 /*
  * 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予；
- * 本模块零运行依赖：上下文组件契约、Cookie 契约与媒体类型值对象为本地实现，注解仅依赖 JDK 元注解。
+ * 本模块零运行依赖：上下文组件契约与媒体类型值对象为本地实现，注解仅依赖 JDK 元注解。
  */
 plugins {
     // 版本由根构建脚本的 plugins 块统一声明，此处按坐标启用

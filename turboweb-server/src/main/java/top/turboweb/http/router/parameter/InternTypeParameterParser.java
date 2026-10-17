@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.connect.InternalConnectSession;
-import top.turboweb.rest.HttpCookies;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;

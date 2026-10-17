@@ -1,7 +1,8 @@
-package top.turboweb.rest;
+package top.turboweb.http.core.cookie;
+
+import io.netty.handler.codec.http.HttpResponse;
 
 import java.nio.charset.Charset;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -57,9 +58,8 @@ public interface HttpCookies {
     Map<String, String> getCookies();
 
     /**
-     * 移除指定 key 的 Cookie：本轮新设置的直接被撤销，其余登记为待删除，
-     * 经 {@link #toSetCookies(Charset)} 写出 {@code Max-Age} 为 0 的过期取值。
-     * 移除只作用于本集合的状态，客户端侧要等该取值随响应写出后才失效。
+     * 移除指定 key 的 Cookie（响应阶段设置一个 Max-Age 为 0 的 Cookie）。
+     * 实质上并不会影响客户端的 Cookie 状态，除非写入响应头。
      *
      * @param key 要移除的 Cookie 名称
      */
@@ -78,14 +78,12 @@ public interface HttpCookies {
     void clearAll();
 
     /**
-     * 收集本轮待写入与待删除的 Cookie，各自序列化为一条 {@code Set-Cookie} 头取值：
-     * 本轮设置过的 Cookie 按当前属性写出，待删除的 Cookie 写出 {@code Max-Age} 为 0 的过期取值。
-     * <p>待写入的取值在前、待删除的在后，同一组内顺序不保证。调用后不自动清空待写入集合，
-     * 应在适当时机调用 {@link #clearToWriteCookies()}。
+     * 将当前上下文中的 Cookie 状态写入响应头，Cookie 值按给定字符集 URL 编码。
+     * 常用于中间件或控制器中设置 Cookie。
      *
-     * @param charset Cookie 值 URL 编码字符集（写出侧以装配期判定的缺省字符集传入），不能为 null
-     * @return {@code Set-Cookie} 头取值列表；无待写入与待删除 Cookie 时返回空列表
-     * @throws NullPointerException charset 为 null
+     * @param response 要写入 Cookie 的响应对象
+     * @param charset  Cookie 值编码字符集（写出侧以装配期判定的缺省字符集传入）
      */
-    List<String> toSetCookies(Charset charset);
+    void setCookieForResponse(HttpResponse response, Charset charset);
 }
+

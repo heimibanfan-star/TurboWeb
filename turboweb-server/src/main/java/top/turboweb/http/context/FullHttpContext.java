@@ -5,7 +5,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.context.attchment.DefaultAttachment;
 import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.rest.HttpCookies;
+import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.session.HttpSession;
 import top.turboweb.rest.Http;
 
