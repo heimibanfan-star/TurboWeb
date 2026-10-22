@@ -388,7 +388,7 @@ public class HttpRequestApplication implements Application {
             // 未传入的组件补全默认值后，按九组件装定请求编排器
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
-                    .virtualThreadResource(virtualThreadResource)
+                    .microTaskExecutor(virtualThreadResource)
                     .responseWriterManager(new ResponseWriterManager(diskOpeThreadPool, this.responseWriters))
                     .resultConverterManager(new ResultConverterManager(this.jsonSerializer, this.resultConverters))
                     .corsConfig(this.corsConfig != null

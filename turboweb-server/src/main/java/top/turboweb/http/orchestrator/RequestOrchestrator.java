@@ -3,7 +3,7 @@ package top.turboweb.http.orchestrator;
 import io.netty.handler.codec.http.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.context.*;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 请求编排器：以建造者装配九个协作组件——中间件链、虚拟线程资源、
+ * 请求编排器：以建造者装配九个协作组件——中间件链、微任务执行器、
  * 响应写出器管理器、结果转化器管理器、cors 配置、异常处理器管理器、
  * 会话管理器持有者、缺省字符集与请求体内容解析器管理器
  * （{@link HttpContentParserManager}，由装配方按缺省字符集与自定义解析器建立后传入）。
@@ -30,17 +30,17 @@ import java.util.Objects;
  * 组件全部 final、构造后不可变更；非空契约两级拒收：
  * 建造者配置方法对 null 入参即时拒绝，{@link Builder#build()} 对缺配组件拒绝并指名。
  * 磁盘IO线程池已在写出器管理器构造期装配，本类不直接持有；
- * 虚拟线程资源、中间件链与会话管理器持有者仅持有、不负责其生命周期。
+ * 微任务执行器、中间件链与会话管理器持有者仅持有、不负责其生命周期。
  * </p>
  * <p>
- * 已实现的流程：{@link #orchestrate} 把请求任务提交到虚拟线程资源，
+ * 已实现的流程：{@link #orchestrate} 把请求任务提交到微任务执行器，
  * 任务被拒（资源耗尽且不排队）时直接写出 HTTP 429 响应；
  * {@link #doOrchestrate} 在任务线程内执行完整编排——OPTIONS 预检不进中间件链、
  * 直接以空正文 200 携带 CORS 响应头应答；其余请求先转化为上下文的消息、
  * 按内容类型解析请求体得到内容对象，随后执行中间件链并经结果转化链产出响应，
  * 过程中抛出的异常交由异常处理器管理器产出处理结果后转化，响应统一经 CORS
  * 来源处理后写出。两个入口都在使用前自行持有请求引用、用完归还自己持有的那一份，
- * 不触碰调用方的引用：经 {@link #orchestrate} 提交时先 retain 自持，再由虚拟线程资源的
+ * 不触碰调用方的引用：经 {@link #orchestrate} 提交时先 retain 自持，再由微任务执行器的
  * 收尾回调在每次提交的收尾处统一归还——任务执行完毕、被拒绝、线程未能启动三种收尾
  * 必然触发且仅触发一次，被拒路径在回调内先写出 429 再归还；直接调用
  * {@link #doOrchestrate} 时同理，在响应写出后的收尾处归还自持引用。
@@ -57,8 +57,8 @@ public class RequestOrchestrator {
     private static final InternalLogger log = InternalLoggerFactory.getInstance(RequestOrchestrator.class);
     /** 中间件链链头，请求处理流程的入口组件。 */
     private final Middleware middleware;
-    /** 虚拟线程资源，承载请求任务的线程创建与限流。 */
-    private final VirtualThreadMicroTaskExecutor virtualThreadResource;
+    /** 微任务执行器，承载请求任务的调度与限流。 */
+    private final MicroTaskExecutor microTaskExecutor;
     /** 响应写出器管理器，按响应声明的写出器类型路由写出。 */
     private final ResponseWriterManager responseWriterManager;
     /** 结果转化器管理器，把业务返回值转化为 HTTP 响应。 */
@@ -82,7 +82,7 @@ public class RequestOrchestrator {
      */
     private RequestOrchestrator(Builder builder) {
         this.middleware = builder.middleware;
-        this.virtualThreadResource = builder.virtualThreadResource;
+        this.microTaskExecutor = builder.microTaskExecutor;
         this.responseWriterManager = builder.responseWriterManager;
         this.resultConverterManager = builder.resultConverterManager;
         this.corsConfig = builder.corsConfig;
@@ -102,7 +102,7 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 编排请求入口：使用前先自行持有请求引用，再取起始时刻把请求提交到虚拟线程资源，
+     * 编排请求入口：使用前先自行持有请求引用，再取起始时刻把请求提交到微任务执行器，
      * 获取资源后在任务线程内执行 {@link #doOrchestrate}；任务被拒时（资源耗尽且不允许排队
      * 或排队失败）不经中间件链与 CORS 处理，直接写出 HTTP 429 响应。
      * 正常与拒绝两路写出均可监听时挂接完成回调打印 DEBUG 级请求日志，
@@ -126,11 +126,11 @@ public class RequestOrchestrator {
             throw new NullPointerException("connect session must not be null");
         }
         long startTime = System.nanoTime();
-        virtualThreadResource.run(
+        microTaskExecutor.submit(
                 () -> doOrchestrate(request, connectSession, startTime),
                 finallyType -> {
                     try {
-                        if (finallyType == VirtualThreadMicroTaskExecutor.FinallyType.REJECTED) {
+                        if (finallyType == MicroTaskExecutor.FinallyType.REJECTED) {
                             attachRequestLog(request.method().name(), request.uri(), startTime,
                                     responseWriterManager.write(toManyRequestsResponse(), connectSession));
                         }
@@ -173,7 +173,7 @@ public class RequestOrchestrator {
      * 编排流程实体，起点时刻由调用方给定（{@link #orchestrate} 传入提交前取的时刻，
      * 使直调与经调度提交两路的耗时口径一致）。
      * 请求对象在流程执行期间保持有效，引用由调用方负责持有与归还：经 {@link #orchestrate}
-     * 提交时由虚拟线程资源的收尾回调归还自持引用，直接调用时由公开重载归还自持引用；
+     * 提交时由微任务执行器的收尾回调归还自持引用，直接调用时由公开重载归还自持引用；
      * 本方法不 retain、不释放请求。
      *
      * @param request        完整的 HTTP 请求
@@ -370,7 +370,7 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 构建 HTTP 429（Too Many Requests）响应：任务提交被虚拟线程资源拒绝时写出。
+     * 构建 HTTP 429（Too Many Requests）响应：任务提交被微任务执行器拒绝时写出。
      *
      * @return 响应对象，正文为 "too many request"
      */
@@ -412,7 +412,7 @@ public class RequestOrchestrator {
     public static class Builder {
 
         private Middleware middleware;
-        private VirtualThreadMicroTaskExecutor virtualThreadResource;
+        private MicroTaskExecutor microTaskExecutor;
         private ResponseWriterManager responseWriterManager;
         private ResultConverterManager resultConverterManager;
         private HttpCorsConfig corsConfig;
@@ -427,9 +427,9 @@ public class RequestOrchestrator {
             return this;
         }
 
-        /** 设置虚拟线程资源。 */
-        public Builder virtualThreadResource(VirtualThreadMicroTaskExecutor virtualThreadResource) {
-            this.virtualThreadResource = Objects.requireNonNull(virtualThreadResource, "virtual thread resource must not be null");
+        /** 设置微任务执行器。 */
+        public Builder microTaskExecutor(MicroTaskExecutor microTaskExecutor) {
+            this.microTaskExecutor = Objects.requireNonNull(microTaskExecutor, "micro task executor must not be null");
             return this;
         }
 
@@ -490,7 +490,7 @@ public class RequestOrchestrator {
          */
         public RequestOrchestrator build() {
             Objects.requireNonNull(middleware, "middleware must not be null");
-            Objects.requireNonNull(virtualThreadResource, "virtual thread resource must not be null");
+            Objects.requireNonNull(microTaskExecutor, "micro task executor must not be null");
             Objects.requireNonNull(responseWriterManager, "response writer manager must not be null");
             Objects.requireNonNull(resultConverterManager, "result converter manager must not be null");
             Objects.requireNonNull(corsConfig, "cors config must not be null");

@@ -299,15 +299,15 @@ class HttpRequestApplicationTest {
                 .sessionManager(new NoopSessionManager())
                 .build();
         RequestOrchestrator orchestrator = orchestratorOf(app);
-        for (String component : List.of("middleware", "virtualThreadResource", "responseWriterManager",
+        for (String component : List.of("middleware", "microTaskExecutor", "responseWriterManager",
                 "resultConverterManager", "corsConfig", "exceptionHandlerManager",
                 "sessionManagerHolder", "defaultCharset", "contentParserManager")) {
             assertNotNull(componentOf(orchestrator, component), "九组件之 " + component + " 装配后不可为null");
         }
         assertEquals(Integer.MAX_VALUE,
-                ((VirtualThreadMicroTaskExecutor) componentOf(orchestrator, "virtualThreadResource")).availableResources(),
+                ((VirtualThreadMicroTaskExecutor) componentOf(orchestrator, "microTaskExecutor")).availableResources(),
                 "默认配置未启用限流，非受限实现不设资源上限");
-        assertFalse(((VirtualThreadMicroTaskExecutor) componentOf(orchestrator, "virtualThreadResource")).isLimited(),
+        assertFalse(((VirtualThreadMicroTaskExecutor) componentOf(orchestrator, "microTaskExecutor")).isLimited(),
                 "默认配置未启用限流，虚拟线程资源为非受限实现");
         assertTrue(((HttpCorsConfig) componentOf(orchestrator, "corsConfig")).isAnyOrigin(),
                 "cors配置默认取通配配置");
@@ -343,7 +343,7 @@ class HttpRequestApplicationTest {
                         .build())
                 .build();
         VirtualThreadMicroTaskExecutor resource =
-                (VirtualThreadMicroTaskExecutor) componentOf(orchestratorOf(limited), "virtualThreadResource");
+                (VirtualThreadMicroTaskExecutor) componentOf(orchestratorOf(limited), "microTaskExecutor");
         assertTrue(resource.isLimited(), "启用限流时应用按配置创建受限虚拟线程资源");
         limited.close();
     }
