@@ -23,7 +23,7 @@ subprojects {
     }
 
     group = "io.gitee.turboweb"
-    version = "2.4.0-Beta2"
+    version = "2.6.0-SNAPSHOT"
 
     configure<JavaPluginExtension> {
         sourceCompatibility = JavaVersion.VERSION_21
