@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * {@link VirtualThreadMicroTaskExecutor} 基类的启动失败收尾契约：补偿动作先于收尾回调执行，
- * 收尾以未启动情形触发，原始异常原样抛出；收尾回调自身抛出的异常作为被抑制异常保留。
+ * 收尾以未受理情形触发，原始异常原样抛出；收尾回调自身抛出的异常作为被抑制异常保留。
  */
 class VirtualThreadMicroTaskExecutorTest {
 
@@ -60,8 +60,8 @@ class VirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("线程未能启动：补偿动作先执行，再以未启动情形收尾，原始异常原样抛出")
-    void startFailureCompensatesThenFinishesWithNotStarted() {
+    @DisplayName("线程未能启动：补偿动作先执行，再以未受理情形收尾，原始异常原样抛出")
+    void startFailureCompensatesThenFinishesWithNotAccepted() {
         List<String> events = new CopyOnWriteArrayList<>();
         StartFailingResource resource = new StartFailingResource(() -> events.add("compensate"));
 
@@ -70,8 +70,8 @@ class VirtualThreadMicroTaskExecutorTest {
                         type -> events.add(type.name())));
 
         assertEquals("start failed", failure.getMessage(), "原始异常原样抛出");
-        assertEquals(List.of("compensate", FinallyType.NOT_STARTED.name()), events,
-                "先归还启动前占用的资源，再以未启动情形收尾");
+        assertEquals(List.of("compensate", FinallyType.NOT_ACCEPT.name()), events,
+                "先归还启动前占用的资源，再以未受理情形收尾");
         assertEquals(0, failure.getSuppressed().length, "正常路径不产生被抑制异常");
     }
 

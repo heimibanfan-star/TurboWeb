@@ -41,7 +41,7 @@ class UnlimitedVirtualThreadMicroTaskExecutorTest {
     void constructorRequiresThreadName() {
         NullPointerException error = assertThrows(NullPointerException.class,
                 () -> VirtualThreadMicroTaskExecutor.ofUnlimited(null));
-        assertEquals("线程名不能为null", error.getMessage());
+        assertEquals("threadName must not be null", error.getMessage());
         assertNotNull(VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-ok"));
     }
 

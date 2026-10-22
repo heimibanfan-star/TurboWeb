@@ -920,7 +920,7 @@ class RequestOrchestratorTest {
         }
     }
 
-    /** 提交即失败的虚拟线程资源：模拟线程创建失败，任务不执行，收尾以未启动情形触发后抛出。 */
+    /** 提交即失败的虚拟线程资源：模拟线程创建失败，任务不执行，收尾以未受理情形触发后抛出。 */
     private static final class ThrowingVirtualThreadMicroTaskExecutor extends VirtualThreadMicroTaskExecutor {
         ThrowingVirtualThreadMicroTaskExecutor() {
             super("throwing-resource");
@@ -928,7 +928,7 @@ class RequestOrchestratorTest {
 
         @Override
         public Thread run(Runnable task, FinallyHandler finallyHandler) {
-            finallyHandler.onFinally(FinallyType.NOT_STARTED);
+            finallyHandler.onFinally(FinallyType.NOT_ACCEPT);
             throw new IllegalStateException("thread start failed");
         }
     }

@@ -90,7 +90,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
      * @throws NullPointerException threadName 为 null
      */
     protected VirtualThreadMicroTaskExecutor(String threadName) {
-        this.threadName = Objects.requireNonNull(threadName, "线程名不能为null");
+        this.threadName = Objects.requireNonNull(threadName, "threadName must not be null");
     }
 
     /**
@@ -100,7 +100,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
      * 任务与收尾回调均不能为 null，参数校验先于任何资源动作发生。
      * 收尾回调保证被调用且每次提交仅调用一次：任务执行完毕以
      * {@link FinallyType#EXECUTED} 回调，未取得资源以 {@link FinallyType#REJECTED} 回调，
-     * 虚拟线程未能启动以 {@link FinallyType#NOT_STARTED} 回调。
+     * 虚拟线程未能启动以 {@link FinallyType#NOT_ACCEPT} 回调。
      * </p>
      *
      * @param task           获取到资源后执行的任务，不能为 null
@@ -187,8 +187,8 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
      * @throws NullPointerException 任一参数为 null
      */
     protected static void requireArguments(Runnable task, FinallyHandler finallyHandler) {
-        Objects.requireNonNull(task, "执行任务不能为null");
-        Objects.requireNonNull(finallyHandler, "收尾回调不能为null");
+        Objects.requireNonNull(task, "task must not be null");
+        Objects.requireNonNull(finallyHandler, "finallyHandler must not be null");
     }
 
     /**
@@ -221,7 +221,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
 
     /**
      * 创建并启动配置名称的虚拟线程；启动失败时先执行补偿动作，再以
-     * {@link FinallyType#NOT_STARTED} 回调收尾，最后原样抛出异常。
+     * {@link FinallyType#NOT_ACCEPT} 回调收尾，最后原样抛出异常。
      * <p>
      * 调用方在启动前已占用许可或挂起额度时使用本重载：线程创建失败（含资源耗尽类错误）
      * 意味着承载归还逻辑的线程体永远不会运行，故在此即时归还此前占用的资源；
@@ -230,7 +230,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
      *
      * @param body           线程体
      * @param onStartFailure 启动失败时的补偿动作，归还此前占用的资源
-     * @param finallyHandler 收尾回调，启动失败时以 NOT_STARTED 回调
+     * @param finallyHandler 收尾回调，启动失败时以 NOT_ACCEPT 回调
      * @return 已启动的虚拟线程
      */
     protected Thread startThread(Runnable body, Runnable onStartFailure, FinallyHandler finallyHandler) {
@@ -243,7 +243,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
                 e.addSuppressed(compensationFailure);
             }
             try {
-                finallyHandler.onFinally(FinallyType.NOT_STARTED);
+                finallyHandler.onFinally(FinallyType.NOT_ACCEPT);
             } catch (Throwable callbackFailure) {
                 e.addSuppressed(callbackFailure);
             }
@@ -253,11 +253,11 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
 
     /**
      * 创建并启动配置名称的虚拟线程；启动失败时以
-     * {@link FinallyType#NOT_STARTED} 回调收尾，最后原样抛出异常。
+     * {@link FinallyType#NOT_ACCEPT} 回调收尾，最后原样抛出异常。
      * <p>启动前未占用任何资源时使用本重载，启动失败的收尾无需补偿动作。</p>
      *
      * @param body           线程体
-     * @param finallyHandler 收尾回调，启动失败时以 NOT_STARTED 回调
+     * @param finallyHandler 收尾回调，启动失败时以 NOT_ACCEPT 回调
      * @return 已启动的虚拟线程
      */
     protected Thread startThread(Runnable body, FinallyHandler finallyHandler) {
@@ -309,13 +309,13 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
         private Limited(int resourceCount, int maxSuspendThreadNum, long timeout, String threadName, boolean fair) {
             super(threadName);
             if (resourceCount <= 0) {
-                throw new IllegalArgumentException("资源数必须大于0");
+                throw new IllegalArgumentException("resourceCount must be greater than 0");
             }
             if (maxSuspendThreadNum < 0) {
-                throw new IllegalArgumentException("最大挂起数不能小于0");
+                throw new IllegalArgumentException("maxSuspendThreadNum must not be negative");
             }
             if (timeout < 0) {
-                throw new IllegalArgumentException("最大挂起时间不能小于0");
+                throw new IllegalArgumentException("timeout must not be negative");
             }
             this.permission = new Semaphore(resourceCount, fair);
             this.maxSuspendThreadNum = maxSuspendThreadNum;

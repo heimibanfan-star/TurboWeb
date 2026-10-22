@@ -138,7 +138,7 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     void constructorValidatesArgumentsAndExposesInitialState() {
         IllegalArgumentException resourceCountError =
                 assertThrows(IllegalArgumentException.class, () -> VirtualThreadMicroTaskExecutor.ofLimited(0, 1, 1, "n", false));
-        assertEquals("资源数必须大于0", resourceCountError.getMessage());
+        assertEquals("resourceCount must be greater than 0", resourceCountError.getMessage());
         assertThrows(IllegalArgumentException.class, () -> VirtualThreadMicroTaskExecutor.ofLimited(-1, 1, 1, "n", false));
         assertThrows(IllegalArgumentException.class, () -> VirtualThreadMicroTaskExecutor.ofLimited(1, -1, 1, "n", false));
         assertThrows(IllegalArgumentException.class, () -> VirtualThreadMicroTaskExecutor.ofLimited(1, 1, -1, "n", false));
@@ -511,6 +511,6 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
         assertEquals(3, FinallyType.values().length);
         assertSame(EXECUTED, FinallyType.valueOf("EXECUTED"));
         assertSame(REJECTED, FinallyType.valueOf("REJECTED"));
-        assertSame(FinallyType.NOT_STARTED, FinallyType.valueOf("NOT_STARTED"));
+        assertSame(FinallyType.NOT_ACCEPT, FinallyType.valueOf("NOT_ACCEPT"));
     }
 }
