@@ -3,6 +3,7 @@ package top.turboweb.concurrent.thread;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallySignal;
 import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 
 import java.lang.reflect.Field;
@@ -149,14 +150,16 @@ class ForkJoinMicroTaskExecutorTest {
         CountDownLatch finished = new CountDownLatch(1);
         AtomicReference<String> workerName = new AtomicReference<>();
         AtomicReference<String> handlerThreadName = new AtomicReference<>();
+        AtomicReference<FinallySignal.CallbackThread> finallyThreadSide = new AtomicReference<>();
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
         executor.submit(() -> {
             workerName.set(Thread.currentThread().getName());
             taskRan.countDown();
-        }, type -> {
+        }, signal -> {
             handlerThreadName.set(Thread.currentThread().getName());
-            finishes.add(type);
+            finallyThreadSide.set(signal.callbackThread());
+            finishes.add(signal.finallyType());
             finished.countDown();
         });
 
@@ -164,6 +167,7 @@ class ForkJoinMicroTaskExecutorTest {
         assertTrue(finished.await(5, TimeUnit.SECONDS), "收尾回调应在任务结束后触发");
         assertEquals(workerName.get(), handlerThreadName.get(), "执行完毕收尾应在执行任务的线程中回调");
         assertEquals(List.of(FinallyType.EXECUTED), finishes, "以执行完毕情形收尾一次");
+        assertEquals(FinallySignal.CallbackThread.WORKER, finallyThreadSide.get(), "执行完毕收尾应由工作线程发起");
     }
 
     @Test
@@ -175,8 +179,8 @@ class ForkJoinMicroTaskExecutorTest {
 
         executor.submit(() -> {
             throw new IllegalStateException("boom");
-        }, type -> {
-            finishes.add(type);
+        }, signal -> {
+            finishes.add(signal.finallyType());
             finished.countDown();
         });
 
@@ -199,11 +203,17 @@ class ForkJoinMicroTaskExecutorTest {
 
         CountDownLatch taskRan = new CountDownLatch(1);
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
+        AtomicReference<FinallySignal> unstarted = new AtomicReference<>();
         assertThrows(RejectedExecutionException.class,
-                () -> executor.submit(taskRan::countDown, finishes::add));
+                () -> executor.submit(taskRan::countDown, signal -> {
+                    unstarted.set(signal);
+                    finishes.add(signal.finallyType());
+                }));
 
         assertEquals(1, taskRan.getCount(), "已终止池的提交不应执行任务");
         assertEquals(List.of(FinallyType.NOT_ACCEPT), finishes, "任务未启动，以未受理情形收尾一次");
+        assertEquals(FinallySignal.CallbackThread.SUBMITTER, unstarted.get().callbackThread(),
+                "池拒绝受理的收尾应发生在提交线程");
     }
 
     @Test
@@ -221,7 +231,7 @@ class ForkJoinMicroTaskExecutorTest {
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
         OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class,
                 () -> executor.submit(() -> {
-                }, finishes::add));
+                }, signal -> finishes.add(signal.finallyType())));
         assertSame(boom, thrown, "受理阶段错误应原样抛给提交方");
         assertEquals(List.of(FinallyType.NOT_ACCEPT), finishes, "任务未启动，以未受理情形收尾一次");
     }
@@ -251,8 +261,8 @@ class ForkJoinMicroTaskExecutorTest {
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
         List<Thread> submitters = new ArrayList<>();
         for (int i = 0; i < total; i++) {
-            Thread submitter = new Thread(() -> executor.submit(done::countDown, type -> {
-                finishes.add(type);
+            Thread submitter = new Thread(() -> executor.submit(done::countDown, signal -> {
+                finishes.add(signal.finallyType());
                 finallyCount.incrementAndGet();
             }));
             submitters.add(submitter);

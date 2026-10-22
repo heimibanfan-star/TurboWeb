@@ -15,6 +15,7 @@ import top.turboweb.rest.core.HttpContent;
 import top.turboweb.rest.core.HttpRequestMethod;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyHandler;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallySignal;
 import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpContext;
@@ -606,9 +607,9 @@ class RequestOrchestratorTest {
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             }
-        }, finallyType -> {
-            if (finallyType == FinallyType.REJECTED) {
-                fail("占额任务不应被拒绝");
+        }, signal -> {
+            if (signal.finallyType() == FinallyType.NOT_ACCEPT) {
+                fail("占额任务不应未受理");
             }
         });
         assertTrue(started.await(2, TimeUnit.SECONDS), "占额任务已启动并持有唯一资源");
@@ -817,7 +818,7 @@ class RequestOrchestratorTest {
 
     @Test
     void submissionFailureReleasesOwnReferenceBeforeThrowing() {
-        // 提交失败的钉：线程创建失败时任务不执行，编排入口自持引用由未启动收尾回调归还
+        // 提交失败的钉：线程创建失败时任务不执行，未受理收尾先于异常抛出统一回写 429，并归还编排入口自持的引用
         EmbeddedChannel channel = new EmbeddedChannel();
         RequestOrchestrator orchestrator = flowOrchestrator(new SentinelMiddleware(),
                 new ExceptionHandlerManager(Set.of()), new ThrowingVirtualThreadMicroTaskExecutor());
@@ -827,6 +828,9 @@ class RequestOrchestratorTest {
                 () -> orchestrator.orchestrate(request, new InternalConnectSession(channel)));
 
         assertEquals("thread start failed", failure.getMessage(), "提交失败原样抛出");
+        FullHttpResponse rejected = channel.readOutbound();
+        assertEquals(HttpResponseStatus.TOO_MANY_REQUESTS, rejected.getStatus(),
+                "未受理统一按拒绝处理，先于异常抛出回写 429");
         assertEquals(1, request.refCnt(), "提交失败时只归还编排器自持的引用，调用方引用仍在");
         request.release();
         channel.finishAndReleaseAll();
@@ -928,7 +932,7 @@ class RequestOrchestratorTest {
 
         @Override
         public Thread run(Runnable task, FinallyHandler finallyHandler) {
-            finallyHandler.onFinally(FinallyType.NOT_ACCEPT);
+            finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
             throw new IllegalStateException("thread start failed");
         }
     }

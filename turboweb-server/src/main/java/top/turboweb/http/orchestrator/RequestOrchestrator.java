@@ -34,15 +34,15 @@ import java.util.Objects;
  * </p>
  * <p>
  * 已实现的流程：{@link #orchestrate} 把请求任务提交到微任务执行器，
- * 任务被拒（资源耗尽且不排队）时直接写出 HTTP 429 响应；
+ * 任务未受理（资源耗尽、排队放弃或线程未能启动）时直接写出 HTTP 429 响应；
  * {@link #doOrchestrate} 在任务线程内执行完整编排——OPTIONS 预检不进中间件链、
  * 直接以空正文 200 携带 CORS 响应头应答；其余请求先转化为上下文的消息、
  * 按内容类型解析请求体得到内容对象，随后执行中间件链并经结果转化链产出响应，
  * 过程中抛出的异常交由异常处理器管理器产出处理结果后转化，响应统一经 CORS
  * 来源处理后写出。两个入口都在使用前自行持有请求引用、用完归还自己持有的那一份，
  * 不触碰调用方的引用：经 {@link #orchestrate} 提交时先 retain 自持，再由微任务执行器的
- * 收尾回调在每次提交的收尾处统一归还——任务执行完毕、被拒绝、线程未能启动三种收尾
- * 必然触发且仅触发一次，被拒路径在回调内先写出 429 再归还；直接调用
+ * 收尾回调在每次提交的收尾处统一归还——任务执行完毕与任务未受理两种收尾
+ * 必然触发且仅触发一次，未受理路径在回调内先写出 429 再归还；直接调用
  * {@link #doOrchestrate} 时同理，在响应写出后的收尾处归还自持引用。
  * 请求方法、URI 与来源头在流程入口快照，链执行后写 CORS 头与请求日志只读快照。
  * 写出可监听时挂接完成回调以 DEBUG 级打印请求日志（方法、URI、耗时、写出成败），
@@ -103,12 +103,12 @@ public class RequestOrchestrator {
 
     /**
      * 编排请求入口：使用前先自行持有请求引用，再取起始时刻把请求提交到微任务执行器，
-     * 获取资源后在任务线程内执行 {@link #doOrchestrate}；任务被拒时（资源耗尽且不允许排队
-     * 或排队失败）不经中间件链与 CORS 处理，直接写出 HTTP 429 响应。
-     * 正常与拒绝两路写出均可监听时挂接完成回调打印 DEBUG 级请求日志，
+     * 获取资源后在任务线程内执行 {@link #doOrchestrate}；任务未受理时（资源耗尽且不允许
+     * 排队、排队等待放弃或线程未能启动）不经中间件链与 CORS 处理，直接写出 HTTP 429 响应。
+     * 正常与未受理两路写出均可监听时挂接完成回调打印 DEBUG 级请求日志，
      * 耗时自本入口起始时刻起算、含任务提交前的排队等待。
-     * 请求引用由本入口 retain 自持：任务执行完毕、被拒绝、线程未能启动三种收尾
-     * 均由收尾回调统一归还这一份，被拒路径先写出 429 再归还；调用方的引用不受影响，
+     * 请求引用由本入口 retain 自持：任务执行完毕与任务未受理两种收尾
+     * 均由收尾回调统一归还这一份，未受理路径先写出 429 再归还；调用方的引用不受影响，
      * 由调用方自行归还。会话缺失则在本入口归还自持引用后提交前拒收。
      * 收尾回调的必然执行使提交入口无需自行兜底归还。
      *
@@ -128,14 +128,14 @@ public class RequestOrchestrator {
         long startTime = System.nanoTime();
         microTaskExecutor.submit(
                 () -> doOrchestrate(request, connectSession, startTime),
-                finallyType -> {
+                signal -> {
                     try {
-                        if (finallyType == MicroTaskExecutor.FinallyType.REJECTED) {
+                        if (signal.finallyType() == MicroTaskExecutor.FinallyType.NOT_ACCEPT) {
                             attachRequestLog(request.method().name(), request.uri(), startTime,
                                     responseWriterManager.write(toManyRequestsResponse(), connectSession));
                         }
                     } finally {
-                        // 执行完毕、被拒、线程未启动三路收尾统一归还本入口自持的引用
+                        // 执行完毕与未受理两路收尾统一归还本入口自持的引用
                         request.release();
                     }
                 });
@@ -370,7 +370,7 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 构建 HTTP 429（Too Many Requests）响应：任务提交被微任务执行器拒绝时写出。
+     * 构建 HTTP 429（Too Many Requests）响应：任务提交未受理时写出。
      *
      * @return 响应对象，正文为 "too many request"
      */

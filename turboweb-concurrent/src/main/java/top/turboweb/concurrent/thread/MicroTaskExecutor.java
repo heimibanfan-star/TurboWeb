@@ -11,7 +11,7 @@ package top.turboweb.concurrent.thread;
 public interface MicroTaskExecutor {
 
     /**
-     * 收尾回调的触发情形：一次提交有且仅有其中一种收尾。
+     * 收尾回调的执行状态：一次提交有且仅有其中一种收尾。
      */
     enum FinallyType {
         /**
@@ -19,18 +19,34 @@ public interface MicroTaskExecutor {
          */
         EXECUTED,
         /**
-         * 未取得资源，任务未执行：在提交线程回调；排队等待超时或被中断时在等待线程回调。
-         */
-        REJECTED,
-        /**
-         * 任务未获受理或承载线程未能启动，任务未执行：在提交线程中、原异常抛出前回调。
+         * 任务未获受理、任务未启动或排队等待被放弃，任务未执行：
+         * 未取得资源或线程未能启动时在提交线程中、原异常抛出前回调；
+         * 排队等待超时或被中断时在本次提交新建的虚拟线程中回调。
          */
         NOT_ACCEPT
     }
 
     /**
-     * 任务提交的收尾回调：任务执行完毕、被拒绝、任务未获受理或承载线程未能启动三者必居其一，
-     * 每次提交保证被调用且仅调用一次。
+     * 收尾回调信号：携带本次收尾的执行状态与回调发生所在的线程方。
+     *
+     * @param callbackThread 回调发生所在的线程方：提交线程或本次提交新建的虚拟线程
+     * @param finallyType    本次收尾的执行状态
+     */
+    record FinallySignal(CallbackThread callbackThread, FinallyType finallyType) {
+
+        /**
+         * 收尾回调发生所在的线程方。
+         */
+        public enum CallbackThread {
+            /** 提交线程：收尾在 submit/run 返回前同步触发。 */
+            SUBMITTER,
+            /** 本次提交新建的虚拟线程：承载任务执行或排队等待，收尾异步触发。 */
+            WORKER
+        }
+    }
+
+    /**
+     * 任务提交的收尾回调：任务执行完毕与任务未受理二者必居其一，每次提交保证被调用且仅调用一次。
      */
     @FunctionalInterface
     interface FinallyHandler {
@@ -38,9 +54,9 @@ public interface MicroTaskExecutor {
         /**
          * 收尾时调用。
          *
-         * @param finallyType 本次收尾对应的情形
+         * @param finallySignal 本次收尾的信号：回调发生所在的线程方与执行状态
          */
-        void onFinally(FinallyType finallyType);
+        void onFinally(FinallySignal finallySignal);
     }
 
     /**

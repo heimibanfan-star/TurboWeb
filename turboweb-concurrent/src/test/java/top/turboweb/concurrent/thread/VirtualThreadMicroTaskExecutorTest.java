@@ -67,7 +67,7 @@ class VirtualThreadMicroTaskExecutorTest {
 
         IllegalStateException failure = assertThrows(IllegalStateException.class,
                 () -> resource.run(() -> fail("任务不应执行"),
-                        type -> events.add(type.name())));
+                        signal -> events.add(signal.finallyType().name())));
 
         assertEquals("start failed", failure.getMessage(), "原始异常原样抛出");
         assertEquals(List.of("compensate", FinallyType.NOT_ACCEPT.name()), events,

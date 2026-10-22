@@ -9,8 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 虚拟线程微任务执行器抽象：定义向命名虚拟线程提交任务的统一契约。
  * <p>
  * 两种实现不再以独立类型暴露，改由本类以工厂方法产出：{@link #ofUnlimited} 不做资源控制，
- * 每个任务直接进入新建虚拟线程执行，永不拒绝；{@link #ofLimited} 以固定资源数约束并发执行量，
- * 资源耗尽时按最大挂起数与最大挂起时间排队，排队失败以拒绝情形收尾。每次调用均返回新实例。
+ * 每个任务直接进入新建虚拟线程执行，永不因资源受限而未受理；{@link #ofLimited} 以固定资源数
+ * 约束并发执行量，资源耗尽时按最大挂起数与最大挂起时间排队，排队失败以未受理情形收尾。每次调用均返回新实例。
  * </p>
  * <p>
  * 线程名为必传参数，构造时校验非空，供两个实现创建执行与等待任务所用虚拟线程时命名；
@@ -27,8 +27,8 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
     /**
      * 创建非受限虚拟线程微任务执行器。
      * <p>
-     * 不做任何资源控制，每个任务直接进入新建虚拟线程执行：提交即刻受理，不排队、不拒绝，
-     * 收尾回调不会以拒绝情形触发（参数仍须非空，与基类契约一致）。
+     * 不做任何资源控制，每个任务直接进入新建虚拟线程执行：提交即刻受理，不排队，
+     * 不会因资源受限而未受理；线程启动失败仍以未受理情形收尾（参数仍须非空，与基类契约一致）。
      * 任务抛出的异常不做拦截，随虚拟线程默认未捕获异常处理器输出；收尾回调仍在任务结束后触发。
      * </p>
      *
@@ -46,8 +46,8 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
      * 任务获取到资源后在新建虚拟线程中执行，执行结束（含抛出异常）释放资源。
      * 资源耗尽时按最大挂起数与最大挂起时间排队：挂起额度未满的任务在新建虚拟线程中
      * 带超时预算等待资源，等到即执行；等待预算耗尽或等待被中断时放弃，
-     * 并在新线程以拒绝情形收尾；挂起额度已满或最大挂起时间不大于零时不创建新线程，
-     * 直接在当前线程以拒绝情形收尾。
+     * 并在新线程以未受理情形收尾；挂起额度已满或最大挂起时间不大于零时不创建新线程，
+     * 直接在当前线程以未受理情形收尾。
      * </p>
      * <p>
      * 挂起额度采用比较并交换（CAS）方式在提交侧条件递增：额度未满原子占位，
@@ -63,9 +63,9 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
      *
      * @param resourceCount       资源数，即同时可执行任务的上限，必须大于 0
      * @param maxSuspendThreadNum 最大挂起数，即同时排队等待资源的线程上限，不能小于 0；
-     *                            为 0 时资源耗尽即刻在当前线程拒绝，不允许排队
+     *                            为 0 时资源耗尽即刻在当前线程以未受理情形收尾，不允许排队
      * @param timeout             最大挂起时间（毫秒），单个任务排队等待资源的总预算，不能小于 0；
-     *                            为 0 时不排队，资源不足直接在当前线程拒绝
+     *                            为 0 时不排队，资源不足直接在当前线程以未受理情形收尾
      * @param threadName          执行与等待任务所用虚拟线程的名称，必传且不能为 null
      * @param fair                是否公平抢占资源；为 true 时先来先处理，等待队列按先后顺序获得资源，
      *                            且新提交不插队占用空闲资源
@@ -96,16 +96,17 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
     /**
      * 提交任务执行。
      * <p>
-     * 资源不足时的排队与拒绝语义由具体实现决定；无论何种实现，
+     * 资源不足时的排队与未受理时机由具体实现决定；无论何种实现，
      * 任务与收尾回调均不能为 null，参数校验先于任何资源动作发生。
      * 收尾回调保证被调用且每次提交仅调用一次：任务执行完毕以
-     * {@link FinallyType#EXECUTED} 回调，未取得资源以 {@link FinallyType#REJECTED} 回调，
-     * 虚拟线程未能启动以 {@link FinallyType#NOT_ACCEPT} 回调。
+     * {@link FinallyType#EXECUTED} 回调；任务未获受理、未启动或排队等待被放弃以
+     * {@link FinallyType#NOT_ACCEPT} 回调，回调发生在提交线程或本次提交新建的虚拟线程
+     * （由 {@link FinallySignal#callbackThread()} 标识）。
      * </p>
      *
      * @param task           获取到资源后执行的任务，不能为 null
      * @param finallyHandler 任务提交的收尾回调，不能为 null
-     * @return 承载任务执行或排队等待的新虚拟线程；实现决定不受理并在当前线程直接拒绝时可为 null
+     * @return 承载任务执行或排队等待的新虚拟线程；实现决定不受理并在当前线程直接以未受理情形收尾时可为 null
      * @throws NullPointerException task 或 finallyHandler 为 null
      */
     public abstract Thread run(Runnable task, FinallyHandler finallyHandler);
@@ -113,7 +114,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
     /**
      * 提交任务执行，不返回承载线程。
      * <p>
-     * 委托 {@link #run} 执行并丢弃其返回的线程句柄：参数校验、排队与拒绝语义、
+     * 委托 {@link #run} 执行并丢弃其返回的线程句柄：参数校验、排队与未受理语义、
      * 收尾回调时机均与 run 一致。
      * </p>
      *
@@ -129,7 +130,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
     /**
      * 是否受限实现。
      * <p>
-     * 受限实现以固定资源数约束并发执行量，资源耗尽时排队或拒绝；
+     * 受限实现以固定资源数约束并发执行量，资源耗尽时排队或未受理；
      * 非受限实现不做资源控制，每个任务直接执行。
      * 实现已内聚为本类的私有嵌套类型，调用方无法以类型区分实例，以本标志识别。
      * </p>
@@ -204,7 +205,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
             try {
                 task.run();
             } finally {
-                finallyHandler.onFinally(FinallyType.EXECUTED);
+                finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.WORKER, FinallyType.EXECUTED));
             }
         };
     }
@@ -243,7 +244,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
                 e.addSuppressed(compensationFailure);
             }
             try {
-                finallyHandler.onFinally(FinallyType.NOT_ACCEPT);
+                finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
             } catch (Throwable callbackFailure) {
                 e.addSuppressed(callbackFailure);
             }
@@ -267,8 +268,8 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
     /**
      * 非受限实现：不做任何资源控制，每个任务直接进入新建虚拟线程执行。
      * <p>
-     * 不排队、不拒绝，收尾回调不会以拒绝情形触发；任务抛出的异常不做拦截，
-     * 随虚拟线程默认未捕获异常处理器输出，收尾回调仍在任务结束后触发。
+     * 不排队，不会因资源受限而未受理（线程启动失败仍以未受理情形收尾）；
+     * 任务抛出的异常不做拦截，随虚拟线程默认未捕获异常处理器输出，收尾回调仍在任务结束后触发。
      * </p>
      */
     private static final class Unlimited extends VirtualThreadMicroTaskExecutor {
@@ -288,7 +289,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
      * 受限实现：以固定资源数约束并发执行的任务量。
      * <p>
      * 任务获取到资源后在新建虚拟线程中执行，执行结束（含抛出异常）释放资源；
-     * 资源耗尽时按最大挂起数与最大挂起时间排队，排队失败以拒绝情形收尾。
+     * 资源耗尽时按最大挂起数与最大挂起时间排队，排队失败以未受理情形收尾。
      * 挂起额度以 CAS 在提交侧条件递增、离开等待时精确归还，并发提交下计数不泄漏；
      * 线程启动失败时已占用的许可或挂起额度即时归还。
      * </p>
@@ -331,7 +332,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
                         releasePermitOnStartFailure, finallyHandler);
             }
             if (timeout <= 0 || !trySuspend()) {
-                finallyHandler.onFinally(FinallyType.REJECTED);
+                finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
                 return null;
             }
             return startThread(() -> {
@@ -344,7 +345,7 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
                 if (acquired) {
                     executeWithPermit(withExecuteFinally(task, finallyHandler));
                 } else {
-                    finallyHandler.onFinally(FinallyType.REJECTED);
+                    finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.WORKER, FinallyType.NOT_ACCEPT));
                 }
             }, suspendThreads::decrementAndGet, finallyHandler);
         }

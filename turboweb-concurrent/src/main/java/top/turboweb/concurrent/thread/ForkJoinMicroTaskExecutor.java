@@ -22,8 +22,7 @@ import java.util.concurrent.ForkJoinWorkerThread;
  * 典型为内存不足导致的受理分配失败）时，以 {@link FinallyType#NOT_ACCEPT} 收尾，
  * 原异常或错误在收尾后继续向提交方抛出。池内工作线程为驻留线程，不存在逐任务启动
  * 线程的路径：任务要么已被受理并执行，要么根本未启动，故本实现只产生
- * {@link FinallyType#EXECUTED} 与 {@link FinallyType#NOT_ACCEPT} 两种收尾，
- * 不产生 {@link FinallyType#REJECTED}。
+ * {@link FinallyType#EXECUTED} 与 {@link FinallyType#NOT_ACCEPT} 两种收尾。
  * </p>
  */
 public final class ForkJoinMicroTaskExecutor implements MicroTaskExecutor {
@@ -118,7 +117,7 @@ public final class ForkJoinMicroTaskExecutor implements MicroTaskExecutor {
         try {
             pool.execute(withExecuteFinally(task, finallyHandler));
         } catch (RuntimeException | Error unstarted) {
-            finallyHandler.onFinally(FinallyType.NOT_ACCEPT);
+            finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
             throw unstarted;
         }
     }
@@ -157,7 +156,7 @@ public final class ForkJoinMicroTaskExecutor implements MicroTaskExecutor {
             try {
                 task.run();
             } finally {
-                finallyHandler.onFinally(FinallyType.EXECUTED);
+                finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.WORKER, FinallyType.EXECUTED));
             }
         };
     }

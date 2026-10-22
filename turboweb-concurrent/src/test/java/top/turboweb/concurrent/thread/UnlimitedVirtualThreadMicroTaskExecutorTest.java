@@ -21,17 +21,17 @@ import static org.junit.jupiter.api.Assertions.fail;
 /**
  * 非受限实现（{@link VirtualThreadMicroTaskExecutor#ofUnlimited}）的构造校验与无资源控制提交语义。
  *
- * <p>非受限实现不排队、不拒绝：每个提交即刻返回承载虚拟线程，收尾回调不会以拒绝情形触发，
- * 任务结束后以执行完毕情形触发一次；执行与否的取证靠任务内闩与计数，线程名断言经任务体内自取。
+ * <p>非受限实现不排队、不因资源受限而未受理：每个提交即刻返回承载虚拟线程，
+ * 任务结束后以执行完毕情形收尾一次；执行与否的取证靠任务内闩与计数，线程名断言经任务体内自取。
  */
 @Timeout(value = 20, unit = TimeUnit.SECONDS)
 class UnlimitedVirtualThreadMicroTaskExecutorTest {
 
-    /** 不应发生的拒绝：收尾情形为 REJECTED 直接判失败，EXECUTED 为任务正常收尾。 */
-    private static MicroTaskExecutor.FinallyHandler neverRejected() {
-        return type -> {
-            if (type == FinallyType.REJECTED) {
-                fail("非受限实现不应触发拒绝收尾");
+    /** 不应发生的未受理：收尾情形为 NOT_ACCEPT 直接判失败，EXECUTED 为任务正常收尾。 */
+    private static MicroTaskExecutor.FinallyHandler neverNotAccepted() {
+        return signal -> {
+            if (signal.finallyType() == FinallyType.NOT_ACCEPT) {
+                fail("非受限实现不应触发未受理收尾");
             }
         };
     }
@@ -61,7 +61,7 @@ class UnlimitedVirtualThreadMicroTaskExecutorTest {
     void runRejectsNullTaskAndHandler() {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-args");
 
-        assertThrows(NullPointerException.class, () -> resource.run(null, neverRejected()));
+        assertThrows(NullPointerException.class, () -> resource.run(null, neverNotAccepted()));
         assertThrows(NullPointerException.class, () -> resource.run(() -> {
         }, null));
     }
@@ -71,13 +71,13 @@ class UnlimitedVirtualThreadMicroTaskExecutorTest {
     void submitRejectsNullTaskAndHandler() {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-submit-args");
 
-        assertThrows(NullPointerException.class, () -> resource.submit(null, neverRejected()));
+        assertThrows(NullPointerException.class, () -> resource.submit(null, neverNotAccepted()));
         assertThrows(NullPointerException.class, () -> resource.submit(() -> {
         }, null));
     }
 
     @Test
-    @DisplayName("提交即刻受理：任务在命名虚拟线程执行，返回承载线程，不触发拒绝")
+    @DisplayName("提交即刻受理：任务在命名虚拟线程执行，返回承载线程，不触发未受理收尾")
     void runStartsTaskOnNamedVirtualThread() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-worker");
         CountDownLatch done = new CountDownLatch(1);
@@ -88,7 +88,7 @@ class UnlimitedVirtualThreadMicroTaskExecutorTest {
             assertTrue(Thread.currentThread().isVirtual(), "承载线程应为虚拟线程");
             observed.set(1);
             done.countDown();
-        }, finishes::add);
+        }, signal -> finishes.add(signal.finallyType()));
 
         assertNotNull(worker, "非受限实现应始终返回承载线程");
         assertTrue(worker.isVirtual());
@@ -113,8 +113,8 @@ class UnlimitedVirtualThreadMicroTaskExecutorTest {
             assertEquals("uvt-submit", Thread.currentThread().getName(), "承载线程应使用配置名称");
             observed.set(1);
             done.countDown();
-        }, type -> {
-            finishes.add(type);
+        }, signal -> {
+            finishes.add(signal.finallyType());
             finished.countDown();
         });
 
@@ -133,12 +133,12 @@ class UnlimitedVirtualThreadMicroTaskExecutorTest {
 
         Thread failing = resource.run(() -> {
             throw new IllegalStateException("boom");
-        }, finishes::add);
+        }, signal -> finishes.add(signal.finallyType()));
         assertNotNull(failing);
         failing.join(5_000);
         assertEquals(List.of(FinallyType.EXECUTED), finishes, "任务抛出异常后仍以执行完毕情形收尾");
 
-        Thread next = resource.run(done::countDown, neverRejected());
+        Thread next = resource.run(done::countDown, neverNotAccepted());
         assertNotNull(next, "前一任务失败不应影响后续受理");
         assertTrue(done.await(5, TimeUnit.SECONDS));
     }
@@ -157,7 +157,7 @@ class UnlimitedVirtualThreadMicroTaskExecutorTest {
             Thread worker = resource.run(() -> {
                 executed.incrementAndGet();
                 done.countDown();
-            }, finishes::add);
+            }, signal -> finishes.add(signal.finallyType()));
             assertNotNull(worker, "非受限实现任何提交都应受理");
             workers.add(worker);
         }

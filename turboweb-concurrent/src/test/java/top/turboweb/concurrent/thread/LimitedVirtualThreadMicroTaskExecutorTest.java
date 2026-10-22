@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyHandler;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallySignal;
 import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 
 import java.util.List;
@@ -25,10 +26,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType.EXECUTED;
-import static top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType.REJECTED;
+import static top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType.NOT_ACCEPT;
 
 /**
- * 受限实现（{@link VirtualThreadMicroTaskExecutor#ofLimited}）的构造校验、资源获取、排队挂起与双线程位拒绝收尾。
+ * 受限实现（{@link VirtualThreadMicroTaskExecutor#ofLimited}）的构造校验、资源获取、排队挂起与双线程位未受理收尾。
  *
  * <p>并发语义的取证口径：挂起额度以 CAS 在提交侧条件递增，超限直接拒绝且计数不上探，
  * 因此 run 返回后即可直接断言计数；等待结果一律用带超时的闩或轮询等待收敛，
@@ -61,9 +62,9 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
         return condition.getAsBoolean();
     }
 
-    /** 收尾回调记录器：记录收尾情形与回调发生线程，并放行等待中的用例线程。 */
-    private static final class RejectionRecord {
-        final CountDownLatch rejected = new CountDownLatch(1);
+    /** 未受理收尾记录器：记录收尾状态与回调发生线程，并放行等待中的用例线程。 */
+    private static final class NotAcceptedRecord {
+        final CountDownLatch notAccepted = new CountDownLatch(1);
         volatile FinallyType finallyType;
         volatile Thread callbackThread;
 
@@ -71,24 +72,24 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
             return this::accept;
         }
 
-        void accept(FinallyType type) {
-            finallyType = type;
+        void accept(FinallySignal signal) {
+            finallyType = signal.finallyType();
             callbackThread = Thread.currentThread();
-            rejected.countDown();
+            notAccepted.countDown();
         }
 
-        /** 当前线程同步拒绝的取证：run 返回即应已回调，不允许还需要再等。 */
-        FinallyType requireSyncRejected() {
-            assertEquals(0, rejected.getCount(), "当前线程拒绝应在 run 返回前完成");
+        /** 当前线程同步未受理的取证：submit/run 返回即应已回调，不允许还需要再等。 */
+        FinallyType requireSyncNotAccepted() {
+            assertEquals(0, notAccepted.getCount(), "当前线程未受理应在 submit/run 返回前完成");
             return finallyType;
         }
     }
 
-    /** 不应发生的拒绝：收尾情形为 REJECTED 直接判失败；执行完毕情形放行。 */
-    private static FinallyHandler neverRejected() {
-        return type -> {
-            if (type == REJECTED) {
-                fail("任务不应被拒绝");
+    /** 不应发生的未受理：收尾情形为 NOT_ACCEPT 直接判失败；执行完毕情形放行。 */
+    private static FinallyHandler neverNotAccepted() {
+        return signal -> {
+            if (signal.finallyType() == NOT_ACCEPT) {
+                fail("任务不应未受理");
             }
         };
     }
@@ -157,7 +158,7 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     void runRejectsNullTaskAndHandler() {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 1, 10, "n", true);
 
-        assertThrows(NullPointerException.class, () -> resource.run(null, neverRejected()));
+        assertThrows(NullPointerException.class, () -> resource.run(null, neverNotAccepted()));
         assertThrows(NullPointerException.class, () -> resource.run(() -> {
         }, null));
         assertEquals(1, resource.availableResources(), "参数校验先于资源获取");
@@ -170,7 +171,7 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
         ObservedTask task = new ObservedTask(null, null);
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
-        Thread worker = resource.run(task, finishes::add);
+        Thread worker = resource.run(task, signal -> finishes.add(signal.finallyType()));
 
         assertNotNull(worker, "接受提交应返回承载线程");
         assertTrue(worker.isVirtual(), "承载线程应为虚拟线程");
@@ -190,7 +191,7 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
 
         Thread worker = resource.run(() -> {
             throw new IllegalStateException("boom");
-        }, finishes::add);
+        }, signal -> finishes.add(signal.finallyType()));
 
         assertNotNull(worker);
         worker.join(5_000);
@@ -201,27 +202,27 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("挂起额度已满：超限提交直接拒绝、计数不上探，在当前线程同步收到拒绝收尾并返回 null")
+    @DisplayName("挂起额度已满：超限提交直接未受理、计数不上探，在当前线程同步收到未受理收尾并返回 null")
     void queueFullRejectsSynchronouslyOnCurrentThread() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 1, 5_000, "vtr-queue", false);
         BlockedHolder holder = new BlockedHolder();
-        Thread holderThread = resource.run(holder, neverRejected());
+        Thread holderThread = resource.run(holder, neverNotAccepted());
         assertNotNull(holderThread);
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
         assertEquals(0, resource.availableResources(), "唯一许可由占用者持有");
 
         ObservedTask waiter1Task = new ObservedTask(null, null);
-        Thread waiter1 = resource.run(waiter1Task, neverRejected());
+        Thread waiter1 = resource.run(waiter1Task, neverNotAccepted());
         assertNotNull(waiter1, "第一个等待者应获得挂起额度");
         assertEquals(1, resource.suspendedThreads(), "额度登记发生在提交侧");
 
-        RejectionRecord record = new RejectionRecord();
+        NotAcceptedRecord record = new NotAcceptedRecord();
         ObservedTask waiter2Task = new ObservedTask(null, null);
         Thread waiter2 = resource.run(waiter2Task, record.handler());
 
         assertNull(waiter2, "额度已满不应创建线程");
-        assertEquals(REJECTED, record.requireSyncRejected());
-        assertSame(Thread.currentThread(), record.callbackThread, "同步拒绝回调应发生在当前线程");
+        assertEquals(NOT_ACCEPT, record.requireSyncNotAccepted());
+        assertSame(Thread.currentThread(), record.callbackThread, "同步未受理回调应发生在当前线程");
         assertFalse(waiter2Task.ran.get());
         assertEquals(1, resource.suspendedThreads(), "CAS 超限判定失败不产生写入，计数不上探也不泄漏");
 
@@ -234,19 +235,19 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("最大挂起时间为零：资源不足不登记额度、不建线程，当前线程同步拒绝")
+    @DisplayName("最大挂起时间为零：资源不足不登记额度、不建线程，当前线程同步未受理")
     void zeroTimeoutRejectsSynchronouslyOnCurrentThread() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 5, 0, "vtr-zerotimeout", false);
         BlockedHolder holder = new BlockedHolder();
-        Thread holderThread = resource.run(holder, neverRejected());
+        Thread holderThread = resource.run(holder, neverNotAccepted());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
 
-        RejectionRecord record = new RejectionRecord();
+        NotAcceptedRecord record = new NotAcceptedRecord();
         ObservedTask task = new ObservedTask(null, null);
         Thread worker = resource.run(task, record.handler());
 
         assertNull(worker);
-        assertEquals(REJECTED, record.requireSyncRejected());
+        assertEquals(NOT_ACCEPT, record.requireSyncNotAccepted());
         assertSame(Thread.currentThread(), record.callbackThread);
         assertFalse(task.ran.get());
         assertEquals(0, resource.suspendedThreads(), "零预算拒绝不应登记挂起额度");
@@ -256,19 +257,19 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("最大挂起数为零：资源耗尽即刻在当前线程拒绝，等待预算再大也不排队")
+    @DisplayName("最大挂起数为零：资源耗尽即刻在当前线程未受理，等待预算再大也不排队")
     void zeroMaxSuspendRejectsSynchronouslyOnCurrentThread() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 0, 1_000, "vtr-zeromax", false);
         BlockedHolder holder = new BlockedHolder();
-        Thread holderThread = resource.run(holder, neverRejected());
+        Thread holderThread = resource.run(holder, neverNotAccepted());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
 
-        RejectionRecord record = new RejectionRecord();
+        NotAcceptedRecord record = new NotAcceptedRecord();
         ObservedTask task = new ObservedTask(null, null);
         Thread worker = resource.run(task, record.handler());
 
         assertNull(worker);
-        assertEquals(REJECTED, record.requireSyncRejected());
+        assertEquals(NOT_ACCEPT, record.requireSyncNotAccepted());
         assertSame(Thread.currentThread(), record.callbackThread);
         assertFalse(task.ran.get());
         assertEquals(0, resource.suspendedThreads());
@@ -278,18 +279,18 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("submit 资源耗尽即刻拒绝：run 返回值丢弃，当前线程同步收到拒绝收尾")
+    @DisplayName("submit 资源耗尽即刻未受理：run 返回值丢弃，当前线程同步收到未受理收尾")
     void submitRejectsSynchronouslyWhenExhausted() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 0, 1_000, "vtr-submit", false);
         BlockedHolder holder = new BlockedHolder();
-        Thread holderThread = resource.run(holder, neverRejected());
+        Thread holderThread = resource.run(holder, neverNotAccepted());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
 
-        RejectionRecord record = new RejectionRecord();
+        NotAcceptedRecord record = new NotAcceptedRecord();
         ObservedTask task = new ObservedTask(null, null);
         resource.submit(task, record.handler());
 
-        assertEquals(REJECTED, record.requireSyncRejected());
+        assertEquals(NOT_ACCEPT, record.requireSyncNotAccepted());
         assertSame(Thread.currentThread(), record.callbackThread);
         assertFalse(task.ran.get());
         assertEquals(0, resource.suspendedThreads());
@@ -305,7 +306,7 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
         ObservedTask task = new ObservedTask(null, null);
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
-        resource.submit(task, finishes::add);
+        resource.submit(task, signal -> finishes.add(signal.finallyType()));
 
         assertTrue(task.done.await(5, TimeUnit.SECONDS), "submit 提交的任务应被执行");
         assertEquals("vtr-submit-ok", task.threadName.get());
@@ -319,23 +320,23 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     void waitersAcquireInOrderWhenFair() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 5, 5_000, "vtr-fair", true);
         BlockedHolder holder = new BlockedHolder();
-        Thread holderThread = resource.run(holder, neverRejected());
+        Thread holderThread = resource.run(holder, neverNotAccepted());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
 
         List<String> order = new CopyOnWriteArrayList<>();
         ObservedTask taskA = new ObservedTask("A", order);
-        Thread waiterA = resource.run(taskA, neverRejected());
+        Thread waiterA = resource.run(taskA, neverNotAccepted());
         assertNotNull(waiterA);
         // 拉开两个等待者进入等待队列的间隔，让"先来"在队列次序上可证
         Thread.sleep(150);
         ObservedTask taskB = new ObservedTask("B", order);
-        Thread waiterB = resource.run(taskB, neverRejected());
+        Thread waiterB = resource.run(taskB, neverNotAccepted());
         assertNotNull(waiterB);
         assertEquals(2, resource.suspendedThreads());
 
         // 已有等待者在排队时再提交：新提交必须排到队尾，不得在资源更早空闲时插队
         ObservedTask taskC = new ObservedTask("C", order);
-        Thread waiterC = resource.run(taskC, neverRejected());
+        Thread waiterC = resource.run(taskC, neverNotAccepted());
         assertNotNull(waiterC);
         assertEquals(3, resource.suspendedThreads());
 
@@ -356,25 +357,25 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("等待预算耗尽：等待线程以拒绝情形收尾，额度先归还、任务未执行、资源仍被占用")
+    @DisplayName("等待预算耗尽：等待线程以未受理情形收尾，额度先归还、任务未执行、资源仍被占用")
     void timedWaitBudgetExhaustedRejectsOnNewThread() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 5, 50, "vtr-reject", false);
         BlockedHolder holder = new BlockedHolder();
-        Thread holderThread = resource.run(holder, neverRejected());
+        Thread holderThread = resource.run(holder, neverNotAccepted());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
 
-        RejectionRecord record = new RejectionRecord();
+        NotAcceptedRecord record = new NotAcceptedRecord();
         ObservedTask task = new ObservedTask(null, null);
         Thread waiter = resource.run(task, record.handler());
         assertNotNull(waiter);
         assertEquals(1, resource.suspendedThreads());
 
-        assertTrue(record.rejected.await(5, TimeUnit.SECONDS), "限时等待耗尽应触发拒绝");
-        assertEquals(REJECTED, record.finallyType);
-        assertNotSame(Thread.currentThread(), record.callbackThread, "超时拒绝应发生在等待线程自身");
+        assertTrue(record.notAccepted.await(5, TimeUnit.SECONDS), "限时等待耗尽应触发未受理收尾");
+        assertEquals(NOT_ACCEPT, record.finallyType);
+        assertNotSame(Thread.currentThread(), record.callbackThread, "超时未受理应发生在等待线程自身");
         assertEquals("vtr-reject", record.callbackThread.getName());
-        assertFalse(task.ran.get(), "被拒任务不得执行");
-        assertEquals(0, resource.suspendedThreads(), "超时拒绝回调前额度已归还");
+        assertFalse(task.ran.get(), "未受理任务不得执行");
+        assertEquals(0, resource.suspendedThreads(), "超时未受理回调前额度已归还");
         assertEquals(0, resource.availableResources(), "资源仍由占用者持有");
 
         waiter.join(5_000);
@@ -384,22 +385,22 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("等待中被中断：放弃等待并在等待线程以拒绝情形收尾，额度归还、任务未执行")
+    @DisplayName("等待中被中断：放弃等待并在等待线程以未受理情形收尾，额度归还、任务未执行")
     void interruptedWaiterRejectsOnNewThread() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 5, 10_000, "vtr-interrupt", false);
         BlockedHolder holder = new BlockedHolder();
-        Thread holderThread = resource.run(holder, neverRejected());
+        Thread holderThread = resource.run(holder, neverNotAccepted());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
 
-        RejectionRecord record = new RejectionRecord();
+        NotAcceptedRecord record = new NotAcceptedRecord();
         ObservedTask task = new ObservedTask(null, null);
         Thread waiter = resource.run(task, record.handler());
         assertNotNull(waiter);
         waiter.interrupt();
 
-        assertTrue(record.rejected.await(5, TimeUnit.SECONDS), "中断应触发拒绝回调");
-        assertEquals(REJECTED, record.finallyType);
-        assertSame(waiter, record.callbackThread, "中断拒绝应发生在等待线程自身");
+        assertTrue(record.notAccepted.await(5, TimeUnit.SECONDS), "中断应触发未受理收尾");
+        assertEquals(NOT_ACCEPT, record.finallyType);
+        assertSame(waiter, record.callbackThread, "中断未受理应发生在等待线程自身");
         assertFalse(task.ran.get());
         assertEquals(0, resource.suspendedThreads(), "中断归还额度后才回调");
 
@@ -430,7 +431,7 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
                 }
                 active.decrementAndGet();
                 done.countDown();
-            }, neverRejected());
+            }, neverNotAccepted());
             assertNotNull(worker, "挂起额度充足时不应有提交被拒");
             workers.add(worker);
         }
@@ -445,11 +446,11 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("并发争抢挂起额度：许可全程被占，挂起读数不超上限，全部提交都被拒绝且计数无泄漏")
+    @DisplayName("并发争抢挂起额度：许可全程被占，挂起读数不超上限，全部提交都以未受理收尾且计数无泄漏")
     void concurrentSuspensionNeverExceedsMaxSuspend() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 4, 300, "vtr-cas", false);
         BlockedHolder holder = new BlockedHolder();
-        Thread holderThread = resource.run(holder, neverRejected());
+        Thread holderThread = resource.run(holder, neverNotAccepted());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
 
         int total = 16;
@@ -466,13 +467,12 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
                     Thread.currentThread().interrupt();
                     return;
                 }
-                Thread submitterThread = Thread.currentThread();
                 Thread waiter = resource.run(() -> {
-                }, type -> {
-                    if (type != REJECTED) {
+                }, signal -> {
+                    if (signal.finallyType() != NOT_ACCEPT) {
                         return;
                     }
-                    if (submitterThread == Thread.currentThread()) {
+                    if (signal.callbackThread() == FinallySignal.CallbackThread.SUBMITTER) {
                         currentThreadRejections.incrementAndGet();
                     } else {
                         newThreadRejections.incrementAndGet();
@@ -495,8 +495,8 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
         for (Thread submitter : submitters) {
             submitter.join(10_000);
         }
-        assertEquals(total, newThreadRejections.get() + currentThreadRejections.get(), "每个提交都应收到且只收到一次拒绝");
-        assertTrue(newThreadRejections.get() >= 4, "至少四枚提交取得额度排队后超时拒绝，实测 " + newThreadRejections.get());
+        assertEquals(total, newThreadRejections.get() + currentThreadRejections.get(), "每个提交都应收到且只收到一次未受理收尾");
+        assertTrue(newThreadRejections.get() >= 4, "至少四枚提交取得额度排队后超时未受理，实测 " + newThreadRejections.get());
         assertTrue(highestSuspended.get() <= 4, "挂起读数不得超过上限，实测 " + highestSuspended.get());
         assertEquals(0, resource.suspendedThreads(), "全部等待线程退出后额度应无泄漏");
 
@@ -506,11 +506,10 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("收尾情形枚举：三枚取值，values 与 valueOf 往返一致")
-    void finallyTypeEnumIsThreeValuedAndRoundTrips() {
-        assertEquals(3, FinallyType.values().length);
+    @DisplayName("收尾状态枚举：两枚取值，values 与 valueOf 往返一致")
+    void finallyTypeEnumIsTwoValuedAndRoundTrips() {
+        assertEquals(2, FinallyType.values().length);
         assertSame(EXECUTED, FinallyType.valueOf("EXECUTED"));
-        assertSame(REJECTED, FinallyType.valueOf("REJECTED"));
-        assertSame(FinallyType.NOT_ACCEPT, FinallyType.valueOf("NOT_ACCEPT"));
+        assertSame(NOT_ACCEPT, FinallyType.valueOf("NOT_ACCEPT"));
     }
 }
