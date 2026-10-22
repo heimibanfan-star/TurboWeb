@@ -28,14 +28,14 @@ import static top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType.EXECU
 import static top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType.REJECTED;
 
 /**
- * {@link LimitedVirtualThreadResource} 的构造校验、资源获取、排队挂起与双线程位拒绝收尾。
+ * 受限实现（{@link VirtualThreadMicroTaskExecutor#ofLimited}）的构造校验、资源获取、排队挂起与双线程位拒绝收尾。
  *
  * <p>并发语义的取证口径：挂起额度以 CAS 在提交侧条件递增，超限直接拒绝且计数不上探，
  * 因此 run 返回后即可直接断言计数；等待结果一律用带超时的闩或轮询等待收敛，
  * 收尾回调记录发生线程与收尾情形；占用资源的任务以门闩释放，保证"资源被占住"这一前提对每个用例成立。
  */
 @Timeout(value = 20, unit = TimeUnit.SECONDS)
-class LimitedVirtualThreadResourceTest {
+class LimitedVirtualThreadMicroTaskExecutorTest {
 
     /** 轮询间隔：足够小以捕捉毫秒级状态翻转，足够大以免空转。 */
     private static final long POLL_INTERVAL_MILLIS = 5L;
@@ -137,24 +137,25 @@ class LimitedVirtualThreadResourceTest {
     @DisplayName("构造参数校验：资源数须大于0，挂起数与挂起时间不得为负，线程名不得为null；公平标志与初始读数如实暴露")
     void constructorValidatesArgumentsAndExposesInitialState() {
         IllegalArgumentException resourceCountError =
-                assertThrows(IllegalArgumentException.class, () -> new LimitedVirtualThreadResource(0, 1, 1, "n", false));
+                assertThrows(IllegalArgumentException.class, () -> VirtualThreadMicroTaskExecutor.ofLimited(0, 1, 1, "n", false));
         assertEquals("资源数必须大于0", resourceCountError.getMessage());
-        assertThrows(IllegalArgumentException.class, () -> new LimitedVirtualThreadResource(-1, 1, 1, "n", false));
-        assertThrows(IllegalArgumentException.class, () -> new LimitedVirtualThreadResource(1, -1, 1, "n", false));
-        assertThrows(IllegalArgumentException.class, () -> new LimitedVirtualThreadResource(1, 1, -1, "n", false));
-        assertThrows(NullPointerException.class, () -> new LimitedVirtualThreadResource(1, 1, 1, null, false));
+        assertThrows(IllegalArgumentException.class, () -> VirtualThreadMicroTaskExecutor.ofLimited(-1, 1, 1, "n", false));
+        assertThrows(IllegalArgumentException.class, () -> VirtualThreadMicroTaskExecutor.ofLimited(1, -1, 1, "n", false));
+        assertThrows(IllegalArgumentException.class, () -> VirtualThreadMicroTaskExecutor.ofLimited(1, 1, -1, "n", false));
+        assertThrows(NullPointerException.class, () -> VirtualThreadMicroTaskExecutor.ofLimited(1, 1, 1, null, false));
 
-        LimitedVirtualThreadResource fair = new LimitedVirtualThreadResource(3, 0, 0, "n", true);
+        VirtualThreadMicroTaskExecutor fair = VirtualThreadMicroTaskExecutor.ofLimited(3, 0, 0, "n", true);
+        assertTrue(fair.isLimited(), "受限工厂产出的实例应是受限实现");
         assertTrue(fair.isFair(), "公平标志应如实反映构造参数");
         assertEquals(3, fair.availableResources(), "初始空闲资源数应等于资源数");
         assertEquals(0, fair.suspendedThreads(), "初始挂起数应为0");
-        assertFalse(new LimitedVirtualThreadResource(1, 0, 0, "n", false).isFair());
+        assertFalse(VirtualThreadMicroTaskExecutor.ofLimited(1, 0, 0, "n", false).isFair());
     }
 
     @Test
     @DisplayName("run 的 null 参数先行拒绝，不消耗资源")
     void runRejectsNullTaskAndHandler() {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 1, 10, "n", true);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 1, 10, "n", true);
 
         assertThrows(NullPointerException.class, () -> resource.run(null, neverRejected()));
         assertThrows(NullPointerException.class, () -> resource.run(() -> {
@@ -165,7 +166,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("资源空闲：任务在命名虚拟线程执行，资源执行后归还，全程不触发拒绝")
     void availableResourceRunsTaskOnNamedVirtualThread() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(2, 1, 1_000, "vtr-worker", true);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(2, 1, 1_000, "vtr-worker", true);
         ObservedTask task = new ObservedTask(null, null);
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
@@ -184,7 +185,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("任务抛出异常资源照常释放")
     void taskFailureStillReleasesResource() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 0, 0, "vtr-fail", false);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 0, 0, "vtr-fail", false);
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
         Thread worker = resource.run(() -> {
@@ -202,7 +203,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("挂起额度已满：超限提交直接拒绝、计数不上探，在当前线程同步收到拒绝收尾并返回 null")
     void queueFullRejectsSynchronouslyOnCurrentThread() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 1, 5_000, "vtr-queue", false);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 1, 5_000, "vtr-queue", false);
         BlockedHolder holder = new BlockedHolder();
         Thread holderThread = resource.run(holder, neverRejected());
         assertNotNull(holderThread);
@@ -235,7 +236,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("最大挂起时间为零：资源不足不登记额度、不建线程，当前线程同步拒绝")
     void zeroTimeoutRejectsSynchronouslyOnCurrentThread() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 5, 0, "vtr-zerotimeout", false);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 5, 0, "vtr-zerotimeout", false);
         BlockedHolder holder = new BlockedHolder();
         Thread holderThread = resource.run(holder, neverRejected());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
@@ -257,7 +258,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("最大挂起数为零：资源耗尽即刻在当前线程拒绝，等待预算再大也不排队")
     void zeroMaxSuspendRejectsSynchronouslyOnCurrentThread() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 0, 1_000, "vtr-zeromax", false);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 0, 1_000, "vtr-zeromax", false);
         BlockedHolder holder = new BlockedHolder();
         Thread holderThread = resource.run(holder, neverRejected());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
@@ -279,7 +280,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("submit 资源耗尽即刻拒绝：run 返回值丢弃，当前线程同步收到拒绝收尾")
     void submitRejectsSynchronouslyWhenExhausted() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 0, 1_000, "vtr-submit", false);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 0, 1_000, "vtr-submit", false);
         BlockedHolder holder = new BlockedHolder();
         Thread holderThread = resource.run(holder, neverRejected());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
@@ -298,9 +299,25 @@ class LimitedVirtualThreadResourceTest {
     }
 
     @Test
-    @DisplayName("公平模式：两名等待者按提交先后取得资源执行，均不被拒绝，额度与资源全部归还")
+    @DisplayName("submit 受理执行：任务在命名虚拟线程执行并占用资源，任务结束以执行完毕情形收尾、资源归还")
+    void submitAcceptsAndExecutes() throws InterruptedException {
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 0, 0, "vtr-submit-ok", false);
+        ObservedTask task = new ObservedTask(null, null);
+        List<FinallyType> finishes = new CopyOnWriteArrayList<>();
+
+        resource.submit(task, finishes::add);
+
+        assertTrue(task.done.await(5, TimeUnit.SECONDS), "submit 提交的任务应被执行");
+        assertEquals("vtr-submit-ok", task.threadName.get());
+        assertEquals(0, resource.suspendedThreads());
+        assertTrue(awaitUntil(() -> resource.availableResources() == 1, 2_000), "任务结束后资源应归还");
+        assertEquals(List.of(EXECUTED), finishes, "submit 受理的任务以执行完毕情形收尾一次");
+    }
+
+    @Test
+    @DisplayName("公平模式：等待者按提交先后取得资源执行，后提交者排在队尾不插队，均不被拒绝，额度与资源全部归还")
     void waitersAcquireInOrderWhenFair() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 5, 5_000, "vtr-fair", true);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 5, 5_000, "vtr-fair", true);
         BlockedHolder holder = new BlockedHolder();
         Thread holderThread = resource.run(holder, neverRejected());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
@@ -316,14 +333,23 @@ class LimitedVirtualThreadResourceTest {
         assertNotNull(waiterB);
         assertEquals(2, resource.suspendedThreads());
 
+        // 已有等待者在排队时再提交：新提交必须排到队尾，不得在资源更早空闲时插队
+        ObservedTask taskC = new ObservedTask("C", order);
+        Thread waiterC = resource.run(taskC, neverRejected());
+        assertNotNull(waiterC);
+        assertEquals(3, resource.suspendedThreads());
+
         holder.gate.countDown();
         assertTrue(taskA.done.await(5, TimeUnit.SECONDS));
         assertTrue(taskB.done.await(5, TimeUnit.SECONDS));
-        assertEquals(List.of("A", "B"), order, "公平模式应按提交先后交付资源");
+        assertTrue(taskC.done.await(5, TimeUnit.SECONDS));
+        assertEquals(List.of("A", "B", "C"), order, "公平模式应按提交先后交付资源，后提交者不插队");
         assertEquals("vtr-fair", taskA.threadName.get());
         assertEquals("vtr-fair", taskB.threadName.get());
+        assertEquals("vtr-fair", taskC.threadName.get());
         waiterA.join(5_000);
         waiterB.join(5_000);
+        waiterC.join(5_000);
         holderThread.join(5_000);
         assertTrue(awaitUntil(() -> resource.availableResources() == 1, 2_000));
         assertEquals(0, resource.suspendedThreads());
@@ -332,7 +358,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("等待预算耗尽：等待线程以拒绝情形收尾，额度先归还、任务未执行、资源仍被占用")
     void timedWaitBudgetExhaustedRejectsOnNewThread() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 5, 50, "vtr-reject", false);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 5, 50, "vtr-reject", false);
         BlockedHolder holder = new BlockedHolder();
         Thread holderThread = resource.run(holder, neverRejected());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
@@ -360,7 +386,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("等待中被中断：放弃等待并在等待线程以拒绝情形收尾，额度归还、任务未执行")
     void interruptedWaiterRejectsOnNewThread() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 5, 10_000, "vtr-interrupt", false);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 5, 10_000, "vtr-interrupt", false);
         BlockedHolder holder = new BlockedHolder();
         Thread holderThread = resource.run(holder, neverRejected());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
@@ -386,7 +412,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("并发提交下同时在执行的任务数不超过资源数，且全部完成、计数全部归还")
     void concurrentTasksNeverExceedResourceCount() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(3, 50, 3_000, "vtr-stress", true);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(3, 50, 3_000, "vtr-stress", true);
         int total = 20;
         AtomicInteger active = new AtomicInteger();
         AtomicInteger maxActive = new AtomicInteger();
@@ -421,7 +447,7 @@ class LimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("并发争抢挂起额度：许可全程被占，挂起读数不超上限，全部提交都被拒绝且计数无泄漏")
     void concurrentSuspensionNeverExceedsMaxSuspend() throws InterruptedException {
-        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 4, 300, "vtr-cas", false);
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 4, 300, "vtr-cas", false);
         BlockedHolder holder = new BlockedHolder();
         Thread holderThread = resource.run(holder, neverRejected());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));

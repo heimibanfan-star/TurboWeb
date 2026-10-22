@@ -7,9 +7,7 @@ import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ElasticThreadPool;
-import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.ThreadPool;
-import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.session.DefaultSessionManagerHolder;
@@ -163,8 +161,8 @@ public class HttpRequestApplication implements Application {
      * {@link #build()} 按以下顺序完成装配：
      * 以本建造者的 json 序列化器生产路由处理器管理器 -> 串联并初始化中间件链 ->
      * 按 {@link HttpConfig} 的 diskOpeThread* 参数创建磁盘IO线程池 ->
-     * 按限流参数创建虚拟线程资源（启用限流为 {@link LimitedVirtualThreadResource}，
-     * 否则为 {@link UnlimitedVirtualThreadResource}）-> 补全未传入的组件默认值 ->
+     * 按限流参数创建虚拟线程资源（启用限流走 {@link VirtualThreadMicroTaskExecutor#ofLimited}，
+     * 否则走 {@link VirtualThreadMicroTaskExecutor#ofUnlimited}）-> 补全未传入的组件默认值 ->
      * 按九组件装配 {@link RequestOrchestrator} -> 装配http请求调度处理器。
      * 装配出的中间件链销毁适配器先登记、磁盘IO线程池后登记进应用的
      * {@link ScopedResource} 资源作用域，由应用在关闭时按登记顺序统一释放。
@@ -456,8 +454,8 @@ public class HttpRequestApplication implements Application {
 
         /**
          * 按 {@link HttpConfig} 的限流参数创建虚拟线程资源：启用限流时以限流数量、最大挂起数、
-         * 最大挂起时间构造 {@link LimitedVirtualThreadResource}（非公平抢占），
-         * 未启用时构造 {@link UnlimitedVirtualThreadResource} 直通执行
+         * 最大挂起时间走 {@link VirtualThreadMicroTaskExecutor#ofLimited}（非公平抢占），
+         * 未启用时走 {@link VirtualThreadMicroTaskExecutor#ofUnlimited} 直通执行
          *
          * @return 虚拟线程资源
          */
@@ -467,7 +465,7 @@ public class HttpRequestApplication implements Application {
                         httpConfig.getHttpSchedulerLimitCount(),
                         httpConfig.getHttpSchedulerLimitCacheThread(),
                         httpConfig.getHttpSchedulerLimitTimeout());
-                return new LimitedVirtualThreadResource(
+                return VirtualThreadMicroTaskExecutor.ofLimited(
                         httpConfig.getHttpSchedulerLimitCount(),
                         httpConfig.getHttpSchedulerLimitCacheThread(),
                         httpConfig.getHttpSchedulerLimitTimeout(),
@@ -475,7 +473,7 @@ public class HttpRequestApplication implements Application {
                         false);
             }
             log.info("Virtual thread limit disabled, request tasks execute directly in newly created virtual threads");
-            return new UnlimitedVirtualThreadResource(VIRTUAL_THREAD_NAME);
+            return VirtualThreadMicroTaskExecutor.ofUnlimited(VIRTUAL_THREAD_NAME);
         }
 
         /**

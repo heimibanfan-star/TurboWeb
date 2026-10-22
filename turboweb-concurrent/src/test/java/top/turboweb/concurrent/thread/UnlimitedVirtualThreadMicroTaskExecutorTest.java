@@ -12,19 +12,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * {@link UnlimitedVirtualThreadResource} 的构造校验与无资源控制提交语义。
+ * 非受限实现（{@link VirtualThreadMicroTaskExecutor#ofUnlimited}）的构造校验与无资源控制提交语义。
  *
  * <p>非受限实现不排队、不拒绝：每个提交即刻返回承载虚拟线程，收尾回调不会以拒绝情形触发，
  * 任务结束后以执行完毕情形触发一次；执行与否的取证靠任务内闩与计数，线程名断言经任务体内自取。
  */
 @Timeout(value = 20, unit = TimeUnit.SECONDS)
-class UnlimitedVirtualThreadResourceTest {
+class UnlimitedVirtualThreadMicroTaskExecutorTest {
 
     /** 不应发生的拒绝：收尾情形为 REJECTED 直接判失败，EXECUTED 为任务正常收尾。 */
     private static MicroTaskExecutor.FinallyHandler neverRejected() {
@@ -39,15 +40,26 @@ class UnlimitedVirtualThreadResourceTest {
     @DisplayName("线程名必传：null 线程名构造即拒绝")
     void constructorRequiresThreadName() {
         NullPointerException error = assertThrows(NullPointerException.class,
-                () -> new UnlimitedVirtualThreadResource(null));
+                () -> VirtualThreadMicroTaskExecutor.ofUnlimited(null));
         assertEquals("线程名不能为null", error.getMessage());
-        assertNotNull(new UnlimitedVirtualThreadResource("uvt-ok"));
+        assertNotNull(VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-ok"));
+    }
+
+    @Test
+    @DisplayName("观测读数按下放开值：非受限标志为假，资源数不设上限，挂起数与公平标志恒为零/假")
+    void unlimitedExposesOpenDefaults() {
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-defaults");
+
+        assertFalse(resource.isLimited(), "非受限实现不应是受限实现");
+        assertEquals(Integer.MAX_VALUE, resource.availableResources(), "非受限实现不设资源上限");
+        assertEquals(0, resource.suspendedThreads(), "非受限实现不排队，挂起数恒为 0");
+        assertFalse(resource.isFair(), "非受限实现无等待队列，公平标志恒为假");
     }
 
     @Test
     @DisplayName("run 的 null 参数先行拒绝")
     void runRejectsNullTaskAndHandler() {
-        UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-args");
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-args");
 
         assertThrows(NullPointerException.class, () -> resource.run(null, neverRejected()));
         assertThrows(NullPointerException.class, () -> resource.run(() -> {
@@ -57,7 +69,7 @@ class UnlimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("submit 的 null 参数由 run 的参数校验先行拒绝")
     void submitRejectsNullTaskAndHandler() {
-        UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-submit-args");
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-submit-args");
 
         assertThrows(NullPointerException.class, () -> resource.submit(null, neverRejected()));
         assertThrows(NullPointerException.class, () -> resource.submit(() -> {
@@ -67,7 +79,7 @@ class UnlimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("提交即刻受理：任务在命名虚拟线程执行，返回承载线程，不触发拒绝")
     void runStartsTaskOnNamedVirtualThread() throws InterruptedException {
-        UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-worker");
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-worker");
         CountDownLatch done = new CountDownLatch(1);
         AtomicInteger observed = new AtomicInteger();
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
@@ -90,7 +102,7 @@ class UnlimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("submit 提交即受理：任务在命名虚拟线程执行，以执行完毕情形收尾")
     void submitStartsTaskOnNamedVirtualThread() throws InterruptedException {
-        UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-submit");
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-submit");
         CountDownLatch done = new CountDownLatch(1);
         CountDownLatch finished = new CountDownLatch(1);
         AtomicInteger observed = new AtomicInteger();
@@ -115,7 +127,7 @@ class UnlimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("任务抛出异常不阻断后续提交：异常随线程默认处理器输出，资源侧无任何残留")
     void taskFailureDoesNotBlockLaterSubmissions() throws InterruptedException {
-        UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-fail");
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-fail");
         CountDownLatch done = new CountDownLatch(1);
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
 
@@ -134,7 +146,7 @@ class UnlimitedVirtualThreadResourceTest {
     @Test
     @DisplayName("并发批量提交全部即刻受理：每枚任务独立执行且全部完成")
     void concurrentSubmissionsAllExecuteImmediately() throws InterruptedException {
-        UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-bulk");
+        VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-bulk");
         int total = 16;
         CountDownLatch done = new CountDownLatch(total);
         AtomicInteger executed = new AtomicInteger();

@@ -7,9 +7,7 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.common.utils.resource.ScopedResource;
-import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.ThreadPool;
-import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.InternalConnectSession;
@@ -306,8 +304,10 @@ class HttpRequestApplicationTest {
                 "sessionManagerHolder", "defaultCharset", "contentParserManager")) {
             assertNotNull(componentOf(orchestrator, component), "九组件之 " + component + " 装配后不可为null");
         }
-        assertInstanceOf(UnlimitedVirtualThreadResource.class,
-                componentOf(orchestrator, "virtualThreadResource"),
+        assertEquals(Integer.MAX_VALUE,
+                ((VirtualThreadMicroTaskExecutor) componentOf(orchestrator, "virtualThreadResource")).availableResources(),
+                "默认配置未启用限流，非受限实现不设资源上限");
+        assertFalse(((VirtualThreadMicroTaskExecutor) componentOf(orchestrator, "virtualThreadResource")).isLimited(),
                 "默认配置未启用限流，虚拟线程资源为非受限实现");
         assertTrue(((HttpCorsConfig) componentOf(orchestrator, "corsConfig")).isAnyOrigin(),
                 "cors配置默认取通配配置");
@@ -344,8 +344,7 @@ class HttpRequestApplicationTest {
                 .build();
         VirtualThreadMicroTaskExecutor resource =
                 (VirtualThreadMicroTaskExecutor) componentOf(orchestratorOf(limited), "virtualThreadResource");
-        assertInstanceOf(LimitedVirtualThreadResource.class, resource,
-                "启用限流时应用按配置创建受限虚拟线程资源");
+        assertTrue(resource.isLimited(), "启用限流时应用按配置创建受限虚拟线程资源");
         limited.close();
     }
 
