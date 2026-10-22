@@ -7,7 +7,7 @@ package top.turboweb.concurrent.thread;
  * 任务抛出的异常不做拦截，随虚拟线程默认未捕获异常处理器输出；收尾回调仍在任务结束后触发。
  * </p>
  */
-public final class UnlimitedVirtualThreadResource extends VirtualThreadResource {
+public final class UnlimitedVirtualThreadResource extends VirtualThreadMicroTaskExecutor {
 
     /**
      * 构造非受限虚拟线程资源。

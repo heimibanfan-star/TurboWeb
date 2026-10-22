@@ -11,44 +11,11 @@ import java.util.Objects;
  * </p>
  * <p>
  * 线程名为必传参数，构造时校验非空，供两个实现创建执行与等待任务所用虚拟线程时命名；
- * run 的参数契约（任务与收尾回调均不能为 null、校验先于任何资源动作）由基类统一承载。
+ * run 的参数契约（任务与收尾回调均不能为 null、校验先于任何资源动作）由基类统一承载；
+ * 本类实现 {@link MicroTaskExecutor}，submit 委托 run 执行并丢弃其线程返回值。
  * </p>
  */
-public abstract class VirtualThreadResource {
-
-    /**
-     * 收尾回调的触发情形：一次提交有且仅有其中一种收尾。
-     */
-    public enum FinallyType {
-        /**
-         * 任务已执行完毕：正常返回或抛出异常后，在任务所在虚拟线程中回调。
-         */
-        EXECUTED,
-        /**
-         * 未取得资源，任务未执行：挂起额度已满或最大挂起时间不大于零时在提交线程回调，
-         * 排队等待超时或被中断时在等待线程回调。
-         */
-        REJECTED,
-        /**
-         * 虚拟线程未能启动，任务未执行：在提交线程中、原异常抛出前回调。
-         */
-        NOT_STARTED
-    }
-
-    /**
-     * 任务提交的收尾回调：任务执行完毕、被拒绝、线程未能启动三者必居其一，
-     * 每次提交保证回调且仅回调一次。
-     */
-    @FunctionalInterface
-    public interface FinallyHandler {
-
-        /**
-         * 收尾时调用。
-         *
-         * @param finallyType 本次收尾对应的情形
-         */
-        void onFinally(FinallyType finallyType);
-    }
+public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecutor {
 
     /** 无补偿动作的启动失败收尾：线程创建前未占用任何资源。 */
     private static final Runnable NO_COMPENSATION = () -> {
@@ -65,7 +32,7 @@ public abstract class VirtualThreadResource {
      * @param threadName 执行与等待任务所用虚拟线程的名称，必传且不能为 null
      * @throws NullPointerException threadName 为 null
      */
-    protected VirtualThreadResource(String threadName) {
+    protected VirtualThreadMicroTaskExecutor(String threadName) {
         this.threadName = Objects.requireNonNull(threadName, "线程名不能为null");
     }
 
@@ -85,6 +52,22 @@ public abstract class VirtualThreadResource {
      * @throws NullPointerException task 或 finallyHandler 为 null
      */
     public abstract Thread run(Runnable task, FinallyHandler finallyHandler);
+
+    /**
+     * 提交任务执行，不返回承载线程。
+     * <p>
+     * 委托 {@link #run} 执行并丢弃其返回的线程句柄：参数校验、排队与拒绝语义、
+     * 收尾回调时机均与 run 一致。
+     * </p>
+     *
+     * @param task           获取到资源后执行的任务，不能为 null
+     * @param finallyHandler 任务提交的收尾回调，不能为 null
+     * @throws NullPointerException task 或 finallyHandler 为 null
+     */
+    @Override
+    public void submit(Runnable task, FinallyHandler finallyHandler) {
+        run(task, finallyHandler);
+    }
 
     /**
      * 校验 run 的参数契约：任务与收尾回调均不能为 null。

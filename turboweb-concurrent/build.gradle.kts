@@ -21,7 +21,7 @@ dependencies {
 
 description = "turboweb-concurrent"
 
-// 覆盖率闸：作用域仅 VirtualThreadResource 抽象基类与受限/非受限两实现及嵌套类型。
+// 覆盖率闸：作用域仅 VirtualThreadMicroTaskExecutor 抽象基类与受限/非受限两实现及嵌套类型。
 // 基类单列一条规则：线程启动失败补偿的 catch 三行（归还、重抛）测试不可达
 // （start() 无法按需失败，类保持 final 不设注入缝，属已裁决口径），线覆盖下限 0.70；
 // 两实现维持 LINE+BRANCH 双 1.00 不放松。既有 ThreadPool/ElasticThreadPool 维持无闸口径不扩面
@@ -30,7 +30,7 @@ tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoT
     violationRules {
         rule {
             element = "CLASS"
-            includes = listOf("*.VirtualThreadResource*")
+            includes = listOf("*.VirtualThreadMicroTaskExecutor*")
             limit {
                 counter = "LINE"
                 minimum = "0.70".toBigDecimal()
@@ -67,7 +67,10 @@ configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
     junit5PluginVersion.set("1.2.3")
     // 本仓存在顶满超时的并发用例，默认 1.2 倍超时窗会误判，放宽
     timeoutFactor.set(4.toBigDecimal())
-    targetClasses.set(listOf("top.turboweb.concurrent.thread.*VirtualThreadResource*"))
+    targetClasses.set(listOf(
+        "top.turboweb.concurrent.thread.*VirtualThreadMicroTaskExecutor*",
+        "top.turboweb.concurrent.thread.*VirtualThreadResource*",
+    ))
     // 分数上限 95（38/40，2 枚 no-coverage 即上述补偿归还调用），可达变异要求全杀
     mutationThreshold.set(94)
 }

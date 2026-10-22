@@ -10,7 +10,7 @@ import top.turboweb.concurrent.thread.ElasticThreadPool;
 import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
-import top.turboweb.concurrent.thread.VirtualThreadResource;
+import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.session.DefaultSessionManagerHolder;
 import top.turboweb.http.core.session.MemorySessionManager;
@@ -386,7 +386,7 @@ public class HttpRequestApplication implements Application {
                     httpConfig.getDiskOpeThreadMaxThreadNum());
             scopedResource.register(diskOpeThreadPool);
             // 按配置限流参数创建虚拟线程资源
-            VirtualThreadResource virtualThreadResource = createVirtualThreadResource();
+            VirtualThreadMicroTaskExecutor virtualThreadResource = createVirtualThreadResource();
             // 未传入的组件补全默认值后，按九组件装定请求编排器
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
@@ -461,7 +461,7 @@ public class HttpRequestApplication implements Application {
          *
          * @return 虚拟线程资源
          */
-        private VirtualThreadResource createVirtualThreadResource() {
+        private VirtualThreadMicroTaskExecutor createVirtualThreadResource() {
             if (httpConfig.isEnableHttpSchedulerLimit()) {
                 log.info("Virtual thread limit enabled: limit count {}, max suspended threads {}, suspend timeout {} ms",
                         httpConfig.getHttpSchedulerLimitCount(),

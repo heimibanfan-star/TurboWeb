@@ -15,9 +15,9 @@ import top.turboweb.rest.core.HttpContent;
 import top.turboweb.rest.core.HttpRequestMethod;
 import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
-import top.turboweb.concurrent.thread.VirtualThreadResource;
-import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyHandler;
-import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType;
+import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyHandler;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpFormContent;
@@ -101,7 +101,7 @@ class RequestOrchestratorTest {
 
     /** 按指定链头、异常处理器与虚拟线程资源装配九组件齐备的编排器。 */
     private static RequestOrchestrator flowOrchestrator(Middleware chain, ExceptionHandlerManager handlers,
-                                                         VirtualThreadResource resource) {
+                                                         VirtualThreadMicroTaskExecutor resource) {
         return RequestOrchestrator.builder()
                 .middleware(chain)
                 .virtualThreadResource(resource)
@@ -806,7 +806,7 @@ class RequestOrchestratorTest {
     void missingConnectSessionReleasesOwnReferenceBeforeThrowing() {
         // 入口校验的钉：会话缺失在提交前拒收，不进入虚拟线程；编排入口先归还自持引用再抛出
         RequestOrchestrator orchestrator = flowOrchestrator(new SentinelMiddleware(),
-                new ExceptionHandlerManager(Set.of()), new ThrowingVirtualThreadResource());
+                new ExceptionHandlerManager(Set.of()), new ThrowingVirtualThreadMicroTaskExecutor());
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
         NullPointerException failure = assertThrows(NullPointerException.class,
@@ -822,7 +822,7 @@ class RequestOrchestratorTest {
         // 提交失败的钉：线程创建失败时任务不执行，编排入口自持引用由未启动收尾回调归还
         EmbeddedChannel channel = new EmbeddedChannel();
         RequestOrchestrator orchestrator = flowOrchestrator(new SentinelMiddleware(),
-                new ExceptionHandlerManager(Set.of()), new ThrowingVirtualThreadResource());
+                new ExceptionHandlerManager(Set.of()), new ThrowingVirtualThreadMicroTaskExecutor());
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
         IllegalStateException failure = assertThrows(IllegalStateException.class,
@@ -923,8 +923,8 @@ class RequestOrchestratorTest {
     }
 
     /** 提交即失败的虚拟线程资源：模拟线程创建失败，任务不执行，收尾以未启动情形触发后抛出。 */
-    private static final class ThrowingVirtualThreadResource extends VirtualThreadResource {
-        ThrowingVirtualThreadResource() {
+    private static final class ThrowingVirtualThreadMicroTaskExecutor extends VirtualThreadMicroTaskExecutor {
+        ThrowingVirtualThreadMicroTaskExecutor() {
             super("throwing-resource");
         }
 

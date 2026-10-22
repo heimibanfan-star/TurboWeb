@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 且存在等待者时新提交不会插队占用空闲资源；非公平模式下新提交可立即占用空闲资源。
  * </p>
  */
-public final class LimitedVirtualThreadResource extends VirtualThreadResource {
+public final class LimitedVirtualThreadResource extends VirtualThreadMicroTaskExecutor {
 
     /**
      * 资源许可。

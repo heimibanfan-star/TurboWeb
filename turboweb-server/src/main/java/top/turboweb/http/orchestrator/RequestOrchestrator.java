@@ -3,7 +3,7 @@ package top.turboweb.http.orchestrator;
 import io.netty.handler.codec.http.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.concurrent.thread.VirtualThreadResource;
+import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.*;
 import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
@@ -58,7 +58,7 @@ public class RequestOrchestrator {
     /** 中间件链链头，请求处理流程的入口组件。 */
     private final Middleware middleware;
     /** 虚拟线程资源，承载请求任务的线程创建与限流。 */
-    private final VirtualThreadResource virtualThreadResource;
+    private final VirtualThreadMicroTaskExecutor virtualThreadResource;
     /** 响应写出器管理器，按响应声明的写出器类型路由写出。 */
     private final ResponseWriterManager responseWriterManager;
     /** 结果转化器管理器，把业务返回值转化为 HTTP 响应。 */
@@ -130,7 +130,7 @@ public class RequestOrchestrator {
                 () -> doOrchestrate(request, connectSession, startTime),
                 finallyType -> {
                     try {
-                        if (finallyType == VirtualThreadResource.FinallyType.REJECTED) {
+                        if (finallyType == VirtualThreadMicroTaskExecutor.FinallyType.REJECTED) {
                             attachRequestLog(request.method().name(), request.uri(), startTime,
                                     responseWriterManager.write(toManyRequestsResponse(), connectSession));
                         }
@@ -412,7 +412,7 @@ public class RequestOrchestrator {
     public static class Builder {
 
         private Middleware middleware;
-        private VirtualThreadResource virtualThreadResource;
+        private VirtualThreadMicroTaskExecutor virtualThreadResource;
         private ResponseWriterManager responseWriterManager;
         private ResultConverterManager resultConverterManager;
         private HttpCorsConfig corsConfig;
@@ -428,7 +428,7 @@ public class RequestOrchestrator {
         }
 
         /** 设置虚拟线程资源。 */
-        public Builder virtualThreadResource(VirtualThreadResource virtualThreadResource) {
+        public Builder virtualThreadResource(VirtualThreadMicroTaskExecutor virtualThreadResource) {
             this.virtualThreadResource = Objects.requireNonNull(virtualThreadResource, "virtual thread resource must not be null");
             return this;
         }

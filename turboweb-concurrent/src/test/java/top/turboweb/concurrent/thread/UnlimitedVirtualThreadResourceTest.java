@@ -3,7 +3,7 @@ package top.turboweb.concurrent.thread;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 class UnlimitedVirtualThreadResourceTest {
 
     /** 不应发生的拒绝：收尾情形为 REJECTED 直接判失败，EXECUTED 为任务正常收尾。 */
-    private static VirtualThreadResource.FinallyHandler neverRejected() {
+    private static MicroTaskExecutor.FinallyHandler neverRejected() {
         return type -> {
             if (type == FinallyType.REJECTED) {
                 fail("非受限实现不应触发拒绝收尾");
@@ -55,6 +55,16 @@ class UnlimitedVirtualThreadResourceTest {
     }
 
     @Test
+    @DisplayName("submit 的 null 参数由 run 的参数校验先行拒绝")
+    void submitRejectsNullTaskAndHandler() {
+        UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-submit-args");
+
+        assertThrows(NullPointerException.class, () -> resource.submit(null, neverRejected()));
+        assertThrows(NullPointerException.class, () -> resource.submit(() -> {
+        }, null));
+    }
+
+    @Test
     @DisplayName("提交即刻受理：任务在命名虚拟线程执行，返回承载线程，不触发拒绝")
     void runStartsTaskOnNamedVirtualThread() throws InterruptedException {
         UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-worker");
@@ -74,6 +84,31 @@ class UnlimitedVirtualThreadResourceTest {
         assertTrue(done.await(5, TimeUnit.SECONDS), "任务应被执行");
         assertEquals(1, observed.get());
         worker.join(5_000);
+        assertEquals(List.of(FinallyType.EXECUTED), finishes, "任务结束后收尾回调以执行完毕情形触发一次");
+    }
+
+    @Test
+    @DisplayName("submit 提交即受理：任务在命名虚拟线程执行，以执行完毕情形收尾")
+    void submitStartsTaskOnNamedVirtualThread() throws InterruptedException {
+        UnlimitedVirtualThreadResource resource = new UnlimitedVirtualThreadResource("uvt-submit");
+        CountDownLatch done = new CountDownLatch(1);
+        CountDownLatch finished = new CountDownLatch(1);
+        AtomicInteger observed = new AtomicInteger();
+        List<FinallyType> finishes = new CopyOnWriteArrayList<>();
+
+        resource.submit(() -> {
+            assertTrue(Thread.currentThread().isVirtual(), "承载线程应为虚拟线程");
+            assertEquals("uvt-submit", Thread.currentThread().getName(), "承载线程应使用配置名称");
+            observed.set(1);
+            done.countDown();
+        }, type -> {
+            finishes.add(type);
+            finished.countDown();
+        });
+
+        assertTrue(done.await(5, TimeUnit.SECONDS), "任务应被执行");
+        assertEquals(1, observed.get());
+        assertTrue(finished.await(5, TimeUnit.SECONDS), "收尾回调应在任务结束后触发");
         assertEquals(List.of(FinallyType.EXECUTED), finishes, "任务结束后收尾回调以执行完毕情形触发一次");
     }
 

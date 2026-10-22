@@ -2,24 +2,25 @@ package top.turboweb.concurrent.thread;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyHandler;
-import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyHandler;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * {@link VirtualThreadResource} 基类的启动失败收尾契约：补偿动作先于收尾回调执行，
+ * {@link VirtualThreadMicroTaskExecutor} 基类的启动失败收尾契约：补偿动作先于收尾回调执行，
  * 收尾以未启动情形触发，原始异常原样抛出；收尾回调自身抛出的异常作为被抑制异常保留。
  */
-class VirtualThreadResourceTest {
+class VirtualThreadMicroTaskExecutorTest {
 
     /** 以固定启动失败模拟线程创建失败，其余走基类的启动收尾逻辑。 */
-    private static final class StartFailingResource extends VirtualThreadResource {
+    private static final class StartFailingResource extends VirtualThreadMicroTaskExecutor {
 
         private final Runnable compensation;
 
@@ -37,6 +38,24 @@ class VirtualThreadResourceTest {
         @Override
         protected Thread startThread(Runnable body) {
             throw new IllegalStateException("start failed");
+        }
+    }
+
+    /** 记录 submit 传入参数、丢弃返回值的委托桩：run 原样记录任务与收尾回调并返回 null。 */
+    private static final class RecordingResource extends VirtualThreadMicroTaskExecutor {
+
+        Runnable recordedTask;
+        FinallyHandler recordedHandler;
+
+        RecordingResource() {
+            super("vtr-submit");
+        }
+
+        @Override
+        public Thread run(Runnable task, FinallyHandler finallyHandler) {
+            this.recordedTask = task;
+            this.recordedHandler = finallyHandler;
+            return null;
         }
     }
 
@@ -70,5 +89,20 @@ class VirtualThreadResourceTest {
         assertEquals("start failed", failure.getMessage(), "收尾回调抛出不影响原始异常抛出");
         assertEquals(1, failure.getSuppressed().length);
         assertEquals("finally boom", failure.getSuppressed()[0].getMessage());
+    }
+
+    @Test
+    @DisplayName("submit 委托 run：任务与收尾回调原样传递，返回值丢弃")
+    void submitDelegatesToRunAndDiscardsReturnedThread() {
+        RecordingResource resource = new RecordingResource();
+        Runnable task = () -> {
+        };
+        FinallyHandler handler = type -> {
+        };
+
+        resource.submit(task, handler);
+
+        assertSame(task, resource.recordedTask, "任务原样传给 run");
+        assertSame(handler, resource.recordedHandler, "收尾回调原样传给 run");
     }
 }

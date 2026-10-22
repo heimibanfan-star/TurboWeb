@@ -10,7 +10,7 @@ import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.LimitedVirtualThreadResource;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.concurrent.thread.UnlimitedVirtualThreadResource;
-import top.turboweb.concurrent.thread.VirtualThreadResource;
+import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.http.middleware.BranchMiddleware;
@@ -342,8 +342,8 @@ class HttpRequestApplicationTest {
                         .httpSchedulerLimitCount(2)
                         .build())
                 .build();
-        VirtualThreadResource resource =
-                (VirtualThreadResource) componentOf(orchestratorOf(limited), "virtualThreadResource");
+        VirtualThreadMicroTaskExecutor resource =
+                (VirtualThreadMicroTaskExecutor) componentOf(orchestratorOf(limited), "virtualThreadResource");
         assertInstanceOf(LimitedVirtualThreadResource.class, resource,
                 "启用限流时应用按配置创建受限虚拟线程资源");
         limited.close();

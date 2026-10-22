@@ -3,8 +3,8 @@ package top.turboweb.concurrent.thread;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyHandler;
-import top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyHandler;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -24,8 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType.EXECUTED;
-import static top.turboweb.concurrent.thread.VirtualThreadResource.FinallyType.REJECTED;
+import static top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType.EXECUTED;
+import static top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType.REJECTED;
 
 /**
  * {@link LimitedVirtualThreadResource} 的构造校验、资源获取、排队挂起与双线程位拒绝收尾。
@@ -267,6 +267,27 @@ class LimitedVirtualThreadResourceTest {
         Thread worker = resource.run(task, record.handler());
 
         assertNull(worker);
+        assertEquals(REJECTED, record.requireSyncRejected());
+        assertSame(Thread.currentThread(), record.callbackThread);
+        assertFalse(task.ran.get());
+        assertEquals(0, resource.suspendedThreads());
+
+        holder.gate.countDown();
+        holderThread.join(5_000);
+    }
+
+    @Test
+    @DisplayName("submit 资源耗尽即刻拒绝：run 返回值丢弃，当前线程同步收到拒绝收尾")
+    void submitRejectsSynchronouslyWhenExhausted() throws InterruptedException {
+        LimitedVirtualThreadResource resource = new LimitedVirtualThreadResource(1, 0, 1_000, "vtr-submit", false);
+        BlockedHolder holder = new BlockedHolder();
+        Thread holderThread = resource.run(holder, neverRejected());
+        assertTrue(holder.started.await(5, TimeUnit.SECONDS));
+
+        RejectionRecord record = new RejectionRecord();
+        ObservedTask task = new ObservedTask(null, null);
+        resource.submit(task, record.handler());
+
         assertEquals(REJECTED, record.requireSyncRejected());
         assertSame(Thread.currentThread(), record.callbackThread);
         assertFalse(task.ran.get());
