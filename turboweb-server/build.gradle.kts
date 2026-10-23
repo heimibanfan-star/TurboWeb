@@ -11,7 +11,7 @@ dependencies {
     api(project(":turboweb-concurrent"))
     // JSON 序列化器契约与 Jackson 实现由 turboweb-serializer 提供；JsonSerializer 出现在本模块公开签名（Builder 与上下文、响应类构造参数），用 api 暴露
     api(project(":turboweb-serializer"))
-    // 服务器线程模型直接使用 netty（http/websocketx 与 http2 编解码），响应写出使用 reactor-core，均不涉 reactor-netty 本体；URI 查询解析由仓内 core.helper 自实现
+    // 服务器线程模型直接使用 netty（http与http2编解码），响应写出使用 reactor-core，均不涉 reactor-netty 本体；URI 查询解析由仓内 core.helper 自实现
     api(libs.netty.codec.http)
     api(libs.netty.codec.http2)
     api(libs.reactor.core)
@@ -21,8 +21,6 @@ dependencies {
     api(project(":turboweb-validation"))
     // 服务器运行时契约由 turboweb-server-runtime 提供；ServerRuntime 出现在应用管理器注册方法与服务器注册的公开签名，用 api 暴露
     api(project(":turboweb-server-runtime"))
-    // 聚合turboweb-websocket模块
-    api(project(":turboweb-websocket"))
     implementation(project(":turboweb-struct"))
     // Gradle 9 不再自带 platform launcher；BOM 复用既有的 junit-jupiter 版本号，不引入第二个需要手工同步的版本
     testImplementation(platform(libs.junit.bom))

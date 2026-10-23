@@ -1,12 +1,12 @@
-package top.turboweb.http.server.runtime;
+package top.turboweb.websocket.runtime;
 
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import org.junit.jupiter.api.Test;
 import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.common.utils.thread.VirtualThreads;
-import top.turboweb.http.server.handler.WebSocketInitChannelHandler;
-import top.turboweb.websocket.dispatch.WebSocketDispatcherChannelHandler;
+import top.turboweb.websocket.handler.WebSocketDispatcherChannelHandler;
 import top.turboweb.websocket.handler.WebSocketHandler;
+import top.turboweb.websocket.handler.WebSocketInitChannelHandler;
 import top.turboweb.websocket.session.WebSocketSession;
 
 import java.lang.reflect.Field;

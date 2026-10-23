@@ -1,4 +1,4 @@
-package top.turboweb.http.server.handler;
+package top.turboweb.websocket.handler;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -9,8 +9,6 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import top.turboweb.websocket.dispatch.WebSocketDispatcherChannelHandler;
-import top.turboweb.websocket.handler.WebSocketHandler;
 import top.turboweb.websocket.info.WebSocketConnectInfo;
 import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
 
@@ -21,7 +19,8 @@ import java.util.Objects;
  * <p>
  * 参考 top.turboweb.websocket.init.PathWebSocketPreInit 与 top.turboweb.core.dispatch.HttpProtocolDispatcher
  * 中的handleInitWebSocket逻辑，改为pipeline中独立的后置handler实现：
- * 与纯http的 {@link HttpRequestSchedulerChannelHandler} 配套使用，处理器把携带Upgrade头的http升级协议请求向后转发，
+ * 与纯http的 top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler 配套使用，
+ * 处理器把携带Upgrade头的http升级协议请求向后转发，
  * 由本handler完成websocket的协议升级：
  * <ul>
  *     <li>websocket升级协议请求（GET方法、Connection头包含upgrade且Upgrade为websocket）且uri匹配路径表达式：
@@ -35,7 +34,7 @@ import java.util.Objects;
  * 与 top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory，改为建造者模式，
  * 默认使用虚拟线程，可选工作窃取线程池。
  * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
- * {@link top.turboweb.http.server.runtime.WebSocketServerRuntime} 装配并跨channel复用。
+ * {@link top.turboweb.websocket.runtime.WebSocketServerRuntime} 装配并跨channel复用。
  *
  * <pre>{@code
  * WebSocketInitChannelHandler webSocketInitHandler = WebSocketInitChannelHandler.builder()
@@ -134,7 +133,7 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
     /**
      * 销毁本handler持有的执行资源：委托内部的 {@link WebSocketDispatcherChannelHandler} 关闭其私有的
      * 消息处理线程池（虚拟线程模式下使用全局共享池，不会被关闭）。由
-     * {@link top.turboweb.http.server.runtime.WebSocketServerRuntime#close()} 发起，重复调用为幂等操作。
+     * {@link top.turboweb.websocket.runtime.WebSocketServerRuntime#close()} 发起，重复调用为幂等操作。
      */
     public void destroy() {
         webSocketDispatcherHandler.destroy();

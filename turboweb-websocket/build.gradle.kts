@@ -7,8 +7,16 @@
 // 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
     api(project(":turboweb-common"))
-    // 本模块只消费 netty（buffer/channel/websocketx 帧），codec-http 传递闭包恰好覆盖
+    // 服务器运行时契约由 turboweb-server-runtime 提供；WebSocketServerRuntime 实现 ServerRuntime，
+    // 装配签名面向消费方的服务器注册接口，用 api 暴露
+    api(project(":turboweb-server-runtime"))
+    // 本模块消费 netty（buffer/channel/websocketx 帧与 http 升级请求），codec-http 传递闭包恰好覆盖
     api(libs.netty.codec.http)
+    // Gradle 9 不再自带 platform launcher；BOM 复用既有的 junit-jupiter 版本号，不引入第二个需要手工同步的版本
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.logback.classic)
 }
 
 description = "turboweb-websocket"

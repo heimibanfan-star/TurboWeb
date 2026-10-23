@@ -1,4 +1,4 @@
-package top.turboweb.websocket.dispatch;
+package top.turboweb.websocket.handler;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -9,7 +9,6 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.common.exception.TurboWebSocketException;
 import top.turboweb.common.utils.thread.VirtualThreads;
-import top.turboweb.websocket.handler.WebSocketHandler;
 import top.turboweb.websocket.info.WebSocketConnectInfo;
 import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
 import top.turboweb.websocket.session.StandardWebSocketSession;
@@ -131,4 +130,3 @@ public class WebSocketDispatcherChannelHandler extends SimpleChannelInboundHandl
         }
     }
 }
-
