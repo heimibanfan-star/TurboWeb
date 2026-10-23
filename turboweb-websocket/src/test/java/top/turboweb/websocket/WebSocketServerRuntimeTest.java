@@ -1,5 +1,6 @@
 package top.turboweb.websocket;
 
+import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ForkJoinMicroTaskExecutor;
@@ -13,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -134,12 +136,30 @@ class WebSocketServerRuntimeTest {
     }
 
     @Test
+    void configureAppendsInitHandlerToPipeline() {
+        WebSocketServerRuntime runtime = new WebSocketServerRuntime.Builder()
+                .path("/ws/.*")
+                .handler(HANDLER)
+                .build();
+        EmbeddedChannel channel = new EmbeddedChannel();
+
+        runtime.configure(channel.pipeline());
+
+        assertNotNull(channel.pipeline().get(WebSocketInitChannelHandler.class),
+                "每条新连接的pipeline尾部必须追加初始化处理器");
+
+        runtime.close();
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
     void closeIsIdempotent() {
         WebSocketServerRuntime runtime = new WebSocketServerRuntime.Builder()
                 .path("/ws/.*")
                 .handler(HANDLER)
                 .build();
         ScopedResource scope = runtime.getScopedResource();
+        assertNotNull(scope);
         assertSame(scope, runtime.getScopedResource());
 
         assertDoesNotThrow(runtime::close);

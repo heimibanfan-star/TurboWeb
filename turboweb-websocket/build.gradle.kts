@@ -4,6 +4,11 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
+plugins {
+    // 版本由根构建脚本的 plugins 块统一声明，此处按坐标启用
+    id("info.solidsoft.pitest")
+}
+
 // 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
     api(project(":turboweb-common"))
@@ -23,3 +28,38 @@ dependencies {
 }
 
 description = "turboweb-websocket"
+
+// 覆盖率闸：分母即模块全部主码类（接口无可执行行，不计入），线覆盖钉 0.90
+tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.named("test"))
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                minimum = "0.90".toBigDecimal()
+            }
+        }
+    }
+}
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}
+
+// 变异作用域为模块全部主码类（含匿名协议处理器子类）；变异评分钉 90，pitest 任务独立红绿不接 check
+configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
+    pitestVersion.set("1.30.0")
+    junit5PluginVersion.set("1.2.3")
+    // 本仓存在顶满 30s 的定时敏感用例，默认 1.2 倍超时窗会把慢用例误判为超时，放宽
+    timeoutFactor.set(4.toBigDecimal())
+    targetClasses.set(listOf("top.turboweb.websocket.*"))
+    // 日志调用不产生可观测行为，不参与变异：Netty 内部日志接口不在 PIT 内置的常见日志框架清单内，需显式加入
+    avoidCallsTo.set(setOf(
+        "io.netty.util.internal.logging",
+        "java.util.logging",
+        "org.apache.log4j",
+        "org.slf4j",
+        "org.apache.commons.logging",
+        "org.apache.logging.log4j"
+    ))
+    mutationThreshold.set(90)
+}
