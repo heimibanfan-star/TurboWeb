@@ -6,13 +6,12 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.websocketx.*;
-import io.netty.util.AttributeKey;
 
 import java.net.SocketAddress;
 
 /**
  * 标准的 WebSocket 会话实现，封装 {@link Channel} 并提供 WebSocket 消息发送、
- * 会话属性管理和连接信息访问等功能。
+ * 连接信息访问等功能，不承载使用方自定义属性。
  * <p>
  * 该类实现 {@link WebSocketSession} 接口，适用于基于 Netty 的 WebSocket 服务器端。
  * 提供对文本、二进制及自定义 WebSocket 帧的异步发送能力，并支持心跳帧的发送。
@@ -66,75 +65,6 @@ public class StandardWebSocketSession implements WebSocketSession{
     @Override
     public void close() {
         channel.close();
-    }
-
-    /**
-     * 向当前会话绑定一个自定义属性。
-     *
-     * @param key 属性键
-     * @param value 属性值
-     */
-    @Override
-    public void putAttr(String key, Object value) {
-        AttributeKey<Object> attributeKey = AttributeKey.valueOf(key);
-        channel.attr(attributeKey).set(value);
-    }
-
-    /**
-     * 如果当前属性值等于指定的旧值，则更新为新值。
-     *
-     * @param key 属性键
-     * @param oldValue 期望的旧值
-     * @param newValue 新值
-     * @return 更新是否成功
-     */
-    @Override
-    public boolean compareAndPutAttr(String key, Object oldValue, Object newValue) {
-        AttributeKey<Object> attributeKey = AttributeKey.valueOf(key);
-        return channel.attr(attributeKey).compareAndSet(oldValue, newValue);
-    }
-
-    /**
-     * 当指定属性不存在时设置新值，若属性已存在，则返回旧值且不修改。
-     *
-     * @param key 属性键
-     * @param value 属性值
-     * @return 若属性已存在返回旧值，否则返回 {@code null}
-     */
-    @Override
-    public Object putAttrIfAbsent(String key, Object value) {
-        AttributeKey<Object> attributeKey = AttributeKey.valueOf(key);
-        return channel.attr(attributeKey).setIfAbsent(value);
-    }
-
-    /**
-     * 获取指定键的属性值。
-     *
-     * @param key 属性键
-     * @return 属性值，如果不存在则返回 {@code null}
-     */
-    @Override
-    public Object getAttr(String key) {
-        AttributeKey<Object> attributeKey = AttributeKey.valueOf(key);
-        return channel.attr(attributeKey).get();
-    }
-
-    /**
-     * 获取指定键的属性值，并转换为指定类型。
-     *
-     * @param key 属性键
-     * @param type 属性值类型
-     * @param <T> 属性值泛型
-     * @return 属性值，如果不存在或类型不匹配返回 {@code null}
-     */
-    @Override
-    public <T> T getAttr(String key, Class<T> type) {
-        AttributeKey<Object> attributeKey = AttributeKey.valueOf(key);
-        Object object = channel.attr(attributeKey).get();
-        if (object == null) {
-            return null;
-        }
-        return type.cast(object);
     }
 
     /**
