@@ -11,8 +11,6 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
-import top.turboweb.websocket.info.WebSocketConnectInfo;
-import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
 
 import java.util.Objects;
 
@@ -24,8 +22,7 @@ import java.util.Objects;
  * <ul>
  *     <li>websocket升级协议请求（GET方法、Connection头包含upgrade且Upgrade为websocket）且uri匹配路径表达式：
  *     向pipeline追加 {@link WebSocketServerProtocolHandler} 与
- *     {@link WebSocketChannelHandler}，并存储连接信息到 {@link WebSocketConnectInfoContainer}，
- *     完成websocket的协议升级；</li>
+ *     {@link WebSocketChannelHandler}，完成websocket的协议升级；</li>
  *     <li>其余请求（普通http误转发、其他升级协议、路径不匹配的websocket升级）：本handler不处理，
  *     retain后继续向后转发，由pipeline后续处理器决定。</li>
  * </ul>
@@ -103,7 +100,8 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
     }
 
     /**
-     * 初始化websocket：改写pipeline并存储连接信息
+     * 初始化websocket：改写pipeline。握手请求的uri与请求头无须在此暂存，
+     * 握手完成后由协议处理器发出 {@link WebSocketServerProtocolHandler.HandshakeComplete} 事件携带
      *
      * @param ctx     管道上下文
      * @param request 握手请求
@@ -115,18 +113,14 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
             pipeline.addLast(new WebSocketServerProtocolHandler(uri) {
                 @Override
                 public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-                    if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete) {
-                        webSocketDispatcherHandler.noticeFinishShakeHand(ctx);
+                    if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete handshakeComplete) {
+                        webSocketDispatcherHandler.noticeFinishShakeHand(ctx, handshakeComplete);
                     }
                     super.userEventTriggered(ctx, evt);
                 }
             });
             pipeline.addLast(webSocketDispatcherHandler);
         }
-        // 存储websocket的连接信息
-        String channelId = ctx.channel().id().asLongText();
-        WebSocketConnectInfo connectInfo = new WebSocketConnectInfo(uri, request.headers());
-        WebSocketConnectInfoContainer.putWebSocketConnectInfo(channelId, connectInfo);
     }
 
     /**

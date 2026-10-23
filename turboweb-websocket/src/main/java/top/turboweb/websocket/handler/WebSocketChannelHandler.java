@@ -2,25 +2,22 @@ package top.turboweb.websocket.handler;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelId;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
+import io.netty.util.AttributeKey;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.common.exception.TurboWebSocketException;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
-import top.turboweb.websocket.info.WebSocketConnectInfo;
-import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
 import top.turboweb.websocket.session.StandardWebSocketSession;
 import top.turboweb.websocket.session.WebSocketSession;
 
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 处理websocket的handler，消息回调经注入的微任务执行器异步执行。
@@ -35,7 +32,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(WebSocketChannelHandler.class);
-    private final Map<String, WebSocketSession> sessionMap = new ConcurrentHashMap<>(1024);
+    /**
+     * 会话挂载在channel附件上的键：一个channel对应一个会话，握手完成时挂载，随channel自然回收
+     */
+    private static final AttributeKey<WebSocketSession> SESSION_KEY = AttributeKey.valueOf("top.turboweb.websocket.session");
     private final WebSocketHandler webSocketHandler;
     /**
      * 消息处理微任务执行器：由装配方创建并注入，入站帧的处理任务经其submit执行
@@ -90,26 +90,22 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
      * @param ctx 管道上下文
      */
     private WebSocketSession getWebSocketSession(ChannelHandlerContext ctx) {
-        String channelId = ctx.channel().id().asLongText();
-        // 获取建立的session
-        WebSocketSession webSocketSession = sessionMap.get(channelId);
+        // 获取挂载在channel附件上的session
+        WebSocketSession webSocketSession = ctx.channel().attr(SESSION_KEY).get();
         if (webSocketSession == null) {
             // 关闭管道
             ctx.channel().close();
-            // 连接信息失效
-            throw new TurboWebSocketException("websocket连接信息为空");
+            // 会话尚未建立
+            throw new TurboWebSocketException("websocket会话不存在");
         }
         return webSocketSession;
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        // 获取管道的id
-        ChannelId channelId = ctx.channel().id();
         try {
-            // 获取session
-            WebSocketSession webSocketSession = sessionMap.remove(channelId.asLongText());
-            WebSocketConnectInfoContainer.removeWebSocketConnectInfo(channelId.asLongText());
+            // 摘除挂载在channel附件上的session（仅为避免后续误读，附件本身随channel回收）
+            WebSocketSession webSocketSession = ctx.channel().attr(SESSION_KEY).getAndSet(null);
             // 调用close方法
             webSocketHandler.onClose(webSocketSession);
         } finally {
@@ -120,19 +116,14 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
     /**
      * 通知websocket握手完成
      *
-     * @param ctx 管道上下文
+     * @param ctx               管道上下文
+     * @param handshakeComplete 握手完成事件，携带握手请求的uri与请求头
      */
-    public void noticeFinishShakeHand(ChannelHandlerContext ctx) {
-        // 获取websocket的连接信息
-        WebSocketConnectInfo connectInfo = WebSocketConnectInfoContainer.getWebSocketConnectInfo(ctx.channel().id().asLongText());
-        if (connectInfo == null) {
-            // 关闭channel
-            ctx.channel().close();
-            throw new TurboWebSocketException("websocket连接信息为空");
-        }
-        // 创建websocket的回话
-        WebSocketSession webSocketSession = new StandardWebSocketSession(ctx.channel(), connectInfo);
-        sessionMap.put(ctx.channel().id().asLongText(), webSocketSession);
+    public void noticeFinishShakeHand(ChannelHandlerContext ctx, WebSocketServerProtocolHandler.HandshakeComplete handshakeComplete) {
+        // 以握手请求的uri与请求头创建websocket的会话，挂载到channel附件上
+        WebSocketSession webSocketSession = new StandardWebSocketSession(
+                ctx.channel(), handshakeComplete.requestUri(), handshakeComplete.requestHeaders());
+        ctx.channel().attr(SESSION_KEY).set(webSocketSession);
         // 调用open方法
         webSocketHandler.onOpen(webSocketSession);
     }

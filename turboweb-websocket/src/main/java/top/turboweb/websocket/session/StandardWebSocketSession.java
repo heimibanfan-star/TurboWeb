@@ -7,7 +7,6 @@ import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.AttributeKey;
-import top.turboweb.websocket.info.WebSocketConnectInfo;
 
 import java.net.SocketAddress;
 
@@ -24,18 +23,23 @@ public class StandardWebSocketSession implements WebSocketSession{
     /** Netty 通道，用于发送和接收 WebSocket 消息 */
     private final Channel channel;
 
-    /** WebSocket 连接信息 */
-    private final WebSocketConnectInfo webSocketConnectInfo;
+    /** 握手请求的uri路径 */
+    private final String path;
+
+    /** 握手请求的请求头 */
+    private final HttpHeaders headers;
 
     /**
      * 构造方法，初始化 WebSocket 会话。
      *
      * @param channel 关联的 Netty {@link Channel}
-     * @param connectInfo 当前会话的 {@link WebSocketConnectInfo} 元数据
+     * @param path    当前会话握手请求的uri路径
+     * @param headers 当前会话握手请求的请求头
      */
-    public StandardWebSocketSession(Channel channel, WebSocketConnectInfo connectInfo) {
+    public StandardWebSocketSession(Channel channel, String path, HttpHeaders headers) {
         this.channel = channel;
-        this.webSocketConnectInfo = connectInfo;
+        this.path = path;
+        this.headers = headers;
     }
 
     /**
@@ -201,13 +205,13 @@ public class StandardWebSocketSession implements WebSocketSession{
     }
 
     /**
-     * 获取当前会话的连接信息。
+     * 获取当前会话的连接路径。
      *
-     * @return {@link WebSocketConnectInfo} 当前会话的连接信息
+     * @return 当前会话握手请求的uri路径
      */
     @Override
     public String path() {
-        return webSocketConnectInfo.websocketPath();
+        return path;
     }
 
     /**
@@ -217,6 +221,6 @@ public class StandardWebSocketSession implements WebSocketSession{
      */
     @Override
     public HttpHeaders headers() {
-        return webSocketConnectInfo.headers();
+        return headers;
     }
 }
