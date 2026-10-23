@@ -66,7 +66,6 @@ public class WebSocketDispatcherChannelHandler extends SimpleChannelInboundHandl
      * 获取websocket的session
      *
      * @param ctx 管道上下文
-     * @return org.turbo.web.core.http.ws.WebSocketSession
      */
     private WebSocketSession getWebSocketSession(ChannelHandlerContext ctx) {
         String channelId = ctx.channel().id().asLongText();

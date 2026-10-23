@@ -19,11 +19,8 @@ import java.util.Objects;
 /**
  * websocket初始化handler（不可变）。
  * <p>
- * 参考 top.turboweb.websocket.init.PathWebSocketPreInit 与 top.turboweb.core.dispatch.HttpProtocolDispatcher
- * 中的handleInitWebSocket逻辑，改为pipeline中独立的后置handler实现：
- * 与纯http的 top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler 配套使用，
- * 处理器把携带Upgrade头的http升级协议请求向后转发，
- * 由本handler完成websocket的协议升级：
+ * pipeline中独立的后置handler实现：
+ * 接收入站的http请求，本handler完成websocket的协议升级：
  * <ul>
  *     <li>websocket升级协议请求（GET方法、Connection头包含upgrade且Upgrade为websocket）且uri匹配路径表达式：
  *     向pipeline追加 {@link WebSocketServerProtocolHandler} 与
@@ -32,9 +29,8 @@ import java.util.Objects;
  *     <li>其余请求（普通http误转发、其他升级协议、路径不匹配的websocket升级）：本handler不处理，
  *     retain后继续向后转发，由pipeline后续处理器决定。</li>
  * </ul>
- * websocket处理器的创建参考 top.turboweb.core.initializer.impl.DefaultWebSocketHandlerInitializer
- * 与 top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory，改为建造者模式，
- * 装配方可注入 {@link MicroTaskExecutor}，未注入时默认使用非受限虚拟线程微任务执行器。
+ * websocket处理器经建造者模式装配，装配方可注入 {@link MicroTaskExecutor}，
+ * 未注入时默认使用非受限虚拟线程微任务执行器。
  * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
  * {@link top.turboweb.websocket.runtime.WebSocketServerRuntime} 装配并跨channel复用。
  *

@@ -14,7 +14,7 @@ import top.turboweb.websocket.handler.WebSocketInitChannelHandler;
 import java.util.Objects;
 
 /**
- * websocket应用，服务器与业务装配逻辑之间的桥梁，参考 top.turboweb.http.server.runtime.HttpServerRuntime 设计。
+ * websocket应用，服务器与业务装配逻辑之间的桥梁。
  * <p>
  * 对外只暴露 {@link #configure(ChannelPipeline)}：每条新连接建立时向pipeline尾部追加
  * websocket初始化处理器（无状态单例，跨连接复用；握手时由它动态追加协议处理器与
@@ -22,8 +22,7 @@ import java.util.Objects;
  * 对内通过 {@link Builder} 在构建期一次性完成路径表达式、业务处理器与消息处理线程模型的校验与装配。
  * <p>
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
- * 注册时须排在http应用之后（接收 top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler
- * 向后转发的websocket升级协议请求）。
+ * 注册时须排在http应用之后。
  * <p>
  * 装配期创建的可关闭资源不在本类中逐个持有，而是统一登记进本应用持有的
  * {@link ScopedResource} 资源作用域：消息处理微任务执行器的销毁适配器（工作窃取模式下关闭本应用
