@@ -1,14 +1,10 @@
-package top.turboweb.websocket.runtime;
+package top.turboweb.websocket;
 
 import org.junit.jupiter.api.Test;
 import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ForkJoinMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
-import top.turboweb.websocket.handler.WebSocketChannelHandler;
-import top.turboweb.websocket.handler.WebSocketHandler;
-import top.turboweb.websocket.handler.WebSocketInitChannelHandler;
-import top.turboweb.websocket.session.WebSocketSession;
 
 import java.lang.reflect.Field;
 import java.util.concurrent.ForkJoinPool;

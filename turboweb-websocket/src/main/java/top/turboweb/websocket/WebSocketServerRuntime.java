@@ -1,4 +1,4 @@
-package top.turboweb.websocket.runtime;
+package top.turboweb.websocket;
 
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;
@@ -8,8 +8,6 @@ import top.turboweb.concurrent.thread.ForkJoinMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.server.runtime.ServerRuntime;
-import top.turboweb.websocket.handler.WebSocketHandler;
-import top.turboweb.websocket.handler.WebSocketInitChannelHandler;
 
 import java.util.Objects;
 

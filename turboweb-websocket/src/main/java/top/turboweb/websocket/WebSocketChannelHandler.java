@@ -1,4 +1,4 @@
-package top.turboweb.websocket.handler;
+package top.turboweb.websocket;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -14,8 +14,6 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.common.exception.TurboWebSocketException;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
-import top.turboweb.websocket.session.StandardWebSocketSession;
-import top.turboweb.websocket.session.WebSocketSession;
 
 import java.util.Objects;
 

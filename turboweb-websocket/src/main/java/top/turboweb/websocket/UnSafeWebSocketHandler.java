@@ -1,10 +1,9 @@
-package top.turboweb.websocket.handler;
+package top.turboweb.websocket;
 
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import top.turboweb.websocket.session.WebSocketSession;
 
 /**
  * websocket裸帧处理器，按帧类型分别提供回调。

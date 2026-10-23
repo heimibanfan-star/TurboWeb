@@ -1,4 +1,4 @@
-package top.turboweb.websocket.handler;
+package top.turboweb.websocket;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -29,7 +29,7 @@ import java.util.Objects;
  * websocket处理器经建造者模式装配，装配方可注入 {@link MicroTaskExecutor}，
  * 未注入时默认使用非受限虚拟线程微任务执行器。
  * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
- * {@link top.turboweb.websocket.runtime.WebSocketServerRuntime} 装配并跨channel复用。
+ * {@link WebSocketServerRuntime} 装配并跨channel复用。
  *
  * <pre>{@code
  * WebSocketInitChannelHandler webSocketInitHandler = WebSocketInitChannelHandler.builder()

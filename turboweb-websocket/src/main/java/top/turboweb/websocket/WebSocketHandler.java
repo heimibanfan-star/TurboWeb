@@ -1,11 +1,10 @@
-package top.turboweb.websocket.handler;
+package top.turboweb.websocket;
 
 import io.netty.buffer.ByteBufUtil;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import top.turboweb.websocket.session.WebSocketSession;
 
 /**
  * websocket消息处理器抽象类，把入站裸帧转换为可直接使用的消息内容。
