@@ -94,7 +94,7 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
             // 关闭管道
             ctx.channel().close();
             // 会话尚未建立
-            throw new TurboWebSocketException("websocket会话不存在");
+            throw new TurboWebSocketException("websocket session does not exist");
         }
         return webSocketSession;
     }
