@@ -12,7 +12,6 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.util.AttributeKey;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.common.exception.TurboWebSocketException;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 
 import java.util.Objects;
@@ -94,7 +93,7 @@ public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSock
             // 关闭管道
             ctx.channel().close();
             // 会话尚未建立
-            throw new TurboWebSocketException("websocket session does not exist");
+            throw new WebSocketException("websocket session does not exist");
         }
         return webSocketSession;
     }
