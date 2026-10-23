@@ -10,6 +10,9 @@ dependencies {
     // 服务器运行时契约由 turboweb-server-runtime 提供；WebSocketServerRuntime 实现 ServerRuntime，
     // 装配签名面向消费方的服务器注册接口，用 api 暴露
     api(project(":turboweb-server-runtime"))
+    // 微任务执行器契约由 turboweb-concurrent 提供；MicroTaskExecutor 出现在分发器构造参数
+    // 与初始化handler建造者的公开签名，用 api 暴露
+    api(project(":turboweb-concurrent"))
     // 本模块消费 netty（buffer/channel/websocketx 帧与 http 升级请求），codec-http 传递闭包恰好覆盖
     api(libs.netty.codec.http)
     // Gradle 9 不再自带 platform launcher；BOM 复用既有的 junit-jupiter 版本号，不引入第二个需要手工同步的版本

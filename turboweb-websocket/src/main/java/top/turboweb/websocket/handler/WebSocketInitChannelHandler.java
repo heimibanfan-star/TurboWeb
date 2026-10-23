@@ -9,6 +9,8 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
+import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.websocket.info.WebSocketConnectInfo;
 import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
 
@@ -32,7 +34,7 @@ import java.util.Objects;
  * </ul>
  * websocket处理器的创建参考 top.turboweb.core.initializer.impl.DefaultWebSocketHandlerInitializer
  * 与 top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory，改为建造者模式，
- * 默认使用虚拟线程，可选工作窃取线程池。
+ * 装配方可注入 {@link MicroTaskExecutor}，未注入时默认使用非受限虚拟线程微任务执行器。
  * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
  * {@link top.turboweb.websocket.runtime.WebSocketServerRuntime} 装配并跨channel复用。
  *
@@ -47,6 +49,11 @@ import java.util.Objects;
 public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     /**
+     * 缺省微任务执行器所建虚拟线程的名称
+     */
+    private static final String DEFAULT_MICRO_TASK_THREAD_NAME = "turboweb-websocket-handler";
+
+    /**
      * websocket处理的路径表达式
      */
     private final String websocketPath;
@@ -58,16 +65,12 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
 
     private WebSocketInitChannelHandler(Builder builder) {
         this.websocketPath = builder.websocketPath;
-        if (builder.useForkJoin) {
-            this.webSocketDispatcherHandler = new WebSocketDispatcherChannelHandler(
-                    builder.webSocketHandler, true, builder.forkJoinThreadNum);
-        } else {
-            this.webSocketDispatcherHandler = new WebSocketDispatcherChannelHandler(builder.webSocketHandler);
-        }
+        this.webSocketDispatcherHandler = new WebSocketDispatcherChannelHandler(
+                builder.webSocketHandler, builder.microTaskExecutor);
     }
 
     /**
-     * 创建websocket初始化handler构建器，默认使用虚拟线程处理websocket消息
+     * 创建websocket初始化handler构建器，默认使用非受限虚拟线程微任务执行器处理websocket消息
      */
     public static Builder builder() {
         return new Builder();
@@ -131,15 +134,6 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
     }
 
     /**
-     * 销毁本handler持有的执行资源：委托内部的 {@link WebSocketDispatcherChannelHandler} 关闭其私有的
-     * 消息处理线程池（虚拟线程模式下使用全局共享池，不会被关闭）。由
-     * {@link top.turboweb.websocket.runtime.WebSocketServerRuntime#close()} 发起，重复调用为幂等操作。
-     */
-    public void destroy() {
-        webSocketDispatcherHandler.destroy();
-    }
-
-    /**
      * {@link WebSocketInitChannelHandler} 的建造者，链式方法校验非法参数立即抛出 {@link IllegalArgumentException}。
      */
     public static final class Builder {
@@ -149,14 +143,9 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
         private WebSocketHandler webSocketHandler;
 
         /**
-         * 是否启用工作窃取线程池，默认不启用（使用虚拟线程）
+         * 消息处理微任务执行器，null表示未配置（构建时缺省创建非受限虚拟线程微任务执行器）
          */
-        private boolean useForkJoin = false;
-
-        /**
-         * 工作窃取线程池的线程数
-         */
-        private int forkJoinThreadNum = 0;
+        private MicroTaskExecutor microTaskExecutor = null;
 
         private Builder() {
         }
@@ -185,27 +174,26 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
         }
 
         /**
-         * 设置工作窃取线程池的线程数，启用后websocket消息由ForkJoinPool处理
+         * 设置消息处理微任务执行器，websocket消息经其提交执行；执行器的生命周期由传入方管理
          *
-         * @param forkJoinThreadNum 线程数，必须大于0
+         * @param microTaskExecutor 微任务执行器，不能为null
          */
-        public Builder forkJoinThreadNum(int forkJoinThreadNum) {
-            if (forkJoinThreadNum <= 0) {
-                throw new IllegalArgumentException("forkJoinThreadNum must be greater than 0");
-            }
-            this.forkJoinThreadNum = forkJoinThreadNum;
-            this.useForkJoin = true;
+        public Builder microTaskExecutor(MicroTaskExecutor microTaskExecutor) {
+            this.microTaskExecutor = Objects.requireNonNull(microTaskExecutor, "microTaskExecutor must not be null");
             return this;
         }
 
         /**
-         * 构建websocket初始化handler
+         * 构建websocket初始化handler，未注入微任务执行器时缺省创建非受限虚拟线程微任务执行器
          */
         public WebSocketInitChannelHandler build() {
             if (websocketPath == null || websocketPath.isBlank()) {
                 throw new IllegalArgumentException("websocketPath can not be blank");
             }
             Objects.requireNonNull(webSocketHandler, "webSocketHandler can not be null");
+            if (microTaskExecutor == null) {
+                microTaskExecutor = VirtualThreadMicroTaskExecutor.ofUnlimited(DEFAULT_MICRO_TASK_THREAD_NAME);
+            }
             return new WebSocketInitChannelHandler(this);
         }
     }

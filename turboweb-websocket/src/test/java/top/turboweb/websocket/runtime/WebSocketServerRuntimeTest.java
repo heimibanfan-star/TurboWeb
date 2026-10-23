@@ -3,19 +3,21 @@ package top.turboweb.websocket.runtime;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import org.junit.jupiter.api.Test;
 import top.turboweb.common.utils.resource.ScopedResource;
-import top.turboweb.common.utils.thread.VirtualThreads;
+import top.turboweb.concurrent.thread.ForkJoinMicroTaskExecutor;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
+import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.websocket.handler.WebSocketDispatcherChannelHandler;
 import top.turboweb.websocket.handler.WebSocketHandler;
 import top.turboweb.websocket.handler.WebSocketInitChannelHandler;
 import top.turboweb.websocket.session.WebSocketSession;
 
 import java.lang.reflect.Field;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,9 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * {@link WebSocketServerRuntime.Builder} 的校验分支与装配（spec §5 server/runtime 行）。
  *
- * <p>两种线程模型的差异是本 Builder 唯一有观测价值的装配分支：虚拟线程复用全局池、
- * 工作窃取建私有 {@code ForkJoinPool} 并由应用关闭。L1 用反射把私有池取出来直接断言
- * 其 {@code isShutdown()}，不断言任何线程终止。
+ * <p>两种消息处理线程模型的差异是本 Builder 唯一有观测价值的装配分支：缺省为非受限虚拟线程
+ * 微任务执行器，启用工作窃取后为应用私有的隔离 ForkJoin 微任务执行器并由应用关闭回收。
+ * L1 用反射把分发处理器注入的执行器取出来断言其类型，工作窃取模式再取其私有任务池断言
+ * {@code isShutdown()}，不断言任何线程终止。
  */
 class WebSocketServerRuntimeTest {
 
@@ -46,9 +49,9 @@ class WebSocketServerRuntimeTest {
     }
 
     @Test
-    void forkJoinThreadNumRejectsNonPositive() {
-        assertThrows(IllegalArgumentException.class, () -> new WebSocketServerRuntime.Builder().forkJoinThreadNum(0));
-        assertThrows(IllegalArgumentException.class, () -> new WebSocketServerRuntime.Builder().forkJoinThreadNum(-1));
+    void useForkJoinWithThreadNumRejectsNonPositive() {
+        assertThrows(IllegalArgumentException.class, () -> new WebSocketServerRuntime.Builder().useForkJoin(0));
+        assertThrows(IllegalArgumentException.class, () -> new WebSocketServerRuntime.Builder().useForkJoin(-1));
     }
 
     @Test
@@ -81,14 +84,17 @@ class WebSocketServerRuntimeTest {
     }
 
     @Test
-    void defaultModelUsesGlobalVirtualThreadPool() throws Exception {
+    void defaultModelUsesUnlimitedVirtualThreadExecutor() throws Exception {
         WebSocketServerRuntime runtime = new WebSocketServerRuntime.Builder()
                 .path("/ws/.*")
                 .handler(HANDLER)
                 .build();
 
-        assertSame(VirtualThreads.getPool(), dispatcherPool(runtime),
-                "未设置线程数时，分发处理器必须复用 JVM 全局虚拟线程池");
+        MicroTaskExecutor executor = dispatcherExecutor(runtime);
+        assertInstanceOf(VirtualThreadMicroTaskExecutor.class, executor,
+                "未启用工作窃取时，分发处理器必须使用虚拟线程微任务执行器");
+        assertFalse(((VirtualThreadMicroTaskExecutor) executor).isLimited(),
+                "缺省线程模型必须是非受限实现，逐任务直通执行不排队");
         runtime.close();
     }
 
@@ -97,16 +103,39 @@ class WebSocketServerRuntimeTest {
         WebSocketServerRuntime runtime = new WebSocketServerRuntime.Builder()
                 .path("/ws/.*")
                 .handler(HANDLER)
-                .forkJoinThreadNum(2)
+                .useForkJoin(2)
                 .build();
 
-        ExecutorService pool = dispatcherPool(runtime);
-        assertNotSame(VirtualThreads.getPool(), pool, "工作窃取模式必须是应用私有的池");
+        MicroTaskExecutor executor = dispatcherExecutor(runtime);
+        assertInstanceOf(ForkJoinMicroTaskExecutor.class, executor,
+                "启用工作窃取后，分发处理器必须使用ForkJoin微任务执行器");
+        ForkJoinPool pool = forkJoinPoolOf(executor);
+        assertEquals(2, pool.getParallelism(), "并行度应按给定线程数");
         assertFalse(pool.isShutdown(), "构建后私有池尚未关闭");
 
         runtime.close();
 
         assertTrue(pool.isShutdown(), "forkJoin 模式下应用关闭必须 shutdown 私有池");
+    }
+
+    @Test
+    void forkJoinModelWithoutCountUsesDefaultParallelism() throws Exception {
+        WebSocketServerRuntime runtime = new WebSocketServerRuntime.Builder()
+                .path("/ws/.*")
+                .handler(HANDLER)
+                .useForkJoin()
+                .build();
+
+        MicroTaskExecutor executor = dispatcherExecutor(runtime);
+        assertInstanceOf(ForkJoinMicroTaskExecutor.class, executor,
+                "无参重载同样应启用ForkJoin微任务执行器");
+        ForkJoinPool pool = forkJoinPoolOf(executor);
+        assertEquals(Math.max(1, Runtime.getRuntime().availableProcessors() - 1), pool.getParallelism(),
+                "无参重载应按默认并行度创建");
+
+        runtime.close();
+
+        assertTrue(pool.isShutdown(), "未指定线程数时应用关闭同样要回收私有任务池");
     }
 
     @Test
@@ -123,10 +152,10 @@ class WebSocketServerRuntimeTest {
     }
 
     /**
-     * 反射取分发处理器私有的执行器：{@code WebSocketServerRuntime} 只暴露 {@code configure}，
+     * 反射取分发处理器注入的微任务执行器：{@code WebSocketServerRuntime} 只暴露 {@code configure}，
      * 线程模型差异只能这样观测。字段改名会让本用例以 {@code NoSuchFieldException} 变红。
      */
-    private static ExecutorService dispatcherPool(WebSocketServerRuntime runtime) throws Exception {
+    private static MicroTaskExecutor dispatcherExecutor(WebSocketServerRuntime runtime) throws Exception {
         Field handlerField = WebSocketServerRuntime.class.getDeclaredField("webSocketInitHandler");
         handlerField.setAccessible(true);
         Object initHandler = handlerField.get(runtime);
@@ -135,9 +164,18 @@ class WebSocketServerRuntimeTest {
         dispatcherField.setAccessible(true);
         Object dispatcher = dispatcherField.get(initHandler);
 
-        Field poolField = WebSocketDispatcherChannelHandler.class.getDeclaredField("POOL");
+        Field executorField = WebSocketDispatcherChannelHandler.class.getDeclaredField("microTaskExecutor");
+        executorField.setAccessible(true);
+        return (MicroTaskExecutor) executorField.get(dispatcher);
+    }
+
+    /**
+     * 反射取 ForkJoin 微任务执行器私有的任务池：关闭与否只能对池本身断言。
+     */
+    private static ForkJoinPool forkJoinPoolOf(MicroTaskExecutor executor) throws Exception {
+        Field poolField = ForkJoinMicroTaskExecutor.class.getDeclaredField("pool");
         poolField.setAccessible(true);
-        return (ExecutorService) poolField.get(dispatcher);
+        return (ForkJoinPool) poolField.get(executor);
     }
 
     /** L1 不触发任何回调，实现仅用于满足构造要求。 */

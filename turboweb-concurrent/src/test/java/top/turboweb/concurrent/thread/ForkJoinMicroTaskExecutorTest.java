@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -217,6 +218,35 @@ class ForkJoinMicroTaskExecutorTest {
     }
 
     @Test
+    @DisplayName("close 关闭隔离任务池：池终止，后续提交以未受理情形收尾并抛出拒绝异常，重复关闭为空操作")
+    void closeTerminatesPoolAndRejectsLaterSubmissions() throws Exception {
+        ForkJoinMicroTaskExecutor executor = ForkJoinMicroTaskExecutor.ofIsolated("iso-close", 1);
+        CountDownLatch done = new CountDownLatch(1);
+        executor.submit(done::countDown, type -> {
+        });
+        assertTrue(done.await(5, TimeUnit.SECONDS), "关闭前任务应正常受理执行");
+
+        executor.close();
+        ForkJoinPool pool = poolOf(executor);
+        assertTrue(pool.isShutdown(), "close 后任务池应已关闭受理");
+        assertTrue(pool.awaitTermination(5, TimeUnit.SECONDS), "任务池应终止");
+
+        List<FinallyType> finishes = new CopyOnWriteArrayList<>();
+        AtomicReference<FinallySignal> unstarted = new AtomicReference<>();
+        assertThrows(RejectedExecutionException.class,
+                () -> executor.submit(() -> {
+                }, signal -> {
+                    unstarted.set(signal);
+                    finishes.add(signal.finallyType());
+                }));
+        assertEquals(List.of(FinallyType.NOT_ACCEPT), finishes, "close 后的提交以未受理情形收尾一次");
+        assertEquals(FinallySignal.CallbackThread.SUBMITTER, unstarted.get().callbackThread(),
+                "拒绝受理的收尾应发生在提交线程");
+
+        assertDoesNotThrow(executor::close, "重复关闭应为空操作");
+    }
+
+    @Test
     @DisplayName("受理阶段抛出 Error：任务未启动，以未受理情形收尾且错误原样抛给提交方")
     void acceptanceErrorFinishesWithNotAcceptedAndRethrows() {
         ForkJoinMicroTaskExecutor executor = ForkJoinMicroTaskExecutor.ofIsolated("iso-oom", 1);
@@ -257,6 +287,7 @@ class ForkJoinMicroTaskExecutorTest {
         ForkJoinMicroTaskExecutor executor = ForkJoinMicroTaskExecutor.ofShared();
         int total = 32;
         CountDownLatch done = new CountDownLatch(total);
+        CountDownLatch finished = new CountDownLatch(total);
         AtomicInteger finallyCount = new AtomicInteger();
         List<FinallyType> finishes = new CopyOnWriteArrayList<>();
         List<Thread> submitters = new ArrayList<>();
@@ -264,6 +295,7 @@ class ForkJoinMicroTaskExecutorTest {
             Thread submitter = new Thread(() -> executor.submit(done::countDown, signal -> {
                 finishes.add(signal.finallyType());
                 finallyCount.incrementAndGet();
+                finished.countDown();
             }));
             submitters.add(submitter);
             submitter.start();
@@ -272,6 +304,9 @@ class ForkJoinMicroTaskExecutorTest {
             submitter.join(10_000);
         }
         assertTrue(done.await(10, TimeUnit.SECONDS), "全部任务都应执行完成");
+        // 收尾回调在任务返回后于工作线程的finally中触发，须等收尾全部落账再计数，
+        // 否则最后一个收尾可能仍在执行而被读成少一个
+        assertTrue(finished.await(10, TimeUnit.SECONDS), "每次提交都应触发收尾回调");
         assertEquals(total, finallyCount.get(), "每次提交恰好一次收尾");
         assertTrue(finishes.stream().allMatch(type -> type == FinallyType.EXECUTED), "共享池不应出现拒绝收尾");
     }

@@ -4,6 +4,9 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.common.utils.resource.ScopedResource;
+import top.turboweb.concurrent.thread.ForkJoinMicroTaskExecutor;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
+import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.server.runtime.ServerRuntime;
 import top.turboweb.websocket.handler.WebSocketHandler;
 import top.turboweb.websocket.handler.WebSocketInitChannelHandler;
@@ -23,9 +26,9 @@ import java.util.Objects;
  * 向后转发的websocket升级协议请求）。
  * <p>
  * 装配期创建的可关闭资源不在本类中逐个持有，而是统一登记进本应用持有的
- * {@link ScopedResource} 资源作用域：初始化handler的销毁适配器（委托分发处理器释放消息处理线程池；
- * 工作窃取模式下关闭本应用私有的ForkJoinPool，默认的虚拟线程模式复用JVM全局共享池不做关闭）
- * 登记于此，关闭时由本类 {@link #close()} 统一释放，
+ * {@link ScopedResource} 资源作用域：消息处理微任务执行器的销毁适配器（工作窃取模式下关闭本应用
+ * 私有的隔离任务池，默认的非受限虚拟线程执行器不持有可回收资源）登记于此，
+ * 关闭时由本类 {@link #close()} 统一释放，
  * 服务器关闭时会统一触发，调用方也可对应用实例自行try-with-resources。
  *
  * <pre>{@code
@@ -46,7 +49,7 @@ public class WebSocketServerRuntime implements ServerRuntime {
     private final WebSocketInitChannelHandler webSocketInitHandler;
 
     /**
-     * 应用的资源作用域：装配期由 {@link Builder#build()} 登记的初始化handler销毁适配器在此，
+     * 应用的资源作用域：装配期由 {@link Builder#build()} 登记的消息处理执行器销毁适配器在此，
      * 关闭时由 {@link #close()} 统一释放，本类无须持有个别资源的引用
      */
     private final ScopedResource scopedResource;
@@ -64,7 +67,7 @@ public class WebSocketServerRuntime implements ServerRuntime {
     }
 
     /**
-     * 关闭应用：释放 {@link #getScopedResource()} 中登记的全部资源（初始化handler的销毁适配器），
+     * 关闭应用：释放 {@link #getScopedResource()} 中登记的全部资源（消息处理微任务执行器的销毁适配器），
      * 重复调用为空操作；单个资源释放失败只记录日志，不中断其余释放
      */
     @Override
@@ -86,13 +89,20 @@ public class WebSocketServerRuntime implements ServerRuntime {
     /**
      * {@link WebSocketServerRuntime} 的建造者：持有应用装配所需的全部组件对象
      * （websocket路径表达式与业务处理器），纯参数配置（消息处理线程模型）为可选项，
-     * 默认使用虚拟线程处理websocket消息，链式方法校验非法参数立即抛出
+     * 默认使用非受限虚拟线程微任务执行器处理websocket消息，可经 {@link #useForkJoin()}
+     * 改用工作窃取微任务执行器，链式方法校验非法参数立即抛出
      * {@link IllegalArgumentException}。
      * <p>
-     * {@link #build()} 完成校验后按线程模型创建 {@link WebSocketInitChannelHandler} 单例，
-     * 把它的销毁适配器登记进新建的资源作用域，一并装配进应用实例。
+     * {@link #build()} 完成校验后按线程模型创建消息处理微任务执行器与
+     * {@link WebSocketInitChannelHandler} 单例，把工作窃取执行器的销毁适配器登记进
+     * 新建的资源作用域，一并装配进应用实例。
      */
     public static class Builder {
+
+        /**
+         * 消息处理微任务的线程命名，虚拟线程名称与工作窃取执行器的工作线程名前缀共用
+         */
+        private static final String MICRO_TASK_THREAD_NAME = "turboweb-websocket-handler";
 
         /**
          * websocket处理的路径表达式，不能为空
@@ -103,7 +113,11 @@ public class WebSocketServerRuntime implements ServerRuntime {
          */
         private WebSocketHandler webSocketHandler = null;
         /**
-         * 工作窃取线程池的线程数，默认0表示不启用（websocket消息由虚拟线程处理）
+         * 是否启用工作窃取微任务执行器，默认不启用（websocket消息由非受限虚拟线程微任务执行器处理）
+         */
+        private boolean useForkJoin = false;
+        /**
+         * 工作窃取执行器的线程数，0表示取默认并行度
          */
         private int forkJoinThreadNum = 0;
 
@@ -128,21 +142,32 @@ public class WebSocketServerRuntime implements ServerRuntime {
         }
 
         /**
-         * 设置工作窃取线程池的线程数，启用后websocket消息由ForkJoinPool处理；
-         * 必须大于0，否则立即抛出 {@link IllegalArgumentException}
+         * 启用工作窃取微任务执行器处理websocket消息，线程数取默认并行度；
+         * 执行器为本应用私有的隔离任务池，应用关闭时回收
          */
-        public Builder forkJoinThreadNum(int forkJoinThreadNum) {
-            if (forkJoinThreadNum <= 0) {
-                throw new IllegalArgumentException("forkJoinThreadNum must be greater than 0");
-            }
-            this.forkJoinThreadNum = forkJoinThreadNum;
+        public Builder useForkJoin() {
+            this.useForkJoin = true;
             return this;
         }
 
         /**
-         * 构建应用：校验路径表达式与业务处理器均已配置，按线程模型创建
-         * {@link WebSocketInitChannelHandler} 单例（未设置线程数时使用虚拟线程），
-         * 将其销毁适配器登记进新建的资源作用域后一并装配进应用实例
+         * 启用工作窃取微任务执行器处理websocket消息并指定线程数；
+         * 线程数必须大于0，否则立即抛出 {@link IllegalArgumentException}
+         */
+        public Builder useForkJoin(int forkJoinThreadNum) {
+            if (forkJoinThreadNum <= 0) {
+                throw new IllegalArgumentException("forkJoinThreadNum must be greater than 0");
+            }
+            this.forkJoinThreadNum = forkJoinThreadNum;
+            this.useForkJoin = true;
+            return this;
+        }
+
+        /**
+         * 构建应用：校验路径表达式与业务处理器均已配置，按线程模型创建消息处理微任务执行器
+         * （启用工作窃取时为本应用私有的隔离执行器，否则为非受限虚拟线程执行器），
+         * 装配 {@link WebSocketInitChannelHandler} 单例后，把工作窃取执行器的销毁适配器
+         * 登记进新建的资源作用域，一并装配进应用实例
          */
         public WebSocketServerRuntime build() {
             log.info("Assembling websocket runtime...");
@@ -150,20 +175,35 @@ public class WebSocketServerRuntime implements ServerRuntime {
                 throw new IllegalArgumentException("websocketPath can not be blank");
             }
             Objects.requireNonNull(webSocketHandler, "webSocketHandler can not be null");
-            WebSocketInitChannelHandler.Builder initHandlerBuilder = WebSocketInitChannelHandler.builder()
-                    .websocketPath(websocketPath)
-                    .webSocketHandler(webSocketHandler);
-            if (forkJoinThreadNum > 0) {
-                initHandlerBuilder.forkJoinThreadNum(forkJoinThreadNum);
-                log.info("Websocket message thread model: ForkJoinPool with {} threads", forkJoinThreadNum);
+            MicroTaskExecutor microTaskExecutor;
+            ForkJoinMicroTaskExecutor forkJoinExecutor = null;
+            if (useForkJoin) {
+                forkJoinExecutor = forkJoinThreadNum > 0
+                        ? ForkJoinMicroTaskExecutor.ofIsolated(MICRO_TASK_THREAD_NAME, forkJoinThreadNum)
+                        : ForkJoinMicroTaskExecutor.ofIsolated(MICRO_TASK_THREAD_NAME);
+                microTaskExecutor = forkJoinExecutor;
+                if (forkJoinThreadNum > 0) {
+                    log.info("Websocket message thread model: ForkJoinMicroTaskExecutor with {} threads", forkJoinThreadNum);
+                } else {
+                    log.info("Websocket message thread model: ForkJoinMicroTaskExecutor with default parallelism");
+                }
             } else {
-                log.info("Websocket message thread model: virtual threads");
+                microTaskExecutor = VirtualThreadMicroTaskExecutor.ofUnlimited(MICRO_TASK_THREAD_NAME);
+                log.info("Websocket message thread model: unlimited virtual threads");
             }
-            WebSocketInitChannelHandler webSocketInitHandler = initHandlerBuilder.build();
-            // 初始化handler的销毁适配器登记进应用的资源作用域，应用关闭时释放分发处理器的线程池
+            WebSocketInitChannelHandler webSocketInitHandler = WebSocketInitChannelHandler.builder()
+                    .websocketPath(websocketPath)
+                    .webSocketHandler(webSocketHandler)
+                    .microTaskExecutor(microTaskExecutor)
+                    .build();
+            // 工作窃取执行器的销毁适配器登记进应用的资源作用域，应用关闭时回收本应用私有的隔离任务池
             ScopedResource scopedResource = new ScopedResource();
+            ForkJoinMicroTaskExecutor ownedExecutor = forkJoinExecutor;
             scopedResource.register(() -> {
-                webSocketInitHandler.destroy();
+                if (ownedExecutor != null) {
+                    ownedExecutor.close();
+                    log.info("Websocket ForkJoinMicroTaskExecutor shutdown");
+                }
                 log.info("Websocket runtime closed");
             });
             log.info("Websocket runtime assembled, path pattern {}", websocketPath);

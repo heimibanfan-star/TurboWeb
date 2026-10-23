@@ -8,19 +8,24 @@ import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.common.exception.TurboWebSocketException;
-import top.turboweb.common.utils.thread.VirtualThreads;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.websocket.info.WebSocketConnectInfo;
 import top.turboweb.websocket.info.WebSocketConnectInfoContainer;
 import top.turboweb.websocket.session.StandardWebSocketSession;
 import top.turboweb.websocket.session.WebSocketSession;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 
 /**
- * 处理websocket的handler
+ * 处理websocket的handler，消息回调经注入的微任务执行器异步执行。
+ * <p>
+ * 构造期传入 {@link MicroTaskExecutor}：入站帧在提交前自持引用，任务执行完毕与任务未受理
+ * 两种收尾均由收尾回调统一归还该引用；任务未受理（执行器拒绝受理）时记录消息丢弃日志，
+ * 拒绝异常照常向pipeline抛出。执行器的选型（非受限虚拟线程或工作窃取）与其生命周期回收
+ * 归装配方管理，本handler不建线程池也不关闭执行器。
+ * </p>
  */
 @ChannelHandler.Sharable
 public class WebSocketDispatcherChannelHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
@@ -28,40 +33,33 @@ public class WebSocketDispatcherChannelHandler extends SimpleChannelInboundHandl
     private static final InternalLogger log = InternalLoggerFactory.getInstance(WebSocketDispatcherChannelHandler.class);
     private final Map<String, WebSocketSession> sessionMap = new ConcurrentHashMap<>(1024);
     private final WebSocketHandler webSocketHandler;
-    private final ExecutorService POOL;
     /**
-     * 执行器是否为本实例私有：ForkJoin分支创建的是私有线程池，须由 {@link #destroy()} 回收；
-     * 虚拟线程分支复用JVM全局共享池，任何单个使用者都无权关闭
+     * 消息处理微任务执行器：由装配方创建并注入，onMessage任务经其submit执行
      */
-    private final boolean ownExecutor;
+    private final MicroTaskExecutor microTaskExecutor;
 
-    public WebSocketDispatcherChannelHandler(WebSocketHandler webSocketHandler) {
-        this(webSocketHandler, false, 0);
-    }
-
-    public WebSocketDispatcherChannelHandler(WebSocketHandler webSocketHandler, boolean useForkJoin, int threadNum) {
-        if (threadNum <= 0) {
-            threadNum = Runtime.getRuntime().availableProcessors();
-        }
+    public WebSocketDispatcherChannelHandler(WebSocketHandler webSocketHandler, MicroTaskExecutor microTaskExecutor) {
         this.webSocketHandler = webSocketHandler;
-        this.ownExecutor = useForkJoin;
-        if (useForkJoin) {
-            POOL = new ForkJoinPool(threadNum);
-            log.info("websocket work on ForkJoin pool, threadNum: {}", threadNum);
-        } else {
-            POOL = VirtualThreads.getPool();
-            log.info("websocket work on VirtualThread");
-        }
+        this.microTaskExecutor = Objects.requireNonNull(microTaskExecutor, "microTaskExecutor must not be null");
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, WebSocketFrame webSocketFrame) throws Exception {
         WebSocketSession webSocketSession = getWebSocketSession(channelHandlerContext);
+        // 使用前自持引用，防止被当前处理器给释放内存；任务收尾时统一归还
         webSocketFrame.retain();
-        POOL.execute(() -> {
-            // 调度处理器
-            webSocketHandler.onMessage(webSocketSession, webSocketFrame);
-        });
+        microTaskExecutor.submit(
+                () -> webSocketHandler.onMessage(webSocketSession, webSocketFrame),
+                signal -> {
+                    try {
+                        if (signal.finallyType() == MicroTaskExecutor.FinallyType.NOT_ACCEPT) {
+                            log.warn("websocket message discarded: micro task executor did not accept the submission");
+                        }
+                    } finally {
+                        // 执行完毕与未受理两路收尾统一归还本处自持的引用
+                        webSocketFrame.release();
+                    }
+                });
     }
 
     /**
@@ -116,17 +114,5 @@ public class WebSocketDispatcherChannelHandler extends SimpleChannelInboundHandl
         sessionMap.put(ctx.channel().id().asLongText(), webSocketSession);
         // 调用open方法
         webSocketHandler.onOpen(webSocketSession);
-    }
-
-    /**
-     * 销毁分发处理器持有的执行资源：仅在本实例私有时关闭 {@link ForkJoinPool}
-     * （已提交的消息任务继续执行完），虚拟线程模式下持有的是 {@link VirtualThreads#getPool()}
-     * 全局共享池，不做关闭。重复调用为幂等操作。
-     */
-    public void destroy() {
-        if (ownExecutor && !POOL.isShutdown()) {
-            POOL.shutdown();
-            log.info("websocket ForkJoinPool is shutdown");
-        }
     }
 }

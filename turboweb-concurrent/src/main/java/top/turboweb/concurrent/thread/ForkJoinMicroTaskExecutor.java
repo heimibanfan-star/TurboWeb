@@ -12,7 +12,8 @@ import java.util.concurrent.ForkJoinWorkerThread;
  * 并行度（CPU 核心数减一，最小为一），工作线程名前缀为 forkjoin-shared-micro-task；
  * 隔离实例经 {@link #ofIsolated} 产出，每次调用均新建独立任务池，线程数可显式指定，
  * 也可只传名称按默认并行度创建，工作线程按所传名称加序号命名。工作线程在池内复用，
- * 不为单个任务新建线程。
+ * 不为单个任务新建线程。隔离实例的创建方可经 {@link #close()} 回收自有任务池，
+ * 任务池终止后提交以未受理情形收尾并抛出拒绝异常；共享实例为全局单例，不应关闭。
  * </p>
  * <p>
  * 实现 {@link MicroTaskExecutor}：任务与收尾回调均不能为 null，参数校验先于任何池动作；
@@ -25,7 +26,7 @@ import java.util.concurrent.ForkJoinWorkerThread;
  * {@link FinallyType#EXECUTED} 与 {@link FinallyType#NOT_ACCEPT} 两种收尾。
  * </p>
  */
-public final class ForkJoinMicroTaskExecutor implements MicroTaskExecutor {
+public final class ForkJoinMicroTaskExecutor implements MicroTaskExecutor, AutoCloseable {
 
     /** 共享实例的工作线程名称前缀。 */
     private static final String SHARED_THREAD_NAME = "forkjoin-shared-micro-task";
@@ -120,6 +121,17 @@ public final class ForkJoinMicroTaskExecutor implements MicroTaskExecutor {
             finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
             throw unstarted;
         }
+    }
+
+    /**
+     * 关闭任务池：不再受理新提交，池内驻留的工作线程退出；关闭前已受理的任务继续执行完毕。
+     * 关闭后的提交以 {@link FinallyType#NOT_ACCEPT} 收尾并抛出拒绝异常（任务池已终止）。
+     * 只应由隔离实例的创建方调用回收自有任务池；共享实例为全局单例，关闭后影响所有使用方，
+     * 不得关闭。重复调用为空操作。
+     */
+    @Override
+    public void close() {
+        pool.shutdown();
     }
 
     /**
