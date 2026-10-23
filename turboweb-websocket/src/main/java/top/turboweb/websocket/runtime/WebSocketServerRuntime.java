@@ -132,7 +132,7 @@ public class WebSocketServerRuntime implements ServerRuntime {
         }
 
         /**
-         * 设置websocket业务处理器（onOpen/onMessage/onClose回调），为null立即抛出
+         * 设置websocket业务处理器（onOpen/onText/onBinary/onPing/onPong/onClose回调），为null立即抛出
          * {@link NullPointerException}
          */
         public Builder handler(WebSocketHandler webSocketHandler) {

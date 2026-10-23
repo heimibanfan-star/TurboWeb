@@ -24,7 +24,7 @@ import java.util.Objects;
  * <ul>
  *     <li>websocket升级协议请求（GET方法、Connection头包含upgrade且Upgrade为websocket）且uri匹配路径表达式：
  *     向pipeline追加 {@link WebSocketServerProtocolHandler} 与
- *     {@link WebSocketDispatcherChannelHandler}，并存储连接信息到 {@link WebSocketConnectInfoContainer}，
+ *     {@link WebSocketChannelHandler}，并存储连接信息到 {@link WebSocketConnectInfoContainer}，
  *     完成websocket的协议升级；</li>
  *     <li>其余请求（普通http误转发、其他升级协议、路径不匹配的websocket升级）：本handler不处理，
  *     retain后继续向后转发，由pipeline后续处理器决定。</li>
@@ -57,11 +57,11 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
     /**
      * 处理websocket的handler
      */
-    private final WebSocketDispatcherChannelHandler webSocketDispatcherHandler;
+    private final WebSocketChannelHandler webSocketDispatcherHandler;
 
     private WebSocketInitChannelHandler(Builder builder) {
         this.websocketPath = builder.websocketPath;
-        this.webSocketDispatcherHandler = new WebSocketDispatcherChannelHandler(
+        this.webSocketDispatcherHandler = new WebSocketChannelHandler(
                 builder.webSocketHandler, builder.microTaskExecutor);
     }
 

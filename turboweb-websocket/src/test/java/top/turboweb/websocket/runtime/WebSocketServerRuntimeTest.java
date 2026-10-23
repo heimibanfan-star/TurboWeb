@@ -1,12 +1,11 @@
 package top.turboweb.websocket.runtime;
 
-import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import org.junit.jupiter.api.Test;
 import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ForkJoinMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
-import top.turboweb.websocket.handler.WebSocketDispatcherChannelHandler;
+import top.turboweb.websocket.handler.WebSocketChannelHandler;
 import top.turboweb.websocket.handler.WebSocketHandler;
 import top.turboweb.websocket.handler.WebSocketInitChannelHandler;
 import top.turboweb.websocket.session.WebSocketSession;
@@ -164,7 +163,7 @@ class WebSocketServerRuntimeTest {
         dispatcherField.setAccessible(true);
         Object dispatcher = dispatcherField.get(initHandler);
 
-        Field executorField = WebSocketDispatcherChannelHandler.class.getDeclaredField("microTaskExecutor");
+        Field executorField = WebSocketChannelHandler.class.getDeclaredField("microTaskExecutor");
         executorField.setAccessible(true);
         return (MicroTaskExecutor) executorField.get(dispatcher);
     }
@@ -179,18 +178,14 @@ class WebSocketServerRuntimeTest {
     }
 
     /** L1 不触发任何回调，实现仅用于满足构造要求。 */
-    private static final class TestWebSocketHandler implements WebSocketHandler {
+    private static final class TestWebSocketHandler extends WebSocketHandler {
 
         @Override
-        public void onOpen(WebSocketSession session) {
+        public void onText(WebSocketSession session, String content) {
         }
 
         @Override
-        public void onMessage(WebSocketSession session, WebSocketFrame webSocketFrame) {
-        }
-
-        @Override
-        public void onClose(WebSocketSession session) {
+        public void onBinary(WebSocketSession session, byte[] content) {
         }
     }
 }

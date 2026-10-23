@@ -4,6 +4,10 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
@@ -28,17 +32,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * </p>
  */
 @ChannelHandler.Sharable
-public class WebSocketDispatcherChannelHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
+public class WebSocketChannelHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
-    private static final InternalLogger log = InternalLoggerFactory.getInstance(WebSocketDispatcherChannelHandler.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(WebSocketChannelHandler.class);
     private final Map<String, WebSocketSession> sessionMap = new ConcurrentHashMap<>(1024);
     private final WebSocketHandler webSocketHandler;
     /**
-     * 消息处理微任务执行器：由装配方创建并注入，onMessage任务经其submit执行
+     * 消息处理微任务执行器：由装配方创建并注入，入站帧的处理任务经其submit执行
      */
     private final MicroTaskExecutor microTaskExecutor;
 
-    public WebSocketDispatcherChannelHandler(WebSocketHandler webSocketHandler, MicroTaskExecutor microTaskExecutor) {
+    public WebSocketChannelHandler(WebSocketHandler webSocketHandler, MicroTaskExecutor microTaskExecutor) {
         this.webSocketHandler = webSocketHandler;
         this.microTaskExecutor = Objects.requireNonNull(microTaskExecutor, "microTaskExecutor must not be null");
     }
@@ -49,7 +53,7 @@ public class WebSocketDispatcherChannelHandler extends SimpleChannelInboundHandl
         // 使用前自持引用，防止被当前处理器给释放内存；任务收尾时统一归还
         webSocketFrame.retain();
         microTaskExecutor.submit(
-                () -> webSocketHandler.onMessage(webSocketSession, webSocketFrame),
+                () -> dispatch(webSocketSession, webSocketFrame),
                 signal -> {
                     try {
                         if (signal.finallyType() == MicroTaskExecutor.FinallyType.NOT_ACCEPT) {
@@ -60,6 +64,24 @@ public class WebSocketDispatcherChannelHandler extends SimpleChannelInboundHandl
                         webSocketFrame.release();
                     }
                 });
+    }
+
+    /**
+     * 按帧的具体类型分派到对应的裸帧回调，文本、二进制、ping、pong 之外的帧不做处理。
+     *
+     * @param session        websocket会话
+     * @param webSocketFrame 入站帧
+     */
+    private void dispatch(WebSocketSession session, WebSocketFrame webSocketFrame) {
+        if (webSocketFrame instanceof TextWebSocketFrame textWebSocketFrame) {
+            webSocketHandler.onUnSafeText(session, textWebSocketFrame);
+        } else if (webSocketFrame instanceof BinaryWebSocketFrame binaryWebSocketFrame) {
+            webSocketHandler.onUnSafeBinary(session, binaryWebSocketFrame);
+        } else if (webSocketFrame instanceof PingWebSocketFrame pingWebSocketFrame) {
+            webSocketHandler.onUnSafePing(session, pingWebSocketFrame);
+        } else if (webSocketFrame instanceof PongWebSocketFrame pongWebSocketFrame) {
+            webSocketHandler.onUnSafePong(session, pongWebSocketFrame);
+        }
     }
 
     /**
