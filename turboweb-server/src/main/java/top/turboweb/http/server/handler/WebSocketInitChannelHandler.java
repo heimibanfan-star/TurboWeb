@@ -35,7 +35,7 @@ import java.util.Objects;
  * 与 top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory，改为建造者模式，
  * 默认使用虚拟线程，可选工作窃取线程池。
  * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
- * {@link top.turboweb.http.server.application.WebSocketApplication} 装配并跨channel复用。
+ * {@link top.turboweb.http.server.runtime.WebSocketServerRuntime} 装配并跨channel复用。
  *
  * <pre>{@code
  * WebSocketInitChannelHandler webSocketInitHandler = WebSocketInitChannelHandler.builder()
@@ -134,7 +134,7 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
     /**
      * 销毁本handler持有的执行资源：委托内部的 {@link WebSocketDispatcherChannelHandler} 关闭其私有的
      * 消息处理线程池（虚拟线程模式下使用全局共享池，不会被关闭）。由
-     * {@link top.turboweb.http.server.application.WebSocketApplication#close()} 发起，重复调用为幂等操作。
+     * {@link top.turboweb.http.server.runtime.WebSocketServerRuntime#close()} 发起，重复调用为幂等操作。
      */
     public void destroy() {
         webSocketDispatcherHandler.destroy();

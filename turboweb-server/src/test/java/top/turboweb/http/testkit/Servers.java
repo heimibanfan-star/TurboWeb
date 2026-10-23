@@ -2,8 +2,8 @@ package top.turboweb.http.testkit;
 
 import io.netty.channel.ChannelFuture;
 import top.turboweb.http.server.BootStrapWebServer;
-import top.turboweb.http.server.application.Application;
 import top.turboweb.http.server.config.ServerConfig;
+import top.turboweb.server.runtime.ServerRuntime;
 
 import java.net.InetSocketAddress;
 
@@ -28,14 +28,14 @@ public final class Servers implements AutoCloseable {
      * 以默认服务器配置装配给定应用并启动，返回已就绪的夹具实例。
      * 绑定失败会关掉服务器再抛出，避免线程泄漏。
      */
-    public static Servers start(Application... applications) {
-        return start(ServerConfig.builder().build(), applications);
+    public static Servers start(ServerRuntime... runtimes) {
+        return start(ServerConfig.builder().build(), runtimes);
     }
 
-    public static Servers start(ServerConfig serverConfig, Application... applications) {
+    public static Servers start(ServerConfig serverConfig, ServerRuntime... runtimes) {
         BootStrapWebServer server = new BootStrapWebServer(serverConfig);
-        for (Application application : applications) {
-            server.registerApplicationLast(application);
+        for (ServerRuntime runtime : runtimes) {
+            server.registerRuntimeLast(runtime);
         }
         ChannelFuture bindFuture;
         try {

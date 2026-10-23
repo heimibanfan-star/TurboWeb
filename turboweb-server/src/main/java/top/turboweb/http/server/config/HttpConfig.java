@@ -9,7 +9,7 @@ import java.util.Objects;
  * 请求串行化开关、请求日志开关、缺省字符集、session回收参数、http调度器限流参数与磁盘IO线程池参数。
  * <p>
  * 协议编解码、线程、连接数等服务器层配置见 {@link ServerConfig}；
- * 中间件、session管理器等组件对象不属于配置，由 HttpRequestApplication 的建造者持有。
+ * 中间件、session管理器等组件对象不属于配置，由 HttpServerRuntime 的建造者持有。
  * <p>
  * 通过建造者模式构建，参数校验前置到 {@link Builder} 的链式方法中，非法参数立即抛出异常。
  *

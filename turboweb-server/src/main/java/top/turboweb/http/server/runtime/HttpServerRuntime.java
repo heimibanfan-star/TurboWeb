@@ -1,4 +1,4 @@
-package top.turboweb.http.server.application;
+package top.turboweb.http.server.runtime;
 
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;
@@ -30,6 +30,7 @@ import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
 import top.turboweb.http.server.handler.RequestSerializerChannelHandler;
+import top.turboweb.server.runtime.ServerRuntime;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -49,11 +50,11 @@ import java.util.stream.Stream;
  * <p>
  * 装配期创建的生命周期资源不在本类中逐个持有，而是统一登记进本应用持有的
  * {@link ScopedResource} 资源作用域：中间件链的销毁适配器（沿链头到链尾调用各中间件的destroy）
- * 先登记，磁盘IO线程池后登记，关闭时由 {@link Application#close()} 按登记顺序
+ * 先登记，磁盘IO线程池后登记，关闭时由本类 {@link #close()} 按登记顺序
  * 释放整个作用域。服务器关闭时会统一触发，调用方也可对应用实例自行try-with-resources。
  *
  * <pre>{@code
- * HttpRequestApplication application = new HttpRequestApplication.Builder()
+ * HttpServerRuntime runtime = new HttpServerRuntime.Builder()
  *         .routeRegister(routeRegister)
  *         .config(HttpConfig.builder()
  *                 .serializePerConnection(true)
@@ -62,9 +63,9 @@ import java.util.stream.Stream;
  *         .build();
  * }</pre>
  */
-public class HttpRequestApplication implements Application {
+public class HttpServerRuntime implements ServerRuntime {
 
-    private static final InternalLogger log = InternalLoggerFactory.getInstance(HttpRequestApplication.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(HttpServerRuntime.class);
 
     /**
      * 请求任务虚拟线程的命名前缀，创建虚拟线程资源时透传给线程工厂
@@ -86,12 +87,12 @@ public class HttpRequestApplication implements Application {
 
     /**
      * 应用的资源作用域：装配期由 {@link Builder#build()} 创建的磁盘IO线程池、中间件链销毁适配器
-     * 等可关闭资源全部登记于此，关闭时由 {@link Application#close()} 统一释放，
+     * 等可关闭资源全部登记于此，关闭时由 {@link #close()} 统一释放，
      * 本类无须持有个别资源的引用
      */
     private final ScopedResource scopedResource;
 
-    public HttpRequestApplication(boolean requestSerial,
+    public HttpServerRuntime(boolean requestSerial,
                                   HttpRequestSchedulerChannelHandler httpRequestSchedulerHandler,
                                   ScopedResource scopedResource) {
         this.requestSerial = requestSerial;
@@ -110,17 +111,24 @@ public class HttpRequestApplication implements Application {
             pipeline.addLast(new RequestSerializerChannelHandler());
         }
         pipeline.addLast(httpRequestSchedulerHandler);
-        log.debug("Http application handlers assembled for connection [{}], request serialization: {}",
+        log.debug("Http runtime handlers assembled for connection [{}], request serialization: {}",
                 pipeline.channel().id().asShortText(), this.requestSerial);
     }
 
     /**
-     * 获取本应用持有的资源作用域，关闭逻辑由 {@link Application#close()} 的默认实现
-     * 按作用域统一释放，本类无须自行编写
+     * 获取本应用持有的资源作用域：装配期登记的可关闭资源在此，关闭时由 {@link #close()} 统一释放
      */
-    @Override
     public ScopedResource getScopedResource() {
         return this.scopedResource;
+    }
+
+    /**
+     * 关闭应用：释放 {@link #getScopedResource()} 中登记的全部资源，按登记顺序逐个释放，
+     * 重复调用为空操作；单个资源释放失败只记录日志，不中断其余释放
+     */
+    @Override
+    public void close() {
+        this.scopedResource.close();
     }
 
     /**
@@ -152,7 +160,7 @@ public class HttpRequestApplication implements Application {
     }
 
     /**
-     * {@link HttpRequestApplication} 的建造者：持有应用装配所需的全部组件对象
+     * {@link HttpServerRuntime} 的建造者：持有应用装配所需的全部组件对象
      * （业务中间件、路由登记表、异常处理器集合、session管理器、json序列化器、
      * cors配置、自定义结果转化器集合、自定义响应写出器集合、自定义内容解析器集合），纯参数配置（串行化开关、session回收参数、
      * 虚拟线程限流参数）全部由 {@link HttpConfig} 承载；组件均带默认值，按需覆盖即可，
@@ -351,17 +359,17 @@ public class HttpRequestApplication implements Application {
          * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
          * 装配出的中间件链销毁适配器先登记、创建的磁盘IO线程池后登记进资源作用域交给应用持有，
-         * 由 {@link Application#close()} 的默认实现按登记顺序释放。
+         * 由 {@link #close()} 按登记顺序释放。
          * <p>
          * 同一 Builder 仅允许构建一次，重复调用在装配开始前抛出 {@link IllegalStateException}
          *
          * @throws IllegalStateException 同一 Builder 重复调用 build()，或同一中间件类重复注册
          */
-        public HttpRequestApplication build() {
+        public HttpServerRuntime build() {
             if (!built.compareAndSet(false, true)) {
                 throw new IllegalStateException("build() can only be called once on the same Builder");
             }
-            log.info("Assembling http request application...");
+            log.info("Assembling http request runtime...");
             // 应用持有的资源作用域：装配期创建的可关闭资源逐个登记进来，关闭时按登记顺序统一释放
             ScopedResource scopedResource = new ScopedResource();
             // 路由生产：以本建造者的json序列化器装配登记表，使路由侧与结果转化侧共用同一序列化实例
@@ -402,8 +410,8 @@ public class HttpRequestApplication implements Application {
             HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
                     .orchestrator(orchestrator)
                     .build();
-            log.info("Http request application assembled, per-connection request serialization: {}", httpConfig.isSerializePerConnection());
-            return new HttpRequestApplication(
+            log.info("Http request runtime assembled, per-connection request serialization: {}", httpConfig.isSerializePerConnection());
+            return new HttpServerRuntime(
                     httpConfig.isSerializePerConnection(),
                     schedulerHandler,
                     scopedResource

@@ -23,7 +23,7 @@ import java.util.Objects;
  * 创建方式参考 top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory，
  * 改为建造者模式，默认没有websocket。
  * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
- * {@link top.turboweb.http.server.application.HttpRequestApplication} 装配并跨channel复用。
+ * {@link top.turboweb.http.server.runtime.HttpServerRuntime} 装配并跨channel复用。
  *
  * <pre>{@code
  * HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()

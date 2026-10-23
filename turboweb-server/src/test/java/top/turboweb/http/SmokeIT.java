@@ -6,7 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.server.application.HttpRequestApplication;
+import top.turboweb.http.server.runtime.HttpServerRuntime;
 import top.turboweb.http.testkit.RecordingMiddleware;
 import top.turboweb.http.testkit.Servers;
 
@@ -35,10 +35,10 @@ class SmokeIT {
     @BeforeAll
     void startServer() {
         Middleware hello = new RecordingMiddleware("hello", events, "hello-turbo");
-        HttpRequestApplication application = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .middleware(hello)
                 .build();
-        servers = Servers.start(application);
+        servers = Servers.start(runtime);
         client = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(5))
@@ -75,11 +75,11 @@ class SmokeIT {
     void closeReleasesMiddlewareChain() throws Exception {
         List<String> secondEvents = new CopyOnWriteArrayList<>();
         Middleware second = new RecordingMiddleware("second", secondEvents, "second-payload");
-        HttpRequestApplication application = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .middleware(second)
                 .build();
 
-        try (Servers local = Servers.start(application)) {
+        try (Servers local = Servers.start(runtime)) {
             HttpRequest request = HttpRequest.newBuilder(URI.create(local.baseUrl() + "/second"))
                     .timeout(Duration.ofSeconds(10))
                     .GET()
@@ -87,7 +87,7 @@ class SmokeIT {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             assertEquals("second-payload", response.body());
         }
-        // 关闭后中间件的 destroy 必须被调用（由 Application#close 经 ScopedResource 触发）
+        // 关闭后中间件的 destroy 必须被调用（由 HttpServerRuntime#close 经 ScopedResource 触发）
         assertTrue(secondEvents.contains("destroy:second"),
                 "应用关闭必须销毁中间件链，事件: " + secondEvents);
         // 注意：此处刻意不断言"端口拒绝连接"也不sleep等待——Netty静默期异步，见 spec §7.3-7.4

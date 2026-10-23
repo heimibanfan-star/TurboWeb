@@ -19,6 +19,8 @@ dependencies {
     api(project(":turboweb-rest-api"))
     // Bean 校验器契约由 turboweb-validation 提供；BeanValidator 出现在绑定接口与路由处理器公开签名，用 api 暴露
     api(project(":turboweb-validation"))
+    // 服务器运行时契约由 turboweb-server-runtime 提供；ServerRuntime 出现在应用管理器注册方法与服务器注册的公开签名，用 api 暴露
+    api(project(":turboweb-server-runtime"))
     // 聚合turboweb-websocket模块
     api(project(":turboweb-websocket"))
     implementation(project(":turboweb-struct"))

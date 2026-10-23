@@ -1,4 +1,4 @@
-package top.turboweb.http.server.application;
+package top.turboweb.http.server.runtime;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
@@ -50,27 +50,27 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link HttpRequestApplication.Builder} 的编排器装配契约与资源作用域（spec §5 server/application 行）。
+ * {@link HttpServerRuntime.Builder} 的编排器装配契约与资源作用域（spec §5 server/runtime 行）。
  *
  * <p>build() 会创建磁盘IO弹性线程池并按限流参数创建虚拟线程资源，但本类每条用例都显式注入
  * 不启动 session GC 线程的 {@link NoopSessionManager}，并在断言后关闭应用；不断言任何线程终止。
  * 装配完成的编排器藏在应用持有的调度处理器里，组件身份断言经反射取证（与 {@code diskPoolOf}
  * 同一类取证手段）。
  */
-class HttpRequestApplicationTest {
+class HttpServerRuntimeTest {
 
     // ---------- 构造与链式参数校验 ----------
 
     @Test
     void npeWhenScopedResourceIsNull() {
         NullPointerException ex = assertThrows(NullPointerException.class,
-                () -> new HttpRequestApplication(false, null, null));
+                () -> new HttpServerRuntime(false, null, null));
         assertEquals("The resource scope must not be null", ex.getMessage());
     }
 
     @Test
     void nullArgumentSettersAreRejected() {
-        HttpRequestApplication.Builder builder = new HttpRequestApplication.Builder();
+        HttpServerRuntime.Builder builder = new HttpServerRuntime.Builder();
         assertThrows(NullPointerException.class, () -> builder.sessionManager(null));
         assertThrows(NullPointerException.class, () -> builder.jsonSerializer(null));
         assertThrows(NullPointerException.class, () -> builder.corsConfig(null));
@@ -87,7 +87,7 @@ class HttpRequestApplicationTest {
     @Test
     void duplicateMiddlewareClassIsRejected() {
         List<String> events = new ArrayList<>();
-        HttpRequestApplication.Builder builder = new HttpRequestApplication.Builder()
+        HttpServerRuntime.Builder builder = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(new RecordingMiddleware("a", events))
                 .middleware(new RecordingMiddleware("b", events));
@@ -102,13 +102,13 @@ class HttpRequestApplicationTest {
     void noRouteRegisterLeavesChainTailAtLastMiddleware() {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(mw)
                 .build();
 
         assertNull(mw.getNext(), "未挂路由登记表时链尾就是最后一个业务中间件，其后无路由节点");
-        app.close();
+        runtime.close();
     }
 
     @Test
@@ -116,7 +116,7 @@ class HttpRequestApplicationTest {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
         TestRouteHandlerManager router = new TestRouteHandlerManager(events);
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(mw)
                 .routeRegister(new TestRouteRegister(router))
@@ -129,42 +129,42 @@ class HttpRequestApplicationTest {
         assertSame("route-result", routeMiddleware.invoke(null),
                 "路由调用中间件把上下文交给管理器handle，其返回结果原样作为链结果");
         assertTrue(events.contains("handle:router"), "handle必须被路由调用中间件转交给路由处理器管理器");
-        app.close();
+        runtime.close();
     }
 
     // ---------- 登记表在生产时刻收到应用的序列化器 ----------
 
     @Test
-    void routeRegisterIsProducedWithApplicationSerializer() {
+    void routeRegisterIsProducedWithRuntimeSerializer() {
         List<String> events = new ArrayList<>();
         JsonSerializer serializer = new JacksonJsonSerializer();
         TestRouteRegister register = new TestRouteRegister(new TestRouteHandlerManager(events));
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .jsonSerializer(serializer)
                 .routeRegister(register)
                 .build();
 
         assertSame(serializer, register.producedWith, "构建期把应用的json序列化器交给登记表生产管理器");
-        app.close();
+        runtime.close();
     }
 
     @Test
     void routeRegisterReceivesDefaultSerializerWhenNotPassed() throws Exception {
         List<String> events = new ArrayList<>();
         TestRouteRegister register = new TestRouteRegister(new TestRouteHandlerManager(events));
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .routeRegister(register)
                 .build();
 
         assertInstanceOf(JacksonJsonSerializer.class, register.producedWith, "未指定序列化器时生产用应用的默认实例");
         ResultConverterManager resultConverterManager =
-                (ResultConverterManager) componentOf(orchestratorOf(app), "resultConverterManager");
+                (ResultConverterManager) componentOf(orchestratorOf(runtime), "resultConverterManager");
         ResultConverter defaultConverter = (ResultConverter) fieldOf(resultConverterManager, "defaultConverter");
         assertSame(fieldOf(defaultConverter, "jsonSerializer"), register.producedWith,
                 "登记表拿到的默认序列化器与结果转化链持有的是同一实例");
-        app.close();
+        runtime.close();
     }
 
     // ---------- 资源作用域：登记顺序即释放顺序 ----------
@@ -174,17 +174,17 @@ class HttpRequestApplicationTest {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
         DiskPoolProbeMiddleware probe = new DiskPoolProbeMiddleware(events);
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(mw, probe)
                 .build();
 
-        ThreadPool diskPool = diskPoolOf(app.getScopedResource());
+        ThreadPool diskPool = diskPoolOf(runtime.getScopedResource());
         probe.attachDiskPool(diskPool);
         assertFalse(diskPool.isShutdown(), "构建后磁盘池尚未关闭");
         events.clear();
 
-        app.close();
+        runtime.close();
 
         // 中间件链销毁适配器先于磁盘池登记，因此 probe 在自己的 destroy 里应看到池还未 shutdown
         assertEquals(List.of("destroy:mw", "destroy:probe:poolShutdown=false"), events,
@@ -212,7 +212,7 @@ class HttpRequestApplicationTest {
     void buildLocksEveryMiddlewareSoLaterSetNextIsIgnored() {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(mw)
                 .build();
@@ -220,7 +220,7 @@ class HttpRequestApplicationTest {
         mw.setNext(new RecordingMiddleware("intruder", events));
 
         assertNull(mw.getNext(), "build() 已锁定全部中间件，装配后再 setNext 无效");
-        app.close();
+        runtime.close();
     }
 
     // ---------- 全量 setter 直通编排器 ----------
@@ -235,7 +235,7 @@ class HttpRequestApplicationTest {
         MarkerExceptionHandler customHandler = new MarkerExceptionHandler();
         ResultConverter customConverter = (result, charset) -> ResultConverter.Result.shouldContinue();
         MarkerResponseWriter customWriter = new MarkerResponseWriter();
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .exceptionHandlers(customHandler)
                 .sessionManager(new NoopSessionManager())
                 .routeRegister(new TestRouteRegister(router))
@@ -247,7 +247,7 @@ class HttpRequestApplicationTest {
                 .middleware(mw)
                 .build();
 
-        RequestOrchestrator orchestrator = orchestratorOf(app);
+        RequestOrchestrator orchestrator = orchestratorOf(runtime);
         assertSame(corsConfig, componentOf(orchestrator, "corsConfig"),
                 "用户传入的cors配置原样进入编排器");
         ExceptionHandlerManager exceptionHandlerManager =
@@ -274,31 +274,31 @@ class HttpRequestApplicationTest {
         assertEquals("RouteHandlerInvokeMiddleware", mw.getNext().getClass().getSimpleName(),
                 "路由调用中间件追加在链尾");
         assertNull(mw.getNext().getNext(), "路由调用中间件之后无节点");
-        app.close();
+        runtime.close();
     }
 
     @Test
     void customContentParsersAreRegisteredIntoManager() throws Exception {
         MarkerContentParser parser = new MarkerContentParser();
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .contentParsers(parser)
                 .build();
 
         HttpContentParserManager manager = (HttpContentParserManager)
-                componentOf(orchestratorOf(app), "contentParserManager");
+                componentOf(orchestratorOf(runtime), "contentParserManager");
         Map<?, ?> customParsers = (Map<?, ?>) fieldOf(manager, "customParsers");
         assertSame(parser, customParsers.get("text/csv"),
                 "用户传入的自定义内容解析器经构建期装配进入管理器的自定义表");
-        app.close();
+        runtime.close();
     }
 
     @Test
     void unpassedComponentsFallBackToDefaults() throws Exception {
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .build();
-        RequestOrchestrator orchestrator = orchestratorOf(app);
+        RequestOrchestrator orchestrator = orchestratorOf(runtime);
         for (String component : List.of("middleware", "microTaskExecutor", "responseWriterManager",
                 "resultConverterManager", "corsConfig", "exceptionHandlerManager",
                 "sessionManagerHolder", "defaultCharset", "contentParserManager")) {
@@ -313,21 +313,21 @@ class HttpRequestApplicationTest {
                 "cors配置默认取通配配置");
         assertEquals(java.nio.charset.StandardCharsets.UTF_8, componentOf(orchestrator, "defaultCharset"),
                 "缺省字符集默认取UTF-8并装入编排器");
-        app.close();
+        runtime.close();
     }
 
     @Test
     void defaultCharsetIsCarriedFromConfig() throws Exception {
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .config(HttpConfig.builder().defaultCharset(java.nio.charset.Charset.forName("GBK")).build())
                 .build();
         try {
             assertEquals(java.nio.charset.Charset.forName("GBK"),
-                    componentOf(orchestratorOf(app), "defaultCharset"),
+                    componentOf(orchestratorOf(runtime), "defaultCharset"),
                     "编排器缺省字符集取自 HttpConfig 的装配值");
         } finally {
-            app.close();
+            runtime.close();
         }
     }
 
@@ -335,7 +335,7 @@ class HttpRequestApplicationTest {
 
     @Test
     void virtualThreadResourceIsCreatedFromConfig() throws Exception {
-        HttpRequestApplication limited = new HttpRequestApplication.Builder()
+        HttpServerRuntime limited = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .config(HttpConfig.builder()
                         .enableHttpSchedulerLimit(true)
@@ -355,11 +355,11 @@ class HttpRequestApplicationTest {
     void secondBuildOnSameBuilderIsRejected() {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
-        HttpRequestApplication.Builder builder = new HttpRequestApplication.Builder()
+        HttpServerRuntime.Builder builder = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(mw);
 
-        HttpRequestApplication first = builder.build();
+        HttpServerRuntime first = builder.build();
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, builder::build,
                 "F5 修复回归：Builder 以原子布尔一次性门拒绝重复 build");
@@ -381,7 +381,7 @@ class HttpRequestApplicationTest {
         owner.addMiddleware("b", branchMw);
         RecordingMiddleware mainMw = new RecordingMiddleware("main", events);
 
-        HttpRequestApplication app = new HttpRequestApplication.Builder()
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(owner, mainMw)
                 .build();
@@ -389,7 +389,7 @@ class HttpRequestApplicationTest {
         assertTrue(events.contains("init:branch"), "分支中间件在装配期被 init，说明它已进入分支链");
         events.clear();
 
-        app.close();
+        runtime.close();
 
         assertTrue(events.contains("destroy:main"), "主链上的中间件被销毁");
         assertTrue(events.contains("destroy:branch"),
@@ -403,10 +403,10 @@ class HttpRequestApplicationTest {
      * L1 只能反射读取（与 {@code diskPoolOf} 同一类取证手段）。字段一旦改名，相关用例会以
      * {@code NoSuchFieldException} 变红，届时同步更新即可。
      */
-    private static RequestOrchestrator orchestratorOf(HttpRequestApplication app) throws Exception {
-        Field handlerField = HttpRequestApplication.class.getDeclaredField("httpRequestSchedulerHandler");
+    private static RequestOrchestrator orchestratorOf(HttpServerRuntime runtime) throws Exception {
+        Field handlerField = HttpServerRuntime.class.getDeclaredField("httpRequestSchedulerHandler");
         handlerField.setAccessible(true);
-        Object handler = handlerField.get(app);
+        Object handler = handlerField.get(runtime);
         Field orchestratorField = HttpRequestSchedulerChannelHandler.class.getDeclaredField("requestOrchestrator");
         orchestratorField.setAccessible(true);
         return (RequestOrchestrator) orchestratorField.get(handler);

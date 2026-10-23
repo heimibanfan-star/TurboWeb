@@ -16,7 +16,7 @@ import java.util.Queue;
  * 保证HTTP请求的顺序。
  * <p>
  * 处理器持有连接级状态（缓冲队列与处理中标记），不能跨channel复用，
- * 由 {@link top.turboweb.http.server.application.HttpRequestApplication} 在装配每条管道时新建独立实例。
+ * 由 {@link top.turboweb.http.server.runtime.HttpServerRuntime} 在装配每条管道时新建独立实例。
  */
 public class RequestSerializerChannelHandler extends ChannelDuplexHandler {
 

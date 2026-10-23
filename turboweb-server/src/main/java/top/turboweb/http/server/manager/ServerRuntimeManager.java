@@ -3,15 +3,15 @@ package top.turboweb.http.server.manager;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.http.server.application.Application;
+import top.turboweb.server.runtime.ServerRuntime;
 
 import java.util.LinkedList;
 import java.util.Objects;
 
 /**
- * 应用管理器：应用级处理器在连接管道上的装配入口。
+ * 运行时管理器：应用级处理器在连接管道上的装配入口。
  * <p>
- * 本类只管应用——持有 {@link #addFirst(Application)} / {@link #addLast(Application)} 注册的应用列表，
+ * 本类只管应用——持有 {@link #addFirst(ServerRuntime)} / {@link #addLast(ServerRuntime)} 注册的应用列表，
  * 并在 {@link #configure(ChannelPipeline)} 时按注册顺序把各应用追加到管道尾部。连接限流、ssl、
  * http编解码与http2等服务器级传输处理器的装配不属于本类，由
  * {@code top.turboweb.http.server.channel.ServerChannelInitializer} 在应用之前完成，
@@ -24,36 +24,36 @@ import java.util.Objects;
  * 由各应用自己释放装配期创建的资源（线程池、中间件销毁等），通常在服务器关闭时触发。
  *
  * <pre>{@code
- * ApplicationManager manager = new ApplicationManager()
- *         .addLast(httpRequestApplication)
- *         .addLast(webSocketApplication);
+ * ServerRuntimeManager manager = new ServerRuntimeManager()
+ *         .addLast(httpRuntime)
+ *         .addLast(webSocketRuntime);
  * // 每条新连接协议层就绪后由 ServerChannelInitializer 调用：manager.configure(pipeline);
  * }</pre>
  */
-public class ApplicationManager implements AutoCloseable {
+public class ServerRuntimeManager implements AutoCloseable {
 
-    private static final InternalLogger log = InternalLoggerFactory.getInstance(ApplicationManager.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(ServerRuntimeManager.class);
 
     /**
      * 已注册的应用列表，装配顺序即列表顺序（addFirst插队头、addLast排队尾）
      */
-    private final LinkedList<Application> applications = new LinkedList<>();
+    private final LinkedList<ServerRuntime> runtimes = new LinkedList<>();
 
     /**
      * 将应用插到应用列表头部（装配时最先执行），应用为null立即抛出 {@link NullPointerException}
      */
-    public ApplicationManager addFirst(Application application) {
-        Objects.requireNonNull(application, "The application must not be null");
-        this.applications.addFirst(application);
+    public ServerRuntimeManager addFirst(ServerRuntime runtime) {
+        Objects.requireNonNull(runtime, "The runtime must not be null");
+        this.runtimes.addFirst(runtime);
         return this;
     }
 
     /**
      * 将应用追加到应用列表尾部（装配时最后执行），应用为null立即抛出 {@link NullPointerException}
      */
-    public ApplicationManager addLast(Application application) {
-        Objects.requireNonNull(application, "The application must not be null");
-        this.applications.addLast(application);
+    public ServerRuntimeManager addLast(ServerRuntime runtime) {
+        Objects.requireNonNull(runtime, "The runtime must not be null");
+        this.runtimes.addLast(runtime);
         return this;
     }
 
@@ -66,8 +66,8 @@ public class ApplicationManager implements AutoCloseable {
      */
     public void configure(ChannelPipeline pipeline) {
         Objects.requireNonNull(pipeline, "pipeline can not be null");
-        for (Application application : applications) {
-            application.configure(pipeline);
+        for (ServerRuntime runtime : runtimes) {
+            runtime.configure(pipeline);
         }
     }
 
@@ -81,11 +81,11 @@ public class ApplicationManager implements AutoCloseable {
      */
     @Override
     public void close() {
-        for (Application application : applications) {
+        for (ServerRuntime runtime : runtimes) {
             try {
-                application.close();
+                runtime.close();
             } catch (Exception e) {
-                log.error("Error closing application: {}", application.getClass().getName(), e);
+                log.error("Error closing runtime: {}", runtime.getClass().getName(), e);
             }
         }
     }

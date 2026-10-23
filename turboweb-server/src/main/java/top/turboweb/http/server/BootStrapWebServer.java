@@ -13,12 +13,12 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.jspecify.annotations.NonNull;
-import top.turboweb.http.server.application.Application;
+import top.turboweb.server.runtime.ServerRuntime;
 import top.turboweb.http.server.channel.ServerChannelInitializer;
 import top.turboweb.http.server.channel.TurboWebNioServerSocketChannel;
 import top.turboweb.http.server.config.ServerConfig;
 import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
-import top.turboweb.http.server.manager.ApplicationManager;
+import top.turboweb.http.server.manager.ServerRuntimeManager;
 
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -30,8 +30,8 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * TurboWeb http服务器。
  * <p>
- * 构造时只做持有：{@link ApplicationManager} 由本类内部创建并私有持有，不对外暴露，调用方通过
- * {@link #registerApplicationFirst(Application)} / {@link #registerApplicationLast(Application)}
+ * 构造时只做持有：{@link ServerRuntimeManager} 由本类内部创建并私有持有，不对外暴露，调用方通过
+ * {@link #registerRuntimeFirst(ServerRuntime)} / {@link #registerRuntimeLast(ServerRuntime)}
  * 间接注册应用；{@link ServerConfig} 可选，不传时使用 {@code ServerConfig.builder().build()}
  * 的默认配置。构造不创建任何线程与通道资源；boss/worker线程组、服务端通道、连接限流器、管道装配器与bootstrap
  * 等全部资源只在 {@link #start(int)} 首次调用时创建，启用http2未配ssl等校验也在此时
@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *     （二者互斥，零拷贝线程池由通道关闭逻辑负责释放）；</li>
  *     <li>pipeline装配：服务器自身不做装配，启动时创建连接限流器与 {@link ServerChannelInitializer}
  *     并作为childHandler交给bootstrap，由装配器按 限流 → ssl → 编解码（或http2协议协商）→ 应用
- *     的固定顺序装配每条连接，其中应用部分委托 {@link ApplicationManager#configure(ChannelPipeline)}
+ *     的固定顺序装配每条连接，其中应用部分委托 {@link ServerRuntimeManager#configure(ChannelPipeline)}
  *     追加。</li>
  * </ul>
  * 服务器不做优雅停机回调、生命周期监听等扩展，启动返回Netty的 {@link ChannelFuture}，
@@ -58,9 +58,9 @@ import java.util.concurrent.atomic.AtomicLong;
  *         .maxConnect(20000)
  *         .build();
  * BootStrapWebServer server = new BootStrapWebServer(config)
- *         .registerApplicationFirst(httpRequestApplication)  // 最先装配
- *         .registerApplicationLast(webSocketApplication);    // 最后装配
- * // 不传配置即使用默认配置：new BootStrapWebServer().registerApplicationLast(app);
+ *         .registerRuntimeFirst(httpRuntime)  // 最先装配
+ *         .registerRuntimeLast(webSocketRuntime);    // 最后装配
+ * // 不传配置即使用默认配置：new BootStrapWebServer().registerRuntimeLast(runtime);
  * // 异步启动（此时才创建线程组与通道资源并绑定端口），需要阻塞等待时自行 sync
  * server.start(8080);
  * // 停止（实现AutoCloseable，close会关闭监听通道并优雅停机，也可try-with-resources）
@@ -89,12 +89,12 @@ public final class BootStrapWebServer implements AutoCloseable {
     }
 
     /**
-     * 应用管理器（final持有，由本类内部创建且不对外暴露），应用级处理器在每条新连接建立时
-     * 由它按注册顺序装配，调用方经 {@link #registerApplicationFirst(Application)} /
-     * {@link #registerApplicationLast(Application)} 间接注册应用；
+     * 运行时管理器（final持有，由本类内部创建且不对外暴露），应用级处理器在每条新连接建立时
+     * 由它按注册顺序装配，调用方经 {@link #registerRuntimeFirst(ServerRuntime)} /
+     * {@link #registerRuntimeLast(ServerRuntime)} 间接注册应用；
      * 服务器级传输处理器（限流、ssl、编解码/http2）由 {@link ServerChannelInitializer} 装配
      */
-    private final ApplicationManager applicationManager;
+    private final ServerRuntimeManager serverRuntimeManager;
 
     /**
      * 服务器配置（不可变），io线程数、零拷贝线程数与ssl上下文等启动期资源参数取自本配置；
@@ -130,42 +130,42 @@ public final class BootStrapWebServer implements AutoCloseable {
     }
 
     /**
-     * 构造服务器：内部创建应用管理器并持有配置，不创建任何线程与通道资源；
+     * 构造服务器：内部创建运行时管理器并持有配置，不创建任何线程与通道资源；
      * 配置本身不做校验，启用http2未配ssl等校验在 {@link #start(int)} 启动时（绑定端口前）完成；
      * 配置为null立即抛出 {@link NullPointerException}（需要默认配置请使用无参构造器）
      *
      * @param serverConfig 服务器配置
      */
     public BootStrapWebServer(ServerConfig serverConfig) {
-        this.applicationManager = new ApplicationManager();
+        this.serverRuntimeManager = new ServerRuntimeManager();
         this.serverConfig = Objects.requireNonNull(serverConfig, "The ServerConfig must not be null");
     }
 
     /**
-     * 注册应用，装配每条连接时最先执行；返回本服务器实例便于链式注册。
+     * 注册运行时，装配每条连接时最先执行；返回本服务器实例便于链式注册。
      * <p>应用列表须在服务器启动前确定（装配会被多个worker线程并发执行），启动后再注册抛出
-     * {@link IllegalStateException}；应用为null时由内部应用管理器抛出 {@link NullPointerException}。
+     * {@link IllegalStateException}；应用为null时由内部运行时管理器抛出 {@link NullPointerException}。
      *
-     * @param application 应用
+     * @param runtime 运行时
      * @return 本服务器实例
      */
-    public BootStrapWebServer registerApplicationFirst(Application application) {
+    public BootStrapWebServer registerRuntimeFirst(ServerRuntime runtime) {
         checkNotStarted();
-        applicationManager.addFirst(application);
+        serverRuntimeManager.addFirst(runtime);
         return this;
     }
 
     /**
-     * 注册应用，装配每条连接时最后执行；返回本服务器实例便于链式注册。
+     * 注册运行时，装配每条连接时最后执行；返回本服务器实例便于链式注册。
      * <p>应用列表须在服务器启动前确定（装配会被多个worker线程并发执行），启动后再注册抛出
-     * {@link IllegalStateException}；应用为null时由内部应用管理器抛出 {@link NullPointerException}。
+     * {@link IllegalStateException}；应用为null时由内部运行时管理器抛出 {@link NullPointerException}。
      *
-     * @param application 应用
+     * @param runtime 运行时
      * @return 本服务器实例
      */
-    public BootStrapWebServer registerApplicationLast(Application application) {
+    public BootStrapWebServer registerRuntimeLast(ServerRuntime runtime) {
         checkNotStarted();
-        applicationManager.addLast(application);
+        serverRuntimeManager.addLast(runtime);
         return this;
     }
 
@@ -175,7 +175,7 @@ public final class BootStrapWebServer implements AutoCloseable {
      */
     private void checkNotStarted() {
         if (this.serverBootstrap != null) {
-            throw new IllegalStateException("Applications must be registered before the server starts");
+            throw new IllegalStateException("Runtimes must be registered before the server starts");
         }
     }
 
@@ -256,8 +256,8 @@ public final class BootStrapWebServer implements AutoCloseable {
                 .childOption(ChannelOption.SO_KEEPALIVE, true);
         bootstrap.channelFactory(() -> this.serverChannel);
         // 每条子连接由装配器按 限流 → ssl → 编解码（或http2协议协商）→ 应用 的顺序装配，
-        // 应用部分委托应用管理器追加
-        bootstrap.childHandler(new ServerChannelInitializer(applicationManager, connectLimiter, serverConfig));
+        // 应用部分委托运行时管理器追加
+        bootstrap.childHandler(new ServerChannelInitializer(serverRuntimeManager, connectLimiter, serverConfig));
         this.serverBootstrap = bootstrap;
     }
 
@@ -289,7 +289,7 @@ public final class BootStrapWebServer implements AutoCloseable {
     /**
      * 关闭服务器：先关闭服务端监听通道（零拷贝通道的关闭逻辑会同时释放零拷贝线程池），
      * 再调用 {@link #shutdown()} 优雅关闭boss与worker线程组，最后调用
-     * {@link ApplicationManager#close()} 按注册顺序关闭全部应用，由各应用释放自己装配的资源；
+     * {@link ServerRuntimeManager#close()} 按注册顺序关闭全部应用，由各应用释放自己装配的资源；
      * 从未启动过时只跳过通道关闭（线程组与应用资源仍需释放）。
      * <p>
      * 应用关闭排在传输层之后，保证不再有新的请求进入应用处理器链后再回收其线程池。
@@ -302,6 +302,6 @@ public final class BootStrapWebServer implements AutoCloseable {
             channel.close();
         }
         shutdown();
-        applicationManager.close();
+        serverRuntimeManager.close();
     }
 }

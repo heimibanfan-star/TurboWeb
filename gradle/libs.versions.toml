@@ -34,6 +34,7 @@ httpcore5 = { module = "org.apache.httpcomponents.core5:httpcore5", version.ref 
 netty-codec-http = { module = "io.netty:netty-codec-http", version.ref = "netty" }
 netty-codec-http2 = { module = "io.netty:netty-codec-http2", version.ref = "netty" }
 netty-common = { module = "io.netty:netty-common", version.ref = "netty" }
+netty-transport = { module = "io.netty:netty-transport", version.ref = "netty" }
 netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
 reactor-core = { module = "io.projectreactor:reactor-core", version.ref = "reactor-core" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }

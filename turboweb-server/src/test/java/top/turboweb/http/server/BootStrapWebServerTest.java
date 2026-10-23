@@ -3,9 +3,8 @@ package top.turboweb.http.server;
 import io.netty.channel.ChannelPipeline;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.common.utils.resource.ScopedResource;
-import top.turboweb.http.server.application.Application;
 import top.turboweb.http.server.config.ServerConfig;
+import top.turboweb.server.runtime.ServerRuntime;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -30,24 +29,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BootStrapWebServerTest {
 
-    /** 只记录关闭的应用替身，用于观察 server.close() 是否按注册顺序触达应用管理器。 */
-    private static final class CloseRecordingApplication implements Application {
+    /** 只记录关闭的运行时替身，用于观察 server.close() 是否按注册顺序触达运行时管理器。 */
+    private static final class CloseRecordingRuntime implements ServerRuntime {
 
         private final String name;
         private final List<String> closed;
 
-        CloseRecordingApplication(String name, List<String> closed) {
+        CloseRecordingRuntime(String name, List<String> closed) {
             this.name = name;
             this.closed = closed;
         }
 
         @Override
         public void configure(ChannelPipeline pipeline) {
-        }
-
-        @Override
-        public ScopedResource getScopedResource() {
-            return new ScopedResource();
         }
 
         @Override
@@ -67,10 +61,10 @@ class BootStrapWebServerTest {
 
     @Test
     @DisplayName("未启动就 close：不抛异常，仍经应用管理器按注册顺序释放应用")
-    void closeWithoutStartReleasesRegisteredApplications() {
+    void closeWithoutStartReleasesRegisteredRuntimes() {
         List<String> closed = new ArrayList<>();
         BootStrapWebServer server = new BootStrapWebServer();   // 默认配置，覆盖无参构造器
-        server.registerApplicationLast(new CloseRecordingApplication("app", closed));
+        server.registerRuntimeLast(new CloseRecordingRuntime("app", closed));
 
         assertDoesNotThrow(server::close);
 
@@ -78,13 +72,13 @@ class BootStrapWebServerTest {
     }
 
     @Test
-    @DisplayName("registerApplicationFirst/Last 的顺序在关闭时按注册序复现")
+    @DisplayName("registerRuntimeFirst/Last 的顺序在关闭时按注册序复现")
     void registrationOrderIsPreservedAtClose() {
         List<String> closed = new ArrayList<>();
         BootStrapWebServer server = new BootStrapWebServer(ServerConfig.builder().build());
-        server.registerApplicationLast(new CloseRecordingApplication("A", closed));
-        server.registerApplicationFirst(new CloseRecordingApplication("B", closed));
-        server.registerApplicationLast(new CloseRecordingApplication("C", closed));
+        server.registerRuntimeLast(new CloseRecordingRuntime("A", closed));
+        server.registerRuntimeFirst(new CloseRecordingRuntime("B", closed));
+        server.registerRuntimeLast(new CloseRecordingRuntime("C", closed));
 
         server.close();
 
@@ -96,7 +90,7 @@ class BootStrapWebServerTest {
     void closeIsRepeatable() {
         List<String> closed = new ArrayList<>();
         BootStrapWebServer server = new BootStrapWebServer(ServerConfig.builder().build());
-        server.registerApplicationLast(new CloseRecordingApplication("app", closed));
+        server.registerRuntimeLast(new CloseRecordingRuntime("app", closed));
 
         assertDoesNotThrow(server::close);
         assertDoesNotThrow(server::close);

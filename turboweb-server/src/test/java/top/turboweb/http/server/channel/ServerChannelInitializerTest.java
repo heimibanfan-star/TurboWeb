@@ -8,11 +8,10 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.common.utils.resource.ScopedResource;
-import top.turboweb.http.server.application.Application;
 import top.turboweb.http.server.config.ServerConfig;
 import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
-import top.turboweb.http.server.manager.ApplicationManager;
+import top.turboweb.http.server.manager.ServerRuntimeManager;
+import top.turboweb.server.runtime.ServerRuntime;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,12 +23,12 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class ServerChannelInitializerTest {
 
-    /** 只留装配痕迹的应用替身，configure 被调用即在 events 里落一条 */
-    private static final class MarkerApplication implements Application {
+    /** 只留装配痕迹的运行时替身，configure 被调用即在 events 里落一条 */
+    private static final class MarkerRuntime implements ServerRuntime {
         private final List<String> events;
         private final String name;
 
-        MarkerApplication(String name, List<String> events) {
+        MarkerRuntime(String name, List<String> events) {
             this.name = name;
             this.events = events;
         }
@@ -41,8 +40,7 @@ class ServerChannelInitializerTest {
         }
 
         @Override
-        public ScopedResource getScopedResource() {
-            return new ScopedResource();
+        public void close() {
         }
     }
 
@@ -68,7 +66,7 @@ class ServerChannelInitializerTest {
     @Test
     @DisplayName("构造参数为null立即抛NPE")
     void constructorRejectsNulls() {
-        ApplicationManager manager = new ApplicationManager();
+        ServerRuntimeManager manager = new ServerRuntimeManager();
         ConnectLimiterChannelHandler limiter = new ConnectLimiterChannelHandler(10, 1, 4);
         ServerConfig config = plainHttp11Config();
 
@@ -81,8 +79,8 @@ class ServerChannelInitializerTest {
     @DisplayName("http/1.1装配顺序：限流最前、codec、aggregator、应用")
     void assemblesHttp11PipelineInOrder() {
         List<String> events = new ArrayList<>();
-        ApplicationManager manager = new ApplicationManager();
-        manager.addLast(new MarkerApplication("marker", events));
+        ServerRuntimeManager manager = new ServerRuntimeManager();
+        manager.addLast(new MarkerRuntime("marker", events));
         ServerChannelInitializer initializer =
                 new ServerChannelInitializer(manager, new ConnectLimiterChannelHandler(10, 1, 4), plainHttp11Config());
 
@@ -91,7 +89,7 @@ class ServerChannelInitializerTest {
             channel.runPendingTasks();
             channel.checkException();
 
-            assertEquals(List.of("configure:marker"), events, "应用管理器必须在协议层之后被委托");
+            assertEquals(List.of("configure:marker"), events, "运行时管理器必须在协议层之后被委托");
 
             List<Class<?>> classes = handlerClasses(channel);
             int limiterIndex = classes.indexOf(ConnectLimiterChannelHandler.class);

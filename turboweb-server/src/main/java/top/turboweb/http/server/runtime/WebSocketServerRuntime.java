@@ -1,16 +1,17 @@
-package top.turboweb.http.server.application;
+package top.turboweb.http.server.runtime;
 
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.http.server.handler.WebSocketInitChannelHandler;
+import top.turboweb.server.runtime.ServerRuntime;
 import top.turboweb.websocket.handler.WebSocketHandler;
 
 import java.util.Objects;
 
 /**
- * websocket应用，服务器与业务装配逻辑之间的桥梁，参考 {@link HttpRequestApplication} 设计。
+ * websocket应用，服务器与业务装配逻辑之间的桥梁，参考 {@link HttpServerRuntime} 设计。
  * <p>
  * 对外只暴露 {@link #configure(ChannelPipeline)}：每条新连接建立时向pipeline尾部追加
  * websocket初始化处理器（无状态单例，跨连接复用；握手时由它动态追加协议处理器与
@@ -24,19 +25,19 @@ import java.util.Objects;
  * 装配期创建的可关闭资源不在本类中逐个持有，而是统一登记进本应用持有的
  * {@link ScopedResource} 资源作用域：初始化handler的销毁适配器（委托分发处理器释放消息处理线程池；
  * 工作窃取模式下关闭本应用私有的ForkJoinPool，默认的虚拟线程模式复用JVM全局共享池不做关闭）
- * 登记于此，关闭时由 {@link Application#close()} 统一释放，
+ * 登记于此，关闭时由本类 {@link #close()} 统一释放，
  * 服务器关闭时会统一触发，调用方也可对应用实例自行try-with-resources。
  *
  * <pre>{@code
- * WebSocketApplication application = new WebSocketApplication.Builder()
+ * WebSocketServerRuntime runtime = new WebSocketServerRuntime.Builder()
  *         .path("/ws/.*")
  *         .handler(myWebSocketHandler)
  *         .build();
  * }</pre>
  */
-public class WebSocketApplication implements Application {
+public class WebSocketServerRuntime implements ServerRuntime {
 
-    private static final InternalLogger log = InternalLoggerFactory.getInstance(WebSocketApplication.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(WebSocketServerRuntime.class);
 
     /**
      * websocket初始化handler，构建期装配好的无状态单例（{@code @Sharable}），
@@ -46,22 +47,29 @@ public class WebSocketApplication implements Application {
 
     /**
      * 应用的资源作用域：装配期由 {@link Builder#build()} 登记的初始化handler销毁适配器在此，
-     * 关闭时由 {@link Application#close()} 统一释放，本类无须持有个别资源的引用
+     * 关闭时由 {@link #close()} 统一释放，本类无须持有个别资源的引用
      */
     private final ScopedResource scopedResource;
 
-    public WebSocketApplication(WebSocketInitChannelHandler webSocketInitHandler, ScopedResource scopedResource) {
+    public WebSocketServerRuntime(WebSocketInitChannelHandler webSocketInitHandler, ScopedResource scopedResource) {
         this.webSocketInitHandler = Objects.requireNonNull(webSocketInitHandler, "The websocket init handler must not be null");
         this.scopedResource = Objects.requireNonNull(scopedResource, "The resource scope must not be null");
     }
 
     /**
-     * 获取本应用持有的资源作用域，关闭逻辑由 {@link Application#close()} 的默认实现
-     * 统一释放，本类无须自行编写
+     * 获取本应用持有的资源作用域：装配期登记的可关闭资源在此，关闭时由 {@link #close()} 统一释放
      */
-    @Override
     public ScopedResource getScopedResource() {
         return this.scopedResource;
+    }
+
+    /**
+     * 关闭应用：释放 {@link #getScopedResource()} 中登记的全部资源（初始化handler的销毁适配器），
+     * 重复调用为空操作；单个资源释放失败只记录日志，不中断其余释放
+     */
+    @Override
+    public void close() {
+        this.scopedResource.close();
     }
 
     /**
@@ -71,12 +79,12 @@ public class WebSocketApplication implements Application {
     @Override
     public void configure(ChannelPipeline pipeline) {
         pipeline.addLast(webSocketInitHandler);
-        log.debug("Websocket application handlers assembled for connection [{}]",
+        log.debug("Websocket runtime handlers assembled for connection [{}]",
                 pipeline.channel().id().asShortText());
     }
 
     /**
-     * {@link WebSocketApplication} 的建造者：持有应用装配所需的全部组件对象
+     * {@link WebSocketServerRuntime} 的建造者：持有应用装配所需的全部组件对象
      * （websocket路径表达式与业务处理器），纯参数配置（消息处理线程模型）为可选项，
      * 默认使用虚拟线程处理websocket消息，链式方法校验非法参数立即抛出
      * {@link IllegalArgumentException}。
@@ -136,8 +144,8 @@ public class WebSocketApplication implements Application {
          * {@link WebSocketInitChannelHandler} 单例（未设置线程数时使用虚拟线程），
          * 将其销毁适配器登记进新建的资源作用域后一并装配进应用实例
          */
-        public WebSocketApplication build() {
-            log.info("Assembling websocket application...");
+        public WebSocketServerRuntime build() {
+            log.info("Assembling websocket runtime...");
             if (websocketPath == null || websocketPath.isBlank()) {
                 throw new IllegalArgumentException("websocketPath can not be blank");
             }
@@ -156,10 +164,10 @@ public class WebSocketApplication implements Application {
             ScopedResource scopedResource = new ScopedResource();
             scopedResource.register(() -> {
                 webSocketInitHandler.destroy();
-                log.info("Websocket application closed");
+                log.info("Websocket runtime closed");
             });
-            log.info("Websocket application assembled, path pattern {}", websocketPath);
-            return new WebSocketApplication(webSocketInitHandler, scopedResource);
+            log.info("Websocket runtime assembled, path pattern {}", websocketPath);
+            return new WebSocketServerRuntime(webSocketInitHandler, scopedResource);
         }
 
     }

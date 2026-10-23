@@ -18,7 +18,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.server.config.ServerConfig;
 import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
-import top.turboweb.http.server.manager.ApplicationManager;
+import top.turboweb.http.server.manager.ServerRuntimeManager;
 
 import java.util.Objects;
 
@@ -26,7 +26,7 @@ import java.util.Objects;
  * 服务器连接管道装配器：作为 {@code ServerBootstrap} 的 childHandler，在每条新连接建立时被调用一次，
  * 按 限流 → ssl → 编解码（或http2协议协商）→ 应用 的固定顺序装配连接管道。
  * <p>
- * 本类只负责服务器级传输处理器的装配，应用处理器统一委托 {@link ApplicationManager#configure(ChannelPipeline)}
+ * 本类只负责服务器级传输处理器的装配，应用处理器统一委托 {@link ServerRuntimeManager#configure(ChannelPipeline)}
  * 在协议层就绪后追加，因此应用始终排在协议编解码之后；服务器级参数（限流上限、ssl上下文、聚合器最大内容长度、
  * http2设置）全部取自构造时传入的 {@link ServerConfig}。
  * <p>
@@ -36,11 +36,11 @@ import java.util.Objects;
  *     {@link top.turboweb.http.server.BootStrapWebServer} 启动时创建并传入，addFirst置于管道最前；</li>
  *     <li>ssl：ssl上下文可共享，{@link SslHandler} 每连接新建，未配置ssl上下文时不装配；</li>
  *     <li>编解码：未启用http2时每连接新建 {@link HttpServerCodec} 与 {@link HttpObjectAggregator}
- *     （聚合器最大内容长度取传入配置），随后委托应用管理器装配应用；启用http2时改装
+ *     （聚合器最大内容长度取传入配置），随后委托运行时管理器装配应用；启用http2时改装
  *     {@link ApplicationProtocolNegotiationHandler}：ALPN协商为h2时装配 {@link Http2FrameCodec} 与
  *     {@link Http2MultiplexHandler}，每条子流管道装好流编解码与聚合器后再装配应用；协商降级为http/1.1时
  *     回退装配http编解码与聚合器后装配应用；</li>
- *     <li>应用：委托 {@link ApplicationManager#configure(ChannelPipeline)} 按注册顺序追加到管道尾部。</li>
+ *     <li>应用：委托 {@link ServerRuntimeManager#configure(ChannelPipeline)} 按注册顺序追加到管道尾部。</li>
  * </ol>
  * 启用http2时应用不会直接追加在连接管道上（协商回调内才装配协议编解码，应用须排在其后），
  * 统一经由协商回调装配到协议层就绪的管道（连接管道或子流管道）。
@@ -50,7 +50,7 @@ import java.util.Objects;
  *
  * <pre>{@code
  * ConnectLimiterChannelHandler limiter = new ConnectLimiterChannelHandler(maxConnect, ioThreadNum, cpuNum);
- * bootstrap.childHandler(new ServerChannelInitializer(applicationManager, limiter, serverConfig));
+ * bootstrap.childHandler(new ServerChannelInitializer(serverRuntimeManager, limiter, serverConfig));
  * }</pre>
  */
 public final class ServerChannelInitializer extends ChannelInitializer<Channel> {
@@ -58,9 +58,9 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(ServerChannelInitializer.class);
 
     /**
-     * 应用管理器，协议层就绪后由它按注册顺序装配应用
+     * 运行时管理器，协议层就绪后由它按注册顺序装配应用
      */
-    private final ApplicationManager applicationManager;
+    private final ServerRuntimeManager serverRuntimeManager;
 
     /**
      * 服务器级连接限流器单例，由服务器启动时创建（跨连接复用，装配时addFirst置于管道最前）
@@ -75,19 +75,19 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
     /**
      * 构造装配器，三个依赖均不能为null
      *
-     * @param applicationManager 应用管理器
+     * @param serverRuntimeManager 运行时管理器
      * @param connectLimiter     服务器级连接限流器单例
      * @param serverConfig       服务器配置
      */
-    public ServerChannelInitializer(ApplicationManager applicationManager, ConnectLimiterChannelHandler connectLimiter, ServerConfig serverConfig) {
-        this.applicationManager = Objects.requireNonNull(applicationManager, "The application manager must not be null");
+    public ServerChannelInitializer(ServerRuntimeManager serverRuntimeManager, ConnectLimiterChannelHandler connectLimiter, ServerConfig serverConfig) {
+        this.serverRuntimeManager = Objects.requireNonNull(serverRuntimeManager, "The server runtime manager must not be null");
         this.connectLimiter = Objects.requireNonNull(connectLimiter, "The connection limiter must not be null");
         this.serverConfig = Objects.requireNonNull(serverConfig, "The ServerConfig must not be null");
     }
 
     /**
      * 装配新连接管道：限流置于最前，随后ssl，再按是否启用http2装协商处理器或直接装http/1.1编解码，
-     * 各协议分支末尾统一委托应用管理器追加应用
+     * 各协议分支末尾统一委托运行时管理器追加应用
      */
     @Override
     protected void initChannel(Channel ch) {
@@ -118,10 +118,10 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
                 }
             });
         } else {
-            // http/1.1：编解码每连接新建，聚合器最大内容长度取服务器配置，随后委托应用管理器装配应用
+            // http/1.1：编解码每连接新建，聚合器最大内容长度取服务器配置，随后委托运行时管理器装配应用
             configureHttp11(pipeline);
         }
-        log.debug("Base handlers and applications assembled for connection [{}] (http2: {})",
+        log.debug("Base handlers and runtimes assembled for connection [{}] (http2: {})",
                 pipeline.channel().id().asShortText(), serverConfig.isEnableHttp2());
     }
 
@@ -142,14 +142,14 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
                 // 子流双向编解码（服务端方向）与聚合器：聚合后子流管道收到的即为FullHttpRequest
                 streamPipeline.addLast(new Http2StreamFrameToHttpObjectCodec(true));
                 streamPipeline.addLast(new HttpObjectAggregator(serverConfig.getMaxContentLength()));
-                // 协议层就绪，委托应用管理器按注册顺序装配应用
-                applicationManager.configure(streamPipeline);
+                // 协议层就绪，委托运行时管理器按注册顺序装配应用
+                serverRuntimeManager.configure(streamPipeline);
             }
         }));
     }
 
     /**
-     * 装配http/1.1编解码（每连接新建）并随后委托应用管理器装配应用，
+     * 装配http/1.1编解码（每连接新建）并随后委托运行时管理器装配应用，
      * 同时用于未启用http2的连接管道与http2协商降级的回退装配，装配前按类型去重
      */
     private void configureHttp11(ChannelPipeline pipeline) {
@@ -157,6 +157,6 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
             pipeline.addLast(new HttpServerCodec());
             pipeline.addLast(new HttpObjectAggregator(serverConfig.getMaxContentLength()));
         }
-        applicationManager.configure(pipeline);
+        serverRuntimeManager.configure(pipeline);
     }
 }
