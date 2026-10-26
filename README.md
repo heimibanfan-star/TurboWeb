@@ -43,7 +43,7 @@ TurboWeb 全面基于 **虚拟线程** 执行请求处理，不再使用传统�
 
 **_长连接原生支持_**
 
-SSE 原生集成，无需第三方依赖即可构建推送类应用，底层生命周期由 Netty 驱动，性能轻盈又稳定。WebSocket 本轮重构暂未适配，不推荐使用。
+SSE 原生集成，无需第三方依赖即可构建推送类应用，底层生命周期由 Netty 驱动，性能轻盈又稳定。WebSocket 由独立的 `WebSocketServerRuntime` 接入，与 HTTP 应用共用同一条连接管道。
 
 **_注解路由与注解取参_**
 
@@ -76,7 +76,7 @@ TurboWeb 在进行文件下载时可以实现零拷贝传输而不阻塞 Netty �
 - 响应处理拆成结果转化与响应写出两段，各自开放注册入口；字符集补写与文件响应编码集中到转化出口。
 - 启动入口改为 `BootStrapWebServer` 与 `HttpRequestApplication`，旧的 `BootStrapTurboWebServer` 下线；服务器参数与应用参数分别由 `ServerConfig`、`HttpConfig` 承载。
 - 新增参数解析器、内容解析器、序列化器、结果转化器、响应写出器五类定制入口，写法见目录末尾的文档。
-- 静态资源处理中间件等旧组件已下线；HTTP 客户端与 WebSocket 本轮未纳入适配范围，暂不推荐使用。
+- 静态资源处理中间件等旧组件已下线；HTTP 客户端本轮未纳入适配范围，暂不推荐使用。WebSocket 已接入服务器运行时体系，装配入口为 `WebSocketServerRuntime`，用法见 [WebSocket](./docs/websocket.md)。
 
 ## 本版本特色
 
