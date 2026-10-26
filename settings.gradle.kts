@@ -7,7 +7,7 @@
 rootProject.name = "turboweb"
 include(":turboweb-websocket")
 include(":turboweb-common")
-//include(":turboweb-client")
+include(":turboweb-client")
 include(":turboweb-server")
 
 // turboweb-example暂不参与构建：其启动类全部基于已删除的turboweb-framework装配体系，
