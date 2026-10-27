@@ -9,7 +9,7 @@ import java.net.URISyntaxException;
  * 解析支持方括号 IPv6 字面量与 {@code host:port} 形态；Punycode
  * 名称在构造时转换为 Unicode 形式。相等性按小写主机名与端口判定。
  */
-final class Host implements NamedEndpoint {
+final class Host {
 
     private static final char SCOPE_ID_DELIMITER = '%';
     private static final char COLON_CHAR = ':';
@@ -44,7 +44,7 @@ final class Host implements NamedEndpoint {
         checkPortRange(port);
         this.name = isPunyCode(name) ? IDN.toUnicode(name) : name;
         this.port = port;
-        this.lcName = UriTextUtils.toLowerCase(this.name);
+        this.lcName = URITextUtil.toLowerCase(this.name);
     }
 
     /**
@@ -58,12 +58,12 @@ final class Host implements NamedEndpoint {
      * @return 主机值对象
      * @throws URISyntaxException 括号缺失、IPv6 非法或端口非法时抛出
      */
-    static Host parse(final CharSequence s, final UriTokenizer.Cursor cursor) throws URISyntaxException {
+    static Host parse(final CharSequence s, final URITokenizer.Cursor cursor) throws URISyntaxException {
         final String hostName;
         final boolean ipv6Brackets = !cursor.atEnd() && s.charAt(cursor.getPos()) == '[';
         if (ipv6Brackets) {
             cursor.updatePos(cursor.getPos() + 1);
-            hostName = UriTokenizer.parseContent(s, cursor, UriTokenizer.delimiters(']'));
+            hostName = URITokenizer.parseContent(s, cursor, URITokenizer.delimiters(']'));
             if (cursor.atEnd() || !(s.charAt(cursor.getPos()) == ']')) {
                 throw createException(s, cursor, "Expected an IPv6 closing bracket ']'");
             }
@@ -72,15 +72,15 @@ final class Host implements NamedEndpoint {
                 throw createException(s, cursor, "Expected an IPv6 address");
             }
         } else {
-            hostName = UriTokenizer.parseContent(s, cursor, UriTokenizer.delimiters('/', '#', '?', ':'));
+            hostName = URITokenizer.parseContent(s, cursor, URITokenizer.delimiters('/', '#', '?', ':'));
         }
         String portText = null;
         if (!cursor.atEnd() && s.charAt(cursor.getPos()) == ':') {
             cursor.updatePos(cursor.getPos() + 1);
-            portText = UriTokenizer.parseContent(s, cursor, UriTokenizer.delimiters('/', '#', '?'));
+            portText = URITokenizer.parseContent(s, cursor, URITokenizer.delimiters('/', '#', '?'));
         }
         final int port;
-        if (!UriTextUtils.isBlank(portText)) {
+        if (!URITextUtil.isBlank(portText)) {
             if (!ipv6Brackets && portText.contains(":")) {
                 throw createException(s, cursor, "Expected IPv6 address to be enclosed in brackets");
             }
@@ -96,26 +96,26 @@ final class Host implements NamedEndpoint {
     }
 
     /**
-     * 将端点格式化为主机形态：IPv6 补方括号，非 ASCII 主机转 Punycode，
+     * 将主机格式化为授权形态：IPv6 补方括号，非 ASCII 主机转 Punycode，
      * 端口非缺省时以冒号追加。
      *
-     * @param buf      目标缓冲
-     * @param endpoint 具名端点
+     * @param buf  目标缓冲
+     * @param host 主机值对象
      */
-    static void format(final StringBuilder buf, final NamedEndpoint endpoint) {
-        final String hostName = endpoint.getHostName();
+    static void format(final StringBuilder buf, final Host host) {
+        final String hostName = host.getHostName();
         if (isIPv6(hostName)) {
             buf.append('[').append(hostName).append(']');
         } else {
-            if (UriTextUtils.isAllASCII(hostName)) {
+            if (URITextUtil.isAllASCII(hostName)) {
                 buf.append(hostName);
             } else {
                 buf.append(IDN.toASCII(hostName));
             }
         }
-        if (endpoint.getPort() != -1) {
+        if (host.getPort() != -1) {
             buf.append(":");
-            buf.append(endpoint.getPort());
+            buf.append(host.getPort());
         }
     }
 
@@ -127,7 +127,7 @@ final class Host implements NamedEndpoint {
      * @throws URISyntaxException 括号缺失、IPv6 非法或端口非法时抛出
      */
     static Host parse(final CharSequence s) throws URISyntaxException {
-        return parse(s, new UriTokenizer.Cursor(0, s.length()));
+        return parse(s, new URITokenizer.Cursor(0, s.length()));
     }
 
     private static void checkPortRange(final int port) {
@@ -147,7 +147,7 @@ final class Host implements NamedEndpoint {
     }
 
     private static URISyntaxException createException(
-            final CharSequence input, final UriTokenizer.Cursor cursor, final String reason) {
+            final CharSequence input, final URITokenizer.Cursor cursor, final String reason) {
         return new URISyntaxException(
                 input.subSequence(cursor.getLowerBound(), cursor.getUpperBound()).toString(),
                 reason,
@@ -197,12 +197,10 @@ final class Host implements NamedEndpoint {
         return colonCount >= 2 && colonCount <= MAX_COLON_COUNT;
     }
 
-    @Override
     public String getHostName() {
         return this.name;
     }
 
-    @Override
     public int getPort() {
         return this.port;
     }

@@ -132,16 +132,16 @@ public class URIHelper {
         if (s == null) {
             return null;
         }
-        final UriTokenizer.Cursor cursor = new UriTokenizer.Cursor(0, s.length());
+        final URITokenizer.Cursor cursor = new URITokenizer.Cursor(0, s.length());
         final List<ParamPair> list = new ArrayList<>();
         while (!cursor.atEnd()) {
-            final String name = UriTokenizer.parseToken(s, cursor, UriTokenizer.delimiters(QUERY_PARAM_SEPARATOR, PARAM_VALUE_SEPARATOR));
+            final String name = URITokenizer.parseToken(s, cursor, URITokenizer.delimiters(QUERY_PARAM_SEPARATOR, PARAM_VALUE_SEPARATOR));
             String value = null;
             if (!cursor.atEnd()) {
                 final int delim = s.charAt(cursor.getPos());
                 cursor.updatePos(cursor.getPos() + 1);
                 if (delim == PARAM_VALUE_SEPARATOR) {
-                    value = UriTokenizer.parseToken(s, cursor, UriTokenizer.delimiters(QUERY_PARAM_SEPARATOR));
+                    value = URITokenizer.parseToken(s, cursor, URITokenizer.delimiters(QUERY_PARAM_SEPARATOR));
                     if (!cursor.atEnd()) {
                         cursor.updatePos(cursor.getPos() + 1);
                     }
@@ -167,7 +167,7 @@ public class URIHelper {
         if (s == null) {
             return Collections.emptyList();
         }
-        final UriTokenizer.Cursor cursor = new UriTokenizer.Cursor(0, s.length());
+        final URITokenizer.Cursor cursor = new URITokenizer.Cursor(0, s.length());
         // 跳过前导斜杠
         if (cursor.atEnd()) {
             return new ArrayList<>(0);
@@ -266,7 +266,7 @@ public class URIHelper {
      */
     public URI build() throws URISyntaxException {
         if (("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
-                && UriTextUtils.isBlank(host)) {
+                && URITextUtil.isBlank(host)) {
             throw new URISyntaxException(scheme, "http/https URI cannot have an empty host identifier");
         }
         return new URI(buildString());
@@ -299,7 +299,7 @@ public class URIHelper {
                 authoritySpecified = false;
             }
             if (this.encodedPath != null) {
-                if (authoritySpecified && !UriTextUtils.isEmpty(this.encodedPath) && !this.encodedPath.startsWith("/")) {
+                if (authoritySpecified && !URITextUtil.isEmpty(this.encodedPath) && !this.encodedPath.startsWith("/")) {
                     sb.append('/');
                 }
                 sb.append(this.encodedPath);
@@ -337,9 +337,9 @@ public class URIHelper {
         this.port = uri.getPort();
         if (this.encodedAuthority != null && this.host == null) {
             try {
-                final UriTokenizer.Cursor cursor = new UriTokenizer.Cursor(0, this.encodedAuthority.length());
-                UriTokenizer.parseContent(this.encodedAuthority, cursor,
-                        UriTokenizer.delimiters('/', '#', '?', '@'));
+                final URITokenizer.Cursor cursor = new URITokenizer.Cursor(0, this.encodedAuthority.length());
+                URITokenizer.parseContent(this.encodedAuthority, cursor,
+                        URITokenizer.delimiters('/', '#', '?', '@'));
                 if (!cursor.atEnd() && this.encodedAuthority.charAt(cursor.getPos()) == '@') {
                     // RFC 9110 下 HTTP URI 不含用户信息；输入残留用户信息时主机取 @ 之后
                     cursor.updatePos(cursor.getPos() + 1);
@@ -370,7 +370,7 @@ public class URIHelper {
      * @return 本实例
      */
     public URIHelper setScheme(final String scheme) {
-        this.scheme = !UriTextUtils.isBlank(scheme) ? scheme : null;
+        this.scheme = !URITextUtil.isBlank(scheme) ? scheme : null;
         return this;
     }
 
@@ -407,7 +407,7 @@ public class URIHelper {
      */
     public URIHelper setSchemeSpecificPart(final String schemeSpecificPart, final List<ParamPair> nvps) {
         this.encodedSchemeSpecificPart = null;
-        if (!UriTextUtils.isBlank(schemeSpecificPart)) {
+        if (!URITextUtil.isBlank(schemeSpecificPart)) {
             final StringBuilder sb = new StringBuilder(schemeSpecificPart);
             if (nvps != null && !nvps.isEmpty()) {
                 sb.append("?");
@@ -728,7 +728,7 @@ public class URIHelper {
      * @return 本实例
      */
     public URIHelper setCustomQuery(final String query) {
-        this.query = !UriTextUtils.isBlank(query) ? query : null;
+        this.query = !URITextUtil.isBlank(query) ? query : null;
         this.encodedQuery = null;
         this.encodedSchemeSpecificPart = null;
         this.queryParams = null;
@@ -742,7 +742,7 @@ public class URIHelper {
      * @return 本实例
      */
     public URIHelper setFragment(final String fragment) {
-        this.fragment = !UriTextUtils.isBlank(fragment) ? fragment : null;
+        this.fragment = !URITextUtil.isBlank(fragment) ? fragment : null;
         this.encodedFragment = null;
         return this;
     }
@@ -750,10 +750,10 @@ public class URIHelper {
     /**
      * 设置授权：替换主机与端口。
      *
-     * @param authority 具名端点
+     * @param authority 主机值对象
      * @return 本实例
      */
-    public URIHelper setAuthority(final NamedEndpoint authority) {
+    public URIHelper setAuthority(final Host authority) {
         setHost(authority.getHostName());
         setPort(authority.getPort());
         return this;
@@ -918,7 +918,7 @@ public class URIHelper {
     public URIHelper optimize() {
         final String scheme = this.scheme;
         if (scheme != null) {
-            this.scheme = UriTextUtils.toLowerCase(scheme);
+            this.scheme = URITextUtil.toLowerCase(scheme);
         }
 
         if (this.pathRootless) {
@@ -934,7 +934,7 @@ public class URIHelper {
 
         final String host = this.host;
         if (host != null) {
-            this.host = UriTextUtils.toLowerCase(host);
+            this.host = URITextUtil.toLowerCase(host);
         }
 
         if (this.pathSegments != null) {

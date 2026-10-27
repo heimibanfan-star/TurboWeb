@@ -227,7 +227,7 @@ class UriSupportTest {
     @DisplayName("Host.parse：异常输入以游标区间为输入串")
     void hostParseExceptionUsesCursorBounds() {
         URISyntaxException ex = assertThrows(URISyntaxException.class,
-                () -> Host.parse("xxh:abcyy", new UriTokenizer.Cursor(2, 9)));
+                () -> Host.parse("xxh:abcyy", new URITokenizer.Cursor(2, 9)));
 
         assertEquals("h:abcyy", ex.getInput());
     }
@@ -301,11 +301,11 @@ class UriSupportTest {
                 () -> assertFalse(URIHelper.isIPv6URLBracketed("::1")));
     }
 
-    // ---------- UriTextUtils ----------
+    // ---------- URITextUtil ----------
 
     @Test
     @DisplayName("toLowerCase：null 输入返回 null")
     void toLowerCaseNull() {
-        assertNull(UriTextUtils.toLowerCase(null));
+        assertNull(URITextUtil.toLowerCase(null));
     }
 }

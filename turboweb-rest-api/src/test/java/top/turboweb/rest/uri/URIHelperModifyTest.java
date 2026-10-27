@@ -601,10 +601,10 @@ class URIHelperModifyTest {
     // ---------- authority ----------
 
     @Test
-    @DisplayName("setAuthority(NamedEndpoint)：替换主机与端口")
-    void setAuthorityFromNamedEndpoint() throws URISyntaxException {
+    @DisplayName("setAuthority：替换主机与端口")
+    void setAuthorityFromHost() throws URISyntaxException {
         URIHelper helper = new URIHelper("http://old.example.com:1/p")
-                .setAuthority((NamedEndpoint) new Host("example.com", 80));
+                .setAuthority(new Host("example.com", 80));
 
         assertAll(
                 () -> assertEquals("example.com", helper.getHost()),
