@@ -6,14 +6,14 @@ package top.turboweb.rest.uri;
  * 词元提取语义：跳过前导空白，空白序列在输出中折叠为单个空格；
  * 空白为空格、水平制表、回车与换行四种字符。
  */
-final class UriTokenizer {
+final class URITokenizer {
 
     static final char CR = 13;
     static final char LF = 10;
     static final char SP = 32;
     static final char HT = 9;
 
-    private UriTokenizer() {
+    private URITokenizer() {
     }
 
     /**

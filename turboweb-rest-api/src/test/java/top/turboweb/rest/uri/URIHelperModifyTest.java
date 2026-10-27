@@ -598,19 +598,6 @@ class URIHelperModifyTest {
         assertEquals("x:ssp", helper.build().toString());
     }
 
-    // ---------- authority ----------
-
-    @Test
-    @DisplayName("setAuthority：替换主机与端口")
-    void setAuthorityFromHost() throws URISyntaxException {
-        URIHelper helper = new URIHelper("http://old.example.com:1/p")
-                .setAuthority(new Host("example.com", 80));
-
-        assertAll(
-                () -> assertEquals("example.com", helper.getHost()),
-                () -> assertEquals(80, helper.getPort()));
-    }
-
     // ---------- 状态查询 ----------
 
     @Test

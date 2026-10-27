@@ -5,9 +5,9 @@ import java.util.Locale;
 /**
  * URI 组件处理所需的字符序列判定与转换原语。
  */
-final class UriTextUtils {
+final class URITextUtil {
 
-    private UriTextUtils() {
+    private URITextUtil() {
     }
 
     /**

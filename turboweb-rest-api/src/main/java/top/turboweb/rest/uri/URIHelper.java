@@ -748,18 +748,6 @@ public class URIHelper {
     }
 
     /**
-     * 设置授权：替换主机与端口。
-     *
-     * @param authority 主机值对象
-     * @return 本实例
-     */
-    public URIHelper setAuthority(final Host authority) {
-        setHost(authority.getHostName());
-        setPort(authority.getPort());
-        return this;
-    }
-
-    /**
      * 设置组件编码字符集，影响后续组件的百分号编码与解码。
      *
      * @param charset 字符集
