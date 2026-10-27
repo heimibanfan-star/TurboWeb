@@ -1,6 +1,5 @@
 package top.turboweb.http.context;
 
-import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.session.HttpSession;
@@ -16,7 +15,7 @@ import java.nio.charset.Charset;
  * Cookie 管理、缺省编码与挂载对象。
  * 请求体内容经 {@link HttpRequestMessage#content()} 读取（读取契约见 {@link HttpContent}）；
  * 表单字段与上传文件、JSON 体字符串由内置解析器产出的具体内容类承载
- * （分别为 {@link HttpFormContent} 与 {@link HttpJsonContent}），读取侧认其具体类转型取数。
+ * （分别为 {@code HttpFormContent} 与 {@code HttpJsonContent}），读取侧认其具体类转型取数。
  * 本接口不单独暴露内容访问器，也不承担内容的关闭与释放——
  * 请求体资源由创建方（请求编排器）在请求结束时统一释放。
  * <br>
@@ -27,7 +26,7 @@ import java.nio.charset.Charset;
  * <ul>
  *   <li>职责单一：负责维护请求级上下文状态。</li>
  *   <li>框架无侵入：不限制用户在业务方法中的调用顺序。</li>
- *   <li>面向接口：唯一实现由 {@link FullHttpContext} 提供。</li>
+ *   <li>面向接口：调用方面向本接口编程，不感知具体实现。</li>
  *   <li>体侧边界：本接口只承载请求体数据的读取入口；查询参数与路径参数是 URI 与路由匹配的产物，
  *       由路由装配解码后随处理器调用传递（承载对象 {@code RequestParameter}），
  *       经参数绑定器按注解取数（{@code @QueryParam}/{@code @BeanQuery}/{@code @PathParam}），
@@ -54,8 +53,6 @@ import java.nio.charset.Charset;
  *
  * <p><b>线程安全性：</b> 本接口的实现类通常不是线程安全的，
  * 每个 HTTP 请求应独立持有上下文实例。</p>
- *
- * @see FullHttpContext
  */
 public interface HttpContext {
 
@@ -89,7 +86,7 @@ public interface HttpContext {
 	HttpCookies cookies();
 
 	/**
-	 * 获取装配期判定的缺省字符集（{@link top.turboweb.http.server.config.HttpConfig} 配置值），
+	 * 获取装配期判定的缺省字符集（{@code HttpConfig} 配置值），
 	 * 不关注请求头声明的编码。
 	 * <p>路径参数解码、响应文本编码、响应内容类型补码与 Cookie 值编码统一取本值；
 	 * 请求体解码另行按请求头 Content-Type 优先、缺省回落到本值判定。</p>

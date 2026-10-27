@@ -1,7 +1,5 @@
 package top.turboweb.http.context;
 
-import top.turboweb.http.context.attchment.Attachment;
-import top.turboweb.http.context.attchment.DefaultAttachment;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.session.HttpSession;
