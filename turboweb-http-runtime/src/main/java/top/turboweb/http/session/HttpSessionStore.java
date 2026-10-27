@@ -1,4 +1,4 @@
-package top.turboweb.http.core.session;
+package top.turboweb.http.session;
 
 /**
  * 会话存储操作的核心接口，定义了会话属性的增删改查及过期管理等基础操作。

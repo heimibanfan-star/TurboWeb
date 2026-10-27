@@ -27,7 +27,7 @@ import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
-import top.turboweb.http.core.session.SessionManager;
+import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
 import top.turboweb.rest.core.ContentType;
 import top.turboweb.rest.core.HttpContent;

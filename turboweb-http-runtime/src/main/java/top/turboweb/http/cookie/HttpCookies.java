@@ -1,4 +1,4 @@
-package top.turboweb.http.core.cookie;
+package top.turboweb.http.cookie;
 
 import java.nio.charset.Charset;
 import java.util.List;

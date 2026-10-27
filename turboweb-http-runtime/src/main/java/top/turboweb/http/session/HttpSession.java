@@ -1,4 +1,4 @@
-package top.turboweb.http.core.session;
+package top.turboweb.http.session;
 
 /**
  * HTTP会话的核心接口，继承{@link HttpSessionStore}并扩展了HTTP场景特有的功能。

@@ -177,7 +177,7 @@ HttpRequestApplication application = new HttpRequestApplication.Builder()
 把会话放到 Redis、数据库等外部存储时，实现 `SessionManager` 接口后用 `.sessionManager(...)` 替换：
 
 ```java
-import top.turboweb.http.core.session.SessionManager;
+import top.turboweb.http.session.SessionManager;
 
 import java.util.function.Function;
 

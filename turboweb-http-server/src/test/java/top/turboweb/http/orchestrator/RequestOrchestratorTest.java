@@ -27,7 +27,7 @@ import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.core.connect.InternalConnectSession;
 import top.turboweb.rest.core.ContentType;
 import top.turboweb.http.core.session.BackHoleSessionManager;
-import top.turboweb.http.core.session.SessionManager;
+import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.middleware.Middleware;

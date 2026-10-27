@@ -1,4 +1,6 @@
 package top.turboweb.http.core.session;
+import top.turboweb.http.session.HttpSession;
+import top.turboweb.http.session.SessionManager;
 
 import top.turboweb.http.exception.HttpSessionException;
 

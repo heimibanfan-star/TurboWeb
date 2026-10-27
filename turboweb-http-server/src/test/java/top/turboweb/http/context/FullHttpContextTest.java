@@ -10,7 +10,7 @@ import top.turboweb.http.core.connect.ConnectSession;
 import top.turboweb.rest.core.ContentType;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.core.session.DefaultHttpSession;
-import top.turboweb.http.core.session.HttpSession;
+import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.core.session.MemorySessionManager;
 import top.turboweb.http.testkit.Contexts;
 import top.turboweb.http.testkit.Requests;

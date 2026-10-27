@@ -1,4 +1,5 @@
 package top.turboweb.http.core.session;
+import top.turboweb.http.session.SessionManager;
 
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;

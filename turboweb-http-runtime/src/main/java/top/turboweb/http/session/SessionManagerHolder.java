@@ -1,4 +1,4 @@
-package top.turboweb.http.core.session;
+package top.turboweb.http.session;
 
 /**
  * 会话管理器持有者接口，定义会话管理器的访问入口。
