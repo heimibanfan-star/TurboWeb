@@ -14,7 +14,7 @@ include(":turboweb-server")
 // 待迁移到BootStrapWebServer + HttpServerRuntime之后再恢复include
 
 include("turboweb-struct")
-include("turboweb-rest-api")
+include("turboweb-rest-core")
 include("turboweb-concurrent")
 include("turboweb-serializer")
 include("turboweb-validation")

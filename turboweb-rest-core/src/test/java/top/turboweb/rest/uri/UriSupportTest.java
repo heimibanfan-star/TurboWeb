@@ -238,12 +238,12 @@ class UriSupportTest {
         assertEquals("bücher", new Host("XN--bcher-kva", -1).getHostName());
     }
 
-    // ---------- IPv6 判定（经 URIHelper 行为验证） ----------
+    // ---------- IPv6 判定（经 URIBuilder 行为验证） ----------
 
     @Test
     @DisplayName("带作用域 ID 的 IPv6 地址构建时补方括号")
     void scopedIpv6Host() throws URISyntaxException {
-        URIHelper helper = new URIHelper().setScheme("http").setHost("fe80::1%25eth0");
+        URIBuilder helper = new URIBuilder().setScheme("http").setHost("fe80::1%25eth0");
 
         assertEquals("http://[fe80::1%25eth0]", helper.build().toString());
     }
@@ -251,7 +251,7 @@ class UriSupportTest {
     @Test
     @DisplayName("空作用域 ID 不视为 IPv6，构建时整体编码")
     void emptyScopeIdNotIpv6() throws URISyntaxException {
-        URIHelper helper = new URIHelper().setScheme("http").setHost("fe80::1%");
+        URIBuilder helper = new URIBuilder().setScheme("http").setHost("fe80::1%");
 
         assertEquals("http://fe80%3A%3A1%25", helper.build().toString());
     }
@@ -259,7 +259,7 @@ class UriSupportTest {
     @Test
     @DisplayName("满 7 个冒号的标准形 IPv6 构建时补方括号")
     void fullFormIpv6Host() throws URISyntaxException {
-        URIHelper helper = new URIHelper().setScheme("http").setHost("1:2:3:4:5:6:7:8");
+        URIBuilder helper = new URIBuilder().setScheme("http").setHost("1:2:3:4:5:6:7:8");
 
         assertEquals("http://[1:2:3:4:5:6:7:8]", helper.build().toString());
     }
@@ -267,7 +267,7 @@ class UriSupportTest {
     @Test
     @DisplayName("带作用域 ID 的标准形 IPv6 构建时补方括号")
     void scopedStdFormIpv6Host() throws URISyntaxException {
-        URIHelper helper = new URIHelper().setScheme("http").setHost("1:2:3:4:5:6:7:8%eth0");
+        URIBuilder helper = new URIBuilder().setScheme("http").setHost("1:2:3:4:5:6:7:8%eth0");
 
         assertEquals("http://[1:2:3:4:5:6:7:8%eth0]", helper.build().toString());
     }
@@ -275,7 +275,7 @@ class UriSupportTest {
     @Test
     @DisplayName("作用域部分非法的地址不视为 IPv6，构建时整体编码")
     void invalidScopedAddressNotIpv6() throws URISyntaxException {
-        URIHelper helper = new URIHelper().setScheme("http").setHost("abc%eth0");
+        URIBuilder helper = new URIBuilder().setScheme("http").setHost("abc%eth0");
 
         assertEquals("http://abc%25eth0", helper.build().toString());
     }
@@ -283,22 +283,22 @@ class UriSupportTest {
     @Test
     @DisplayName("压缩形两侧字段合计超限时不视为 IPv6，构建时整体编码")
     void overlongCompressedIpv6Rejected() throws URISyntaxException {
-        URIHelper helper = new URIHelper().setScheme("http").setHost("1:2:3:4:5:6::7:8");
+        URIBuilder helper = new URIBuilder().setScheme("http").setHost("1:2:3:4:5:6::7:8");
 
         assertEquals("http://1%3A2%3A3%3A4%3A5%3A6%3A%3A7%3A8", helper.build().toString());
     }
 
-    // ---------- URIHelper 方括号 IPv6 判定 ----------
+    // ---------- URIBuilder 方括号 IPv6 判定 ----------
 
     @Test
     @DisplayName("isIPv6URLBracketed：方括号形态判定")
     void isIPv6URLBracketedForms() {
         assertAll(
-                () -> assertTrue(URIHelper.isIPv6URLBracketed("[::1]")),
-                () -> assertFalse(URIHelper.isIPv6URLBracketed("")),
-                () -> assertFalse(URIHelper.isIPv6URLBracketed("[abc]")),
-                () -> assertFalse(URIHelper.isIPv6URLBracketed("[::1")),
-                () -> assertFalse(URIHelper.isIPv6URLBracketed("::1")));
+                () -> assertTrue(URIBuilder.isIPv6URLBracketed("[::1]")),
+                () -> assertFalse(URIBuilder.isIPv6URLBracketed("")),
+                () -> assertFalse(URIBuilder.isIPv6URLBracketed("[abc]")),
+                () -> assertFalse(URIBuilder.isIPv6URLBracketed("[::1")),
+                () -> assertFalse(URIBuilder.isIPv6URLBracketed("::1")));
     }
 
     // ---------- URITextUtil ----------

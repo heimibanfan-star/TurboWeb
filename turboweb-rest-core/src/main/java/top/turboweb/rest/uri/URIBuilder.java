@@ -30,7 +30,7 @@ import java.util.List;
  * 构建时 http 与 https 协议要求主机名非空，否则抛出
  * {@link URISyntaxException}。
  */
-public class URIHelper {
+public class URIBuilder {
 
     private static final char QUERY_PARAM_SEPARATOR = '&';
     private static final char PARAM_VALUE_SEPARATOR = '=';
@@ -54,7 +54,7 @@ public class URIHelper {
     /**
      * 构造空实例。
      */
-    public URIHelper() {
+    public URIBuilder() {
         super();
         this.port = -1;
     }
@@ -65,7 +65,7 @@ public class URIHelper {
      * @param uriString 合法的 URI 字符串
      * @throws URISyntaxException 输入不是合法 URI 时抛出
      */
-    public URIHelper(final String uriString) throws URISyntaxException {
+    public URIBuilder(final String uriString) throws URISyntaxException {
         this(new URI(uriString), StandardCharsets.UTF_8);
     }
 
@@ -74,7 +74,7 @@ public class URIHelper {
      *
      * @param uri URI 对象
      */
-    public URIHelper(final URI uri) {
+    public URIBuilder(final URI uri) {
         this(uri, StandardCharsets.UTF_8);
     }
 
@@ -85,7 +85,7 @@ public class URIHelper {
      * @param charset   组件解码字符集
      * @throws URISyntaxException 输入不是合法 URI 时抛出
      */
-    public URIHelper(final String uriString, final Charset charset) throws URISyntaxException {
+    public URIBuilder(final String uriString, final Charset charset) throws URISyntaxException {
         this(new URI(uriString), charset);
     }
 
@@ -95,7 +95,7 @@ public class URIHelper {
      * @param uri     URI 对象
      * @param charset 组件解码字符集
      */
-    public URIHelper(final URI uri, final Charset charset) {
+    public URIBuilder(final URI uri, final Charset charset) {
         super();
         digestURI(uri, charset);
     }
@@ -106,8 +106,8 @@ public class URIHelper {
      * @return 新实例
      * @throws UnknownHostException 本机主机名无法解析时抛出
      */
-    public static URIHelper localhost() throws UnknownHostException {
-        return new URIHelper().setHost(InetAddress.getLocalHost());
+    public static URIBuilder localhost() throws UnknownHostException {
+        return new URIBuilder().setHost(InetAddress.getLocalHost());
     }
 
     /**
@@ -115,8 +115,8 @@ public class URIHelper {
      *
      * @return 新实例
      */
-    public static URIHelper loopbackAddress() {
-        return new URIHelper().setHost(InetAddress.getLoopbackAddress());
+    public static URIBuilder loopbackAddress() {
+        return new URIBuilder().setHost(InetAddress.getLoopbackAddress());
     }
 
     /**
@@ -369,7 +369,7 @@ public class URIHelper {
      * @param scheme 协议名
      * @return 本实例
      */
-    public URIHelper setScheme(final String scheme) {
+    public URIBuilder setScheme(final String scheme) {
         this.scheme = !URITextUtil.isBlank(scheme) ? scheme : null;
         return this;
     }
@@ -381,7 +381,7 @@ public class URIHelper {
      * @param schemeSpecificPart 固定部分编码原样
      * @return 本实例
      */
-    public URIHelper setSchemeSpecificPart(final String schemeSpecificPart) {
+    public URIBuilder setSchemeSpecificPart(final String schemeSpecificPart) {
         this.encodedSchemeSpecificPart = schemeSpecificPart;
         return this;
     }
@@ -393,7 +393,7 @@ public class URIHelper {
      * @param nvps               查询参数，可为 {@code null}
      * @return 本实例
      */
-    public URIHelper setSchemeSpecificPart(final String schemeSpecificPart, final ParamPair... nvps) {
+    public URIBuilder setSchemeSpecificPart(final String schemeSpecificPart, final ParamPair... nvps) {
         return setSchemeSpecificPart(schemeSpecificPart, nvps != null ? Arrays.asList(nvps) : null);
     }
 
@@ -405,7 +405,7 @@ public class URIHelper {
      * @param nvps               查询参数，可为 {@code null}
      * @return 本实例
      */
-    public URIHelper setSchemeSpecificPart(final String schemeSpecificPart, final List<ParamPair> nvps) {
+    public URIBuilder setSchemeSpecificPart(final String schemeSpecificPart, final List<ParamPair> nvps) {
         this.encodedSchemeSpecificPart = null;
         if (!URITextUtil.isBlank(schemeSpecificPart)) {
             final StringBuilder sb = new StringBuilder(schemeSpecificPart);
@@ -425,7 +425,7 @@ public class URIHelper {
      * @param host 主机地址对象
      * @return 本实例
      */
-    public URIHelper setHost(final InetAddress host) {
+    public URIBuilder setHost(final InetAddress host) {
         this.host = host != null ? host.getHostAddress() : null;
         this.encodedSchemeSpecificPart = null;
         this.encodedAuthority = null;
@@ -438,7 +438,7 @@ public class URIHelper {
      * @param host 主机名
      * @return 本实例
      */
-    public URIHelper setHost(final String host) {
+    public URIBuilder setHost(final String host) {
         this.host = host;
         this.encodedSchemeSpecificPart = null;
         this.encodedAuthority = null;
@@ -451,7 +451,7 @@ public class URIHelper {
      * @param port 端口
      * @return 本实例
      */
-    public URIHelper setPort(final int port) {
+    public URIBuilder setPort(final int port) {
         this.port = port < 0 ? -1 : port;
         this.encodedSchemeSpecificPart = null;
         this.encodedAuthority = null;
@@ -465,7 +465,7 @@ public class URIHelper {
      * @param path 路径
      * @return 本实例
      */
-    public URIHelper setPath(final String path) {
+    public URIBuilder setPath(final String path) {
         setPathSegments(path != null ? splitPath(path) : null);
         this.pathRootless = path != null && !path.startsWith("/");
         return this;
@@ -477,7 +477,7 @@ public class URIHelper {
      * @param path 路径
      * @return 本实例
      */
-    public URIHelper appendPath(final String path) {
+    public URIBuilder appendPath(final String path) {
         if (path != null) {
             appendPathSegments(splitPath(path));
         }
@@ -490,7 +490,7 @@ public class URIHelper {
      * @param pathSegments 路径段
      * @return 本实例
      */
-    public URIHelper setPathSegments(final String... pathSegments) {
+    public URIBuilder setPathSegments(final String... pathSegments) {
         return setPathSegments(Arrays.asList(pathSegments));
     }
 
@@ -500,7 +500,7 @@ public class URIHelper {
      * @param pathSegments 路径段
      * @return 本实例
      */
-    public URIHelper appendPathSegments(final String... pathSegments) {
+    public URIBuilder appendPathSegments(final String... pathSegments) {
         return appendPathSegments(Arrays.asList(pathSegments));
     }
 
@@ -510,7 +510,7 @@ public class URIHelper {
      * @param pathSegments 路径段
      * @return 本实例
      */
-    public URIHelper setPathSegmentsRootless(final String... pathSegments) {
+    public URIBuilder setPathSegmentsRootless(final String... pathSegments) {
         return setPathSegmentsRootless(Arrays.asList(pathSegments));
     }
 
@@ -521,7 +521,7 @@ public class URIHelper {
      * @param pathSegments 路径段列表
      * @return 本实例
      */
-    public URIHelper setPathSegments(final List<String> pathSegments) {
+    public URIBuilder setPathSegments(final List<String> pathSegments) {
         this.pathSegments = pathSegments != null && !pathSegments.isEmpty() ? new ArrayList<>(pathSegments) : null;
         this.encodedSchemeSpecificPart = null;
         this.encodedPath = null;
@@ -535,7 +535,7 @@ public class URIHelper {
      * @param pathSegments 路径段列表
      * @return 本实例
      */
-    public URIHelper appendPathSegments(final List<String> pathSegments) {
+    public URIBuilder appendPathSegments(final List<String> pathSegments) {
         if (pathSegments != null && !pathSegments.isEmpty()) {
             if (this.pathSegments == null) {
                 this.pathSegments = new ArrayList<>();
@@ -554,7 +554,7 @@ public class URIHelper {
      * @param pathSegments 路径段列表
      * @return 本实例
      */
-    public URIHelper setPathSegmentsRootless(final List<String> pathSegments) {
+    public URIBuilder setPathSegmentsRootless(final List<String> pathSegments) {
         this.pathSegments = pathSegments != null && !pathSegments.isEmpty() ? new ArrayList<>(pathSegments) : null;
         this.encodedSchemeSpecificPart = null;
         this.encodedPath = null;
@@ -567,7 +567,7 @@ public class URIHelper {
      *
      * @return 本实例
      */
-    public URIHelper removeQuery() {
+    public URIBuilder removeQuery() {
         this.queryParams = null;
         this.query = null;
         this.encodedQuery = null;
@@ -581,7 +581,7 @@ public class URIHelper {
      * @param nameValuePairs 名值对列表，可为 {@code null}（清空）
      * @return 本实例
      */
-    public URIHelper setParameters(final List<ParamPair> nameValuePairs) {
+    public URIBuilder setParameters(final List<ParamPair> nameValuePairs) {
         if (this.queryParams == null) {
             this.queryParams = new ArrayList<>();
         } else {
@@ -602,7 +602,7 @@ public class URIHelper {
      * @param nameValuePairs 名值对列表，可为 {@code null}
      * @return 本实例
      */
-    public URIHelper addParameters(final List<ParamPair> nameValuePairs) {
+    public URIBuilder addParameters(final List<ParamPair> nameValuePairs) {
         if (this.queryParams == null) {
             this.queryParams = new ArrayList<>();
         }
@@ -621,7 +621,7 @@ public class URIHelper {
      * @param nameValuePairs 名值对，可为 {@code null}（清空）
      * @return 本实例
      */
-    public URIHelper setParameters(final ParamPair... nameValuePairs) {
+    public URIBuilder setParameters(final ParamPair... nameValuePairs) {
         if (this.queryParams == null) {
             this.queryParams = new ArrayList<>();
         } else {
@@ -643,7 +643,7 @@ public class URIHelper {
      * @param value 参数值，可为 {@code null}
      * @return 本实例
      */
-    public URIHelper addParameter(final String param, final String value) {
+    public URIBuilder addParameter(final String param, final String value) {
         return addParameter(new ParamPair(param, value));
     }
 
@@ -653,7 +653,7 @@ public class URIHelper {
      * @param nameValuePair 名值对
      * @return 本实例
      */
-    public URIHelper addParameter(final ParamPair nameValuePair) {
+    public URIBuilder addParameter(final ParamPair nameValuePair) {
         if (this.queryParams == null) {
             this.queryParams = new ArrayList<>();
         }
@@ -673,7 +673,7 @@ public class URIHelper {
      * @return 本实例
      * @throws NullPointerException 参数名称为 {@code null} 时抛出
      */
-    public URIHelper removeParameter(final String param) {
+    public URIBuilder removeParameter(final String param) {
         if (param == null) {
             throw new NullPointerException("param is null");
         }
@@ -694,7 +694,7 @@ public class URIHelper {
      * @param value 参数值，可为 {@code null}
      * @return 本实例
      */
-    public URIHelper setParameter(final String param, final String value) {
+    public URIBuilder setParameter(final String param, final String value) {
         if (this.queryParams == null) {
             this.queryParams = new ArrayList<>();
         }
@@ -713,7 +713,7 @@ public class URIHelper {
      *
      * @return 本实例
      */
-    public URIHelper clearParameters() {
+    public URIBuilder clearParameters() {
         this.queryParams = null;
         this.encodedQuery = null;
         this.encodedSchemeSpecificPart = null;
@@ -727,7 +727,7 @@ public class URIHelper {
      * @param query 自定义查询
      * @return 本实例
      */
-    public URIHelper setCustomQuery(final String query) {
+    public URIBuilder setCustomQuery(final String query) {
         this.query = !URITextUtil.isBlank(query) ? query : null;
         this.encodedQuery = null;
         this.encodedSchemeSpecificPart = null;
@@ -741,7 +741,7 @@ public class URIHelper {
      * @param fragment 片段
      * @return 本实例
      */
-    public URIHelper setFragment(final String fragment) {
+    public URIBuilder setFragment(final String fragment) {
         this.fragment = !URITextUtil.isBlank(fragment) ? fragment : null;
         this.encodedFragment = null;
         return this;
@@ -753,7 +753,7 @@ public class URIHelper {
      * @param charset 字符集
      * @return 本实例
      */
-    public URIHelper setCharset(final Charset charset) {
+    public URIBuilder setCharset(final Charset charset) {
         this.charset = charset;
         return this;
     }
@@ -903,7 +903,7 @@ public class URIHelper {
      *
      * @return 本实例
      */
-    public URIHelper optimize() {
+    public URIBuilder optimize() {
         final String scheme = this.scheme;
         if (scheme != null) {
             this.scheme = URITextUtil.toLowerCase(scheme);
@@ -962,7 +962,7 @@ public class URIHelper {
      * @deprecated 语义上与 {@link #optimize()} 相同，后者命名更准确
      */
     @Deprecated
-    public URIHelper normalizeSyntax() {
+    public URIBuilder normalizeSyntax() {
         return optimize();
     }
 

@@ -14,7 +14,7 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-description = "turboweb-rest-api"
+description = "turboweb-rest-core"
 
 // PITest 按先例在各自构建脚本自启（根脚本只对 commons 与 http-server 集中授予）：
 // 变异作用域为模块全部主码类；变异门槛暂不钉线，先跑基线
