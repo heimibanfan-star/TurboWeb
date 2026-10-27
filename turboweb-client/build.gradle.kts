@@ -9,11 +9,12 @@ dependencies {
     api(project(":turboweb-common"))
     // JsonConverter 构造参数即 JsonSerializer 接口（默认实现 JacksonJsonSerializer），由 turboweb-serializer 提供，用 api 暴露
     api(project(":turboweb-serializer"))
-    // HttpClientEngine 直接使用 reactor-netty（连带供给 netty 与 reactor-core），编解码消息使用 httpcore5
+    // 请求体与响应体的 ContentType 解析、URL 参数拼接由 turboweb-rest-core 提供
+    api(project(":turboweb-rest-core"))
+    // HttpClientEngine 直接使用 reactor-netty（连带供给 netty 与 reactor-core）
     // netty-bom 以强制约束模式导入：BOM 版本在冲突裁决中优先，传递侧 netty 一律锁定本仓统一版本
     api(enforcedPlatform(libs.netty.bom))
     api(libs.reactor.netty)
-    api(libs.httpcore5)
 }
 
 description = "turboweb-client"

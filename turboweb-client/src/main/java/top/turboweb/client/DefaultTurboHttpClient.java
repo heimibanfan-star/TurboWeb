@@ -3,8 +3,6 @@ package top.turboweb.client;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.*;
-import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.net.URIBuilder;
 import top.turboweb.client.converter.Converter;
 import top.turboweb.client.converter.JsonConverter;
 import top.turboweb.client.engine.HttpClientEngine;
@@ -13,6 +11,8 @@ import top.turboweb.client.interceptor.ResponseInterceptor;
 import top.turboweb.client.result.ClientResult;
 import top.turboweb.client.result.Stream;
 import top.turboweb.common.exception.TurboHttpClientException;
+import top.turboweb.rest.core.ContentType;
+import top.turboweb.rest.uri.URIBuilder;
 
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;

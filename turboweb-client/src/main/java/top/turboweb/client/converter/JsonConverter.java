@@ -5,8 +5,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
-import org.apache.hc.core5.http.ContentType;
 import top.turboweb.common.exception.TurboHttpClientException;
+import top.turboweb.rest.core.ContentType;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 

@@ -4,7 +4,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -110,5 +112,104 @@ class ContentTypeTest {
     void defaultAliasesReferToSameInstances() {
         assertSame(ContentType.TEXT_PLAIN, ContentType.DEFAULT_TEXT);
         assertSame(ContentType.APPLICATION_OCTET_STREAM, ContentType.DEFAULT_BINARY);
+    }
+
+    // ---------- parse：Content-Type 头部取值解析 ----------
+
+    @Test
+    void parseExtractsMimeAndCharset() {
+        ContentType ct = ContentType.parse("application/json; charset=utf-8");
+        assertEquals("application/json", ct.getMimeType());
+        assertEquals(StandardCharsets.UTF_8, ct.getCharset());
+    }
+
+    @Test
+    void parseWithoutCharsetYieldsNullCharset() {
+        ContentType ct = ContentType.parse("application/json");
+        assertEquals("application/json", ct.getMimeType());
+        assertNull(ct.getCharset());
+    }
+
+    @Test
+    void parsePreservesMimeCaseAndIgnoresParamNameCase() {
+        ContentType ct = ContentType.parse("APPLICATION/JSON; CHARSET=UTF-8");
+        assertEquals("APPLICATION/JSON", ct.getMimeType());
+        assertEquals(StandardCharsets.UTF_8, ct.getCharset());
+    }
+
+    @Test
+    void parseCanonicalizesCharsetName() {
+        assertEquals(StandardCharsets.ISO_8859_1,
+                ContentType.parse("application/json;charset=iso-8859-1").getCharset());
+    }
+
+    @Test
+    void parseTrimsMimeAndCharsetValue() {
+        ContentType ct = ContentType.parse("text/plain ; charset=UTF-8 ");
+        assertEquals("text/plain", ct.getMimeType());
+        assertEquals(StandardCharsets.UTF_8, ct.getCharset());
+    }
+
+    @Test
+    void parseKeepsMimeInnerCharacters() {
+        assertEquals("text plain", ContentType.parse("text plain").getMimeType());
+    }
+
+    @Test
+    void parseUnquotesCharsetValue() {
+        assertEquals(StandardCharsets.UTF_8,
+                ContentType.parse("application/json; charset=\"utf-8\"").getCharset());
+    }
+
+    @Test
+    void parseKeepsQuotedSeparatorsOutOfSplitting() {
+        // 引号内的分号不参与参数分隔，取值整体进入字符集名称解析
+        assertThrows(IllegalCharsetNameException.class,
+                () -> ContentType.parse("application/json; charset=\"a;b\""));
+    }
+
+    @Test
+    void parseIgnoresNonCharsetParams() {
+        ContentType ct = ContentType.parse("application/json;charset=UTF-8;boundary=x");
+        assertEquals("application/json", ct.getMimeType());
+        assertEquals(StandardCharsets.UTF_8, ct.getCharset());
+        assertNull(ContentType.parse("application/json; boundary=x").getCharset());
+    }
+
+    @Test
+    void parseBlankCharsetValueYieldsNullCharset() {
+        assertNull(ContentType.parse("application/json; charset=").getCharset());
+    }
+
+    @Test
+    void parseTrailingSemicolonYieldsNullCharset() {
+        assertNull(ContentType.parse("application/json;").getCharset());
+    }
+
+    @Test
+    void parseFirstCharsetParamWins() {
+        assertEquals(StandardCharsets.UTF_8,
+                ContentType.parse("application/json;charset=utf-8; charset=GBK").getCharset());
+    }
+
+    @Test
+    void parseOnlyFirstCommaSeparatedElement() {
+        ContentType ct = ContentType.parse("a/b, c/d; charset=utf-8");
+        assertEquals("a/b", ct.getMimeType());
+        assertNull(ct.getCharset());
+    }
+
+    @Test
+    void parseBlankOrNullInputReturnsNull() {
+        assertNull(ContentType.parse(null));
+        assertNull(ContentType.parse(""));
+        assertNull(ContentType.parse("   "));
+        assertNull(ContentType.parse(";"));
+    }
+
+    @Test
+    void parseRejectsUnsupportedCharset() {
+        assertThrows(UnsupportedCharsetException.class,
+                () -> ContentType.parse("application/json; charset=not-a-charset"));
     }
 }
