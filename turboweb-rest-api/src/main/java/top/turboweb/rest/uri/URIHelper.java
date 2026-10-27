@@ -39,8 +39,6 @@ public class URIHelper {
     private String scheme;
     private String encodedSchemeSpecificPart;
     private String encodedAuthority;
-    private String userInfo;
-    private String encodedUserInfo;
     private String host;
     private int port;
     private String encodedPath;
@@ -288,19 +286,6 @@ public class URIHelper {
                 authoritySpecified = true;
             } else if (this.host != null) {
                 sb.append("//");
-                if (this.encodedUserInfo != null) {
-                    sb.append(this.encodedUserInfo).append("@");
-                } else if (this.userInfo != null) {
-                    final int idx = this.userInfo.indexOf(':');
-                    if (idx != -1) {
-                        PercentCodec.encode(sb, this.userInfo.substring(0, idx), this.charset);
-                        sb.append(':');
-                        PercentCodec.encode(sb, this.userInfo.substring(idx + 1), this.charset);
-                    } else {
-                        PercentCodec.encode(sb, this.userInfo, this.charset);
-                    }
-                    sb.append("@");
-                }
                 if (isIPv6(this.host)) {
                     sb.append("[").append(this.host).append("]");
                 } else {
@@ -350,16 +335,20 @@ public class URIHelper {
                 ? uriHost.substring(1, uriHost.length() - 1)
                 : uriHost;
         this.port = uri.getPort();
-        this.encodedUserInfo = uri.getRawUserInfo();
-        this.userInfo = uri.getUserInfo();
         if (this.encodedAuthority != null && this.host == null) {
             try {
-                final URIAuthority uriAuthority = URIAuthority.parse(this.encodedAuthority,
-                        new UriTokenizer.Cursor(0, this.encodedAuthority.length()));
-                this.encodedUserInfo = uriAuthority.getUserInfo();
-                this.userInfo = PercentCodec.decode(uriAuthority.getUserInfo(), charset);
-                this.host = PercentCodec.decode(uriAuthority.getHostName(), charset);
-                this.port = uriAuthority.getPort();
+                final UriTokenizer.Cursor cursor = new UriTokenizer.Cursor(0, this.encodedAuthority.length());
+                UriTokenizer.parseContent(this.encodedAuthority, cursor,
+                        UriTokenizer.delimiters('/', '#', '?', '@'));
+                if (!cursor.atEnd() && this.encodedAuthority.charAt(cursor.getPos()) == '@') {
+                    // RFC 9110 下 HTTP URI 不含用户信息；输入残留用户信息时主机取 @ 之后
+                    cursor.updatePos(cursor.getPos() + 1);
+                } else {
+                    cursor.updatePos(0);
+                }
+                final Host parsedHost = Host.parse(this.encodedAuthority, cursor);
+                this.host = PercentCodec.decode(parsedHost.getHostName(), charset);
+                this.port = parsedHost.getPort();
             } catch (final URISyntaxException ignore) {
                 // 主机回退解析失败时保留 URI 原样输出能力
             }
@@ -427,34 +416,6 @@ public class URIHelper {
             this.encodedSchemeSpecificPart = sb.toString();
         }
         return this;
-    }
-
-    /**
-     * 设置用户信息。值应为未编码形态，可含非 ASCII 字符；
-     * 构建时用户名与口令分别编码，冒号保留。空白值视为清除。
-     *
-     * @param userInfo 用户信息
-     * @return 本实例
-     */
-    public URIHelper setUserInfo(final String userInfo) {
-        this.userInfo = !UriTextUtils.isBlank(userInfo) ? userInfo : null;
-        this.encodedSchemeSpecificPart = null;
-        this.encodedAuthority = null;
-        this.encodedUserInfo = null;
-        return this;
-    }
-
-    /**
-     * 以用户名与口令组合设置用户信息（以冒号连接）。
-     *
-     * @param username 用户名
-     * @param password 口令
-     * @return 本实例
-     * @deprecated URI 中明文口令已被强烈建议弃用
-     */
-    @Deprecated
-    public URIHelper setUserInfo(final String username, final String password) {
-        return setUserInfo(username + ':' + password);
     }
 
     /**
@@ -787,26 +748,12 @@ public class URIHelper {
     }
 
     /**
-     * 设置授权：整体替换用户信息、主机与端口。
-     *
-     * @param authority 授权值对象
-     * @return 本实例
-     */
-    public URIHelper setAuthority(final URIAuthority authority) {
-        setUserInfo(authority.getUserInfo());
-        setHost(authority.getHostName());
-        setPort(authority.getPort());
-        return this;
-    }
-
-    /**
-     * 设置授权：仅替换主机与端口，用户信息清空。
+     * 设置授权：替换主机与端口。
      *
      * @param authority 具名端点
      * @return 本实例
      */
     public URIHelper setAuthority(final NamedEndpoint authority) {
-        setUserInfo(null);
         setHost(authority.getHostName());
         setPort(authority.getPort());
         return this;
@@ -821,16 +768,6 @@ public class URIHelper {
     public URIHelper setCharset(final Charset charset) {
         this.charset = charset;
         return this;
-    }
-
-    /**
-     * 获取授权组件（用户信息、主机、端口）。
-     *
-     * @return 授权值对象
-     * @throws NullPointerException 主机未设置时抛出
-     */
-    public URIAuthority getAuthority() {
-        return new URIAuthority(getUserInfo(), getHost(), getPort());
     }
 
     /**
@@ -876,15 +813,6 @@ public class URIHelper {
      */
     public String getSchemeSpecificPart() {
         return this.encodedSchemeSpecificPart;
-    }
-
-    /**
-     * 获取用户信息。
-     *
-     * @return 用户信息；未设置时为 {@code null}
-     */
-    public String getUserInfo() {
-        return this.userInfo;
     }
 
     /**
@@ -1000,7 +928,6 @@ public class URIHelper {
         // 令各组件编码原样失效，构建时重新编码
         this.encodedSchemeSpecificPart = null;
         this.encodedAuthority = null;
-        this.encodedUserInfo = null;
         this.encodedPath = null;
         this.encodedQuery = null;
         this.encodedFragment = null;

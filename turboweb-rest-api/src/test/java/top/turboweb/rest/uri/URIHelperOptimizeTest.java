@@ -106,13 +106,13 @@ class URIHelperOptimizeTest {
     }
 
     @Test
-    @DisplayName("优化后组件编码重算：用户信息与片段重新编码")
-    void reencodesUserInfoAndFragmentAfterOptimize() throws URISyntaxException {
+    @DisplayName("优化后组件编码重算：片段重新编码，输入残留的用户信息被丢弃")
+    void reencodesFragmentAndDropsUserInfoAfterOptimize() throws URISyntaxException {
         URIHelper helper = new URIHelper("http://u%20ser@h/p#f%20g");
 
         helper.optimize();
 
-        assertEquals("http://u%20ser@h/p#f%20g", helper.build().toString());
+        assertEquals("http://h/p#f%20g", helper.build().toString());
     }
 
     @Test

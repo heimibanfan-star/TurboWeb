@@ -37,7 +37,6 @@ class URIHelperConstructTest {
 
         assertAll(
                 () -> assertEquals("https", helper.getScheme()),
-                () -> assertEquals("user:pass", helper.getUserInfo()),
                 () -> assertEquals("www.example.com", helper.getHost()),
                 () -> assertEquals(8080, helper.getPort()),
                 () -> assertEquals(List.of("path", "a b"), helper.getPathSegments()),
@@ -90,8 +89,7 @@ class URIHelperConstructTest {
         assertAll(
                 () -> assertEquals("2001:db8::1", helper.getHost()),
                 () -> assertEquals(8443, helper.getPort()),
-                () -> assertEquals("http://[2001:db8::1]:8443/idx", helper.toString()),
-                () -> assertEquals("2001:db8::1", helper.getAuthority().getHostName()));
+                () -> assertEquals("http://[2001:db8::1]:8443/idx", helper.toString()));
     }
 
     @Test
@@ -102,7 +100,6 @@ class URIHelperConstructTest {
         assertAll(
                 () -> assertEquals("mailto", helper.getScheme()),
                 () -> assertNull(helper.getHost()),
-                () -> assertNull(helper.getUserInfo()),
                 () -> assertEquals("a@b.com", helper.getSchemeSpecificPart()),
                 () -> assertTrue(helper.getPathSegments().isEmpty()),
                 () -> assertTrue(helper.getQueryParams().isEmpty()),
@@ -120,7 +117,6 @@ class URIHelperConstructTest {
 
         assertAll(
                 () -> assertNull(helper.getScheme()),
-                () -> assertNull(helper.getUserInfo()),
                 () -> assertNull(helper.getHost()),
                 () -> assertEquals(-1, helper.getPort()),
                 () -> assertTrue(helper.getPathSegments().isEmpty()),
@@ -155,12 +151,11 @@ class URIHelperConstructTest {
     }
 
     @Test
-    @DisplayName("主机含百分号编码时回退解析授权：解码主机与用户信息")
+    @DisplayName("主机含百分号编码时回退解析授权：解码主机，用户信息被丢弃")
     void fallbackAuthorityParse() throws URISyntaxException {
         URIHelper helper = new URIHelper("http://us%65r@ex%41mple.com/");
 
         assertAll(
-                () -> assertEquals("user", helper.getUserInfo()),
                 () -> assertEquals("exAmple.com", helper.getHost()),
                 () -> assertEquals(-1, helper.getPort()),
                 () -> assertEquals("http://us%65r@ex%41mple.com/", helper.toString()));

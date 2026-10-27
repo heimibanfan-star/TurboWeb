@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * uri 包支撑值对象与编解码原语的行为契约：
- * 名称值对、URI 授权、百分号编解码、主机解析与格式化。
+ * 名称值对、百分号编解码、主机解析与格式化。
  */
 class UriSupportTest {
 
@@ -59,100 +59,6 @@ class UriSupportTest {
         ParamPair nvp = new ParamPair("n", "v");
 
         assertEquals(nvp, nvp);
-    }
-
-    // ---------- URIAuthority ----------
-
-    @Test
-    @DisplayName("URIAuthority：三元构造与取值")
-    void uriAuthorityGetters() {
-        URIAuthority authority = new URIAuthority("u", "example.com", 8080);
-
-        assertAll(
-                () -> assertEquals("u", authority.getUserInfo()),
-                () -> assertEquals("example.com", authority.getHostName()),
-                () -> assertEquals(8080, authority.getPort()));
-    }
-
-    @Test
-    @DisplayName("URIAuthority：双参与单参构造缺省端口为 -1")
-    void uriAuthorityDefaultPort() {
-        assertAll(
-                () -> assertEquals(-1, new URIAuthority("example.com", -1).getPort()),
-                () -> assertEquals(-1, new URIAuthority("example.com").getPort()),
-                () -> assertNull(new URIAuthority("example.com").getUserInfo()));
-    }
-
-    @Test
-    @DisplayName("URIAuthority：端口越界抛 IllegalArgumentException")
-    void uriAuthorityPortRange() {
-        assertAll(
-                () -> assertThrows(IllegalArgumentException.class, () -> new URIAuthority("h", 65536)),
-                () -> assertThrows(IllegalArgumentException.class, () -> new URIAuthority("h", -2)),
-                () -> assertThrows(IllegalArgumentException.class, () -> new URIAuthority("u", "h", 70000)),
-                () -> assertEquals(65535, new URIAuthority("h", 65535).getPort()),
-                () -> assertEquals(-1, new URIAuthority("h", -1).getPort()));
-    }
-
-    @Test
-    @DisplayName("URIAuthority：自反相等与异型不等")
-    void uriAuthoritySelfEqualityAndTypeMismatch() {
-        URIAuthority authority = new URIAuthority("u", "h", 80);
-
-        assertAll(
-                () -> assertEquals(authority, authority),
-                () -> assertNotEquals(authority, "u@h:80"));
-    }
-
-    @Test
-    @DisplayName("URIAuthority：哈希值按用户信息与主机端口计算")
-    void uriAuthorityHashCodeFormula() {
-        URIAuthority authority = new URIAuthority("u", "EXAMPLE.com", 80);
-        int hostHash = 17;
-        hostHash = hostHash * 31 + "example.com".hashCode();
-        hostHash = hostHash * 31 + 80;
-        int expected = 17;
-        expected = expected * 31 + "u".hashCode();
-        expected = expected * 31 + hostHash;
-
-        assertEquals(expected, authority.hashCode());
-    }
-
-    @Test
-    @DisplayName("URIAuthority：NamedEndpoint 构造复制主机与端口")
-    void uriAuthorityFromNamedEndpoint() {
-        URIAuthority source = new URIAuthority("h", 80);
-
-        assertAll(
-                () -> assertEquals("h", new URIAuthority(source).getHostName()),
-                () -> assertEquals(80, new URIAuthority(source).getPort()),
-                () -> assertEquals("h", new URIAuthority("u", source).getHostName()),
-                () -> assertEquals("u", new URIAuthority("u", source).getUserInfo()));
-    }
-
-    @Test
-    @DisplayName("URIAuthority：toString 各形态")
-    void uriAuthorityToString() {
-        assertAll(
-                () -> assertEquals("u@h:80", new URIAuthority("u", "h", 80).toString()),
-                () -> assertEquals("u@h", new URIAuthority("u", "h", -1).toString()),
-                () -> assertEquals("h", new URIAuthority("h", -1).toString()),
-                () -> assertEquals("[::1]:80", new URIAuthority("::1", 80).toString()));
-    }
-
-    @Test
-    @DisplayName("URIAuthority：主机比较忽略大小写")
-    void uriAuthorityEqualsIgnoreCaseHost() {
-        assertEquals(new URIAuthority("EXAMPLE.com", 80), new URIAuthority("example.COM", 80));
-        assertEquals(new URIAuthority("EXAMPLE.com", 80).hashCode(), new URIAuthority("example.COM", 80).hashCode());
-        assertNotEquals(new URIAuthority("u", "h", 80), new URIAuthority("h", 80));
-        assertNotEquals(new URIAuthority("h", 80), new URIAuthority("h", 81));
-    }
-
-    @Test
-    @DisplayName("URIAuthority：非 ASCII 主机 toString 转为 ASCII")
-    void uriAuthorityNonAsciiHostToString() {
-        assertEquals("xn--bcher-kva", new URIAuthority("bücher", -1).toString());
     }
 
     // ---------- PercentCodec ----------

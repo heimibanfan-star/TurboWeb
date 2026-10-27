@@ -51,43 +51,6 @@ class URIHelperModifyTest {
         assertEquals("https://h2/p?a=1", helper.build().toString());
     }
 
-    // ---------- userInfo ----------
-
-    @Test
-    @DisplayName("setUserInfo：空白值归 null，并失效编码原样")
-    void setUserInfoBlankBecomesNull() throws URISyntaxException {
-        URIHelper helper = new URIHelper("http://user@h/p").setUserInfo("  ");
-
-        assertNull(helper.getUserInfo());
-        assertEquals("http://h/p", helper.build().toString());
-    }
-
-    @Test
-    @DisplayName("setUserInfo 构建时对用户名与口令分别编码，冒号保留")
-    void setUserInfoEncodesPartsAroundColon() throws URISyntaxException {
-        URIHelper helper = new URIHelper("http://h/p")
-                .setUserInfo("用 户:p%ss");
-
-        assertEquals("http://%E7%94%A8%20%E6%88%B7:p%25ss@h/p", helper.build().toString());
-    }
-
-    @Test
-    @DisplayName("setUserInfo 无冒号时整体编码")
-    void setUserInfoWithoutColon() throws URISyntaxException {
-        URIHelper helper = new URIHelper("http://h/p").setUserInfo("us er");
-
-        assertEquals("http://us%20er@h/p", helper.build().toString());
-    }
-
-    @Test
-    @DisplayName("setUserInfo(username, password) 拼接冒号后设置")
-    void setUserInfoWithUsernameAndPassword() throws URISyntaxException {
-        URIHelper helper = new URIHelper("http://h/p").setUserInfo("u", "p");
-
-        assertEquals("u:p", helper.getUserInfo());
-        assertEquals("http://u:p@h/p", helper.build().toString());
-    }
-
     // ---------- host ----------
 
     @Test
@@ -125,7 +88,7 @@ class URIHelperModifyTest {
         helper.setHost("example.com");
 
         assertNull(helper.getSchemeSpecificPart());
-        assertEquals("example.com", helper.getAuthority().getHostName());
+        assertEquals("example.com", helper.getHost());
     }
 
     // ---------- port ----------
@@ -638,49 +601,14 @@ class URIHelperModifyTest {
     // ---------- authority ----------
 
     @Test
-    @DisplayName("setAuthority(URIAuthority)：用户信息主机端口整体设置")
-    void setAuthorityFromUriAuthority() throws URISyntaxException {
-        URIHelper helper = new URIHelper("http://old@h/p")
-                .setAuthority(new URIAuthority("u", "example.com", 9090));
-
-        assertAll(
-                () -> assertEquals("u", helper.getUserInfo()),
-                () -> assertEquals("example.com", helper.getHost()),
-                () -> assertEquals(9090, helper.getPort()),
-                () -> assertEquals("http://u@example.com:9090/p", helper.build().toString()));
-    }
-
-    @Test
-    @DisplayName("setAuthority(URIAuthority)：无用户信息的授权清空用户信息")
-    void setAuthorityWithoutUserInfoClearsUserInfo() throws URISyntaxException {
-        URIHelper helper = new URIHelper("http://old@h/p")
-                .setAuthority(new URIAuthority("example.com", 80));
-
-        assertNull(helper.getUserInfo());
-    }
-
-    @Test
-    @DisplayName("setAuthority(NamedEndpoint)：仅设置主机端口，用户信息清空")
+    @DisplayName("setAuthority(NamedEndpoint)：替换主机与端口")
     void setAuthorityFromNamedEndpoint() throws URISyntaxException {
-        URIAuthority authority = new URIAuthority("u", "example.com", 80);
-        URIHelper helper = new URIHelper("http://old@h/p").setAuthority((NamedEndpoint) authority);
+        URIHelper helper = new URIHelper("http://old.example.com:1/p")
+                .setAuthority((NamedEndpoint) new Host("example.com", 80));
 
         assertAll(
-                () -> assertNull(helper.getUserInfo()),
                 () -> assertEquals("example.com", helper.getHost()),
                 () -> assertEquals(80, helper.getPort()));
-    }
-
-    @Test
-    @DisplayName("getAuthority：返回当前用户信息主机端口")
-    void getAuthorityMirrorsState() throws URISyntaxException {
-        URIHelper helper = new URIHelper("https://u@h:8080/p");
-        URIAuthority authority = helper.getAuthority();
-
-        assertAll(
-                () -> assertEquals("u", authority.getUserInfo()),
-                () -> assertEquals("h", authority.getHostName()),
-                () -> assertEquals(8080, authority.getPort()));
     }
 
     // ---------- 状态查询 ----------
@@ -710,7 +638,6 @@ class URIHelperModifyTest {
         URIHelper helper = new URIHelper();
 
         assertSame(helper, helper.setScheme("http"));
-        assertSame(helper, helper.setUserInfo("u"));
         assertSame(helper, helper.setHost("h"));
         assertSame(helper, helper.setPort(80));
         assertSame(helper, helper.setPath("/p"));
