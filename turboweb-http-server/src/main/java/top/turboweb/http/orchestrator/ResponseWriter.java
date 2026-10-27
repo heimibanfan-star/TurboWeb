@@ -3,7 +3,7 @@ package top.turboweb.http.orchestrator;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.concurrent.thread.ThreadPool;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 
 import java.util.Objects;
 
@@ -80,5 +80,5 @@ public interface ResponseWriter {
      * @param session      当前连接会话，提供写出通道
      * @return 写出结果：可监听时携带完成凭据，不可监听时凭据为 {@code null}
      */
-    WriteResult write(HttpResponse httpResponse, InternalConnectSession session);
+    WriteResult write(HttpResponse httpResponse, InternalHttpConnection session);
 }

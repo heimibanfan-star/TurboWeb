@@ -5,7 +5,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.context.*;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.core.session.DefaultHttpSession;
@@ -116,7 +116,7 @@ public class RequestOrchestrator {
      * @param connectSession 当前连接会话，不能为 null，响应经其通道写出
      * @throws NullPointerException 任一参数为 null
      */
-    public void orchestrate(FullHttpRequest request, ConnectSession connectSession) {
+    public void orchestrate(FullHttpRequest request, HttpConnection connectSession) {
         Objects.requireNonNull(request, "request must not be null");
         // 使用前自行持有引用：入站处理器在本次调用返回后即归还自己的引用
         request.retain();
@@ -159,7 +159,7 @@ public class RequestOrchestrator {
      * @param connectSession 当前连接会话，响应经其通道写出
      * @return 写出结果，永不为 null
      */
-    public ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, ConnectSession connectSession) {
+    public ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, HttpConnection connectSession) {
         // 使用前自行持有引用，收尾只归还这一份，调用方的引用不受影响
         request.retain();
         try {
@@ -181,7 +181,7 @@ public class RequestOrchestrator {
      * @param startTime      请求起始时刻（纳秒），请求日志耗时起算点
      * @return 写出结果，永不为 null
      */
-    private ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, ConnectSession connectSession,
+    private ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, HttpConnection connectSession,
                                                      long startTime) {
         // 请求行与来源头在流程入口快照：链执行后写 CORS 头与请求日志只读快照
         String method = request.method().name();
@@ -281,7 +281,7 @@ public class RequestOrchestrator {
      * @param connectSession 当前连接会话
      * @return 链结果经转化与善后产出的响应，不为 null
      */
-    private HttpResponse startMiddleware(FullHttpRequest request, ConnectSession connectSession) {
+    private HttpResponse startMiddleware(FullHttpRequest request, HttpConnection connectSession) {
         SessionManager sessionManager = sessionManagerHolder.getSessionManager();
         return sessionManager.sessionSafeScope(manager ->
                 executeMiddleware(request, connectSession, manager));
@@ -306,7 +306,7 @@ public class RequestOrchestrator {
      * @param sessionManager 会话管理器
      * @return 链结果经转化与善后产出的响应，不为 null
      */
-    private HttpResponse executeMiddleware(FullHttpRequest request, ConnectSession connectSession,
+    private HttpResponse executeMiddleware(FullHttpRequest request, HttpConnection connectSession,
                                            SessionManager sessionManager) {
         HttpContent content = null;
         HttpSession httpSession = null;

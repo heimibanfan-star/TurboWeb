@@ -392,7 +392,7 @@ RestRouteRegister routeRegister = new RestRouteRegister()
 | `HttpCookies` | 当前请求的 Cookie 集合 |
 | `SseResponse` | SSE 响应对象，按本次请求构造 |
 | `SseEmitter` | SSE 发射器，按本次请求构造 |
-| `ConnectSession` | 当前连接会话 |
+| `HttpConnection` | 当前连接会话 |
 | `Channel` | 当前连接的 Netty 通道 |
 
 ```java

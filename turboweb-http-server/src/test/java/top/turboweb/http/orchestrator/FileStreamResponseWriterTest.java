@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.concurrent.thread.ThreadPool;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.FileStreamResponse;
 import top.turboweb.http.testkit.Stubs;
 import io.netty.util.ReferenceCountUtil;
@@ -90,7 +90,7 @@ class FileStreamResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
-                    .write(resp, new InternalConnectSession(channel));
+                    .write(resp, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
             assertTrue(result.channelFuture().isSuccess());
             Object[] out = drain(channel);
@@ -111,7 +111,7 @@ class FileStreamResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
-                    .write(resp, new InternalConnectSession(channel));
+                    .write(resp, new InternalHttpConnection(channel));
             assertTrue(result.channelFuture().isSuccess());
             Object[] out = drain(channel);
             assertEquals(2, out.length, "只有头与 LAST");
@@ -131,7 +131,7 @@ class FileStreamResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
-                    .write(resp, new InternalConnectSession(channel));
+                    .write(resp, new InternalHttpConnection(channel));
             assertTrue(result.channelFuture().isSuccess());
             Object[] out = drain(channel);
             assertEquals("llo", concatBody(out), "修复形状：窗口起点即物理偏移，不再从文件头错位读");
@@ -148,7 +148,7 @@ class FileStreamResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = newWriter(Stubs.rejectingThreadPool())
-                    .write(resp, new InternalConnectSession(channel));
+                    .write(resp, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType(), "取消置败仍有凭据可监听");
             assertInstanceOf(ResponseHandleException.class, result.channelFuture().cause());
             Object[] out = drain(channel);
@@ -167,7 +167,7 @@ class FileStreamResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = newWriter(Stubs.firstRunRestRejectingThreadPool())
-                    .write(resp, new InternalConnectSession(channel));
+                    .write(resp, new InternalHttpConnection(channel));
             assertInstanceOf(ResponseHandleException.class, result.channelFuture().cause());
             Object[] out = drain(channel);
             assertEquals(2, out.length, "头 + 一个内容块，然后取消");
@@ -186,7 +186,7 @@ class FileStreamResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
-                    .write(plain, new InternalConnectSession(channel));
+                    .write(plain, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                     "写出异常无凭据，结果不可监听");
             assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");

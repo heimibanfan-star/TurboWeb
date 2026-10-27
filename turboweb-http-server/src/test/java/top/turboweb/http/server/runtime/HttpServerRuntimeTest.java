@@ -10,7 +10,7 @@ import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
@@ -526,7 +526,7 @@ class HttpServerRuntimeTest {
         }
 
         @Override
-        public WriteResult write(HttpResponse httpResponse, InternalConnectSession session) {
+        public WriteResult write(HttpResponse httpResponse, InternalHttpConnection session) {
             return WriteResult.notListenable();
         }
     }

@@ -2,8 +2,8 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.concurrent.thread.ThreadPool;
-import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.connection.HttpConnection;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.ResponseCall;
 
 import java.util.LinkedHashMap;
@@ -127,7 +127,7 @@ public class ResponseWriterManager {
      * @return 写出结果，永不为null
      * @throws ClassCastException 会话不是内部连接会话实现时
      */
-    public ResponseWriter.WriteResult write(HttpResponse response, ConnectSession session) {
+    public ResponseWriter.WriteResult write(HttpResponse response, HttpConnection session) {
         ResponseWriter responseWriter = null;
         if (response instanceof ResponseCall responseCall) {
             // 获取响应声明的写出器类型
@@ -140,6 +140,6 @@ public class ResponseWriterManager {
         if (responseWriter == null) {
             responseWriter = DEFAULT_RESPONSE_WRITER;
         }
-        return responseWriter.write(response, (InternalConnectSession) session);
+        return responseWriter.write(response, (InternalHttpConnection) session);
     }
 }

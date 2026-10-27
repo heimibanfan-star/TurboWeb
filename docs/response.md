@@ -327,7 +327,7 @@ public HttpResponse raw(HttpContext context) {
             Unpooled.copiedBuffer("raw", StandardCharsets.UTF_8));
     response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain");
     response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
-    InternalConnectSession session = (InternalConnectSession) context.getConnectSession();
+    InternalHttpConnection session = (InternalHttpConnection) context.getConnectSession();
     session.getChannel().writeAndFlush(response);
     return IgnoredHttpResponse.ignore();
 }

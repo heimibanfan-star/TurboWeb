@@ -8,7 +8,7 @@ import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.ReactorResponse;
 
 /**
@@ -38,7 +38,7 @@ public class ReactorResponseWriter extends AbstractResponseWriter {
      * @throws IllegalArgumentException 当响应类型不是 {@link ReactorResponse} 时抛出
      */
     @Override
-    protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+    protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
         if (!Thread.currentThread().isVirtual()) {
             throw new IllegalStateException("This method must be called from a virtual thread");
         }
@@ -68,7 +68,7 @@ public class ReactorResponseWriter extends AbstractResponseWriter {
      * @param session  内部连接会话
      * @return 表示写入结果的异步操作
      */
-    private ChannelFuture writeHeader(HttpResponse response, InternalConnectSession session) {
+    private ChannelFuture writeHeader(HttpResponse response, InternalHttpConnection session) {
         // 设置特定的响应头
         response.headers().set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
         response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
@@ -85,7 +85,7 @@ public class ReactorResponseWriter extends AbstractResponseWriter {
      * @param session 内部连接会话
      * @param promise 异步回调对象
      */
-    private void writeBody(Flux<ByteBuf> flux, InternalConnectSession session, ChannelPromise promise) {
+    private void writeBody(Flux<ByteBuf> flux, InternalHttpConnection session, ChannelPromise promise) {
         flux.map(DefaultHttpContent::new).subscribe(new ReactorWriter(session, promise));
     }
 
@@ -105,10 +105,10 @@ public class ReactorResponseWriter extends AbstractResponseWriter {
 
         private final static long SUBSCRIBE_NUM = 1;
 
-        private final InternalConnectSession connectSession;
+        private final InternalHttpConnection connectSession;
         private final ChannelPromise promise;
 
-        private ReactorWriter(InternalConnectSession connectSession, ChannelPromise promise) {
+        private ReactorWriter(InternalHttpConnection connectSession, ChannelPromise promise) {
             this.connectSession = connectSession;
             this.promise = promise;
         }

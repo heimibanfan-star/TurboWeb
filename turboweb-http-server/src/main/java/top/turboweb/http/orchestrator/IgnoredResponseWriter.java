@@ -2,7 +2,7 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 
 /**
  * 响应忽略写出器。
@@ -18,7 +18,7 @@ import top.turboweb.http.core.connect.InternalConnectSession;
 public class IgnoredResponseWriter extends AbstractResponseWriter {
 
     @Override
-    protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+    protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
         return null;
     }
 }

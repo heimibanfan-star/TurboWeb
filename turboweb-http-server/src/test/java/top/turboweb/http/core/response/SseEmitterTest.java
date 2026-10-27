@@ -4,9 +4,9 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpUtil;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.exception.SseBufferException;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.orchestrator.SseResponseWriter;
-import top.turboweb.http.testkit.RecordingConnectSession;
+import top.turboweb.http.testkit.RecordingHttpConnection;
 
 import java.util.List;
 
@@ -26,7 +26,7 @@ class SseEmitterTest {
 
     /** SseEmitter 无抽象方法，探针子类只为拿到一个可实例化的具体类型。 */
     private static final class ProbeEmitter extends SseEmitter {
-        ProbeEmitter(ConnectSession session, int maxMessageCache) {
+        ProbeEmitter(HttpConnection session, int maxMessageCache) {
             super(session, maxMessageCache);
         }
 
@@ -41,7 +41,7 @@ class SseEmitterTest {
 
     @Test
     void constructorSetsSseHeaders() {
-        ProbeEmitter emitter = new ProbeEmitter(new RecordingConnectSession(), 10);
+        ProbeEmitter emitter = new ProbeEmitter(new RecordingHttpConnection(), 10);
 
         assertEquals("text/event-stream", emitter.headers().get(HttpHeaderNames.CONTENT_TYPE));
         assertEquals("no-cache", emitter.headers().get(HttpHeaderNames.CACHE_CONTROL));
@@ -54,7 +54,7 @@ class SseEmitterTest {
 
     @Test
     void messagesBeforeInitAreCachedAndFormatted() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         ProbeEmitter emitter = new ProbeEmitter(session, 10);
 
         emitter.send("plain");
@@ -72,7 +72,7 @@ class SseEmitterTest {
 
     @Test
     void messagesAfterInitAreSentDirectly() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         ProbeEmitter emitter = new ProbeEmitter(session, 10);
         emitter.isInit = true;
 
@@ -84,7 +84,7 @@ class SseEmitterTest {
 
     @Test
     void cacheOverflowAtCapacityThrows() {
-        ProbeEmitter emitter = new ProbeEmitter(new RecordingConnectSession(), 2);
+        ProbeEmitter emitter = new ProbeEmitter(new RecordingHttpConnection(), 2);
         emitter.send("a");
         emitter.send("b");
 
@@ -95,13 +95,13 @@ class SseEmitterTest {
 
     @Test
     void zeroCapacityRejectsFirstMessage() {
-        ProbeEmitter emitter = new ProbeEmitter(new RecordingConnectSession(), 0);
+        ProbeEmitter emitter = new ProbeEmitter(new RecordingHttpConnection(), 0);
         assertThrows(SseBufferException.class, () -> emitter.send("a"));
     }
 
     @Test
     void closeDelegatesToSession() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         ProbeEmitter emitter = new ProbeEmitter(session, 10);
 
         emitter.close();
@@ -111,7 +111,7 @@ class SseEmitterTest {
 
     @Test
     void onCloseCallbackFiresOnSessionClose() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         ProbeEmitter emitter = new ProbeEmitter(session, 10);
         SseEmitter[] captured = new SseEmitter[1];
 
@@ -123,7 +123,7 @@ class SseEmitterTest {
 
     @Test
     void writerTypeIsSseResponseWriter() {
-        ProbeEmitter emitter = new ProbeEmitter(new RecordingConnectSession(), 10);
+        ProbeEmitter emitter = new ProbeEmitter(new RecordingHttpConnection(), 10);
         assertEquals(SseResponseWriter.class, emitter.getWriterType());
     }
 }

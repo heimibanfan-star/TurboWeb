@@ -1,11 +1,12 @@
 package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.exception.SseBufferException;
 import top.turboweb.http.orchestrator.ResponseWriter;
 import top.turboweb.http.orchestrator.SseResponseWriter;
 
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -29,7 +30,7 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 	/**
 	 * 关联的连接会话
 	 */
-	protected final ConnectSession session;
+	protected final HttpConnection session;
 
 	/**
 	 * 是否已初始化
@@ -62,7 +63,7 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 	 * @param session         关联的连接会话
 	 * @param maxMessageCache 消息缓存最大数量
 	 */
-	public SseEmitter(ConnectSession session, int maxMessageCache) {
+	public SseEmitter(HttpConnection session, int maxMessageCache) {
 		super(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 		this.session = session;
 		this.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream");
@@ -87,7 +88,7 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 			if (!isInit) {
 				saveMessageToCache(message);
 			} else {
-				session.send(message);
+				session.write(message.getBytes(StandardCharsets.UTF_8));
 			}
 		} finally {
 			readLock.unlock();

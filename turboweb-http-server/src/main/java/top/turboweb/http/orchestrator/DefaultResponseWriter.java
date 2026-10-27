@@ -3,7 +3,7 @@ package top.turboweb.http.orchestrator;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 
 /**
  * 默认的响应写出器。
@@ -21,7 +21,7 @@ import top.turboweb.http.core.connect.InternalConnectSession;
 public class DefaultResponseWriter extends AbstractResponseWriter {
 
     @Override
-    protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+    protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
         // 判断是否有响应长度
         if (!response.headers().contains("Content-Length")) {
             if (response instanceof FullHttpResponse fullHttpResponse) {

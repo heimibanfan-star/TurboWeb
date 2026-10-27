@@ -2,7 +2,7 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
@@ -36,7 +36,7 @@ public class SseResponseWriter extends AbstractResponseWriter {
      * @throws IllegalArgumentException 当响应类型不支持时抛出
      */
     @Override
-    protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+    protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
         if (response instanceof SseResponse sseResponse) {
             // 发送响应头
             ChannelFuture channelFuture = session.getChannel().writeAndFlush(response);

@@ -1,7 +1,7 @@
 package top.turboweb.http.context;
 
 import top.turboweb.http.context.attchment.Attachment;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.rest.core.HttpContent;
@@ -70,9 +70,9 @@ public interface HttpContext {
 	/**
 	 * 获取连接会话。
 	 *
-	 * @return 当前请求关联的 {@link ConnectSession} 对象。
+	 * @return 当前请求关联的 {@link HttpConnection} 对象。
 	 */
-	ConnectSession getConnectSession();
+	HttpConnection getConnectSession();
 
 	/**
 	 * 获取当前 HTTP 会话对象。

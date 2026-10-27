@@ -3,8 +3,8 @@ package top.turboweb.http.router.parameter;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.connection.HttpConnection;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
@@ -37,7 +37,7 @@ public class InternTypeParameterParser extends AbstractParameterParser{
     // 连接会话绑定
     private static final ParameterParser.Binder CONNECT_SESSION_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ctx.getConnectSession();
     // 连接通道自动绑定
-    private static final ParameterParser.Binder CHANNEL_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ((InternalConnectSession) ctx.getConnectSession()).getChannel();
+    private static final ParameterParser.Binder CHANNEL_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ((InternalHttpConnection) ctx.getConnectSession()).getChannel();
 
     @Override
     protected ParameterParser.Binder doParse(Parameter parameter) {
@@ -58,7 +58,7 @@ public class InternTypeParameterParser extends AbstractParameterParser{
         if (SseEmitter.class == type) {
             return SSE_EMITTER_BINDER;
         }
-        if (ConnectSession.class == type) {
+        if (HttpConnection.class == type) {
             return CONNECT_SESSION_BINDER;
         }
         if (Channel.class == type) {

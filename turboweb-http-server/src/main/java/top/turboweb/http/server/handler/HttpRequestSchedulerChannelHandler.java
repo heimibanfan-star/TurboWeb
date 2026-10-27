@@ -5,7 +5,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 
 import java.util.Objects;
@@ -60,7 +60,7 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
             return;
         }
         // 封装连接的会话对象
-        InternalConnectSession connectSession = new InternalConnectSession(channelHandlerContext.channel());
+        InternalHttpConnection connectSession = new InternalHttpConnection(channelHandlerContext.channel());
         // 请求引用由编排器在提交前自行持有，本处理器返回后由基类归还本处理器的引用
         requestOrchestrator.orchestrate(fullHttpRequest, connectSession);
     }

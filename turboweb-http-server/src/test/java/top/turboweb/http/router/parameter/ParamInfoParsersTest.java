@@ -14,8 +14,8 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.context.HttpJsonContent;
 import top.turboweb.http.testkit.Requests;
-import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.connection.HttpConnection;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.rest.core.ContentType;
 import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.cookie.HttpCookies;
@@ -76,7 +76,7 @@ class ParamInfoParsersTest {
         void internCookies(HttpCookies v) {}
         void internSseResponse(SseResponse v) {}
         void internSseEmitter(SseEmitter v) {}
-        void internConnectSession(ConnectSession v) {}
+        void internConnectSession(HttpConnection v) {}
         void internChannel(Channel v) {}
         void internUnsupported(String v) {}
 
@@ -655,7 +655,7 @@ class ParamInfoParsersTest {
         assertSame(cookies, p.parse(parameter("internCookies"))
                 .bindParameter(stub.returning("cookies", cookies).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
 
-        ConnectSession sseSession = proxy(ConnectSession.class);
+        HttpConnection sseSession = proxy(HttpConnection.class);
         SseResponse boundSseResponse = assertInstanceOf(SseResponse.class, p.parse(parameter("internSseResponse"))
                 .bindParameter(stub.returning("getConnectSession", sseSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
         assertEquals("text/event-stream", boundSseResponse.headers().get(HttpHeaderNames.CONTENT_TYPE),
@@ -671,16 +671,16 @@ class ParamInfoParsersTest {
         assertThrows(SseBufferException.class, () -> boundSseEmitter.send("overflow"),
                 "第 33 条缓存消息越界");
 
-        ConnectSession connectSession = proxy(ConnectSession.class);
+        HttpConnection connectSession = proxy(HttpConnection.class);
         assertSame(connectSession, p.parse(parameter("internConnectSession"))
                 .bindParameter(stub.returning("getConnectSession", connectSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
 
         // 夹具侧类型矫正（D1）：CHANNEL_BINDER 认领的声明类型是 java.nio.channels.Channel（Params.internChannel
-        // 不动），但 InternalConnectSession 存取的是 io.netty.channel.Channel（InternalConnectSession.java:27/:31），
+        // 不动），但 InternalHttpConnection 存取的是 io.netty.channel.Channel（InternalHttpConnection.java:19/:30），
         // 故被注入的那个对象必须是 Netty 通道的代理；断言语义（注入的就是配置进去的那个对象）逐字保留。
         io.netty.channel.Channel channel = proxy(io.netty.channel.Channel.class);
         assertSame(channel, p.parse(parameter("internChannel"))
-                .bindParameter(stub.returning("getConnectSession", new InternalConnectSession(channel)).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
+                .bindParameter(stub.returning("getConnectSession", new InternalHttpConnection(channel)).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
     }
 
     @Test

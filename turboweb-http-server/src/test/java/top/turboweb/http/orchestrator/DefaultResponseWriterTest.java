@@ -8,7 +8,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 
 import java.nio.charset.StandardCharsets;
 
@@ -35,7 +35,7 @@ class DefaultResponseWriterTest {
         DefaultFullHttpResponse response = full("abc");
 
         ResponseWriter.WriteResult result = new DefaultResponseWriter()
-                .write(response, new InternalConnectSession(channel));
+                .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
         assertTrue(result.channelFuture().isSuccess());
@@ -51,7 +51,7 @@ class DefaultResponseWriterTest {
         response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 99);
 
         ResponseWriter.WriteResult result = new DefaultResponseWriter()
-                .write(response, new InternalConnectSession(channel));
+                .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
         assertTrue(result.channelFuture().isSuccess());
@@ -66,7 +66,7 @@ class DefaultResponseWriterTest {
         HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
         ResponseWriter.WriteResult result = new DefaultResponseWriter()
-                .write(response, new InternalConnectSession(channel));
+                .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
         assertTrue(result.channelFuture().isSuccess());

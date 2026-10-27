@@ -2,11 +2,12 @@ package top.turboweb.http.core.response;
 
 import io.netty.handler.codec.http.*;
 import top.turboweb.serializer.JsonSerializer;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.orchestrator.ResponseWriter;
 import top.turboweb.http.orchestrator.SseResponseWriter;
 import reactor.core.publisher.Flux;
 
+import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -19,8 +20,8 @@ import java.util.function.Function;
  */
 public class SseResponse extends DefaultHttpResponse implements ResponseCall {
 
-    private final ConnectSession connectSession;
-    private Consumer<ConnectSession> sseCallback;
+    private final HttpConnection connectSession;
+    private Consumer<HttpConnection> sseCallback;
     private final JsonSerializer jsonSerializer;
 
     /**
@@ -31,7 +32,7 @@ public class SseResponse extends DefaultHttpResponse implements ResponseCall {
      * @param connectSession 当前 SSE 连接会话
      * @param jsonSerializer JSON 序列化器
      */
-    public SseResponse(HttpResponseStatus status, HttpHeaders headers, ConnectSession connectSession, JsonSerializer jsonSerializer) {
+    public SseResponse(HttpResponseStatus status, HttpHeaders headers, HttpConnection connectSession, JsonSerializer jsonSerializer) {
         super(HttpVersion.HTTP_1_1, status, headers);
         assert connectSession != null;
         this.connectSession = connectSession;
@@ -60,9 +61,9 @@ public class SseResponse extends DefaultHttpResponse implements ResponseCall {
      * 设置 SSE 的回调函数。
      * <p>框架会在合适时机调用 {@link #startSse()} 执行该回调。</p>
      *
-     * @param sseCallback SSE 回调函数，接收当前 {@link ConnectSession}
+     * @param sseCallback SSE 回调函数，接收当前 {@link HttpConnection}
      */
-    public void setSseCallback(Consumer<ConnectSession> sseCallback) {
+    public void setSseCallback(Consumer<HttpConnection> sseCallback) {
         this.sseCallback = sseCallback;
     }
 
@@ -83,21 +84,21 @@ public class SseResponse extends DefaultHttpResponse implements ResponseCall {
      * @param errorHandler 错误处理函数，可将异常转换为发送给客户端的字符串
      * @param onFinally    当数据流结束时执行的回调
      */
-    public void setSseCallback(Flux<String> flux, Function<Throwable, String> errorHandler, Consumer<ConnectSession> onFinally) {
-        Consumer<ConnectSession> consumer = (session) -> {
+    public void setSseCallback(Flux<String> flux, Function<Throwable, String> errorHandler, Consumer<HttpConnection> onFinally) {
+        Consumer<HttpConnection> consumer = (session) -> {
             flux.doFinally(signalType -> {
                         if (onFinally != null) {
                             onFinally.accept(session);
                         }
                     })
                     .subscribe(
-                            session::send,
+                            message -> session.write(message.getBytes(StandardCharsets.UTF_8)),
                             err -> {
                                 if (errorHandler != null) {
                                     String errorMessage = errorHandler.apply(err);
-                                    session.send(errorMessage);
+                                    session.write(errorMessage.getBytes(StandardCharsets.UTF_8));
                                 } else {
-                                    session.send("error:" + err.getMessage());
+                                    session.write(("error:" + err.getMessage()).getBytes(StandardCharsets.UTF_8));
                                 }
                             }
                     );
@@ -112,7 +113,7 @@ public class SseResponse extends DefaultHttpResponse implements ResponseCall {
      * @param flux SSE 的数据流
      */
     public void setSseCallback(Flux<String> flux) {
-        this.setSseCallback(flux, null, ConnectSession::close);
+        this.setSseCallback(flux, null, HttpConnection::close);
     }
 
     public void setFlux(Flux<String> flux) {

@@ -15,7 +15,7 @@ import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.SynchronousSink;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.FileStreamResponse;
 
 import java.io.IOException;
@@ -52,7 +52,7 @@ public class FileStreamResponseWriter extends AbstractResponseWriter {
      * @return 表示发送结果的 {@link ChannelFuture}
      */
     @Override
-    protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+    protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
         if (response instanceof FileStreamResponse fileStreamResponse) {
             ChannelPromise promise = session.getChannel().newPromise();
             // 发送响应头
@@ -81,7 +81,7 @@ public class FileStreamResponseWriter extends AbstractResponseWriter {
      * @param session  当前会话
      * @param promise  异步结果回调
      */
-    private void doSendFileWithBackPress(FileStreamResponse response, InternalConnectSession session, ChannelPromise promise) {
+    private void doSendFileWithBackPress(FileStreamResponse response, InternalHttpConnection session, ChannelPromise promise) {
         // 创建Reactor流进行文件的背压发送
         Flux.<ByteBuf, Long>generate(response::getOffset, (offset, emitter) -> {
                     try {

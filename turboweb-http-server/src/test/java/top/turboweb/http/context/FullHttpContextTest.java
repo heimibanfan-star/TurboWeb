@@ -1,12 +1,11 @@
 package top.turboweb.http.context;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpRequest;
 import org.junit.jupiter.api.Test;
 import top.turboweb.rest.core.HttpContent;
 import top.turboweb.rest.core.HttpRequestMessage;
 import top.turboweb.rest.core.HttpRequestMethod;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.rest.core.ContentType;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.core.session.DefaultHttpSession;
@@ -19,6 +18,7 @@ import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class FullHttpContextTest {
 
-    private static final ConnectSession CONNECT_SESSION = new NoopConnectSession();
+    private static final HttpConnection CONNECT_SESSION = new NoopHttpConnection();
 
     private static HttpSession newSession() {
         return new DefaultHttpSession(new MemorySessionManager());
@@ -265,11 +265,11 @@ class FullHttpContextTest {
         }
     }
 
-    /** 测试替身：L1 不需要真通道，ConnectSession 只是被存储/透传。 */
-    private static final class NoopConnectSession implements ConnectSession {
+    /** 测试替身：L1 不需要真通道，HttpConnection 只是被存储/透传。 */
+    private static final class NoopHttpConnection implements HttpConnection {
         @Override
-        public ChannelFuture send(String message) {
-            return null;
+        public CompletableFuture<Void> write(byte[] bytes) {
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
@@ -277,17 +277,18 @@ class FullHttpContextTest {
         }
 
         @Override
-        public void close() {
-        }
-
-        @Override
-        public SocketAddress getRemoteAddress() {
+        public SocketAddress remoteAddress() {
             return null;
         }
 
         @Override
-        public SocketAddress getLocalAddress() {
+        public SocketAddress localAddress() {
             return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> close() {
+            return CompletableFuture.completedFuture(null);
         }
     }
 }

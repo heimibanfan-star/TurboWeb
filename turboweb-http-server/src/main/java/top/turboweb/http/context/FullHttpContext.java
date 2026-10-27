@@ -2,7 +2,7 @@ package top.turboweb.http.context;
 
 import top.turboweb.http.context.attchment.Attachment;
 import top.turboweb.http.context.attchment.DefaultAttachment;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.rest.core.HttpRequestMessage;
@@ -44,7 +44,7 @@ public final class FullHttpContext implements HttpContext {
 	private final HttpSession session;
 
 	/** 当前请求的连接会话 */
-	private final ConnectSession connectSession;
+	private final HttpConnection connectSession;
 
 	/** 当前请求的 Cookie 集合 */
 	private final HttpCookies httpCookies;
@@ -70,7 +70,7 @@ public final class FullHttpContext implements HttpContext {
 			HttpRequestMessage message,
 			HttpSession httpSession,
 			HttpCookies cookies,
-			ConnectSession connectSession,
+			HttpConnection connectSession,
 			Charset defaultCharset
 	) {
 		this.message = Objects.requireNonNull(message, "message can not be null");
@@ -92,7 +92,7 @@ public final class FullHttpContext implements HttpContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public ConnectSession getConnectSession() {
+	public HttpConnection getConnectSession() {
 		return this.connectSession;
 	}
 

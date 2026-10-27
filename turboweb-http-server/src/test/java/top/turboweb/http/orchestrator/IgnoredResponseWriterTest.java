@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -23,7 +23,7 @@ class IgnoredResponseWriterTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
         ResponseWriter.WriteResult result = new IgnoredResponseWriter()
-                .write(response, new InternalConnectSession(channel));
+                .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                 "忽略写出器无写出凭据，结果不可监听");

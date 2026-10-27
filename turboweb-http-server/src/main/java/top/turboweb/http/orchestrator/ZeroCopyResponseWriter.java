@@ -4,7 +4,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.ZeroCopyResponse;
 
 import java.util.concurrent.ExecutionException;
@@ -46,7 +46,7 @@ public class ZeroCopyResponseWriter extends AbstractResponseWriter {
      * @throws IllegalArgumentException 当响应类型不受支持时抛出
      */
     @Override
-    protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+    protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
         // 确保当前线程为虚拟线程
         if (!Thread.currentThread().isVirtual()) {
             throw new IllegalStateException("This method must be called from a virtual thread");

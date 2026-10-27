@@ -1,9 +1,10 @@
 package top.turboweb.http.core.response;
 
 import io.netty.channel.ChannelFuture;
-import top.turboweb.http.core.connect.ConnectSession;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.connection.HttpConnection;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -20,7 +21,7 @@ public class InternalSseEmitter extends SseEmitter{
 	 * @param session         关联的连接会话
 	 * @param maxMessageCache 消息缓存最大数量
 	 */
-	public InternalSseEmitter(ConnectSession session, int maxMessageCache) {
+	public InternalSseEmitter(HttpConnection session, int maxMessageCache) {
 		super(session, maxMessageCache);
 	}
 
@@ -30,7 +31,7 @@ public class InternalSseEmitter extends SseEmitter{
 	 * 发送 SSE 响应头，清空缓存消息，并标记 SSE 已初始化。
 	 * 由框架内部调用，禁止开发者直接使用。
 	 *
-	 * @return {@link ChannelFuture} 当前写入操作的异步结果
+	 * @return {@link ChannelFuture} 响应头写入的异步结果
 	 */
 	public ChannelFuture initSse() {
 		ReentrantReadWriteLock.WriteLock writeLock = sseLock.writeLock();
@@ -38,14 +39,14 @@ public class InternalSseEmitter extends SseEmitter{
 		try {
 			writeLock.lock();
 			// 发送SSE响应头
-			InternalConnectSession internalConnectSession = (InternalConnectSession) session;
-			channelFuture = internalConnectSession.getChannel().writeAndFlush(this);
+			InternalHttpConnection internalHttpConnection = (InternalHttpConnection) session;
+			channelFuture = internalHttpConnection.getChannel().writeAndFlush(this);
 			// 清空缓冲区
 			cacheLock.lock();
 			try {
 				while (!messageCache.isEmpty()) {
 					String message = messageCache.poll();
-					channelFuture = session.send(message);
+					session.write(message.getBytes(StandardCharsets.UTF_8));
 				}
 			} finally {
 				cacheLock.unlock();

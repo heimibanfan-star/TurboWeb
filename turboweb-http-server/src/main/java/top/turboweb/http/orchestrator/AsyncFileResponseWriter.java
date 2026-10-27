@@ -9,7 +9,7 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.common.utils.thread.WorkStealThreadUtils;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.AsyncFileResponse;
 
 import java.io.IOException;
@@ -53,7 +53,7 @@ public class AsyncFileResponseWriter extends AbstractResponseWriter {
      * @throws IllegalArgumentException 当响应类型不是 {@link AsyncFileResponse} 时抛出。
      */
     @Override
-    protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+    protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
         ChannelFuture future = null;
         if (response instanceof AsyncFileResponse asyncFileResponse) {
             // 写入响应头
@@ -84,7 +84,7 @@ public class AsyncFileResponseWriter extends AbstractResponseWriter {
      * @param response 文件响应对象，包含文件通道、当前位置及剩余长度等信息。
      * @param session  当前连接的内部会话对象。
      */
-    private void handleAsyncFileResponse(AsyncFileResponse response, InternalConnectSession session) {
+    private void handleAsyncFileResponse(AsyncFileResponse response, InternalHttpConnection session) {
         // 获取剩余的内容大小
         long remaining = response.getRemaining();
         if (remaining <= 0) {

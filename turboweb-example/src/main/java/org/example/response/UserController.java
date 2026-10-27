@@ -4,7 +4,7 @@ import io.netty.handler.codec.http.*;
 import reactor.core.publisher.Flux;
 import top.turboweb.rest.annotation.router.Get;
 import top.turboweb.rest.annotation.router.Route;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.response.HttpInfoResponse;
 import top.turboweb.http.core.response.HttpResult;
@@ -56,7 +56,7 @@ public class UserController {
         response.setContent("hello world");
         response.setContentType("text/plain");
         // 获取连接会话
-        InternalConnectSession session = (InternalConnectSession) context.getConnectSession();
+        InternalHttpConnection session = (InternalHttpConnection) context.getConnectSession();
         // 发送响应
         session.getChannel().writeAndFlush(response);
         return IgnoredHttpResponse.ignore();

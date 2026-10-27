@@ -11,7 +11,7 @@ import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.ZeroCopyResponse;
 
 import java.io.IOException;
@@ -37,7 +37,7 @@ class ZeroCopyResponseWriterTest {
     /** 在虚拟线程里跑 body，返回其结果；超时未返回即红。 */
     private static ResponseWriter.WriteResult writeOnVirtualThread(ResponseWriter writer,
                                                                    HttpResponse response,
-                                                                   InternalConnectSession session) throws InterruptedException {
+                                                                   InternalHttpConnection session) throws InterruptedException {
         AtomicReference<ResponseWriter.WriteResult> box = new AtomicReference<>();
         AtomicReference<Throwable> err = new AtomicReference<>();
         Thread t = Thread.ofVirtual().start(() -> {
@@ -75,7 +75,7 @@ class ZeroCopyResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = writeOnVirtualThread(
-                    new ZeroCopyResponseWriter(), resp, new InternalConnectSession(channel));
+                    new ZeroCopyResponseWriter(), resp, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
             assertTrue(result.channelFuture().isSuccess());
             List<Object> out = drain(channel);
@@ -97,7 +97,7 @@ class ZeroCopyResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = writeOnVirtualThread(
-                    new ZeroCopyResponseWriter(), plain, new InternalConnectSession(channel));
+                    new ZeroCopyResponseWriter(), plain, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                     "写出异常无凭据，结果不可监听");
             assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
@@ -118,7 +118,7 @@ class ZeroCopyResponseWriterTest {
         try {
             // 就在当前（JUnit 平台）线程直调，不自起虚拟线程
             ResponseWriter.WriteResult result = new ZeroCopyResponseWriter()
-                    .write(resp, new InternalConnectSession(channel));
+                    .write(resp, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                     "写出异常无凭据，结果不可监听");
             assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");

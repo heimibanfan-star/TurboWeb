@@ -7,9 +7,9 @@ import io.netty.handler.codec.http.HttpUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.orchestrator.SseResponseWriter;
-import top.turboweb.http.testkit.RecordingConnectSession;
+import top.turboweb.http.testkit.RecordingHttpConnection;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,13 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class SseResponseTest {
 
-    private static SseResponse newResponse(RecordingConnectSession session) {
+    private static SseResponse newResponse(RecordingHttpConnection session) {
         return new SseResponse(HttpResponseStatus.OK, new DefaultHttpHeaders(), session, null);
     }
 
     @Test
     void constructorSetsSseHeadersWithoutCharset() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         SseResponse resp = newResponse(session);
 
         // 构造期只写媒体类型，charset 段由结果转化环节按缺省字符集补写
@@ -48,14 +48,14 @@ class SseResponseTest {
 
     @Test
     @DisplayName("connectSession 为 null 时由 assert 快速失败（Gradle Test 默认 -ea）")
-    void nullConnectSessionRejectedByAssertion() {
+    void nullHttpConnectionRejectedByAssertion() {
         assertThrows(AssertionError.class,
                 () -> new SseResponse(HttpResponseStatus.OK, new DefaultHttpHeaders(), null, null));
     }
 
     @Test
     void startSseWithoutCallbackIsNoop() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         SseResponse resp = newResponse(session);
 
         resp.startSse();
@@ -65,10 +65,10 @@ class SseResponseTest {
     }
 
     @Test
-    void sseCallbackReceivesConnectSession() {
-        RecordingConnectSession session = new RecordingConnectSession();
+    void sseCallbackReceivesHttpConnection() {
+        RecordingHttpConnection session = new RecordingHttpConnection();
         SseResponse resp = newResponse(session);
-        List<ConnectSession> captured = new ArrayList<>();
+        List<HttpConnection> captured = new ArrayList<>();
 
         resp.setSseCallback(captured::add);
         resp.startSse();
@@ -79,19 +79,19 @@ class SseResponseTest {
 
     @Test
     void fluxIsForwardedVerbatimAndClosesOnCompletion() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         SseResponse resp = newResponse(session);
 
         resp.setSseCallback(Flux.just("a", "b"));
         resp.startSse();
 
         assertEquals(List.of("a", "b"), session.sentMessages(), "两参重载原样转发，不加 SSE 帧前缀");
-        assertEquals(1, session.closeCount(), "默认 onFinally = ConnectSession::close，完成即关连接");
+        assertEquals(1, session.closeCount(), "默认 onFinally = HttpConnection::close，完成即关连接");
     }
 
     @Test
     void setFluxWrapsDataFrames() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         SseResponse resp = newResponse(session);
 
         resp.setFlux(Flux.just("a", "b"));
@@ -103,7 +103,7 @@ class SseResponseTest {
 
     @Test
     void errorIsMappedByCustomHandler() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         SseResponse resp = newResponse(session);
         List<String> finallyCalls = new ArrayList<>();
 
@@ -118,7 +118,7 @@ class SseResponseTest {
 
     @Test
     void defaultErrorHandlerUsesErrorPrefix() {
-        RecordingConnectSession session = new RecordingConnectSession();
+        RecordingHttpConnection session = new RecordingHttpConnection();
         SseResponse resp = newResponse(session);
 
         resp.setSseCallback(Flux.<String>error(new IllegalStateException("boom")), null, s -> { });
@@ -129,6 +129,6 @@ class SseResponseTest {
 
     @Test
     void writerTypeIsSseResponseWriter() {
-        assertEquals(SseResponseWriter.class, newResponse(new RecordingConnectSession()).getWriterType());
+        assertEquals(SseResponseWriter.class, newResponse(new RecordingHttpConnection()).getWriterType());
     }
 }

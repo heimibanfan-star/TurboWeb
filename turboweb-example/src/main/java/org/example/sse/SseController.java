@@ -3,9 +3,11 @@ package org.example.sse;
 import reactor.core.publisher.Flux;
 import top.turboweb.rest.annotation.router.Get;
 import top.turboweb.rest.annotation.router.Route;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.response.SseEmitter;
 import top.turboweb.http.core.response.SseResponse;
+
+import java.nio.charset.StandardCharsets;
 
 
 @Route
@@ -17,7 +19,7 @@ public class SseController {
         sseResponse.setSseCallback(session -> {
             Thread.ofVirtual().start(() -> {
                 for (int i = 0; i < 10; i++) {
-                    session.send("data:" + i + "\n\n");
+                    session.write(("data:" + i + "\n\n").getBytes(StandardCharsets.UTF_8));
                 }
                 session.close();
             });
@@ -45,7 +47,7 @@ public class SseController {
                 })
                 .map(item -> "data:" + item + "\n\n");
 
-        sseResponse.setSseCallback(flux, err -> "error:" + err.getMessage(), ConnectSession::close);
+        sseResponse.setSseCallback(flux, err -> "error:" + err.getMessage(), HttpConnection::close);
         return sseResponse;
     }
 

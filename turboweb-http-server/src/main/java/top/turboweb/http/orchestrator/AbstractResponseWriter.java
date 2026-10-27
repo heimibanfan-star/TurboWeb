@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.concurrent.thread.ThreadPool;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -59,7 +59,7 @@ public abstract class AbstractResponseWriter implements ResponseWriter {
      * @return 写出结果，永不为null；是否可监听凭 {@link WriteResult#writeType()} 判断，无须空值检查
      */
     @Override
-    public WriteResult write(HttpResponse httpResponse, InternalConnectSession session) {
+    public WriteResult write(HttpResponse httpResponse, InternalHttpConnection session) {
         try {
             ChannelFuture future = doWrite(httpResponse, session);
             return future == null ? WriteResult.notListenable() : WriteResult.listenable(future);
@@ -84,5 +84,5 @@ public abstract class AbstractResponseWriter implements ResponseWriter {
      * @param session  当前连接会话
      * @return 响应写入的异步监听对象；无凭据时为 {@code null}
      */
-    protected abstract ChannelFuture doWrite(HttpResponse response, InternalConnectSession session);
+    protected abstract ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session);
 }

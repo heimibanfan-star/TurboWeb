@@ -6,7 +6,7 @@ import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.serializer.JacksonJsonSerializer;
@@ -28,7 +28,7 @@ class SseResponseWriterTest {
     @Test
     void sseResponseWritesHeaderAndStartsCallback() {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalConnectSession session = new InternalConnectSession(channel);
+        InternalHttpConnection session = new InternalHttpConnection(channel);
         AtomicBoolean callbackRan = new AtomicBoolean(false);
         SseResponse response = new SseResponse(
                 HttpResponseStatus.OK, new DefaultHttpHeaders(), session, new JacksonJsonSerializer());
@@ -46,7 +46,7 @@ class SseResponseWriterTest {
     @Test
     void internalEmitterIsInitializedAndReturnsNotListenableResult() {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalConnectSession session = new InternalConnectSession(channel);
+        InternalHttpConnection session = new InternalHttpConnection(channel);
         InternalSseEmitter emitter = new InternalSseEmitter(session, 10);
 
         ResponseWriter.WriteResult result = new SseResponseWriter().write(emitter, session);
@@ -65,7 +65,7 @@ class SseResponseWriterTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
         ResponseWriter.WriteResult result = new SseResponseWriter()
-                .write(plain, new InternalConnectSession(channel));
+                .write(plain, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                 "写出异常无凭据，结果不可监听");

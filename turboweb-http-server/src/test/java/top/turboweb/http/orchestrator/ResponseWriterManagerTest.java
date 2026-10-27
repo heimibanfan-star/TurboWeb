@@ -10,7 +10,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.concurrent.thread.ThreadPool;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.ResponseCall;
 import top.turboweb.http.testkit.Stubs;
 
@@ -54,7 +54,7 @@ class ResponseWriterManagerTest {
         private final AtomicBoolean written = new AtomicBoolean(false);
 
         @Override
-        protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+        protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
             written.set(true);
             return session.getChannel().newPromise().setSuccess();
         }
@@ -74,7 +74,7 @@ class ResponseWriterManagerTest {
         CallResponse response = new CallResponse(IgnoredResponseWriter.class);
 
         ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool(), List.of())
-                .write(response, new InternalConnectSession(channel));
+                .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                 "内置忽略写出器命中：结果不可监听");
@@ -89,7 +89,7 @@ class ResponseWriterManagerTest {
         CallResponse response = new CallResponse(MarkingWriter.class);
 
         ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool(), List.of())
-                .write(response, new InternalConnectSession(channel));
+                .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
         assertTrue(result.channelFuture().isSuccess());
@@ -106,7 +106,7 @@ class ResponseWriterManagerTest {
         ResponseWriterManager manager = new ResponseWriterManager(Stubs.threadPool(), List.of(writer));
 
         ResponseWriter.WriteResult result = manager.write(
-                new CallResponse(MarkingWriter.class), new InternalConnectSession(channel));
+                new CallResponse(MarkingWriter.class), new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
         assertTrue(result.channelFuture().isSuccess());
@@ -123,7 +123,7 @@ class ResponseWriterManagerTest {
         response.content().writeCharSequence("abc", StandardCharsets.UTF_8);
 
         ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool(), List.of())
-                .write(response, new InternalConnectSession(channel));
+                .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
         assertTrue(result.channelFuture().isSuccess());
@@ -141,7 +141,7 @@ class ResponseWriterManagerTest {
         CallResponse response = new CallResponse(ReactorResponseWriter.class);
 
         ResponseWriter.WriteResult result = new ResponseWriterManager(Stubs.threadPool(), List.of())
-                .write(response, new InternalConnectSession(channel));
+                .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                 "写出异常无凭据，结果不可监听");

@@ -15,7 +15,7 @@ import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.ReactorResponse;
 
 import java.nio.charset.StandardCharsets;
@@ -37,7 +37,7 @@ class ReactorResponseWriterTest {
     /** 在虚拟线程里跑 body，返回其结果；超时未返回即红（不拖死 worker：守护语义由 join 上界保证）。 */
     private static ResponseWriter.WriteResult writeOnVirtualThread(ResponseWriter writer,
                                                                    HttpResponse response,
-                                                                   InternalConnectSession session) throws InterruptedException {
+                                                                   InternalHttpConnection session) throws InterruptedException {
         AtomicReference<ResponseWriter.WriteResult> box = new AtomicReference<>();
         AtomicReference<Throwable> err = new AtomicReference<>();
         Thread t = Thread.ofVirtual().start(() -> {
@@ -71,7 +71,7 @@ class ReactorResponseWriterTest {
     void happyPathWritesHeaderChunksAndLast() throws InterruptedException {
         ReactorResponse resp = new ReactorResponse(Flux.just(buf("ab"), buf("cd")));
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalConnectSession session = new InternalConnectSession(channel);
+        InternalHttpConnection session = new InternalHttpConnection(channel);
         try {
             ResponseWriter.WriteResult result = writeOnVirtualThread(new ReactorResponseWriter(), resp, session);
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
@@ -98,7 +98,7 @@ class ReactorResponseWriterTest {
         IllegalStateException boom = new IllegalStateException("boom");
         ReactorResponse resp = new ReactorResponse(Flux.error(boom));
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalConnectSession session = new InternalConnectSession(channel);
+        InternalHttpConnection session = new InternalHttpConnection(channel);
         try {
             ResponseWriter.WriteResult result = writeOnVirtualThread(new ReactorResponseWriter(), resp, session);
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType(),
@@ -117,7 +117,7 @@ class ReactorResponseWriterTest {
         ByteBuf ab = buf("ab"); // 头写失败则流永不订阅，该缓冲只能测试侧回收
         ReactorResponse resp = new ReactorResponse(Flux.just(ab));
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalConnectSession session = new InternalConnectSession(channel);
+        InternalHttpConnection session = new InternalHttpConnection(channel);
         channel.close().sync();
         try {
             ResponseWriter.WriteResult result = writeOnVirtualThread(new ReactorResponseWriter(), resp, session);
@@ -142,7 +142,7 @@ class ReactorResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = writeOnVirtualThread(
-                    new ReactorResponseWriter(), plain, new InternalConnectSession(channel));
+                    new ReactorResponseWriter(), plain, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                     "写出异常无凭据，结果不可监听");
             assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
@@ -164,7 +164,7 @@ class ReactorResponseWriterTest {
         try {
             // 就在当前（JUnit 平台）线程直调 write，不自起虚拟线程
             ResponseWriter.WriteResult result = new ReactorResponseWriter()
-                    .write(resp, new InternalConnectSession(channel));
+                    .write(resp, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                     "写出异常无凭据，结果不可监听");
             assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");

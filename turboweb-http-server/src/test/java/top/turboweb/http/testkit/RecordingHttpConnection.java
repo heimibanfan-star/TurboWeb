@@ -1,28 +1,29 @@
 package top.turboweb.http.testkit;
 
-import io.netty.channel.ChannelFuture;
-import top.turboweb.http.core.connect.ConnectSession;
+import top.turboweb.http.connection.HttpConnection;
 
 import java.net.SocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * SSE 用例用的记录型 {@link ConnectSession}：把 {@code send} 的消息按序记下，
+ * SSE 用例用的记录型 {@link HttpConnection}：把 {@code write} 的数据按 UTF-8 解码后按序记下，
  * 记录 {@code close} 次数，并允许手动触发已注册的 closeListener。
  *
  * <p>这是纯内存桩，不持有通道/句柄；厂商在真实连接上的写出路径由 L3 覆盖。
  */
-public class RecordingConnectSession implements ConnectSession {
+public class RecordingHttpConnection implements HttpConnection {
 
     private final List<String> sent = new ArrayList<>();
     private final List<Runnable> closeListeners = new ArrayList<>();
     private int closeCount;
 
     @Override
-    public ChannelFuture send(String message) {
-        sent.add(message);
-        return null;
+    public CompletableFuture<Void> write(byte[] bytes) {
+        sent.add(new String(bytes, StandardCharsets.UTF_8));
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -31,21 +32,22 @@ public class RecordingConnectSession implements ConnectSession {
     }
 
     @Override
-    public void close() {
+    public CompletableFuture<Void> close() {
         closeCount++;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public SocketAddress getRemoteAddress() {
+    public SocketAddress remoteAddress() {
         return null;
     }
 
     @Override
-    public SocketAddress getLocalAddress() {
+    public SocketAddress localAddress() {
         return null;
     }
 
-    /** 已写出的消息（按调用顺序）。 */
+    /** 已写出的消息（按调用顺序，UTF-8 解码）。 */
     public List<String> sentMessages() {
         return sent;
     }

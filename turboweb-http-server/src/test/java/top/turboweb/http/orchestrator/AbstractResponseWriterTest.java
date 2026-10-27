@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.concurrent.thread.ThreadPool;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.testkit.Stubs;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,7 +21,7 @@ class AbstractResponseWriterTest {
     private static final class RecordingWriter extends AbstractResponseWriter {
 
         @Override
-        protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+        protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
             return null;
         }
 

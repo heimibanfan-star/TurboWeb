@@ -202,14 +202,14 @@ public interface ResponseWriter {
 
     void injectThreadPool(ThreadPool threadPool);
 
-    WriteResult write(HttpResponse httpResponse, InternalConnectSession session);
+    WriteResult write(HttpResponse httpResponse, InternalHttpConnection session);
 }
 ```
 
 可以直接实现该接口，也可以继承 `AbstractResponseWriter` 只实现 `doWrite`。后者已经封装了线程池注入与同步异常处理，推荐使用：
 
 ```java
-protected abstract ChannelFuture doWrite(HttpResponse response, InternalConnectSession session);
+protected abstract ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session);
 ```
 
 写出凭据的含义：
@@ -283,7 +283,7 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.orchestrator.AbstractResponseWriter;
 
 import java.util.List;
@@ -291,7 +291,7 @@ import java.util.List;
 public final class CsvStreamResponseWriter extends AbstractResponseWriter {
 
     @Override
-    protected ChannelFuture doWrite(HttpResponse response, InternalConnectSession session) {
+    protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
         if (!(response instanceof CsvStreamResponse csv)) {
             throw new IllegalArgumentException("Invalid response type: " + response.getClass().getName());
         }
@@ -308,7 +308,7 @@ public final class CsvStreamResponseWriter extends AbstractResponseWriter {
         return promise;
     }
 
-    private void writeNextRow(CsvStreamResponse csv, InternalConnectSession session, ChannelPromise promise) {
+    private void writeNextRow(CsvStreamResponse csv, InternalHttpConnection session, ChannelPromise promise) {
         if (!csv.rows().hasNext()) {
             session.getChannel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise);
             return;

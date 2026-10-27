@@ -1,11 +1,12 @@
 package top.turboweb.http.core.response;
 
 import io.netty.channel.Channel;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.connect.InternalConnectSession;
-import top.turboweb.http.testkit.RecordingConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.testkit.RecordingHttpConnection;
 
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -27,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class InternalSseEmitterTest {
 
     private static Channel recordingChannel(List<Object> writes) {
+        // write() 会在写出返回的 future 上挂监听，桩必须给出已成功终态的真实 future
+        EmbeddedChannel futureChannel = new EmbeddedChannel();
         return (Channel) Proxy.newProxyInstance(
                 InternalSseEmitterTest.class.getClassLoader(),
                 new Class<?>[]{Channel.class},
@@ -39,7 +42,7 @@ class InternalSseEmitterTest {
                         } else {
                             writes.add(msg);
                         }
-                        return null;
+                        return futureChannel.newSucceededFuture();
                     }
                     Class<?> rt = method.getReturnType();
                     if (rt == boolean.class) {
@@ -58,7 +61,7 @@ class InternalSseEmitterTest {
     @Test
     void initSseFlushesCachedMessagesInOrderAndInitializes() {
         List<Object> writes = new ArrayList<>();
-        InternalConnectSession session = new InternalConnectSession(recordingChannel(writes));
+        InternalHttpConnection session = new InternalHttpConnection(recordingChannel(writes));
         InternalSseEmitter emitter = new InternalSseEmitter(session, 10);
 
         emitter.sendData("a");
@@ -79,7 +82,7 @@ class InternalSseEmitterTest {
     @Test
     void sendAfterInitBypassesCache() {
         List<Object> writes = new ArrayList<>();
-        InternalConnectSession session = new InternalConnectSession(recordingChannel(writes));
+        InternalHttpConnection session = new InternalHttpConnection(recordingChannel(writes));
         InternalSseEmitter emitter = new InternalSseEmitter(session, 10);
         emitter.initSse();
         int before = writes.size();
@@ -93,7 +96,7 @@ class InternalSseEmitterTest {
     @Test
     void initSseWithEmptyCacheWritesOnlyHeader() {
         List<Object> writes = new ArrayList<>();
-        InternalConnectSession session = new InternalConnectSession(recordingChannel(writes));
+        InternalHttpConnection session = new InternalHttpConnection(recordingChannel(writes));
         InternalSseEmitter emitter = new InternalSseEmitter(session, 10);
 
         emitter.initSse();
@@ -105,7 +108,7 @@ class InternalSseEmitterTest {
 
     @Test
     void initSseWithPlainSessionThrowsAndReleasesWriteLock() {
-        InternalSseEmitter emitter = new InternalSseEmitter(new RecordingConnectSession(), 10);
+        InternalSseEmitter emitter = new InternalSseEmitter(new RecordingHttpConnection(), 10);
 
         assertThrows(ClassCastException.class, emitter::initSse);
 

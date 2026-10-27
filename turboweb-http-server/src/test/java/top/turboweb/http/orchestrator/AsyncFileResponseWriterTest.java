@@ -10,7 +10,7 @@ import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.http.core.connect.InternalConnectSession;
+import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.AsyncFileResponse;
 
 import java.io.IOException;
@@ -74,7 +74,7 @@ class AsyncFileResponseWriterTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             ResponseWriter.WriteResult result = new AsyncFileResponseWriter()
-                    .write(resp, new InternalConnectSession(channel));
+                    .write(resp, new InternalHttpConnection(channel));
             assertSame(resp, channel.readOutbound(), "第一个出站必须是响应头本身");
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
             assertTrue(result.channelFuture().isSuccess(), "凭据即响应头写出的结果");
@@ -103,7 +103,7 @@ class AsyncFileResponseWriterTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         try {
             ResponseWriter.WriteResult result = new AsyncFileResponseWriter()
-                    .write(plain, new InternalConnectSession(channel));
+                    .write(plain, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                     "写出异常无凭据，结果不可监听");
             assertNull(result.channelFuture(), "不可监听结果的凭据恒为空");
@@ -124,7 +124,7 @@ class AsyncFileResponseWriterTest {
         channel.close().sync();
         try {
             ResponseWriter.WriteResult result = new AsyncFileResponseWriter()
-                    .write(resp, new InternalConnectSession(channel));
+                    .write(resp, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType(), "写失败仍有凭据可监听");
             assertTrue(result.channelFuture().isDone());
             assertFalse(result.channelFuture().isSuccess(), "头写失败必须原样反映在返回凭据上");
