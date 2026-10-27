@@ -10,7 +10,7 @@ Gradle（Kotlin DSL）：
 
 ```kotlin
 dependencies {
-    implementation("io.gitee.turboweb:turboweb-server:$turbowebVersion")
+    implementation("io.gitee.turboweb:turboweb-http-server:$turbowebVersion")
 }
 ```
 
@@ -19,14 +19,14 @@ Maven：
 ```xml
 <dependency>
     <groupId>io.gitee.turboweb</groupId>
-    <artifactId>turboweb-server</artifactId>
+    <artifactId>turboweb-http-server</artifactId>
     <version>${turboweb.version}</version>
 </dependency>
 ```
 
 版本号不要写死在文档里。Gradle 把 `turbowebVersion` 放进 `gradle.properties` 或版本目录统一管理，Maven 把 `turboweb.version` 放进 `properties`，取值以最新发布版本为准。
 
-`turboweb-server` 会传递引入路由注解、上下文契约、序列化、校验等模块，普通 HTTP 服务只引它一个就够了。
+`turboweb-http-server` 会传递引入路由注解、上下文契约、序列化、校验等模块，普通 HTTP 服务只引它一个就够了。
 
 ## 2. 编写控制器
 

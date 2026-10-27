@@ -24,7 +24,7 @@ Gradle（Kotlin DSL）：
 
 ```kotlin
 dependencies {
-    implementation("io.gitee.turboweb:turboweb-server:$turbowebVersion")
+    implementation("io.gitee.turboweb:turboweb-http-server:$turbowebVersion")
     implementation("io.gitee.turboweb:turboweb-websocket:$turbowebVersion")
 }
 ```
@@ -34,7 +34,7 @@ Maven：
 ```xml
 <dependency>
     <groupId>io.gitee.turboweb</groupId>
-    <artifactId>turboweb-server</artifactId>
+    <artifactId>turboweb-http-server</artifactId>
     <version>${turboweb.version}</version>
 </dependency>
 <dependency>
@@ -44,7 +44,7 @@ Maven：
 </dependency>
 ```
 
-`turboweb-websocket` 只依赖服务器运行时契约、微任务执行器与 Netty，不传递 `turboweb-server`；`BootStrapWebServer` 仍由 `turboweb-server` 提供。
+`turboweb-websocket` 只依赖服务器运行时契约、微任务执行器与 Netty，不传递 `turboweb-http-server`；`BootStrapWebServer` 仍由 `turboweb-http-server` 提供。
 
 ## 2. 编写处理器
 

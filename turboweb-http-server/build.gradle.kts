@@ -29,7 +29,7 @@ dependencies {
     testRuntimeOnly(libs.logback.classic)
 }
 
-description = "turboweb-http"
+description = "turboweb-http-server"
 
 // http-server 覆盖率门禁（阶段 4 开闸）：整模块零排除，行覆盖 ≥ 0.80
 // ——闸线 0.90→0.80 为 2026-10-07 用户终裁，接入 check（spec §10 阶段 4 / §11.1）
