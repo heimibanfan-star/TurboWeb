@@ -238,33 +238,13 @@ return new ZeroCopyResponse(file);     // 零拷贝，适合大文件
 
 ## 8. SSE 响应
 
-SSE 的响应对象由框架装配：作为控制器方法参数声明，框架按当前请求注入；作为返回值返回后，框架写出响应头并开始推送。
+SSE 的推送统一使用 `SseEmitter`，由框架装配：作为控制器方法参数声明，框架按当前请求注入；作为返回值返回后，框架写出响应头并开始推送。
 
-`SseResponse` 用回调形式推送：
+`SseEmitter` 自带各类消息的拼装：
 
 ```java
 @Get("/sse")
-public SseResponse sse(SseResponse response) {
-    response.setFlux(Flux.just("hello", "world"));
-    return response;
-}
-```
-
-`setFlux(Flux<String>)` 会把每个元素包装成 `data:<内容>\n\n`。要发送自定义格式，用 `setSseCallback(...)` 直接拿连接会话：
-
-```java
-response.setSseCallback(session -> {
-    session.send("data:first\n\n");
-    session.send("event:update\ndata:done\n\n");
-    session.close();
-});
-```
-
-`SseEmitter` 更直接，自带各类消息的拼装：
-
-```java
-@Get("/emitter")
-public SseEmitter emitter(SseEmitter emitter) {
+public SseEmitter sse(SseEmitter emitter) {
     Thread.ofVirtual().start(() -> {
         for (int i = 0; i < 10; i++) {
             emitter.sendData("tick " + i);

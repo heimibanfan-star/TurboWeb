@@ -175,7 +175,7 @@ curl -i http://localhost:8080/readme
 
 | 内置写出器 | 负责的响应 |
 | --- | --- |
-| `SseResponseWriter` | `SseResponse`、`SseEmitter` |
+| `SseResponseWriter` | `SseEmitter` |
 | `FileStreamResponseWriter` | `FileStreamResponse` |
 | `AsyncFileResponseWriter` | `AsyncFileResponse` |
 | `ZeroCopyResponseWriter` | `ZeroCopyResponse` |
