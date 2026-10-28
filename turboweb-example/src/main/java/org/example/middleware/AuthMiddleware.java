@@ -8,7 +8,7 @@ public class AuthMiddleware extends Middleware {
     @Override
     public Object invoke(HttpContext ctx) {
         // 获取请求头
-        String authorization = ctx.message().headers().authorization();
+        String authorization = ctx.message().header("Authorization");
         if (!"123456".equals(authorization)) {
             // 直接拒绝请求
             return "lose authorization";

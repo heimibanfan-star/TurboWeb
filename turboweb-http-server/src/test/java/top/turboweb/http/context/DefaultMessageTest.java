@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * {@link DefaultMessage} 的组装口径：请求方式快照、地址对象的构造期建立、实例稳定性与
  * 缺省字符集透传，以及平铺在消息上的请求头读取——泛型访问器的大小写不敏感口径、
- * 常用请求头便捷方法的原始值与缺省语义、对请求头集合的实时委托。
+ * Content-Length 的取值口径、对请求头集合的实时委托。
  */
 class DefaultMessageTest {
 
@@ -173,69 +173,12 @@ class DefaultMessageTest {
     }
 
     @Test
-    void commonAccessorsReturnRawHeaderValues() {
+    void contentLengthReadsDeclaredHeader() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            req.headers().set("Content-Type", "application/json; charset=UTF-8");
-            req.headers().set("Host", "example.com:8080");
-            req.headers().set("Connection", "keep-alive");
-            req.headers().set("Date", "Fri, 16 Oct 2026 01:02:03 GMT");
-            req.headers().set("Expect", "100-continue");
-            req.headers().set("Accept", "text/html");
-            req.headers().set("Accept-Charset", "utf-8");
-            req.headers().set("Accept-Encoding", "gzip");
-            req.headers().set("Accept-Language", "zh-CN");
-            req.headers().set("Authorization", "Bearer t");
-            req.headers().set("Cache-Control", "no-cache");
-            req.headers().set("Cookie", "a=1; b=2");
-            req.headers().set("Origin", "https://example.com");
-            req.headers().set("Referer", "https://example.com/from");
-            req.headers().set("User-Agent", "curl/8");
             req.headers().set("Content-Length", "42");
-
             DefaultMessage message = message(req, StandardCharsets.UTF_8);
-            assertEquals("application/json; charset=UTF-8", message.header("Content-Type"),
-                    "便捷方法返回原始头值，编码段等附加参数原样保留");
-            assertEquals("example.com:8080", message.host());
-            assertEquals("keep-alive", message.connection());
-            assertEquals("Fri, 16 Oct 2026 01:02:03 GMT", message.date());
-            assertEquals("100-continue", message.expect());
-            assertEquals("text/html", message.accept());
-            assertEquals("utf-8", message.acceptCharset());
-            assertEquals("gzip", message.acceptEncoding());
-            assertEquals("zh-CN", message.acceptLanguage());
-            assertEquals("Bearer t", message.authorization());
-            assertEquals("no-cache", message.cacheControl());
-            assertEquals("a=1; b=2", message.cookie());
-            assertEquals("https://example.com", message.origin());
-            assertEquals("https://example.com/from", message.referer());
-            assertEquals("curl/8", message.userAgent());
             assertEquals(42L, message.contentLength());
-        } finally {
-            Requests.release(req);
-        }
-    }
-
-    @Test
-    void commonAccessorsReturnNullWhenAbsent() {
-        FullHttpRequest req = Requests.get("/x");
-        try {
-            DefaultMessage message = message(req, StandardCharsets.UTF_8);
-            assertNull(message.header("Content-Type"));
-            assertNull(message.host());
-            assertNull(message.connection());
-            assertNull(message.date());
-            assertNull(message.expect());
-            assertNull(message.accept());
-            assertNull(message.acceptCharset());
-            assertNull(message.acceptEncoding());
-            assertNull(message.acceptLanguage());
-            assertNull(message.authorization());
-            assertNull(message.cacheControl());
-            assertNull(message.cookie());
-            assertNull(message.origin());
-            assertNull(message.referer());
-            assertNull(message.userAgent());
         } finally {
             Requests.release(req);
         }

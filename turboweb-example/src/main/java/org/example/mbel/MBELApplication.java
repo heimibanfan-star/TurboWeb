@@ -44,7 +44,7 @@ public class MBELApplication {
             @Override
             protected String getBranchKey(HttpContext ctx) {
                 // 获取请求头的数据
-                return ctx.message().headers().authorization();
+                return ctx.message().header("Authorization");
             }
         };
         // 注册分支

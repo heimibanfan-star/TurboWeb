@@ -7,8 +7,7 @@ import java.util.Set;
  * http请求消息的读取契约：请求方式、请求地址与请求体内容的取用入口，并平铺承载
  * 请求头的读取访问。
  *
- * <p>请求头不设独立视图对象：泛型访问器与常用请求头便捷方法直接挂在消息上。头名
- * 查询大小写不敏感；便捷方法返回对应请求头的原始值（charset 等附加参数段原样保留），
+ * <p>请求头不设独立视图对象，读取访问直接平铺在消息上，头名查询大小写不敏感；
  * 头未发送时返回 {@code null}，仅 {@link #contentLength()} 未发送或取值无效时记 0。
  * 请求体侧声明的内容类型经 {@link #content()} 返回的 {@link HttpContent} 读取。</p>
  */
@@ -97,77 +96,4 @@ public interface HttpRequestMessage {
         }
     }
 
-    /** Host 头 */
-    default String host() {
-        return header("Host");
-    }
-
-    /** Connection 头 */
-    default String connection() {
-        return header("Connection");
-    }
-
-    /** Date 头 */
-    default String date() {
-        return header("Date");
-    }
-
-    /** Expect 头 */
-    default String expect() {
-        return header("Expect");
-    }
-
-    /** Accept 头 */
-    default String accept() {
-        return header("Accept");
-    }
-
-    /** Accept-Charset 头 */
-    default String acceptCharset() {
-        return header("Accept-Charset");
-    }
-
-    /** Accept-Encoding 头 */
-    default String acceptEncoding() {
-        return header("Accept-Encoding");
-    }
-
-    /** Accept-Language 头 */
-    default String acceptLanguage() {
-        return header("Accept-Language");
-    }
-
-    /** Authorization 头 */
-    default String authorization() {
-        return header("Authorization");
-    }
-
-    /** Cache-Control 头 */
-    default String cacheControl() {
-        return header("Cache-Control");
-    }
-
-    /**
-     * Cookie 头原始值；结构化的 Cookie 逐项读写由实现侧的 Cookie 集合能力承接。
-     *
-     * @return 头原始值
-     */
-    default String cookie() {
-        return header("Cookie");
-    }
-
-    /** Origin 头 */
-    default String origin() {
-        return header("Origin");
-    }
-
-    /** Referer 头 */
-    default String referer() {
-        return header("Referer");
-    }
-
-    /** User-Agent 头 */
-    default String userAgent() {
-        return header("User-Agent");
-    }
 }
