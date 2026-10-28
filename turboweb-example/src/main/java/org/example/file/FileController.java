@@ -8,7 +8,6 @@ import top.turboweb.rest.annotation.router.Route;
 import top.turboweb.rest.core.MultipartFile;
 import top.turboweb.rest.annotation.binder.FormParam;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.core.response.AsyncFileResponse;
 import top.turboweb.http.core.response.FileStreamResponse;
 import top.turboweb.http.core.response.HttpFileResult;
 import top.turboweb.http.core.response.ZeroCopyResponse;
@@ -57,12 +56,6 @@ public class FileController {
     public HttpResponse download02(HttpContext context) {
         File file = new File("E:\\tmp\\logo.png");
         return new FileStreamResponse(file, 8192);
-    }
-
-    @Get("/download3")
-    public HttpResponse download03(HttpContext context) {
-        File file = new File("E:\\tmp\\logo.png");
-        return new AsyncFileResponse(file, 8192);
     }
 
     @Get("/download4")

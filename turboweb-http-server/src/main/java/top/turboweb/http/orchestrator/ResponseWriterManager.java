@@ -73,7 +73,6 @@ public class ResponseWriterManager {
                 SseResponseWriter.class, new SseResponseWriter(),
                 FileStreamResponseWriter.class, new FileStreamResponseWriter(),
                 DefaultResponseWriter.class, new DefaultResponseWriter(),
-                AsyncFileResponseWriter.class, new AsyncFileResponseWriter(),
                 ZeroCopyResponseWriter.class, new ZeroCopyResponseWriter(),
                 ReactorResponseWriter.class, new ReactorResponseWriter(),
                 IgnoredResponseWriter.class, new IgnoredResponseWriter()

@@ -158,7 +158,6 @@ class ResponseWriterManagerTest {
                 new SseResponseWriter(),
                 new FileStreamResponseWriter(),
                 new DefaultResponseWriter(),
-                new AsyncFileResponseWriter(),
                 new ZeroCopyResponseWriter(),
                 new ReactorResponseWriter(),
                 new IgnoredResponseWriter());

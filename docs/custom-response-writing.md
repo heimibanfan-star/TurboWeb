@@ -177,7 +177,6 @@ curl -i http://localhost:8080/readme
 | --- | --- |
 | `SseResponseWriter` | `SseEmitter` |
 | `FileStreamResponseWriter` | `FileStreamResponse` |
-| `AsyncFileResponseWriter` | `AsyncFileResponse` |
 | `ZeroCopyResponseWriter` | `ZeroCopyResponse` |
 | `ReactorResponseWriter` | `ReactorResponse` |
 | `IgnoredResponseWriter` | `IgnoredHttpResponse` |

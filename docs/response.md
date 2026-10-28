@@ -226,15 +226,14 @@ HttpFileResult.png(byte[] bytes);    // jpeg、gif、mp4 用法相同
 
 磁盘文件超过 32MB 时，`HttpFileResult` 在转化环节自动改用 `FileStreamResponse` 分块写出，不会把整个文件读进内存。`closeLimit()` 取消这个阈值，此后无论多大都读入内存，只在确认文件很小时使用。
 
-大文件也可以直接返回三种流式响应：
+大文件也可以直接返回两种流式响应：
 
 ```java
 return new FileStreamResponse(file);   // 分块流式，默认每块 2MB
-return new AsyncFileResponse(file);    // 操作系统 AIO，默认每块 8KB
 return new ZeroCopyResponse(file);     // 零拷贝，适合大文件
 ```
 
-三者都只支持磁盘文件，构造时校验文件存在、不是目录、可读，不满足抛 `ResponseHandleException`。`FileStreamResponse` 与 `AsyncFileResponse` 都可以传入分块大小覆盖默认值。
+两者都只支持磁盘文件，构造时校验文件存在、不是目录、可读，不满足抛 `ResponseHandleException`。`FileStreamResponse` 可以传入分块大小覆盖默认值。
 
 ## 8. SSE 响应
 
