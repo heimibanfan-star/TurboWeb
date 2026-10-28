@@ -6,7 +6,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
-import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
@@ -26,6 +25,7 @@ import top.turboweb.http.orchestrator.ResultConverterManager;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
+import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
@@ -50,22 +50,21 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link HttpServerRuntime.Builder} 的编排器装配契约与资源作用域（spec §5 server/runtime 行）。
+ * {@link HttpServerRuntime.Builder} 的编排器装配契约与资源管理器（spec §5 server/runtime 行）。
  *
  * <p>build() 会创建磁盘IO弹性线程池并按限流参数创建虚拟线程资源，但本类每条用例都显式注入
  * 不启动 session GC 线程的 {@link NoopSessionManager}，并在断言后关闭应用；不断言任何线程终止。
- * 装配完成的编排器藏在应用持有的调度处理器里，组件身份断言经反射取证（与 {@code diskPoolOf}
- * 同一类取证手段）。
+ * 装配完成的编排器藏在应用持有的调度处理器里，组件身份断言经反射取证。
  */
 class HttpServerRuntimeTest {
 
     // ---------- 构造与链式参数校验 ----------
 
     @Test
-    void npeWhenScopedResourceIsNull() {
+    void npeWhenResourceManagerIsNull() {
         NullPointerException ex = assertThrows(NullPointerException.class,
                 () -> new HttpServerRuntime(false, null, null));
-        assertEquals("The resource scope must not be null", ex.getMessage());
+        assertEquals("The resource manager must not be null", ex.getMessage());
     }
 
     @Test
@@ -179,7 +178,7 @@ class HttpServerRuntimeTest {
                 .middleware(mw, probe)
                 .build();
 
-        ThreadPool diskPool = diskPoolOf(runtime.getScopedResource());
+        ThreadPool diskPool = runtime.getResourceManager().getResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
         probe.attachDiskPool(diskPool);
         assertFalse(diskPool.isShutdown(), "构建后磁盘池尚未关闭");
         events.clear();
@@ -400,7 +399,7 @@ class HttpServerRuntimeTest {
 
     /**
      * 取出应用装配完成的请求编排器：应用持有调度处理器、处理器持有编排器，两级均为私有字段，
-     * L1 只能反射读取（与 {@code diskPoolOf} 同一类取证手段）。字段一旦改名，相关用例会以
+     * L1 只能反射读取。字段一旦改名，相关用例会以
      * {@code NoSuchFieldException} 变红，届时同步更新即可。
      */
     private static RequestOrchestrator orchestratorOf(HttpServerRuntime runtime) throws Exception {
@@ -424,24 +423,6 @@ class HttpServerRuntimeTest {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         return field.get(target);
-    }
-
-    /**
-     * 从应用资源作用域里取出磁盘IO线程池：{@code ScopedResource} 不暴露已登记资源，
-     * L1 只能反射读它私有的 {@code registedResource}（反射私有成员是同一类取证手段）。
-     * 字段一旦改名，本用例会以
-     * {@code NoSuchFieldException} 变红，届时同步更新即可。
-     */
-    @SuppressWarnings("unchecked")
-    private static ThreadPool diskPoolOf(ScopedResource scope) throws Exception {
-        Field field = ScopedResource.class.getDeclaredField("registedResource");
-        field.setAccessible(true);
-        Set<AutoCloseable> resources = (Set<AutoCloseable>) field.get(scope);
-        return resources.stream()
-                .filter(ThreadPool.class::isInstance)
-                .map(ThreadPool.class::cast)
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("资源作用域中没有登记磁盘IO线程池"));
     }
 
     /** 链尾探测中间件：在 destroy 时记录磁盘池的 shutdown 状态，用于断言释放顺序。 */

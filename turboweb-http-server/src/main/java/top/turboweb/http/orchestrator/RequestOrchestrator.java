@@ -13,8 +13,10 @@ import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.rest.core.HttpContent;
 import top.turboweb.rest.core.HttpRequestMessage;
+import top.turboweb.server.runtime.ResourceManager;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -82,7 +84,8 @@ public class RequestOrchestrator {
      */
     private RequestOrchestrator(Builder builder) {
         this.middleware = builder.middleware;
-        this.microTaskExecutor = builder.microTaskExecutor;
+        // 微任务执行器按名从资源管理器获取，获取即保存到本类final字段
+        this.microTaskExecutor = builder.resourceManager.getResource(ResourceNames.MICRO_TASK_EXECUTOR, MicroTaskExecutor.class);
         this.responseWriterManager = builder.responseWriterManager;
         this.resultConverterManager = builder.resultConverterManager;
         this.corsConfig = builder.corsConfig;
@@ -412,7 +415,7 @@ public class RequestOrchestrator {
     public static class Builder {
 
         private Middleware middleware;
-        private MicroTaskExecutor microTaskExecutor;
+        private ResourceManager resourceManager;
         private ResponseWriterManager responseWriterManager;
         private ResultConverterManager resultConverterManager;
         private HttpCorsConfig corsConfig;
@@ -427,9 +430,9 @@ public class RequestOrchestrator {
             return this;
         }
 
-        /** 设置微任务执行器。 */
-        public Builder microTaskExecutor(MicroTaskExecutor microTaskExecutor) {
-            this.microTaskExecutor = Objects.requireNonNull(microTaskExecutor, "micro task executor must not be null");
+        /** 设置资源管理器，微任务执行器按 {@link ResourceNames#MICRO_TASK_EXECUTOR} 从其中获取。 */
+        public Builder resourceManager(ResourceManager resourceManager) {
+            this.resourceManager = Objects.requireNonNull(resourceManager, "resource manager must not be null");
             return this;
         }
 
@@ -490,7 +493,7 @@ public class RequestOrchestrator {
          */
         public RequestOrchestrator build() {
             Objects.requireNonNull(middleware, "middleware must not be null");
-            Objects.requireNonNull(microTaskExecutor, "micro task executor must not be null");
+            Objects.requireNonNull(resourceManager, "resource manager must not be null");
             Objects.requireNonNull(responseWriterManager, "response writer manager must not be null");
             Objects.requireNonNull(resultConverterManager, "result converter manager must not be null");
             Objects.requireNonNull(corsConfig, "cors config must not be null");

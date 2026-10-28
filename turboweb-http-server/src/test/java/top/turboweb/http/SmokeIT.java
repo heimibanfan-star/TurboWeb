@@ -87,7 +87,7 @@ class SmokeIT {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             assertEquals("second-payload", response.body());
         }
-        // 关闭后中间件的 destroy 必须被调用（由 HttpServerRuntime#close 经 ScopedResource 触发）
+        // 关闭后中间件的 destroy 必须被调用（由 HttpServerRuntime#close 经资源管理器触发）
         assertTrue(secondEvents.contains("destroy:second"),
                 "应用关闭必须销毁中间件链，事件: " + secondEvents);
         // 注意：此处刻意不断言"端口拒绝连接"也不sleep等待——Netty静默期异步，见 spec §7.3-7.4

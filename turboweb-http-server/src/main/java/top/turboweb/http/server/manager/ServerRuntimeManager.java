@@ -72,8 +72,8 @@ public class ServerRuntimeManager implements AutoCloseable {
     }
 
     /**
-     * 关闭全部已注册的应用：按注册顺序依次调用各应用的close，由各应用释放自己
-     * {@link top.turboweb.common.utils.resource.ScopedResource} 作用域中登记的资源
+     * 关闭全部已注册的应用：按注册顺序依次调用各应用的close，由各应用释放装配期
+     * 登记进资源管理器的资源
      * （http应用按登记顺序销毁中间件链、关闭磁盘IO线程池，websocket应用释放消息处理线程池）。
      * <p>
      * 由 {@code BootStrapWebServer#close()} 在传输层线程组关闭之后发起；单个应用关闭抛出的异常

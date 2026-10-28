@@ -5,6 +5,8 @@ import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.ResponseCall;
+import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.server.runtime.ResourceManager;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,7 +37,7 @@ import java.util.stream.Stream;
  *     <li>默认写出器兜底，避免空指针与未声明响应类型问题。</li>
  *     <li>写出结果以 {@link ResponseWriter.WriteResult} 返回凭据状态与完成凭据，
  *         上游按状态判断即可，无须对凭据做空值检查。</li>
- *     <li>磁盘IO线程池由构造器注入，构造期经 injectThreadPool 交给
+ *     <li>磁盘IO线程池按名从资源管理器获取，构造期经 injectThreadPool 交给
  *         {@link FileStreamResponseWriter} 等写出器调度文件分块读取。</li>
  * </ul>
  */
@@ -59,15 +61,19 @@ public class ResponseWriterManager {
      * 内置表与经校验的自定义不可变表先在线程池注入完成后，
      * 再统一赋值 final 字段（发布安全：final 字段随对象发布可见时，写出器已初始化完毕）。
      *
-     * @param threadPool      磁盘IO线程池，注入 {@link FileStreamResponseWriter} 用于调度文件分块读取，不能为null
+     * @param resourceManager 资源管理器，磁盘IO线程池按 {@link ResourceNames#DISK_IO_THREAD_POOL}
+     *                        从其中获取并注入 {@link FileStreamResponseWriter} 用于调度文件分块读取，不能为null
      * @param customerWriters 自定义写出器列表，按写出器具体类登记为不可变表，不能为null、元素不能为null
-     * @throws NullPointerException     线程池或列表为null、列表元素为null
+     * @throws NullPointerException     资源管理器或列表为null、列表元素为null
      * @throws IllegalArgumentException 列表含系统内置写出器类
      * @throws IllegalStateException    自定义写出器实例已注入过线程池（同一实例传入过其他管理器），或同一写出器类在列表中出现多次
+     * @throws top.turboweb.server.runtime.ResourceException 资源管理器中未登记磁盘IO线程池
      */
-    public ResponseWriterManager(ThreadPool threadPool, List<ResponseWriter> customerWriters) {
-        Objects.requireNonNull(threadPool, "The disk IO thread pool must not be null");
+    public ResponseWriterManager(ResourceManager resourceManager, List<ResponseWriter> customerWriters) {
+        Objects.requireNonNull(resourceManager, "The resource manager must not be null");
         Objects.requireNonNull(customerWriters, "The custom writer list must not be null");
+        // 磁盘IO线程池按名从资源管理器获取，使用方保存到局部变量完成注入
+        ThreadPool threadPool = resourceManager.getResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
         // 全部初始化（建表、校验、注入线程池）先在局部变量上完成，后赋值 final 字段
         Map<Class<? extends ResponseWriter>, ResponseWriter> internalTable = Map.of(
                 SseResponseWriter.class, new SseResponseWriter(),

@@ -8,7 +8,7 @@ package top.turboweb.concurrent.thread;
  * </p>
  */
 @FunctionalInterface
-public interface MicroTaskExecutor {
+public interface MicroTaskExecutor extends AutoCloseable {
 
     /**
      * 收尾回调的执行状态：一次提交有且仅有其中一种收尾。
@@ -67,4 +67,11 @@ public interface MicroTaskExecutor {
      * @throws NullPointerException task 或 finallyHandler 为 null
      */
     void submit(Runnable task, FinallyHandler finallyHandler);
+
+    /**
+     * 释放执行器持有的资源：无须回收资源的实现继承本空实现即可；重复调用为幂等。
+     */
+    @Override
+    default void close() {
+    }
 }

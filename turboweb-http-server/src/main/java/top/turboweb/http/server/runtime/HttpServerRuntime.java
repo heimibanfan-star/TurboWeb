@@ -5,10 +5,11 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
-import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ElasticThreadPool;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
+import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.server.runtime.ResourceManager;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.session.DefaultSessionManagerHolder;
 import top.turboweb.http.core.session.MemorySessionManager;
@@ -49,9 +50,9 @@ import java.util.stream.Stream;
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
  * <p>
  * 装配期创建的生命周期资源不在本类中逐个持有，而是统一登记进本应用持有的
- * {@link ScopedResource} 资源作用域：中间件链的销毁适配器（沿链头到链尾调用各中间件的destroy）
- * 先登记，磁盘IO线程池后登记，关闭时由本类 {@link #close()} 按登记顺序
- * 释放整个作用域。服务器关闭时会统一触发，调用方也可对应用实例自行try-with-resources。
+ * {@link ResourceManager} 资源管理器：中间件链的销毁适配器（沿链头到链尾调用各中间件的destroy）
+ * 先登记，磁盘IO线程池、微任务执行器随后登记，关闭时由本类 {@link #close()} 按登记顺序
+ * 统一释放。服务器关闭时会统一触发，调用方也可对应用实例自行try-with-resources。
  *
  * <pre>{@code
  * HttpServerRuntime runtime = new HttpServerRuntime.Builder()
@@ -86,18 +87,18 @@ public class HttpServerRuntime implements ServerRuntime {
     private final HttpRequestSchedulerChannelHandler httpRequestSchedulerHandler;
 
     /**
-     * 应用的资源作用域：装配期由 {@link Builder#build()} 创建的磁盘IO线程池、中间件链销毁适配器
-     * 等可关闭资源全部登记于此，关闭时由 {@link #close()} 统一释放，
-     * 本类无须持有个别资源的引用
+     * 应用的资源管理器：装配期由 {@link Builder#build()} 创建的磁盘IO线程池、微任务执行器、
+     * 中间件链销毁适配器等可关闭资源全部登记于此，关闭时由 {@link #close()} 统一释放，
+     * 使用方按 {@link ResourceNames} 的资源名从其中获取资源
      */
-    private final ScopedResource scopedResource;
+    private final ResourceManager resourceManager;
 
     public HttpServerRuntime(boolean requestSerial,
                                   HttpRequestSchedulerChannelHandler httpRequestSchedulerHandler,
-                                  ScopedResource scopedResource) {
+                                  ResourceManager resourceManager) {
         this.requestSerial = requestSerial;
         this.httpRequestSchedulerHandler = httpRequestSchedulerHandler;
-        this.scopedResource = Objects.requireNonNull(scopedResource, "The resource scope must not be null");
+        this.resourceManager = Objects.requireNonNull(resourceManager, "The resource manager must not be null");
     }
 
 
@@ -116,19 +117,20 @@ public class HttpServerRuntime implements ServerRuntime {
     }
 
     /**
-     * 获取本应用持有的资源作用域：装配期登记的可关闭资源在此，关闭时由 {@link #close()} 统一释放
+     * 获取本应用持有的资源管理器：装配期登记的可关闭资源在此，
+     * 使用方按 {@link ResourceNames} 的资源名获取，关闭时由 {@link #close()} 统一释放
      */
-    public ScopedResource getScopedResource() {
-        return this.scopedResource;
+    public ResourceManager getResourceManager() {
+        return this.resourceManager;
     }
 
     /**
-     * 关闭应用：释放 {@link #getScopedResource()} 中登记的全部资源，按登记顺序逐个释放，
+     * 关闭应用：释放 {@link #getResourceManager()} 中登记的全部资源，按登记顺序逐个释放，
      * 重复调用为空操作；单个资源释放失败只记录日志，不中断其余释放
      */
     @Override
     public void close() {
-        this.scopedResource.close();
+        this.resourceManager.free();
     }
 
     /**
@@ -172,8 +174,9 @@ public class HttpServerRuntime implements ServerRuntime {
      * 按限流参数创建虚拟线程资源（启用限流走 {@link VirtualThreadMicroTaskExecutor#ofLimited}，
      * 否则走 {@link VirtualThreadMicroTaskExecutor#ofUnlimited}）-> 补全未传入的组件默认值 ->
      * 按九组件装配 {@link RequestOrchestrator} -> 装配http请求调度处理器。
-     * 装配出的中间件链销毁适配器先登记、磁盘IO线程池后登记进应用的
-     * {@link ScopedResource} 资源作用域，由应用在关闭时按登记顺序统一释放。
+     * 装配出的中间件链销毁适配器先登记、磁盘IO线程池与微任务执行器随后登记进应用的
+     * {@link ResourceManager} 资源管理器，编排器与写出器管理器按 {@link ResourceNames}
+     * 的资源名从管理器获取所需资源，由应用在关闭时按登记顺序统一释放。
      * <p>
      * Builder 为一次性装配载体：{@link #build()} 仅允许调用一次，重复调用在装配开始前抛出
      * {@link IllegalStateException}。
@@ -358,7 +361,8 @@ public class HttpServerRuntime implements ServerRuntime {
          * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}，内容解析器管理器
          * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
-         * 装配出的中间件链销毁适配器先登记、创建的磁盘IO线程池后登记进资源作用域交给应用持有，
+         * 装配出的中间件链销毁适配器先登记、创建的磁盘IO线程池与微任务执行器随后登记进
+         * 资源管理器交给应用持有，编排器与响应写出器管理器按资源名从管理器获取所需资源，
          * 由 {@link #close()} 按登记顺序释放。
          * <p>
          * 同一 Builder 仅允许构建一次，重复调用在装配开始前抛出 {@link IllegalStateException}
@@ -370,8 +374,9 @@ public class HttpServerRuntime implements ServerRuntime {
                 throw new IllegalStateException("build() can only be called once on the same Builder");
             }
             log.info("Assembling http request runtime...");
-            // 应用持有的资源作用域：装配期创建的可关闭资源逐个登记进来，关闭时按登记顺序统一释放
-            ScopedResource scopedResource = new ScopedResource();
+            // 应用持有的资源管理器：装配期创建的可关闭资源逐个登记进来，关闭时按登记顺序统一释放，
+            // 使用方按ResourceNames的资源名从其中获取
+            ResourceManager.Builder resourceBuilder = new ResourceManager.Builder();
             // 路由生产：以本建造者的json序列化器装配登记表，使路由侧与结果转化侧共用同一序列化实例
             RouteHandlerManager routeHandlerManager = this.routeRegister != null
                     ? this.routeRegister.newRouteHandlerManager(this.jsonSerializer)
@@ -379,7 +384,7 @@ public class HttpServerRuntime implements ServerRuntime {
             // 串联并初始化中间件链：链头为哨兵，存在路由处理器管理器时路由调用中间件追加链尾
             Middleware middlewareChain = initMiddlewareChain(routeHandlerManager);
             // 中间件链销毁适配器先登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
-            scopedResource.register(() -> destroyMiddlewareChain(middlewareChain));
+            resourceBuilder.addResource(ResourceNames.MIDDLEWARE_DESTROYER, () -> destroyMiddlewareChain(middlewareChain));
             // 创建磁盘IO线程池，构建期注入响应写出器管理器供文件流写出器调度分块读取；应用只是使用者，关闭责任留在应用
             ThreadPool diskOpeThreadPool = new ElasticThreadPool(
                     httpConfig.getDiskOpeThreadCacheQueue(),
@@ -390,14 +395,16 @@ public class HttpServerRuntime implements ServerRuntime {
                     httpConfig.getDiskOpeThreadCacheQueue(),
                     httpConfig.getDiskOpeThreadCoreQueue(),
                     httpConfig.getDiskOpeThreadMaxThreadNum());
-            scopedResource.register(diskOpeThreadPool);
+            resourceBuilder.addResource(ResourceNames.DISK_IO_THREAD_POOL, diskOpeThreadPool);
             // 按配置限流参数创建虚拟线程资源
             VirtualThreadMicroTaskExecutor virtualThreadResource = createVirtualThreadResource();
-            // 未传入的组件补全默认值后，按九组件装定请求编排器
+            resourceBuilder.addResource(ResourceNames.MICRO_TASK_EXECUTOR, virtualThreadResource);
+            ResourceManager resourceManager = resourceBuilder.build();
+            // 未传入的组件补全默认值后，按九组件装定请求编排器；微任务执行器与磁盘IO线程池按资源名从管理器获取
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
-                    .microTaskExecutor(virtualThreadResource)
-                    .responseWriterManager(new ResponseWriterManager(diskOpeThreadPool, this.responseWriters))
+                    .resourceManager(resourceManager)
+                    .responseWriterManager(new ResponseWriterManager(resourceManager, this.responseWriters))
                     .resultConverterManager(new ResultConverterManager(this.jsonSerializer, this.resultConverters))
                     .corsConfig(this.corsConfig != null
                             ? this.corsConfig
@@ -414,7 +421,7 @@ public class HttpServerRuntime implements ServerRuntime {
             return new HttpServerRuntime(
                     httpConfig.isSerializePerConnection(),
                     schedulerHandler,
-                    scopedResource
+                    resourceManager
             );
         }
 
