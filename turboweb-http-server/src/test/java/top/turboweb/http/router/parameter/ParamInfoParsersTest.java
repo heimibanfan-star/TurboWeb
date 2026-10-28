@@ -21,7 +21,6 @@ import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
-import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.exception.RouteHandlerException;
@@ -74,7 +73,6 @@ class ParamInfoParsersTest {
         void internContext(HttpContext v) {}
         void internSession(HttpSession v) {}
         void internCookies(HttpCookies v) {}
-        void internSseResponse(SseResponse v) {}
         void internSseEmitter(SseEmitter v) {}
         void internConnectSession(HttpConnection v) {}
         void internChannel(Channel v) {}
@@ -656,11 +654,6 @@ class ParamInfoParsersTest {
                 .bindParameter(stub.returning("cookies", cookies).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
 
         HttpConnection sseSession = proxy(HttpConnection.class);
-        SseResponse boundSseResponse = assertInstanceOf(SseResponse.class, p.parse(parameter("internSseResponse"))
-                .bindParameter(stub.returning("getConnectSession", sseSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
-        assertEquals("text/event-stream", boundSseResponse.headers().get(HttpHeaderNames.CONTENT_TYPE),
-                "SSE 响应由绑定器经连接会话就地构造，携事件流媒体类型");
-
         SseEmitter boundSseEmitter = assertInstanceOf(InternalSseEmitter.class, p.parse(parameter("internSseEmitter"))
                 .bindParameter(stub.returning("getConnectSession", sseSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
         assertEquals("text/event-stream", boundSseEmitter.headers().get(HttpHeaderNames.CONTENT_TYPE));

@@ -5,24 +5,21 @@ import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
-import top.turboweb.http.core.response.SseResponse;
 
 /**
  * SSE（Server-Sent Events）响应写出器。
  * <p>
- * 该写出器专用于处理基于 {@link SseResponse} 和 {@link SseEmitter} 的服务端推送响应，
+ * 该写出器专用于处理基于 {@link SseEmitter} 的服务端推送响应，
  * 负责建立持久连接并启动消息推送流。
  * </p>
  *
  * <p><b>职责：</b></p>
  * <ul>
- *     <li>在响应阶段发送初始响应头。</li>
- *     <li>触发 {@link SseResponse#startSse()} 启动推送回调。</li>
- *     <li>当响应为内部发射器 {@link InternalSseEmitter} 时，负责完成 SSE 初始化。</li>
+ *     <li>当响应为内部发射器 {@link InternalSseEmitter} 时，发送初始响应头并完成 SSE 初始化。</li>
  * </ul>
  *
  * <p><b>异常处理：</b></p>
- * 若响应类型不属于 {@link SseResponse} 或 {@link InternalSseEmitter}，
+ * 若响应类型不属于 {@link InternalSseEmitter}，
  * 将抛出 {@link IllegalArgumentException} 以提示调用方使用了不支持的响应类型。
  */
 public class SseResponseWriter extends AbstractResponseWriter {
@@ -30,20 +27,14 @@ public class SseResponseWriter extends AbstractResponseWriter {
     /**
      * 处理 SSE 类型的响应逻辑。
      *
-     * @param response 响应对象，可为 {@link SseResponse} 或 {@link InternalSseEmitter}
+     * @param response 响应对象，须为 {@link InternalSseEmitter}
      * @param session  当前连接会话，封装了底层 Netty 通道
-     * @return 写入操作的 {@link ChannelFuture}（内部发射器类型可能返回 null）
+     * @return 写入操作的 {@link ChannelFuture}（内部发射器类型返回 null）
      * @throws IllegalArgumentException 当响应类型不支持时抛出
      */
     @Override
     protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
-        if (response instanceof SseResponse sseResponse) {
-            // 发送响应头
-            ChannelFuture channelFuture = session.getChannel().writeAndFlush(response);
-            // 调用sse的回调函数
-            sseResponse.startSse();
-            return channelFuture;
-        } else if (response instanceof InternalSseEmitter sseEmitter) {
+        if (response instanceof InternalSseEmitter sseEmitter) {
             // 对SSE发射器进行初始化
             sseEmitter.initSse();
         } else {

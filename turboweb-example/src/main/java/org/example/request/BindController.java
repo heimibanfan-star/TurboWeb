@@ -8,7 +8,6 @@ import top.turboweb.rest.annotation.binder.*;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.SseEmitter;
-import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.core.session.HttpSession;
 
 import java.util.List;
@@ -22,13 +21,11 @@ public class BindController {
             HttpContext ctx,
             HttpSession session,
             HttpCookies cookies,
-            SseResponse sseResponse,
             SseEmitter sseEmitter
             ) {
         System.out.println(ctx);
         System.out.println(session);
         System.out.println(cookies);
-        System.out.println(sseResponse);
         System.out.println(sseEmitter);
         return "success";
     }

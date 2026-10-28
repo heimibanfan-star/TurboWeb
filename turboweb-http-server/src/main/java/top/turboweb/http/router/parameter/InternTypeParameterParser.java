@@ -1,14 +1,11 @@
 package top.turboweb.http.router.parameter;
 
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
 import top.turboweb.http.core.response.SseEmitter;
-import top.turboweb.http.core.response.SseResponse;
 import top.turboweb.http.session.HttpSession;
 
 import java.lang.reflect.Parameter;
@@ -28,9 +25,6 @@ public class InternTypeParameterParser extends AbstractParameterParser{
     private static final ParameterParser.Binder HTTP_SESSION_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ctx.httpSession();
     // HttpCookies自动绑定
     private static final ParameterParser.Binder HTTP_COOKIES_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ctx.cookies();
-    // SseResponse自动绑定:绑定点经连接会话与路由侧序列化器就地构造
-    private static final ParameterParser.Binder SSE_RESPONSE_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) ->
-            new SseResponse(HttpResponseStatus.OK, new DefaultHttpHeaders(), ctx.getConnectSession(), jsonSerializer);
     // SseEmitter自动绑定:绑定点经连接会话就地构造,缓存容量取统一值32
     private static final ParameterParser.Binder SSE_EMITTER_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) ->
             new InternalSseEmitter(ctx.getConnectSession(), SSE_MAX_MESSAGE_CACHE);
@@ -51,9 +45,6 @@ public class InternTypeParameterParser extends AbstractParameterParser{
         }
         if (HttpCookies.class == type) {
             return HTTP_COOKIES_BINDER;
-        }
-        if (SseResponse.class == type) {
-            return SSE_RESPONSE_BINDER;
         }
         if (SseEmitter.class == type) {
             return SSE_EMITTER_BINDER;

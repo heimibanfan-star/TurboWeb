@@ -2,46 +2,22 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.InternalSseEmitter;
-import top.turboweb.http.core.response.SseResponse;
-import top.turboweb.serializer.JacksonJsonSerializer;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link SseResponseWriter} 的行为锚：SseResponse 写头并触发回调（结果可监听）、
+ * {@link SseResponseWriter} 的行为锚：
  * 内部发射器仅初始化（结果不可监听、无凭据）、错型经模板兜底记日志并关闭连接，与旧 SSE 策略语义一致。
  */
 class SseResponseWriterTest {
-
-    @Test
-    void sseResponseWritesHeaderAndStartsCallback() {
-        EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection session = new InternalHttpConnection(channel);
-        AtomicBoolean callbackRan = new AtomicBoolean(false);
-        SseResponse response = new SseResponse(
-                HttpResponseStatus.OK, new DefaultHttpHeaders(), session, new JacksonJsonSerializer());
-        response.setSseCallback(connectSession -> callbackRan.set(true));
-
-        ResponseWriter.WriteResult result = new SseResponseWriter().write(response, session);
-
-        assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
-        assertTrue(result.channelFuture().isSuccess(), "返回的应是响应头写出的凭据");
-        assertTrue(callbackRan.get(), "写头后必须触发 SSE 回调");
-        assertSame(response, channel.readOutbound());
-        channel.finishAndReleaseAll();
-    }
 
     @Test
     void internalEmitterIsInitializedAndReturnsNotListenableResult() {
