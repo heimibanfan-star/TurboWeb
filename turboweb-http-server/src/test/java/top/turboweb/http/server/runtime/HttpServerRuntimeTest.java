@@ -6,7 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
-import top.turboweb.concurrent.thread.ThreadPool;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.connect.InternalHttpConnection;
@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -179,17 +180,16 @@ class HttpServerRuntimeTest {
                 .middleware(mw, probe)
                 .build();
 
-        ThreadPool diskPool = runtime.getResourceManager().getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
+        MicroTaskExecutor diskPool = runtime.getResourceManager().getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, MicroTaskExecutor.class);
         probe.attachDiskPool(diskPool);
-        assertFalse(diskPool.isShutdown(), "构建后磁盘池尚未关闭");
         events.clear();
 
         runtime.close();
 
-        // 中间件链销毁适配器先于磁盘池登记，因此 probe 在自己的 destroy 里应看到池还未 shutdown
+        // 中间件链销毁适配器先于磁盘池登记，因此 probe 在自己的 destroy 里应看到池还未关闭
         assertEquals(List.of("destroy:mw", "destroy:probe:poolShutdown=false"), events,
                 "销毁顺序必须是：中间件链先销毁，磁盘池后关闭");
-        assertTrue(diskPool.isShutdown(), "应用关闭后磁盘池必须已 shutdown");
+        assertTrue(probe.submitRejectedAfterClose(), "应用关闭后磁盘池必须不再受理提交");
     }
 
     // ---------- 装配后中间件链被锁定 ----------
@@ -426,18 +426,34 @@ class HttpServerRuntimeTest {
         return field.get(target);
     }
 
-    /** 链尾探测中间件：在 destroy 时记录磁盘池的 shutdown 状态，用于断言释放顺序。 */
+    /** 链尾探测中间件：在 destroy 时以一次空提交探测磁盘执行器的受理状态，用于断言释放顺序。 */
     private static final class DiskPoolProbeMiddleware extends Middleware {
 
         private final List<String> events;
-        private ThreadPool diskPool;
+        private MicroTaskExecutor diskPool;
 
         DiskPoolProbeMiddleware(List<String> events) {
             this.events = events;
         }
 
-        void attachDiskPool(ThreadPool diskPool) {
+        void attachDiskPool(MicroTaskExecutor diskPool) {
             this.diskPool = diskPool;
+        }
+
+        /** 应用关闭后再次提交必须未受理：返回 true 表示提交被拒（执行器已关闭）。 */
+        boolean submitRejectedAfterClose() {
+            return !submitProbe();
+        }
+
+        /** 以一次空提交探测执行器受理状态：受理返回 true，未受理（已关闭）返回 false。 */
+        private boolean submitProbe() {
+            AtomicBoolean accepted = new AtomicBoolean(true);
+            diskPool.submit(() -> { }, signal -> {
+                if (signal.finallyType() == MicroTaskExecutor.FinallyType.NOT_ACCEPT) {
+                    accepted.set(false);
+                }
+            });
+            return accepted.get();
         }
 
         @Override
@@ -447,7 +463,7 @@ class HttpServerRuntimeTest {
 
         @Override
         public void destroy() {
-            events.add("destroy:probe:poolShutdown=" + diskPool.isShutdown());
+            events.add("destroy:probe:poolShutdown=" + !submitProbe());
         }
     }
 

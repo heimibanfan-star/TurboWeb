@@ -14,6 +14,7 @@ import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.SynchronousSink;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.exception.ResponseHandleException;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.FileStreamResponse;
@@ -27,14 +28,14 @@ import java.io.IOException;
  * 该写出器基于 Reactor 背压流与 Netty 的异步通道，实现了真正的非阻塞文件分块传输。
  * </p>
  *
- * <p><b>线程池来源：</b></p>
- * 磁盘IO线程池经 {@link #injectThreadPool} 在装配与登记期注入（继承自基类字段），
+ * <p><b>磁盘IO执行器来源：</b></p>
+ * 磁盘IO微任务执行器经 {@link #initWriter} 在装配与登记期注入（继承自基类字段），
  * 用于调度文件分块的读取任务，本写出器不负责其生命周期。
  *
  * <p><b>背压机制：</b></p>
  * <ul>
  *     <li>{@link Flux#generate} 按偏移量递增产出分块，读取与写出交替推进；</li>
- *     <li>每个分块的写出成功后才请求下一块，线程池拒绝即取消整个流；</li>
+ *     <li>每个分块的写出成功后才请求下一块，执行器未受理（未受理收尾）即取消整个流；</li>
  *     <li>流终结（完成、出错、取消）时统一关闭文件通道。</li>
  * </ul>
  */
@@ -103,14 +104,15 @@ public class FileStreamResponseWriter extends AbstractResponseWriter {
 
                     @Override
                     protected void hookOnSubscribe(@NonNull Subscription subscription) {
-                        boolean ok = threadPool.execute(() -> {
+                        diskIoExecutor.submit(() -> {
                             // 订阅一个流
                             subscription.request(1);
+                        }, signal -> {
+                            if (signal.finallyType() == MicroTaskExecutor.FinallyType.NOT_ACCEPT) {
+                                log.error("disk thread is busy, file download fail");
+                                cancel();
+                            }
                         });
-                        if (!ok) {
-                            log.error("disk thread is busy, file download fail");
-                            cancel();
-                        }
                     }
 
                     @Override
@@ -123,13 +125,12 @@ public class FileStreamResponseWriter extends AbstractResponseWriter {
                                         cancel();
                                     } else {
                                         // 订阅下一个分块
-                                        boolean ok = threadPool.execute(() -> {
-                                            request(1);
+                                        diskIoExecutor.submit(() -> request(1), signal -> {
+                                            if (signal.finallyType() == MicroTaskExecutor.FinallyType.NOT_ACCEPT) {
+                                                log.error("disk thread is busy, file download fail");
+                                                cancel();
+                                            }
                                         });
-                                        if (!ok) {
-                                            log.error("disk thread is busy, file download fail");
-                                            cancel();
-                                        }
                                     }
                                 });
                     }

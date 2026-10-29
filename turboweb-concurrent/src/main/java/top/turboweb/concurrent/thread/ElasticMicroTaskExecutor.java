@@ -11,7 +11,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * 弹性线程池，实现 {@link ThreadPool}。
+ * 弹性微任务执行器，实现 {@link MicroTaskExecutor}：以固定上限的平台线程承载虚拟线程无法卸载的
+ * IO阻塞型任务（如磁盘读写），避免此类任务长期占住虚拟线程的载体线程。
  * <p>
  * 由核心执行器 {@link ThreadPoolExecutor} 与一个二级缓冲队列 {@code cacheQueue} 组成，
  * 另有一条虚拟哨兵线程负责把缓冲队列中的任务搬运进执行器：
@@ -22,24 +23,28 @@ import java.util.concurrent.locks.LockSupport;
  *   <li>搬运时执行器若仍拒绝（核心队列依旧满），按指数退避重试，避免空转。</li>
  * </ul>
  * <p>
+ * 收尾语义：任务受理后执行完毕（正常返回或抛出异常）在承载执行的工作线程方以
+ * {@link MicroTaskExecutor.FinallyType#EXECUTED} 收尾；核心队列与缓冲队列皆满、或执行器已关闭时，
+ * 在提交线程方以 {@link MicroTaskExecutor.FinallyType#NOT_ACCEPT} 收尾，不抛异常。
+ * <p>
  * 本类以<b>实例</b>为使用单位：队列、执行器与搬运线程均归属各实例，不共享全局任务状态，
- * 构造即完成初始化，参数由调用方经构造器指定，同一JVM内可并存多个互不干扰的池。
+ * 构造即完成初始化，参数由调用方经构造器指定，同一JVM内可并存多个互不干扰的执行器。
  *
  * <pre>{@code
- * ThreadPool pool = new ElasticThreadPool(
+ * MicroTaskExecutor executor = new ElasticMicroTaskExecutor(
  *         1024,   // 缓冲队列容量
  *         2,      // 核心队列容量
  *         10      // 最大线程数
  * );
- * boolean accepted = pool.execute(() -> doDiskIo());
- * pool.shutdown();
+ * executor.submit(() -> doDiskIo(), signal -> { });
+ * executor.close();
  * }</pre>
  */
-public class ElasticThreadPool implements ThreadPool {
+public class ElasticMicroTaskExecutor implements MicroTaskExecutor {
 
-    private static final InternalLogger log = InternalLoggerFactory.getInstance(ElasticThreadPool.class);
+    private static final InternalLogger log = InternalLoggerFactory.getInstance(ElasticMicroTaskExecutor.class);
 
-    /** 线程池组编号，用于区分同一JVM内创建的多个实例 */
+    /** 执行器组编号，用于区分同一JVM内创建的多个实例 */
     private static final AtomicInteger GROUP_ID = new AtomicInteger(0);
 
     /** 搬运重试的初始退避时间（纳秒） */
@@ -63,7 +68,7 @@ public class ElasticThreadPool implements ThreadPool {
         @Override
         public Thread newThread(@NonNull Runnable r) {
             threadId.compareAndSet(Long.MAX_VALUE, 0);
-            Thread thread = new Thread(r, "ElasticThreadPool-" + groupId + "-" + threadId.getAndIncrement());
+            Thread thread = new Thread(r, "ElasticMicroTaskExecutor-" + groupId + "-" + threadId.getAndIncrement());
             thread.setDaemon(true);
             return thread;
         }
@@ -79,7 +84,7 @@ public class ElasticThreadPool implements ThreadPool {
     private final Thread taskMoveThread;
 
     /**
-     * 构造弹性线程池。
+     * 构造弹性微任务执行器。
      * <p>
      * 内部固定：核心线程1个、最大线程数 {@code maxThreadNum}、存活时间5分钟、核心队列为
      * {@link ArrayBlockingQueue}（容量 {@code coreQueue}）、拒绝策略 {@link ThreadPoolExecutor.AbortPolicy}、
@@ -90,7 +95,7 @@ public class ElasticThreadPool implements ThreadPool {
      * @param maxThreadNum 最大线程数，必须大于0
      * @throws IllegalArgumentException 任一参数不大于0
      */
-    public ElasticThreadPool(int cacheQueue, int coreQueue, int maxThreadNum) {
+    public ElasticMicroTaskExecutor(int cacheQueue, int coreQueue, int maxThreadNum) {
         if (cacheQueue <= 0) {
             throw new IllegalArgumentException("cacheQueue must be greater than 0");
         }
@@ -114,41 +119,73 @@ public class ElasticThreadPool implements ThreadPool {
         this.threadPoolExecutor.allowCoreThreadTimeOut(true);
         this.cacheQueue = new LinkedBlockingQueue<>(cacheQueue);
         this.taskMoveThread = Thread.ofVirtual()
-                .name("ElasticThreadPool-Mover-" + groupId)
+                .name("ElasticMicroTaskExecutor-Mover-" + groupId)
                 .start(this::moveTaskLoop);
     }
 
     /**
-     * 提交任务。
+     * 提交任务执行，不返回承载线程。
      * <p>
      * 先尝试交给核心执行器；被拒（核心队列已满）时转入缓冲队列，由搬运线程接管；
-     * 缓冲队列也满时返回 {@code false}，任务被丢弃。
+     * 核心队列与缓冲队列皆满、或执行器已关闭时，在提交线程方以
+     * {@link MicroTaskExecutor.FinallyType#NOT_ACCEPT} 收尾，不抛异常。
      *
-     * @param task 任务，不能为null
-     * @return 任务是否被接受
-     * @throws NullPointerException       任务为null
-     * @throws RejectedExecutionException 线程池已关闭
+     * @param task           获取到工作线程后执行的任务，不能为null
+     * @param finallyHandler 任务提交的收尾回调，不能为null
+     * @throws NullPointerException task 或 finallyHandler 为null
      */
     @Override
-    public boolean execute(Runnable task) {
-        Objects.requireNonNull(task, "task can not be null");
-        if (threadPoolExecutor.isShutdown()) {
-            throw new RejectedExecutionException("ElasticThreadPool has been shut down");
-        }
+    public void submit(Runnable task, FinallyHandler finallyHandler) {
+        Objects.requireNonNull(task, "task must not be null");
+        Objects.requireNonNull(finallyHandler, "finallyHandler must not be null");
+        Runnable wrapped = withExecuteFinally(task, finallyHandler);
         try {
-            threadPoolExecutor.execute(task);
-            return true;
+            threadPoolExecutor.execute(wrapped);
         } catch (RejectedExecutionException e) {
             if (threadPoolExecutor.isShutdown()) {
-                throw e;
+                notAccepted(finallyHandler);
+                return;
             }
             log.debug("core queue is full, submit to task cache");
-            return cacheQueue.offer(task);
+            if (!cacheQueue.offer(wrapped)) {
+                notAccepted(finallyHandler);
+            }
         }
     }
 
     /**
-     * 搬运线程主循环：阻塞等待缓冲任务，取到即搬进核心执行器，直到线程池关闭被唤醒退出。
+     * 包装任务：任务执行完毕（正常返回或抛出异常）后，在承载执行的工作线程方以
+     * {@link MicroTaskExecutor.FinallyType#EXECUTED} 收尾。
+     *
+     * @param task           待执行的任务
+     * @param finallyHandler 收尾回调
+     * @return 带执行完毕收尾通知的任务
+     */
+    private static Runnable withExecuteFinally(Runnable task, FinallyHandler finallyHandler) {
+        return () -> {
+            try {
+                task.run();
+            } finally {
+                finallyHandler.onFinally(new MicroTaskExecutor.FinallySignal(
+                        MicroTaskExecutor.FinallySignal.CallbackThread.WORKER,
+                        MicroTaskExecutor.FinallyType.EXECUTED));
+            }
+        };
+    }
+
+    /**
+     * 以未受理收尾：任务未被执行器接受，在提交线程方回调，调用方据此降级。
+     *
+     * @param finallyHandler 收尾回调
+     */
+    private static void notAccepted(FinallyHandler finallyHandler) {
+        finallyHandler.onFinally(new MicroTaskExecutor.FinallySignal(
+                MicroTaskExecutor.FinallySignal.CallbackThread.SUBMITTER,
+                MicroTaskExecutor.FinallyType.NOT_ACCEPT));
+    }
+
+    /**
+     * 搬运线程主循环：阻塞等待缓冲任务，取到即搬进核心执行器，直到执行器关闭被唤醒退出。
      */
     private void moveTaskLoop() {
         while (!threadPoolExecutor.isShutdown()) {
@@ -156,7 +193,7 @@ public class ElasticThreadPool implements ThreadPool {
             try {
                 task = cacheQueue.take();
             } catch (InterruptedException e) {
-                // 关闭时由 shutdown 中断唤醒
+                // 关闭时由 close 中断唤醒
                 Thread.currentThread().interrupt();
                 break;
             }
@@ -180,12 +217,11 @@ public class ElasticThreadPool implements ThreadPool {
                 backoffNanos = Math.min(backoffNanos << 1, MAX_BACKOFF_NANOS);
             }
         }
-        // 执行器已关闭，任务退回缓冲队列，交由 shutdown 兜底消费
+        // 执行器已关闭，任务退回缓冲队列，交由 close 兜底消费
         if (!cacheQueue.offer(task)) {
             // 缓冲队列此刻也可能是满的（关闭竞态下的真实形状：主线程还没来得及掏空它），
-            // offer 静默失败就等于把"execute 已返回 true 的任务"丢掉，违反 ThreadPool
-            // 的接受契约。就地跑掉它，异常照 consumeCacheTasks 的方式记账，
-            // 不让一个坏任务打断搬运线程收尾。
+            // offer 静默失败就等于把已受理的任务丢掉。就地跑掉它，异常照 consumeCacheTasks
+            // 的方式记账，不让一个坏任务打断搬运线程收尾。
             try {
                 task.run();
             } catch (Exception e) {
@@ -195,13 +231,13 @@ public class ElasticThreadPool implements ThreadPool {
     }
 
     /**
-     * 关闭线程池：不再接受新任务，已提交任务继续执行。
+     * 关闭执行器：不再受理新提交，已受理任务继续执行。
      * <p>
      * 先关闭核心执行器，再中断搬运线程并短暂等待其退出，最后消费缓冲队列中剩余的任务
-     * （这些任务已被 {@link #execute(Runnable)} 接受，不能丢失）。重复调用为幂等操作。
+     * （这些任务已被 {@link #submit(Runnable, FinallyHandler)} 受理，不能丢失）。重复调用为幂等操作。
      */
     @Override
-    public void shutdown() {
+    public void close() {
         threadPoolExecutor.shutdown();
         taskMoveThread.interrupt();
         try {
@@ -213,7 +249,7 @@ public class ElasticThreadPool implements ThreadPool {
     }
 
     /**
-     * 消费缓冲队列中的剩余任务：由调用线程就地执行，保证已接受的任务在关闭时不被丢弃。
+     * 消费缓冲队列中的剩余任务：由调用线程就地执行，保证已受理的任务在关闭时不被丢弃。
      */
     private void consumeCacheTasks() {
         Runnable task;
@@ -224,15 +260,5 @@ public class ElasticThreadPool implements ThreadPool {
                 log.error("consume cached task error", e);
             }
         }
-    }
-
-    @Override
-    public boolean isShutdown() {
-        return threadPoolExecutor.isShutdown();
-    }
-
-    @Override
-    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return threadPoolExecutor.awaitTermination(timeout, unit);
     }
 }

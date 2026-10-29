@@ -6,7 +6,7 @@
 
 // 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
-    // 线程池契约与弹性实现由 turboweb-concurrent 提供；ThreadPool 出现在本模块公开签名（调度器与响应策略构造参数），用 api 暴露
+    // 微任务执行器契约与弹性实现由 turboweb-concurrent 提供；MicroTaskExecutor 出现在本模块公开签名（编排器、响应写出器基类与装配构造参数），用 api 暴露
     api(project(":turboweb-concurrent"))
     // JSON 序列化器契约与 Jackson 实现由 turboweb-serializer 提供；JsonSerializer 出现在本模块公开签名（Builder 与上下文、响应类构造参数），用 api 暴露
     api(project(":turboweb-serializer"))

@@ -84,18 +84,18 @@ class RequestOrchestratorTest {
         return new HttpContentParserManager(StandardCharsets.UTF_8, List.of());
     }
 
-    /** 测试资源管理器：以内置空间登记给定微任务执行器与桩磁盘IO线程池，供编排器与写出器管理器按名获取。 */
+    /** 测试资源管理器：以内置空间登记给定微任务执行器与桩磁盘IO执行器，供编排器与写出器管理器按名获取。 */
     private static ResourceManager testResourceManager(MicroTaskExecutor executor) {
         Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
         builtins.put(ResourceNames.MICRO_TASK_EXECUTOR, executor);
-        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.threadPool());
+        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.noopExecutor());
         return new ResourceManager.Builder().build(builtins);
     }
 
-    /** 测试资源管理器：以内置空间只登记桩磁盘IO线程池，供响应写出器管理器按名获取。 */
+    /** 测试资源管理器：以内置空间只登记桩磁盘IO执行器，供响应写出器管理器按名获取。 */
     private static ResourceManager writerResourceManager() {
         Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
-        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.threadPool());
+        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.noopExecutor());
         return new ResourceManager.Builder().build(builtins);
     }
 

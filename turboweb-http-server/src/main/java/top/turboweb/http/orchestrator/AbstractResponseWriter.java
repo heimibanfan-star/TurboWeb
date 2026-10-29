@@ -4,7 +4,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.concurrent.thread.ThreadPool;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.server.runtime.ResourceProvider;
@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 子类只需实现 {@link #doWrite} 关注自身响应类型的写出逻辑，无须关心异常处理。
  * </p>
  * <p>
- * 初始化经 {@link #initWriter} 注入资源提供者，基类按名取出磁盘IO线程池统一存储于本类字段，
+ * 初始化经 {@link #initWriter} 注入资源提供者，基类按名取出磁盘IO微任务执行器统一存储于本类字段，
  * 仅文件流类写出器在写出时消费它，其余写出器忽略即可；
  * 初始化状态由原子布尔维护，同一写出器实例仅可初始化一次，重复初始化被拒绝。
  * </p>
@@ -28,16 +28,16 @@ public abstract class AbstractResponseWriter implements ResponseWriter {
 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(AbstractResponseWriter.class);
 
-    /** 磁盘IO线程池，初始化时从资源提供者按名取出；本写出器不负责其生命周期。 */
-    protected ThreadPool threadPool;
+    /** 磁盘IO微任务执行器，初始化时从资源提供者按名取出；本写出器不负责其生命周期。 */
+    protected MicroTaskExecutor diskIoExecutor;
 
     /** 初始化状态：初始化成功即置位，用于拒绝同一实例的重复初始化。 */
     private final AtomicBoolean initialized = new AtomicBoolean(false);
 
     /**
-     * 初始化写出器：CAS 先置位再从资源提供者按名取出磁盘IO线程池，同一实例仅首次初始化生效；
-     * 竞态或误用下的后续调用抛异常，不会覆写已注入的线程池；
-     * 资源提供者未登记磁盘IO线程池时抛 {@link top.turboweb.server.runtime.ResourceException}。
+     * 初始化写出器：CAS 先置位再从资源提供者按名取出磁盘IO微任务执行器，同一实例仅首次初始化生效；
+     * 竞态或误用下的后续调用抛异常，不会覆写已注入的执行器；
+     * 资源提供者未登记磁盘IO执行器时抛 {@link top.turboweb.server.runtime.ResourceException}。
      *
      * @param resourceProvider 资源提供者，只读查询视图，不含释放操作
      * @throws IllegalStateException 本实例已初始化过，不能重复初始化
@@ -47,7 +47,7 @@ public abstract class AbstractResponseWriter implements ResponseWriter {
         if (!initialized.compareAndSet(false, true)) {
             throw new IllegalStateException("The response writer has already been initialized and can not be initialized again");
         }
-        this.threadPool = resourceProvider.getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
+        this.diskIoExecutor = resourceProvider.getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, MicroTaskExecutor.class);
     }
 
     /**

@@ -9,7 +9,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.concurrent.thread.ThreadPool;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.ResponseCall;
 import top.turboweb.http.server.constant.ResourceNames;
@@ -71,8 +71,8 @@ class ResponseWriterManagerTest {
             this.provider = resourceProvider;
         }
 
-        ThreadPool injectedPool() {
-            return threadPool;
+        MicroTaskExecutor injectedExecutor() {
+            return diskIoExecutor;
         }
 
         ResourceProvider injectedProvider() {
@@ -89,7 +89,7 @@ class ResponseWriterManagerTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         CallResponse response = new CallResponse(IgnoredResponseWriter.class);
 
-        ResponseWriter.WriteResult result = new ResponseWriterManager(resourceManagerOf(Stubs.threadPool()), List.of())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(resourceManagerOf(Stubs.noopExecutor()), List.of())
                 .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
@@ -104,7 +104,7 @@ class ResponseWriterManagerTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         CallResponse response = new CallResponse(MarkingWriter.class);
 
-        ResponseWriter.WriteResult result = new ResponseWriterManager(resourceManagerOf(Stubs.threadPool()), List.of())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(resourceManagerOf(Stubs.noopExecutor()), List.of())
                 .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
@@ -119,7 +119,7 @@ class ResponseWriterManagerTest {
     void constructorCustomWriterIsSelectedByDeclaration() {
         EmbeddedChannel channel = new EmbeddedChannel();
         MarkingWriter writer = new MarkingWriter();
-        ResponseWriterManager manager = new ResponseWriterManager(resourceManagerOf(Stubs.threadPool()), List.of(writer));
+        ResponseWriterManager manager = new ResponseWriterManager(resourceManagerOf(Stubs.noopExecutor()), List.of(writer));
 
         ResponseWriter.WriteResult result = manager.write(
                 new CallResponse(MarkingWriter.class), new InternalHttpConnection(channel));
@@ -138,7 +138,7 @@ class ResponseWriterManagerTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         response.content().writeCharSequence("abc", StandardCharsets.UTF_8);
 
-        ResponseWriter.WriteResult result = new ResponseWriterManager(resourceManagerOf(Stubs.threadPool()), List.of())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(resourceManagerOf(Stubs.noopExecutor()), List.of())
                 .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
@@ -156,7 +156,7 @@ class ResponseWriterManagerTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         CallResponse response = new CallResponse(ReactorResponseWriter.class);
 
-        ResponseWriter.WriteResult result = new ResponseWriterManager(resourceManagerOf(Stubs.threadPool()), List.of())
+        ResponseWriter.WriteResult result = new ResponseWriterManager(resourceManagerOf(Stubs.noopExecutor()), List.of())
                 .write(response, new InternalHttpConnection(channel));
 
         assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
@@ -179,7 +179,7 @@ class ResponseWriterManagerTest {
                 new IgnoredResponseWriter());
         for (ResponseWriter builtin : builtins) {
             IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,
-                    () -> new ResponseWriterManager(resourceManagerOf(Stubs.threadPool()), List.of(builtin)),
+                    () -> new ResponseWriterManager(resourceManagerOf(Stubs.noopExecutor()), List.of(builtin)),
                     builtin.getClass().getSimpleName() + " 为系统内置写出器，不得登记");
             assertEquals("Can not register a built-in response writer: " + builtin.getClass().getName(), thrown.getMessage());
         }
@@ -189,46 +189,46 @@ class ResponseWriterManagerTest {
     void constructorRejectsDuplicateWriterClass() {
         // 重复判定按写出器类进行：同类不同实例同样拒登
         IllegalStateException again = assertThrows(IllegalStateException.class,
-                () -> new ResponseWriterManager(resourceManagerOf(Stubs.threadPool()),
+                () -> new ResponseWriterManager(resourceManagerOf(Stubs.noopExecutor()),
                         List.of(new MarkingWriter(), new MarkingWriter())));
         assertEquals("Duplicate response writer registration: " + MarkingWriter.class.getName(), again.getMessage());
     }
 
     @Test
-    void constructorInjectsThreadPoolIntoAllWriters() {
-        ThreadPool pool = Stubs.directExecutorThreadPool();
+    void constructorInjectsDiskIoExecutorIntoAllWriters() {
+        MicroTaskExecutor executor = Stubs.directExecutor();
         MarkingWriter writer = new MarkingWriter();
 
-        new ResponseWriterManager(resourceManagerOf(pool), List.of(writer));
+        new ResponseWriterManager(resourceManagerOf(executor), List.of(writer));
 
-        assertSame(pool, writer.injectedPool(), "构造期必须把磁盘IO线程池注入自定义写出器");
+        assertSame(executor, writer.injectedExecutor(), "构造期必须把磁盘IO执行器注入自定义写出器");
     }
 
     @Test
     void sameCustomWriterInstanceAcrossTwoManagersIsRejected() {
-        // 注入护栏在写出器侧生效：同一实例传入第二个管理器即构造失败, 而非静默沿用首个池
+        // 注入护栏在写出器侧生效：同一实例传入第二个管理器即构造失败, 而非静默沿用首个执行器
         MarkingWriter writer = new MarkingWriter();
-        ThreadPool first = Stubs.threadPool();
+        MicroTaskExecutor first = Stubs.noopExecutor();
         new ResponseWriterManager(resourceManagerOf(first), List.of(writer));
 
         IllegalStateException thrown = assertThrows(IllegalStateException.class,
-                () -> new ResponseWriterManager(resourceManagerOf(Stubs.directExecutorThreadPool()), List.of(writer)),
+                () -> new ResponseWriterManager(resourceManagerOf(Stubs.directExecutor()), List.of(writer)),
                 "同一写出器实例不得注入两个管理器");
         assertEquals("The response writer has already been initialized and can not be initialized again", thrown.getMessage());
-        assertSame(first, writer.injectedPool(), "被拒的第二个管理器不得覆写首次注入的线程池");
+        assertSame(first, writer.injectedExecutor(), "被拒的第二个管理器不得覆写首次注入的执行器");
     }
 
     @Test
     void constructorRejectsNullWriterElement() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
-                () -> new ResponseWriterManager(resourceManagerOf(Stubs.threadPool()), Arrays.asList((ResponseWriter) null)));
+                () -> new ResponseWriterManager(resourceManagerOf(Stubs.noopExecutor()), Arrays.asList((ResponseWriter) null)));
         assertEquals("The response writer must not be null", thrown.getMessage());
     }
 
     @Test
     void constructorRejectsNullWriterList() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
-                () -> new ResponseWriterManager(resourceManagerOf(Stubs.threadPool()), null));
+                () -> new ResponseWriterManager(resourceManagerOf(Stubs.noopExecutor()), null));
         assertEquals("The custom writer list must not be null", thrown.getMessage());
     }
 
@@ -241,24 +241,24 @@ class ResponseWriterManagerTest {
 
     @Test
     void initWriterHandsProviderToCustomWritersForBuiltinFetch() {
-        ThreadPool pool = Stubs.threadPool();
-        ResourceProvider provider = Stubs.diskPoolProvider(pool);
+        MicroTaskExecutor executor = Stubs.noopExecutor();
+        ResourceProvider provider = Stubs.diskPoolProvider(executor);
         MarkingWriter writer = new MarkingWriter();
 
         new ResponseWriterManager(provider, List.of(writer));
 
         assertSame(provider, writer.injectedProvider(), "构造期必须把资源提供者交给自定义写出器");
-        assertSame(pool, writer.injectedProvider().getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class),
-                "写出器可从资源提供者按名取内置磁盘IO线程池");
+        assertSame(executor, writer.injectedProvider().getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, MicroTaskExecutor.class),
+                "写出器可从资源提供者按名取内置磁盘IO执行器");
     }
 
     /**
-     * 构造测试用资源管理器：把给定线程池以内置空间登记为磁盘IO线程池资源，
+     * 构造测试用资源管理器：把给定执行器以内置空间登记为磁盘IO执行器资源，
      * 供写出器管理器按 {@link ResourceNames#DISK_IO_THREAD_POOL} 从其中获取
      */
-    private static ResourceManager resourceManagerOf(ThreadPool threadPool) {
+    private static ResourceManager resourceManagerOf(MicroTaskExecutor executor) {
         Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
-        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, threadPool);
+        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, executor);
         return new ResourceManager.Builder().build(builtins);
     }
 }

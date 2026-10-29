@@ -25,7 +25,7 @@ description = "turboweb-concurrent"
 // （实现已内聚为基类的私有内部类，类名即 VirtualThreadMicroTaskExecutor$Limited / $Unlimited）。
 // 基类单列一条规则：线程启动失败补偿的 catch 三行（归还、重抛）测试不可达
 // （start() 无法按需失败，类保持 final 不设注入缝，属已裁决口径），线覆盖下限 0.70；
-// 两实现维持 LINE+BRANCH 双 1.00 不放松。既有 ThreadPool/ElasticThreadPool 维持无闸口径不扩面
+// 两实现维持 LINE+BRANCH 双 1.00 不放松。既有弹性微任务执行器维持无闸口径不扩面
 tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn(tasks.named("test"))
     violationRules {

@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.concurrent.thread.ThreadPool;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.FileStreamResponse;
 import top.turboweb.http.testkit.Stubs;
@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * {@link FileStreamResponseWriter} 的写出路径行为锚（复刻旧文件流策略用例面）：
  * 分块 generate→背压 request→DefaultHttpContent→LAST。
- * 线程池经 initWriter 随资源提供者注入同步替身，整条链在调用线程上跑完，返回凭据即终态；
+ * 磁盘IO执行器经 initWriter 随资源提供者注入同步替身，整条链在调用线程上跑完，返回凭据即终态；
  * 拒绝型替身钉"忙即取消"。通道为 EmbeddedChannel，不碰真实 socket。
  */
 class FileStreamResponseWriterTest {
@@ -43,10 +43,10 @@ class FileStreamResponseWriterTest {
         return p;
     }
 
-    /** 建写出器并初始化：磁盘IO线程池替身经资源提供者按名携带注入。 */
-    private static FileStreamResponseWriter newWriter(ThreadPool pool) {
+    /** 建写出器并初始化：磁盘IO执行器替身经资源提供者按名携带注入。 */
+    private static FileStreamResponseWriter newWriter(MicroTaskExecutor executor) {
         FileStreamResponseWriter writer = new FileStreamResponseWriter();
-        writer.initWriter(Stubs.diskPoolProvider(pool));
+        writer.initWriter(Stubs.diskPoolProvider(executor));
         return writer;
     }
 
@@ -89,7 +89,7 @@ class FileStreamResponseWriterTest {
         FileStreamResponse resp = response(write("a.txt", "hello"), 2, 0, 5);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutor())
                     .write(resp, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType());
             assertTrue(result.channelFuture().isSuccess());
@@ -110,7 +110,7 @@ class FileStreamResponseWriterTest {
         FileStreamResponse resp = response(write("e.txt", ""), 2, 0, 0);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutor())
                     .write(resp, new InternalHttpConnection(channel));
             assertTrue(result.channelFuture().isSuccess());
             Object[] out = drain(channel);
@@ -130,7 +130,7 @@ class FileStreamResponseWriterTest {
         FileStreamResponse resp = response(write("o.txt", "hello"), 8, 2, 3);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutor())
                     .write(resp, new InternalHttpConnection(channel));
             assertTrue(result.channelFuture().isSuccess());
             Object[] out = drain(channel);
@@ -142,12 +142,12 @@ class FileStreamResponseWriterTest {
     }
 
     @Test
-    @DisplayName("订阅即被线程池拒绝：promise 失败于 ResponseHandleException，只发过头")
+    @DisplayName("订阅即被磁盘IO执行器拒绝：promise 失败于 ResponseHandleException，只发过头")
     void poolRejectAtSubscribeCancels() throws IOException {
         FileStreamResponse resp = response(write("r.txt", "hello"), 2, 0, 5);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ResponseWriter.WriteResult result = newWriter(Stubs.rejectingThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.rejectingExecutor())
                     .write(resp, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.LISTENABLE, result.writeType(), "取消置败仍有凭据可监听");
             assertInstanceOf(ResponseHandleException.class, result.channelFuture().cause());
@@ -161,12 +161,12 @@ class FileStreamResponseWriterTest {
     }
 
     @Test
-    @DisplayName("发出一块后线程池拒绝：该块已写出、无 LAST，promise 失败")
+    @DisplayName("发出一块后磁盘IO执行器拒绝：该块已写出、无 LAST，promise 失败")
     void poolRejectAfterFirstChunkCancelsMidStream() throws IOException {
         FileStreamResponse resp = response(write("m.txt", "hello"), 2, 0, 5);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ResponseWriter.WriteResult result = newWriter(Stubs.firstRunRestRejectingThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.firstRunRestRejectingExecutor())
                     .write(resp, new InternalHttpConnection(channel));
             assertInstanceOf(ResponseHandleException.class, result.channelFuture().cause());
             Object[] out = drain(channel);
@@ -185,7 +185,7 @@ class FileStreamResponseWriterTest {
                 new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutorThreadPool())
+            ResponseWriter.WriteResult result = newWriter(Stubs.directExecutor())
                     .write(plain, new InternalHttpConnection(channel));
             assertEquals(ResponseWriter.WriteType.NOT_LISTENABLE, result.writeType(),
                     "写出异常无凭据，结果不可监听");

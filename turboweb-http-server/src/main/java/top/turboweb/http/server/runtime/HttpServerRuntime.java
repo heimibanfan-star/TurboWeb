@@ -5,8 +5,8 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
-import top.turboweb.concurrent.thread.ElasticThreadPool;
-import top.turboweb.concurrent.thread.ThreadPool;
+import top.turboweb.concurrent.thread.ElasticMicroTaskExecutor;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.server.runtime.ResourceManager;
@@ -361,7 +361,7 @@ public class HttpServerRuntime implements ServerRuntime {
          * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}，内容解析器管理器
          * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
-         * 装配出的中间件链销毁适配器经托管通道登记、创建的磁盘IO线程池与微任务执行器
+         * 装配出的中间件链销毁适配器经托管通道登记、创建的磁盘IO微任务执行器与请求微任务执行器
          * 作为内置资源随构建传入资源管理器交给应用持有，编排器与响应写出器管理器按资源名
          * 从管理器的内置空间获取所需资源，由 {@link #close()} 按登记顺序释放。
          * <p>
@@ -386,25 +386,25 @@ public class HttpServerRuntime implements ServerRuntime {
             Middleware middlewareChain = initMiddlewareChain(routeHandlerManager);
             // 中间件链销毁适配器以托管资源登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
             resourceBuilder.addManaged(() -> destroyMiddlewareChain(middlewareChain));
-            // 创建磁盘IO线程池，构建期注入响应写出器管理器供文件流写出器调度分块读取；应用只是使用者，关闭责任留在应用
-            ThreadPool diskOpeThreadPool = new ElasticThreadPool(
+            // 创建磁盘IO微任务执行器，构建期注入响应写出器管理器供文件流写出器调度分块读取；应用只是使用者，关闭责任留在应用
+            MicroTaskExecutor diskIoExecutor = new ElasticMicroTaskExecutor(
                     httpConfig.getDiskOpeThreadCacheQueue(),
                     httpConfig.getDiskOpeThreadCoreQueue(),
                     httpConfig.getDiskOpeThreadMaxThreadNum()
             );
-            log.info("Disk IO thread pool created: cache queue {}, core queue {}, max threads {}",
+            log.info("Disk IO micro task executor created: cache queue {}, core queue {}, max threads {}",
                     httpConfig.getDiskOpeThreadCacheQueue(),
                     httpConfig.getDiskOpeThreadCoreQueue(),
                     httpConfig.getDiskOpeThreadMaxThreadNum());
-            // 磁盘IO线程池与微任务执行器作为内置资源随构建一次性传入，
-            // 传入顺序即释放顺序，保持磁盘池在前、微任务执行器在后
+            // 磁盘IO微任务执行器与请求微任务执行器作为内置资源随构建一次性传入，
+            // 传入顺序即释放顺序，保持磁盘IO执行器在前、请求微任务执行器在后
             Map<String, AutoCloseable> builtinResources = new LinkedHashMap<>();
-            builtinResources.put(ResourceNames.DISK_IO_THREAD_POOL, diskOpeThreadPool);
+            builtinResources.put(ResourceNames.DISK_IO_THREAD_POOL, diskIoExecutor);
             // 按配置限流参数创建虚拟线程资源
             VirtualThreadMicroTaskExecutor virtualThreadResource = createVirtualThreadResource();
             builtinResources.put(ResourceNames.MICRO_TASK_EXECUTOR, virtualThreadResource);
             ResourceManager resourceManager = resourceBuilder.build(builtinResources);
-            // 未传入的组件补全默认值后，按九组件装定请求编排器；微任务执行器与磁盘IO线程池按资源名从管理器获取
+            // 未传入的组件补全默认值后，按九组件装定请求编排器；微任务执行器与磁盘IO执行器按资源名从管理器获取
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
                     .resourceManager(resourceManager)
