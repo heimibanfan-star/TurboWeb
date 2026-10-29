@@ -3,13 +3,13 @@ package top.turboweb.websocket;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ForkJoinMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.server.runtime.ServerRuntime;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * websocket应用，服务器与业务装配逻辑之间的桥梁。
@@ -22,11 +22,11 @@ import java.util.Objects;
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
  * 注册时须排在http应用之后。
  * <p>
- * 装配期创建的可关闭资源不在本类中逐个持有，而是统一登记进本应用持有的
- * {@link ScopedResource} 资源作用域：消息处理微任务执行器的销毁适配器（工作窃取模式下关闭本应用
- * 私有的隔离任务池，默认的非受限虚拟线程执行器不持有可回收资源）登记于此，
- * 关闭时由本类 {@link #close()} 统一释放，
- * 服务器关闭时会统一触发，调用方也可对应用实例自行try-with-resources。
+ * 装配期唯一需要回收的资源是消息处理微任务执行器：本类只持有 {@link MicroTaskExecutor}
+ * 抽象引用，具体实现由 {@link Builder} 决定（工作窃取模式下为本应用私有的隔离任务池，
+ * 默认为非受限虚拟线程执行器，其close为空操作无资源可回收）；
+ * 关闭时由本类 {@link #close()} 释放，服务器关闭时会统一触发，
+ * 调用方也可对应用实例自行try-with-resources。
  *
  * <pre>{@code
  * WebSocketServerRuntime runtime = new WebSocketServerRuntime.Builder()
@@ -46,30 +46,44 @@ public class WebSocketServerRuntime implements ServerRuntime {
     private final WebSocketInitChannelHandler webSocketInitHandler;
 
     /**
-     * 应用的资源作用域：装配期由 {@link Builder#build()} 登记的消息处理执行器销毁适配器在此，
-     * 关闭时由 {@link #close()} 统一释放，本类无须持有个别资源的引用
+     * 消息处理微任务执行器，{@link Builder#build()} 按线程模型装配并持有，
+     * 关闭时由 {@link #close()} 回收
      */
-    private final ScopedResource scopedResource;
+    private final MicroTaskExecutor microTaskExecutor;
 
-    public WebSocketServerRuntime(WebSocketInitChannelHandler webSocketInitHandler, ScopedResource scopedResource) {
+    /**
+     * 关闭状态：已关闭即置位，保证重复关闭为空操作、执行器至多被回收一次
+     */
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+
+    /**
+     * 构造应用：初始化处理器与消息处理微任务执行器均必填，
+     * 执行器的具体实现由装配方决定，本类只依赖 {@link MicroTaskExecutor} 抽象
+     *
+     * @param webSocketInitHandler websocket初始化处理器，不能为null
+     * @param microTaskExecutor    消息处理微任务执行器，不能为null
+     * @throws NullPointerException 初始化处理器或执行器为null
+     */
+    public WebSocketServerRuntime(WebSocketInitChannelHandler webSocketInitHandler, MicroTaskExecutor microTaskExecutor) {
         this.webSocketInitHandler = Objects.requireNonNull(webSocketInitHandler, "The websocket init handler must not be null");
-        this.scopedResource = Objects.requireNonNull(scopedResource, "The resource scope must not be null");
+        this.microTaskExecutor = Objects.requireNonNull(microTaskExecutor, "The micro task executor must not be null");
     }
 
     /**
-     * 获取本应用持有的资源作用域：装配期登记的可关闭资源在此，关闭时由 {@link #close()} 统一释放
-     */
-    public ScopedResource getScopedResource() {
-        return this.scopedResource;
-    }
-
-    /**
-     * 关闭应用：释放 {@link #getScopedResource()} 中登记的全部资源（消息处理微任务执行器的销毁适配器），
-     * 重复调用为空操作；单个资源释放失败只记录日志，不中断其余释放
+     * 关闭应用：回收装配期持有的消息处理微任务执行器，
+     * 重复调用为空操作；执行器释放失败只记录日志，不影响关闭完成
      */
     @Override
     public void close() {
-        this.scopedResource.close();
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            microTaskExecutor.close();
+        } catch (Exception err) {
+            log.error("Failed to close websocket micro task executor", err);
+        }
+        log.info("Websocket runtime closed");
     }
 
     /**
@@ -91,8 +105,8 @@ public class WebSocketServerRuntime implements ServerRuntime {
      * {@link IllegalArgumentException}。
      * <p>
      * {@link #build()} 完成校验后按线程模型创建消息处理微任务执行器与
-     * {@link WebSocketInitChannelHandler} 单例，把工作窃取执行器的销毁适配器登记进
-     * 新建的资源作用域，一并装配进应用实例。
+     * {@link WebSocketInitChannelHandler} 单例，一并装配进应用实例；
+     * 工作窃取执行器由应用实例直接持有，应用关闭时回收。
      */
     public static class Builder {
 
@@ -163,8 +177,8 @@ public class WebSocketServerRuntime implements ServerRuntime {
         /**
          * 构建应用：校验路径表达式与业务处理器均已配置，按线程模型创建消息处理微任务执行器
          * （启用工作窃取时为本应用私有的隔离执行器，否则为非受限虚拟线程执行器），
-         * 装配 {@link WebSocketInitChannelHandler} 单例后，把工作窃取执行器的销毁适配器
-         * 登记进新建的资源作用域，一并装配进应用实例
+         * 装配 {@link WebSocketInitChannelHandler} 单例后一并装配进应用实例；
+         * 工作窃取执行器由应用实例直接持有，应用关闭时回收
          */
         public WebSocketServerRuntime build() {
             log.info("Assembling websocket runtime...");
@@ -173,12 +187,10 @@ public class WebSocketServerRuntime implements ServerRuntime {
             }
             Objects.requireNonNull(webSocketHandler, "webSocketHandler can not be null");
             MicroTaskExecutor microTaskExecutor;
-            ForkJoinMicroTaskExecutor forkJoinExecutor = null;
             if (useForkJoin) {
-                forkJoinExecutor = forkJoinThreadNum > 0
+                microTaskExecutor = forkJoinThreadNum > 0
                         ? ForkJoinMicroTaskExecutor.ofIsolated(MICRO_TASK_THREAD_NAME, forkJoinThreadNum)
                         : ForkJoinMicroTaskExecutor.ofIsolated(MICRO_TASK_THREAD_NAME);
-                microTaskExecutor = forkJoinExecutor;
                 if (forkJoinThreadNum > 0) {
                     log.info("Websocket message thread model: ForkJoinMicroTaskExecutor with {} threads", forkJoinThreadNum);
                 } else {
@@ -193,18 +205,8 @@ public class WebSocketServerRuntime implements ServerRuntime {
                     .webSocketHandler(webSocketHandler)
                     .microTaskExecutor(microTaskExecutor)
                     .build();
-            // 工作窃取执行器的销毁适配器登记进应用的资源作用域，应用关闭时回收本应用私有的隔离任务池
-            ScopedResource scopedResource = new ScopedResource();
-            ForkJoinMicroTaskExecutor ownedExecutor = forkJoinExecutor;
-            scopedResource.register(() -> {
-                if (ownedExecutor != null) {
-                    ownedExecutor.close();
-                    log.info("Websocket ForkJoinMicroTaskExecutor shutdown");
-                }
-                log.info("Websocket runtime closed");
-            });
             log.info("Websocket runtime assembled, path pattern {}", websocketPath);
-            return new WebSocketServerRuntime(webSocketInitHandler, scopedResource);
+            return new WebSocketServerRuntime(webSocketInitHandler, microTaskExecutor);
         }
 
     }

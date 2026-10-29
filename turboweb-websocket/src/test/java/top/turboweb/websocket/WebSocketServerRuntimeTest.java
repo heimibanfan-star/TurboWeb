@@ -2,7 +2,6 @@ package top.turboweb.websocket;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
-import top.turboweb.common.utils.resource.ScopedResource;
 import top.turboweb.concurrent.thread.ForkJoinMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
@@ -15,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -66,18 +64,21 @@ class WebSocketServerRuntimeTest {
     }
 
     @Test
-    void constructorRejectsNullArguments() {
-        NullPointerException ex1 = assertThrows(NullPointerException.class,
-                () -> new WebSocketServerRuntime(null, new ScopedResource()));
-        assertEquals("The websocket init handler must not be null", ex1.getMessage());
+    void constructorRejectsNullHandler() {
+        NullPointerException ex = assertThrows(NullPointerException.class,
+                () -> new WebSocketServerRuntime(null, null));
+        assertEquals("The websocket init handler must not be null", ex.getMessage());
+    }
 
+    @Test
+    void constructorRejectsNullExecutor() {
         WebSocketInitChannelHandler handler = WebSocketInitChannelHandler.builder()
                 .websocketPath("/ws/.*")
                 .webSocketHandler(HANDLER)
                 .build();
-        NullPointerException ex2 = assertThrows(NullPointerException.class,
+        NullPointerException ex = assertThrows(NullPointerException.class,
                 () -> new WebSocketServerRuntime(handler, null));
-        assertEquals("The resource scope must not be null", ex2.getMessage());
+        assertEquals("The micro task executor must not be null", ex.getMessage());
     }
 
     @Test
@@ -153,17 +154,18 @@ class WebSocketServerRuntimeTest {
     }
 
     @Test
-    void closeIsIdempotent() {
+    void closeIsIdempotentAndShutsDownOwnedPool() throws Exception {
         WebSocketServerRuntime runtime = new WebSocketServerRuntime.Builder()
                 .path("/ws/.*")
                 .handler(HANDLER)
+                .useForkJoin(1)
                 .build();
-        ScopedResource scope = runtime.getScopedResource();
-        assertNotNull(scope);
-        assertSame(scope, runtime.getScopedResource());
+        MicroTaskExecutor executor = dispatcherExecutor(runtime);
+        ForkJoinPool pool = forkJoinPoolOf(executor);
 
         assertDoesNotThrow(runtime::close);
         assertDoesNotThrow(runtime::close);
+        assertTrue(pool.isShutdown(), "重复关闭为空操作，私有池应已回收");
     }
 
     /**
