@@ -387,7 +387,8 @@ public class HttpServerRuntime implements ServerRuntime {
             // 中间件链销毁适配器以托管资源登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
             resourceBuilder.addManaged(() -> destroyMiddlewareChain(middlewareChain));
             // 创建磁盘IO微任务执行器，构建期注入响应写出器管理器供文件流写出器调度分块读取；应用只是使用者，关闭责任留在应用
-            MicroTaskExecutor diskIoExecutor = new ElasticMicroTaskExecutor(
+            MicroTaskExecutor diskIoExecutor = ElasticMicroTaskExecutor.of(
+                    "disk-io-micro-task",
                     httpConfig.getDiskOpeThreadCacheQueue(),
                     httpConfig.getDiskOpeThreadCoreQueue(),
                     httpConfig.getDiskOpeThreadMaxThreadNum()

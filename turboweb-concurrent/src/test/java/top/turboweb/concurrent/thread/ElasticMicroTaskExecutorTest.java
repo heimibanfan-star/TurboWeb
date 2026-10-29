@@ -3,9 +3,12 @@ package top.turboweb.concurrent.thread;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -60,6 +63,27 @@ class ElasticMicroTaskExecutorTest {
         }
     }
 
+    /**
+     * 读私有缓冲队列的容量，为默认配置派生值的断言取证。
+     * LinkedBlockingQueue 无公开容量读取入口，以可再接收的元素数与现存元素数之和推得；
+     * 取证用例中队列处于静止状态，推得值即为容量。
+     */
+    private static int cacheCapacity(ElasticMicroTaskExecutor executor) {
+        try {
+            Field f = ElasticMicroTaskExecutor.class.getDeclaredField("cacheQueue");
+            f.setAccessible(true);
+            BlockingQueue<?> queue = (BlockingQueue<?>) f.get(executor);
+            return queue.remainingCapacity() + queue.size();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("读不到 cacheQueue，默认配置用例无法取证", e);
+        }
+    }
+
+    /** 以固定名称前缀走全参静态工厂创建测试执行器。 */
+    private static ElasticMicroTaskExecutor newExecutor(int cacheQueue, int coreQueue, int maxThreadNum) {
+        return ElasticMicroTaskExecutor.of("elastic-micro-test", cacheQueue, coreQueue, maxThreadNum);
+    }
+
     /** 收集一次提交的收尾信号：既有收尾必达契约下，信号为 null 即收尾未发生。 */
     private static final class SignalCatcher implements MicroTaskExecutor.FinallyHandler {
 
@@ -91,19 +115,67 @@ class ElasticMicroTaskExecutorTest {
     @Test
     void nonPositiveArgumentsAreRejected() {
         IllegalArgumentException e1 = assertThrows(IllegalArgumentException.class,
-                () -> new ElasticMicroTaskExecutor(0, 1, 1));
+                () -> newExecutor(0, 1, 1));
         assertEquals("cacheQueue must be greater than 0", e1.getMessage());
         IllegalArgumentException e2 = assertThrows(IllegalArgumentException.class,
-                () -> new ElasticMicroTaskExecutor(1, 0, 1));
+                () -> newExecutor(1, 0, 1));
         assertEquals("coreQueue must be greater than 0", e2.getMessage());
         IllegalArgumentException e3 = assertThrows(IllegalArgumentException.class,
-                () -> new ElasticMicroTaskExecutor(1, 1, 0));
+                () -> newExecutor(1, 1, 0));
         assertEquals("maxThreadNum must be greater than 0", e3.getMessage());
     }
 
     @Test
+    void nullThreadNameIsRejectedByFactories() {
+        NullPointerException e1 = assertThrows(NullPointerException.class,
+                () -> ElasticMicroTaskExecutor.of(null));
+        assertEquals("threadName must not be null", e1.getMessage());
+        NullPointerException e2 = assertThrows(NullPointerException.class,
+                () -> ElasticMicroTaskExecutor.of(null, 1, 1, 1));
+        assertEquals("threadName must not be null", e2.getMessage());
+    }
+
+    @Test
+    void constructorIsNotPubliclyExposed() {
+        for (Constructor<?> constructor : ElasticMicroTaskExecutor.class.getDeclaredConstructors()) {
+            assertFalse(Modifier.isPublic(constructor.getModifiers()),
+                    "构造器不得对外暴露，实例创建须经静态工厂方法");
+        }
+    }
+
+    @Test
+    void defaultFactoryDerivesSizesFromCpuCount() throws Exception {
+        int cpuNum = Runtime.getRuntime().availableProcessors();
+        try (ElasticMicroTaskExecutor executor = ElasticMicroTaskExecutor.of("default-factory-test")) {
+            Field tpeField = ElasticMicroTaskExecutor.class.getDeclaredField("threadPoolExecutor");
+            tpeField.setAccessible(true);
+            ThreadPoolExecutor tpe = (ThreadPoolExecutor) tpeField.get(executor);
+            assertEquals(cpuNum * 2, tpe.getMaximumPoolSize(), "最大线程数默认为CPU核心数的2倍");
+            assertEquals(Math.max(2, cpuNum / 2), tpe.getQueue().remainingCapacity(),
+                    "核心队列默认为CPU核心数的一半，最小为2");
+            assertEquals(cpuNum * 4, cacheCapacity(executor), "缓冲队列默认为CPU核心数的4倍");
+        }
+    }
+
+    @Test
+    void threadsAreNamedAfterGivenPrefix() throws Exception {
+        try (ElasticMicroTaskExecutor executor = ElasticMicroTaskExecutor.of("named-elastic-test", 4, 1, 2)) {
+            AtomicReference<String> workerName = new AtomicReference<>();
+            CountDownLatch ran = new CountDownLatch(1);
+            executor.submit(() -> {
+                workerName.set(Thread.currentThread().getName());
+                ran.countDown();
+            }, new SignalCatcher());
+
+            assertTrue(ran.await(5, TimeUnit.SECONDS), "任务必须被执行以取证工作线程名");
+            assertTrue(workerName.get().startsWith("named-elastic-test-"),
+                    () -> "工作线程名须以指定名称为前缀，实际为 " + workerName.get());
+        }
+    }
+
+    @Test
     void nullTaskOrHandlerThrowsNpeBeforeAnyQueueing() {
-        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        ElasticMicroTaskExecutor executor = newExecutor(4, 1, 2);
         try {
             SignalCatcher catcher = new SignalCatcher();
             NullPointerException e1 = assertThrows(NullPointerException.class,
@@ -120,7 +192,7 @@ class ElasticMicroTaskExecutorTest {
 
     @Test
     void submittedTaskRunsAndReportsExecutedOnWorkerThread() throws Exception {
-        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        ElasticMicroTaskExecutor executor = newExecutor(4, 1, 2);
         CountDownLatch ran = new CountDownLatch(1);
         try {
             SignalCatcher catcher = new SignalCatcher();
@@ -137,7 +209,7 @@ class ElasticMicroTaskExecutorTest {
 
     @Test
     void submitAfterCloseIsNotAcceptedWithoutThrowing() {
-        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        ElasticMicroTaskExecutor executor = newExecutor(4, 1, 2);
         executor.close();
         AtomicInteger ran = new AtomicInteger();
         SignalCatcher catcher = new SignalCatcher();
@@ -151,7 +223,7 @@ class ElasticMicroTaskExecutorTest {
     @Test
     @DisplayName("try-with-resources 走 close()，已受理任务跑完且重复关闭幂等")
     void closeRunsAcceptedTasksAndIsIdempotent() throws Exception {
-        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        ElasticMicroTaskExecutor executor = newExecutor(4, 1, 2);
         AtomicInteger executed = new AtomicInteger();
         SignalCatcher catcher = new SignalCatcher();
         try (executor) {
@@ -171,7 +243,7 @@ class ElasticMicroTaskExecutorTest {
     void closeRunsEveryAcceptedTaskUnderBackpressure() throws Exception {
         // 钉住 F7：若将来修正，本用例应改为期望正确行为
         // 2 条上限线程 + 1 格核心队列 + 2 格缓冲：三层全占满后才开始取证
-        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(2, 1, 2);
+        ElasticMicroTaskExecutor executor = newExecutor(2, 1, 2);
         CountDownLatch blockerGate = new CountDownLatch(1);
         AtomicInteger executed = new AtomicInteger();
         Runnable blocker = () -> {
@@ -215,7 +287,7 @@ class ElasticMicroTaskExecutorTest {
     @DisplayName("关闭宽限期内提交的任务不丢弃：缓冲队列置为关闭前入队的任务由收尾线程执行完毕")
     void taskSubmittedDuringCloseWindowIsStillExecuted() throws Exception {
         // 4 格缓冲 + 1 格核心队列 + 2 条上限线程：三层占满后，任务只能进缓冲或被拒
-        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        ElasticMicroTaskExecutor executor = newExecutor(4, 1, 2);
         CountDownLatch blockerGate = new CountDownLatch(1);
         // A 卡住搬运线程的就地执行路径：A 开跑即证明核心执行器已关闭且关闭状态尚未置位
         CountDownLatch taskAGate = new CountDownLatch(1);
@@ -289,7 +361,7 @@ class ElasticMicroTaskExecutorTest {
     @Test
     @DisplayName("缓冲任务抛 Error 不得中断排空也不得从 close 冒出，其后的任务仍须执行")
     void errorFromCachedTaskDoesNotAbortCloseDrain() throws Exception {
-        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        ElasticMicroTaskExecutor executor = newExecutor(4, 1, 2);
         CountDownLatch blockerGate = new CountDownLatch(1);
         Runnable blocker = () -> {
             try {
@@ -326,7 +398,7 @@ class ElasticMicroTaskExecutorTest {
     @Test
     @DisplayName("收尾回调自身抛异常：工作线程不死亡重建，后续任务仍在同一承载线程执行")
     void callbackFailureDoesNotKillWorkerThread() throws Exception {
-        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        ElasticMicroTaskExecutor executor = newExecutor(4, 1, 2);
         try {
             AtomicReference<String> firstWorker = new AtomicReference<>();
             AtomicReference<String> secondWorker = new AtomicReference<>();

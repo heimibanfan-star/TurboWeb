@@ -6,7 +6,6 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
@@ -34,10 +33,12 @@ import java.util.concurrent.locks.ReentrantLock;
  * 由收尾线程保证执行完毕；搬运线程退出时将缓冲队列置为关闭，此后提交一律以未受理收尾。
  * <p>
  * 本类以<b>实例</b>为使用单位：队列、执行器与搬运线程均归属各实例，不共享全局任务状态，
- * 构造即完成初始化，参数由调用方经构造器指定，同一JVM内可并存多个互不干扰的执行器。
+ * 经静态工厂方法 {@link #of(String)} 或 {@link #of(String, int, int, int)} 创建即完成初始化，
+ * 线程名前缀必传，容量参数由调用方指定或按默认配置派生，同一JVM内可并存多个互不干扰的执行器。
  *
  * <pre>{@code
- * MicroTaskExecutor executor = new ElasticMicroTaskExecutor(
+ * MicroTaskExecutor executor = ElasticMicroTaskExecutor.of(
+ *         "disk-io",  // 线程名称前缀
  *         1024,   // 缓冲队列容量
  *         2,      // 核心队列容量
  *         10      // 最大线程数
@@ -49,9 +50,6 @@ import java.util.concurrent.locks.ReentrantLock;
 public class ElasticMicroTaskExecutor implements MicroTaskExecutor {
 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(ElasticMicroTaskExecutor.class);
-
-    /** 执行器组编号，用于区分同一JVM内创建的多个实例 */
-    private static final AtomicInteger GROUP_ID = new AtomicInteger(0);
 
     /** 搬运重试的初始退避时间（纳秒） */
     private static final long INIT_BACKOFF_NANOS = 1000L;
@@ -65,16 +63,16 @@ public class ElasticMicroTaskExecutor implements MicroTaskExecutor {
     private static class ElasticThreadFactory implements ThreadFactory {
 
         private final AtomicLong threadId = new AtomicLong(0);
-        private final int groupId;
+        private final String threadNamePrefix;
 
-        public ElasticThreadFactory(int groupId) {
-            this.groupId = groupId;
+        public ElasticThreadFactory(String threadNamePrefix) {
+            this.threadNamePrefix = threadNamePrefix;
         }
 
         @Override
         public Thread newThread(@NonNull Runnable r) {
             threadId.compareAndSet(Long.MAX_VALUE, 0);
-            Thread thread = new Thread(r, "ElasticMicroTaskExecutor-" + groupId + "-" + threadId.getAndIncrement());
+            Thread thread = new Thread(r, threadNamePrefix + "-" + threadId.getAndIncrement());
             thread.setDaemon(true);
             return thread;
         }
@@ -105,22 +103,27 @@ public class ElasticMicroTaskExecutor implements MicroTaskExecutor {
     /** 缓冲队列收尾线程，由搬运线程退出时创建；close 等待其执行完毕 */
     private volatile Thread cacheFinalizerThread;
 
-    /** 执行器组编号，用于线程命名 */
-    private final int groupId;
+    /** 线程名称前缀，承载线程、搬运线程与收尾线程共用 */
+    private final String threadNamePrefix;
 
     /**
-     * 构造弹性微任务执行器。
+     * 构造弹性微任务执行器，由静态工厂方法调用。
      * <p>
      * 内部固定：核心线程1个、最大线程数 {@code maxThreadNum}、存活时间5分钟、核心队列为
      * {@link ArrayBlockingQueue}（容量 {@code coreQueue}）、拒绝策略 {@link ThreadPoolExecutor.AbortPolicy}、
-     * 核心线程允许超时回收；缓冲队列为 {@link LinkedBlockingQueue}（容量 {@code cacheQueue}）。
+     * 核心线程允许超时回收；缓冲队列为 {@link LinkedBlockingQueue}（容量 {@code cacheQueue}）；
+     * 承载线程、搬运线程与收尾线程均以 {@code threadName} 为名称前缀。
      *
+     * @param threadName   线程名称前缀，不能为null
      * @param cacheQueue   缓冲队列容量，必须大于0
      * @param coreQueue    核心队列容量，必须大于0
      * @param maxThreadNum 最大线程数，必须大于0
-     * @throws IllegalArgumentException 任一参数不大于0
+     * @throws NullPointerException     threadName 为null
+     * @throws IllegalArgumentException 任一容量参数不大于0
      */
-    public ElasticMicroTaskExecutor(int cacheQueue, int coreQueue, int maxThreadNum) {
+    private ElasticMicroTaskExecutor(String threadName, int cacheQueue, int coreQueue, int maxThreadNum) {
+        Objects.requireNonNull(threadName, "threadName must not be null");
+        this.threadNamePrefix = threadName;
         if (cacheQueue <= 0) {
             throw new IllegalArgumentException("cacheQueue must be greater than 0");
         }
@@ -130,22 +133,49 @@ public class ElasticMicroTaskExecutor implements MicroTaskExecutor {
         if (maxThreadNum <= 0) {
             throw new IllegalArgumentException("maxThreadNum must be greater than 0");
         }
-        this.groupId = GROUP_ID.getAndIncrement();
         this.threadPoolExecutor = new ThreadPoolExecutor(
                 1,
                 maxThreadNum,
                 5,
                 TimeUnit.MINUTES,
                 new ArrayBlockingQueue<>(coreQueue),
-                new ElasticThreadFactory(groupId),
+                new ElasticThreadFactory(threadName),
                 new ThreadPoolExecutor.AbortPolicy()
         );
         // 核心线程同样允许超时回收，空闲时线程数可回落到0
         this.threadPoolExecutor.allowCoreThreadTimeOut(true);
         this.cacheQueue = new LinkedBlockingQueue<>(cacheQueue);
         this.taskMoveThread = Thread.ofVirtual()
-                .name("ElasticMicroTaskExecutor-Mover-" + groupId)
+                .name(threadName + "-Mover")
                 .start(this::moveTaskLoop);
+    }
+
+    /**
+     * 创建弹性微任务执行器，容量与线程数按默认配置派生：
+     * 最大线程数为CPU核心数的2倍，核心队列为CPU核心数的一半且最小为2，缓冲队列为CPU核心数的4倍。
+     *
+     * @param threadName 线程名称前缀，不能为null
+     * @return 新的弹性微任务执行器
+     * @throws NullPointerException threadName 为null
+     */
+    public static ElasticMicroTaskExecutor of(String threadName) {
+        int cpuNum = Runtime.getRuntime().availableProcessors();
+        return of(threadName, cpuNum * 4, Math.max(2, cpuNum / 2), cpuNum * 2);
+    }
+
+    /**
+     * 创建弹性微任务执行器，线程名前缀与容量参数按给定值。
+     *
+     * @param threadName   线程名称前缀，不能为null
+     * @param cacheQueue   缓冲队列容量，必须大于0
+     * @param coreQueue    核心队列容量，必须大于0
+     * @param maxThreadNum 最大线程数，必须大于0
+     * @return 新的弹性微任务执行器
+     * @throws NullPointerException     threadName 为null
+     * @throws IllegalArgumentException 任一容量参数不大于0
+     */
+    public static ElasticMicroTaskExecutor of(String threadName, int cacheQueue, int coreQueue, int maxThreadNum) {
+        return new ElasticMicroTaskExecutor(threadName, cacheQueue, coreQueue, maxThreadNum);
     }
 
     /**
@@ -255,7 +285,7 @@ public class ElasticMicroTaskExecutor implements MicroTaskExecutor {
                 closeLock.unlock();
             }
             cacheFinalizerThread = Thread.ofVirtual()
-                    .name("ElasticMicroTaskExecutor-Finalizer-" + groupId)
+                    .name(threadNamePrefix + "-Finalizer")
                     .start(this::consumeCacheTasks);
         }
     }
