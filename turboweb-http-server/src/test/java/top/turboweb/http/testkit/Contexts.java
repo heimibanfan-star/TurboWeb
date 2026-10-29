@@ -4,10 +4,10 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import top.turboweb.rest.core.HttpContent;
 import top.turboweb.rest.core.HttpRequestMessage;
-import top.turboweb.http.context.DefaultMessage;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.orchestrator.HttpContentParserManager;
+import top.turboweb.http.orchestrator.RequestOrchestrator;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -51,7 +51,7 @@ public final class Contexts {
      * @return 请求消息
      */
     public static HttpRequestMessage message(FullHttpRequest request, HttpContent content, Charset defaultCharset) {
-        return new DefaultMessage(request, content, defaultCharset);
+        return RequestOrchestrator.assembleMessage(request, content, defaultCharset);
     }
 
     /**

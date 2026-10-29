@@ -16,11 +16,15 @@ import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.rest.core.HttpContent;
 import top.turboweb.rest.core.HttpRequestMessage;
+import top.turboweb.rest.core.HttpRequestMethod;
+import top.turboweb.rest.core.HttpRequestTarget;
+import top.turboweb.rest.core.RequestLine;
 import top.turboweb.server.runtime.ResourceManager;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -238,6 +242,29 @@ public class RequestOrchestrator {
     }
 
     /**
+     * 从请求装配消息：构造期快照请求行与地址、把请求头集合拷贝为消息自有的可写存储，
+     * 请求体内容由装配方解析产出后带入；装配返回后消息与请求头集合不再联动。
+     *
+     * @param request      请求对象，不能为空
+     * @param content      请求体内容，不能为空
+     * @param queryCharset 查询参数解码的缺省字符集，不能为空
+     * @return 请求消息
+     * @throws NullPointerException     当 {@code request}、{@code content} 或 {@code queryCharset} 为 {@code null} 时抛出
+     * @throws IllegalArgumentException 请求行的方法字面量不在标准方法范围内时抛出
+     */
+    public static HttpRequestMessage assembleMessage(FullHttpRequest request, HttpContent content, Charset queryCharset) {
+        Objects.requireNonNull(request, "request can not be null");
+        HttpRequestMessage message = new HttpRequestMessage(
+                new RequestLine(HttpRequestMethod.valueOf(request.method().name()), new HttpRequestTarget(request.uri())),
+                new DefaultURL(request, queryCharset),
+                content);
+        for (Map.Entry<String, String> entry : request.headers()) {
+            message.addHeader(entry.getKey(), entry.getValue());
+        }
+        return message;
+    }
+
+    /**
      * CORS 来源处理：按来源头快照与持有的 {@link HttpCorsConfig} 为响应写出 CORS 响应头。
      * <p>
      * 处理次序：来源头缺失或为空回落字面量 null；允许凭证时，来源为字面星号属
@@ -324,7 +351,7 @@ public class RequestOrchestrator {
             content = HttpMethod.HEAD == request.method()
                     ? new HttpUnknowContent(null)
                     : contentParserManager.parse(request);
-            message = new DefaultMessage(request, content, defaultCharset);
+            message = assembleMessage(request, content, defaultCharset);
             // 初始化session
             httpSession = new DefaultHttpSession(sessionManager, originSessionId);
             // 创建HttpContext对象

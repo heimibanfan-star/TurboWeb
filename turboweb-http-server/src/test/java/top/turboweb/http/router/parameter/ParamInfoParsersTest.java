@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.rest.core.HttpContent;
 import top.turboweb.rest.core.HttpRequestMessage;
 import top.turboweb.rest.core.HttpRequestMethod;
+import top.turboweb.rest.core.HttpRequestTarget;
 import top.turboweb.rest.core.HttpUrl;
 import top.turboweb.rest.core.MultipartFile;
 import top.turboweb.rest.core.RequestLine;
@@ -424,7 +425,36 @@ class ParamInfoParsersTest {
     }
 
     /** 请求消息夹具：只承接请求头通道，方式、地址与内容通道不经绑定，误调即响。 */
-    private record MessageFixture(Map<String, String> headers) implements HttpRequestMessage {
+    private static final class MessageFixture extends HttpRequestMessage {
+
+        /** 地址替身：不经绑定，误调即响 */
+        private static final HttpUrl OFF_CHANNEL_URL = new HttpUrl() {
+            @Override
+            public String url(boolean pathOnly) {
+                throw offChannel("url");
+            }
+
+            @Override
+            public Map<String, List<String>> queryParams() {
+                throw offChannel("url");
+            }
+        };
+
+        /** 内容替身：不经绑定，误调即响 */
+        private static final HttpContent OFF_CHANNEL_CONTENT = new HttpContent() {
+            @Override
+            public ContentType contentType() {
+                throw offChannel("content");
+            }
+        };
+
+        private final Map<String, String> headers;
+
+        MessageFixture(Map<String, String> headers) {
+            super(new RequestLine(HttpRequestMethod.GET, new HttpRequestTarget("/")),
+                    OFF_CHANNEL_URL, OFF_CHANNEL_CONTENT);
+            this.headers = headers;
+        }
 
         @Override
         public HttpRequestMethod method() {
@@ -483,11 +513,23 @@ class ParamInfoParsersTest {
     }
 
     /** 内容投喂消息替身：只应答内容通道，其余消息通道不经绑定、误调即响。 */
-    private record ContentFeedingMessage(HttpContent content) implements HttpRequestMessage {
+    private static final class ContentFeedingMessage extends HttpRequestMessage {
 
-        @Override
-        public HttpContent content() {
-            return content;
+        /** 地址替身：不经绑定，误调即响 */
+        private static final HttpUrl OFF_CHANNEL_URL = new HttpUrl() {
+            @Override
+            public String url(boolean pathOnly) {
+                throw offChannel("url");
+            }
+
+            @Override
+            public Map<String, List<String>> queryParams() {
+                throw offChannel("url");
+            }
+        };
+
+        ContentFeedingMessage(HttpContent content) {
+            super(new RequestLine(HttpRequestMethod.GET, new HttpRequestTarget("/")), OFF_CHANNEL_URL, content);
         }
 
         @Override

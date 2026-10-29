@@ -4,110 +4,97 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * {@link HttpRequestMessage} 的 default 方法：Content-Length 取值的兜底口径。
+ * {@link HttpRequestMessage} 的持有契约：构造期持有请求行、地址与请求体内容，
+ * 请求方式由请求行承接，头部读写由 {@link AbstractHttpMessage} 承载。
  */
 class HttpRequestMessageTest {
 
-    /** 仅头查询可配置的桩实现：其余抽象方法给最小行为，default 方法不触碰它们 */
-    private static HttpRequestMessage stub(Function<String, String> headerLookup) {
-        return new HttpRequestMessage() {
-            @Override
-            public HttpRequestMethod method() {
-                return HttpRequestMethod.GET;
-            }
+    /** 不经地址通道的用例统一带入的地址替身 */
+    private static final HttpUrl URL = new HttpUrl() {
+        @Override
+        public String url(boolean pathOnly) {
+            return "/index?x=1";
+        }
 
-            @Override
-            public HttpUrl url() {
-                throw new UnsupportedOperationException();
-            }
+        @Override
+        public Map<String, List<String>> queryParams() {
+            return Map.of();
+        }
+    };
 
-            @Override
-            public HttpContent content() {
-                throw new UnsupportedOperationException();
-            }
+    /** 不经内容通道的用例统一带入的未声明类型内容 */
+    private static final HttpContent NO_CONTENT = () -> null;
 
-            @Override
-            public RequestLine requestLine() {
-                return new RequestLine(HttpRequestMethod.GET, new HttpRequestTarget("/index?x=1"));
-            }
-
-            @Override
-            public String header(String name) {
-                return headerLookup.apply(name);
-            }
-
-            @Override
-            public List<String> headerValues(String name) {
-                return List.of();
-            }
-
-            @Override
-            public boolean containsHeader(String name) {
-                return false;
-            }
-
-            @Override
-            public Set<String> headerNames() {
-                return Set.of();
-            }
-
-            @Override
-            public int headerSize() {
-                return 0;
-            }
-
-            @Override
-            public boolean headerIsEmpty() {
-                return true;
-            }
-        };
+    private static HttpRequestMessage message() {
+        return new HttpRequestMessage(
+                new RequestLine(HttpRequestMethod.GET, new HttpRequestTarget("/index?x=1")),
+                URL, NO_CONTENT);
     }
 
     @Test
-    void contentLengthParsesDeclaredValue() {
-        HttpRequestMessage message = stub(name -> " 42 ");
-        assertEquals(42L, message.contentLength());
+    void carriesConstructorInjectedState() {
+        RequestLine line = new RequestLine(HttpRequestMethod.POST, new HttpRequestTarget("/x"));
+        HttpRequestMessage message = new HttpRequestMessage(line, URL, NO_CONTENT);
+
+        assertEquals(HttpRequestMethod.POST, message.method(), "请求方式由请求行承接");
+        assertSame(line, message.requestLine(), "请求行按入参原样持有");
+        assertSame(URL, message.url(), "地址按入参原样持有");
+        assertSame(NO_CONTENT, message.content(), "内容按入参原样持有");
     }
 
     @Test
-    void contentLengthZeroWhenHeaderAbsent() {
-        HttpRequestMessage message = stub(name -> null);
-        assertEquals(0L, message.contentLength());
-    }
+    void headerChannelInheritedFromAbstractHttpMessage() {
+        HttpRequestMessage message = message();
+        message.setHeader("Content-Type", "application/json");
+        message.addHeader("X-Multi", "a");
+        message.addHeader("X-Multi", "b");
 
-    @Test
-    void contentLengthZeroWhenValueNotNumeric() {
-        HttpRequestMessage message = stub(name -> "abc");
-        assertEquals(0L, message.contentLength());
-    }
-
-    @Test
-    void contentLengthFloorsNegativeValueToZero() {
-        HttpRequestMessage message = stub(name -> "-5");
-        assertEquals(0L, message.contentLength());
-    }
-
-    @Test
-    void requestLineCarriesMethodAndTarget() {
-        HttpRequestMessage message = stub(name -> null);
-
-        RequestLine line = message.requestLine();
-
-        assertEquals(HttpRequestMethod.GET, line.method(), "请求行承载请求方式");
-        assertEquals("/index?x=1", line.target().raw(), "请求行承载请求目标");
+        assertEquals("application/json", message.header("content-type"),
+                "头读写在消息上直接可用，头名查询大小写不敏感");
+        assertEquals(List.of("a", "b"), message.headerValues("X-Multi"));
     }
 
     @Test
     void headerChannelIsReachableThroughHttpMessageView() {
-        HttpMessage<RequestLine, HttpContent> message = stub(name -> " 42 ");
+        HttpRequestMessage message = message();
+        message.setHeader("Content-Length", " 42 ");
 
-        assertEquals(" 42 ", message.header("Content-Length"), "头读取经 HttpMessage 视图可达");
-        assertEquals(42L, message.contentLength(), "Content-Length 兜底口径经 HttpMessage 视图继承");
+        HttpMessage<RequestLine, HttpContent> view = message;
+
+        assertEquals(" 42 ", view.header("Content-Length"), "头读取经 HttpMessage 视图可达");
+        assertEquals(42L, view.contentLength(), "Content-Length 兜底口径经 HttpMessage 视图继承");
+    }
+
+    @Test
+    void nullRequestLineIsRejected() {
+        NullPointerException e = assertThrows(NullPointerException.class,
+                () -> new HttpRequestMessage(null, URL, NO_CONTENT));
+
+        assertEquals("requestLine must not be null", e.getMessage());
+    }
+
+    @Test
+    void nullUrlIsRejected() {
+        NullPointerException e = assertThrows(NullPointerException.class,
+                () -> new HttpRequestMessage(
+                        new RequestLine(HttpRequestMethod.GET, new HttpRequestTarget("/x")), null, NO_CONTENT));
+
+        assertEquals("url must not be null", e.getMessage());
+    }
+
+    @Test
+    void nullContentIsRejected() {
+        NullPointerException e = assertThrows(NullPointerException.class,
+                () -> new HttpRequestMessage(
+                        new RequestLine(HttpRequestMethod.GET, new HttpRequestTarget("/x")), URL, null));
+
+        assertEquals("content must not be null", e.getMessage());
     }
 }

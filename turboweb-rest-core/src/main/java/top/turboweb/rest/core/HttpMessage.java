@@ -4,10 +4,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * http消息的读取契约：平铺承载消息头的读取访问，行信息与消息体内容的类型由
+ * http消息的读写契约：平铺承载消息头的读取与写入修改访问，行信息与消息体内容的类型由
  * 子契约以泛型实参填充（如 http 请求消息以 {@link RequestLine} 与 {@link HttpContent} 填充）。
  *
- * <p>消息头不设独立视图对象，读取访问直接平铺在消息上，头名查询大小写不敏感；
+ * <p>消息头不设独立视图对象，读写访问直接平铺在消息上，头名查询大小写不敏感；
  * 头未发送时返回 {@code null}，仅 {@link #contentLength()} 未发送或取值无效时记 0。</p>
  *
  * @param <LINE>    消息行信息的类型
@@ -59,6 +59,38 @@ public interface HttpMessage<LINE, CONTENT> {
      * @return 无头返回 true
      */
     boolean headerIsEmpty();
+
+    /**
+     * 设置指定头名的取值：覆盖同名（大小写不敏感）的全部既有取值，头名按入参原文记录。
+     *
+     * @param name  头名，大小写不敏感，不能为空
+     * @param value 取值，不能为空
+     * @throws NullPointerException 当 {@code name} 或 {@code value} 为 {@code null} 时抛出
+     */
+    void setHeader(String name, String value);
+
+    /**
+     * 追加一条取值：同名头（大小写不敏感）已存在时并入既有条目并保持头名首现原文，
+     * 不存在时按入参原文新建条目。
+     *
+     * @param name  头名，大小写不敏感，不能为空
+     * @param value 取值，不能为空
+     * @throws NullPointerException 当 {@code name} 或 {@code value} 为 {@code null} 时抛出
+     */
+    void addHeader(String name, String value);
+
+    /**
+     * 删除指定头名的全部取值，头名大小写不敏感；头不存在时无操作。
+     *
+     * @param name 头名，大小写不敏感，不能为空
+     * @throws NullPointerException 当 {@code name} 为 {@code null} 时抛出
+     */
+    void removeHeader(String name);
+
+    /**
+     * 清空全部消息头。
+     */
+    void clearHeaders();
 
     /**
      * Content-Length 头取值。头缺失、非数值或为负时记 0。
