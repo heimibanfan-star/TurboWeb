@@ -11,7 +11,6 @@ plugins {
 
 // 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
-    api(project(":turboweb-common"))
     // 服务器运行时契约由 turboweb-server-runtime 提供；WebSocketServerRuntime 实现 ServerRuntime，
     // 装配签名面向消费方的服务器注册接口，用 api 暴露
     api(project(":turboweb-server-runtime"))

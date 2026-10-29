@@ -24,7 +24,7 @@ import io.netty.handler.codec.http.HttpResponse;
  * <p>
  * 注意：
  * <ul>
- *     <li>拦截器必须返回非 null 的 {@link HttpResponse} 对象，否则客户端会抛出 {@link top.turboweb.common.exception.TurboHttpClientException}</li>
+ *     <li>拦截器必须返回非 null 的 {@link HttpResponse} 对象，否则客户端会抛出 {@link top.turboweb.client.exception.TurboHttpClientException}</li>
  *     <li>可以通过链式添加多个拦截器，执行顺序按添加顺序</li>
  * </ul>
  */

@@ -2,7 +2,7 @@
  * 全部子项目的统一构建约定：子项目脚本不再声明插件，Java 库身份、
  * 发布与测试/覆盖率机制由本脚本 subprojects 块统一授予；
  * 第三方依赖不在本脚本全局引入，由各模块自身脚本按真实用量声明；
- * 覆盖率阈值与 check 门禁绑定留在各模块自身脚本（turboweb-common、turboweb-http-server）。
+ * 覆盖率阈值与 check 门禁绑定留在各模块自身脚本（turboweb-http-server）。
  */
 
 plugins {
@@ -79,9 +79,9 @@ subprojects {
     }
 
     // ---------- 变异测试（PITest）：机制在此授予，作用域（targetClasses）留在各模块脚本 ----------
-    // 仅 commons 与 server 在此集中授予；其余有测试源码的模块（turboweb-struct、turboweb-serializer、turboweb-rest-core）
+    // 仅 http-server 在此集中授予；其余有测试源码的模块（turboweb-struct、turboweb-serializer、turboweb-rest-core）
     // 按先例在各自构建脚本自启 pitest，本列表不再扩充。
-    if (name in setOf("turboweb-common", "turboweb-http-server")) {
+    if (name == "turboweb-http-server") {
         apply(plugin = "info.solidsoft.pitest")
         configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
             // JUnit5 provider 由 pitest-junit5-plugin 供给了引擎自动发现；

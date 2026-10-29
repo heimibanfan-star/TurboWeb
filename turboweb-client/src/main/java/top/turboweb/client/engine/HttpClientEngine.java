@@ -16,7 +16,7 @@ import reactor.netty.tcp.SslProvider;
 import top.turboweb.client.result.DefaultStream;
 import top.turboweb.client.result.InternStream;
 import top.turboweb.client.result.Stream;
-import top.turboweb.common.exception.TurboHttpClientException;
+import top.turboweb.client.exception.TurboHttpClientException;
 
 import java.io.Closeable;
 import java.time.Duration;

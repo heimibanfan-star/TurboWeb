@@ -6,7 +6,6 @@
 
 // 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
 dependencies {
-    api(project(":turboweb-common"))
     // JsonConverter 构造参数即 JsonSerializer 接口（默认实现 JacksonJsonSerializer），由 turboweb-serializer 提供，用 api 暴露
     api(project(":turboweb-serializer"))
     // 请求体与响应体的 ContentType 解析、URL 参数拼接由 turboweb-rest-core 提供

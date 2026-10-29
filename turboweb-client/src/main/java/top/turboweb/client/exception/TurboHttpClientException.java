@@ -1,4 +1,4 @@
-package top.turboweb.common.exception;
+package top.turboweb.client.exception;
 
 /**
  * http客户端相关异常

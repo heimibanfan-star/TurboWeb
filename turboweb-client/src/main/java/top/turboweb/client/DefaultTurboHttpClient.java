@@ -10,7 +10,7 @@ import top.turboweb.client.interceptor.RequestInterceptor;
 import top.turboweb.client.interceptor.ResponseInterceptor;
 import top.turboweb.client.result.ClientResult;
 import top.turboweb.client.result.Stream;
-import top.turboweb.common.exception.TurboHttpClientException;
+import top.turboweb.client.exception.TurboHttpClientException;
 import top.turboweb.rest.core.ContentType;
 import top.turboweb.rest.uri.URIBuilder;
 
