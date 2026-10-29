@@ -72,8 +72,8 @@ public class ResponseWriterManager {
     public ResponseWriterManager(ResourceManager resourceManager, List<ResponseWriter> customerWriters) {
         Objects.requireNonNull(resourceManager, "The resource manager must not be null");
         Objects.requireNonNull(customerWriters, "The custom writer list must not be null");
-        // 磁盘IO线程池按名从资源管理器获取，使用方保存到局部变量完成注入
-        ThreadPool threadPool = resourceManager.getResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
+        // 磁盘IO线程池作为内置资源按名从资源管理器获取，使用方保存到局部变量完成注入
+        ThreadPool threadPool = resourceManager.getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
         // 全部初始化（建表、校验、注入线程池）先在局部变量上完成，后赋值 final 字段
         Map<Class<? extends ResponseWriter>, ResponseWriter> internalTable = Map.of(
                 SseResponseWriter.class, new SseResponseWriter(),

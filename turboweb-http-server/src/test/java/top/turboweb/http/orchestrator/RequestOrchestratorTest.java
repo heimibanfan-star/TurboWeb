@@ -42,7 +42,9 @@ import top.turboweb.serializer.JacksonJsonSerializer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.concurrent.CountDownLatch;
@@ -82,19 +84,19 @@ class RequestOrchestratorTest {
         return new HttpContentParserManager(StandardCharsets.UTF_8, List.of());
     }
 
-    /** 测试资源管理器：登记给定微任务执行器与桩磁盘IO线程池，供编排器与写出器管理器按名获取。 */
+    /** 测试资源管理器：以内置空间登记给定微任务执行器与桩磁盘IO线程池，供编排器与写出器管理器按名获取。 */
     private static ResourceManager testResourceManager(MicroTaskExecutor executor) {
-        return new ResourceManager.Builder()
-                .addResource(ResourceNames.MICRO_TASK_EXECUTOR, executor)
-                .addResource(ResourceNames.DISK_IO_THREAD_POOL, Stubs.threadPool())
-                .build();
+        Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
+        builtins.put(ResourceNames.MICRO_TASK_EXECUTOR, executor);
+        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.threadPool());
+        return new ResourceManager.Builder().build(builtins);
     }
 
-    /** 测试资源管理器：只登记桩磁盘IO线程池，供响应写出器管理器按名获取。 */
+    /** 测试资源管理器：以内置空间只登记桩磁盘IO线程池，供响应写出器管理器按名获取。 */
     private static ResourceManager writerResourceManager() {
-        return new ResourceManager.Builder()
-                .addResource(ResourceNames.DISK_IO_THREAD_POOL, Stubs.threadPool())
-                .build();
+        Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
+        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.threadPool());
+        return new ResourceManager.Builder().build(builtins);
     }
 
     /** 按指定 cors 配置装配九组件齐备的编排器（空链头、空异常处理器表）。 */

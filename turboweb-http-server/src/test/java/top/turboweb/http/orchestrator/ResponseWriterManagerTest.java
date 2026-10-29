@@ -18,7 +18,9 @@ import top.turboweb.server.runtime.ResourceManager;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -226,12 +228,12 @@ class ResponseWriterManagerTest {
     }
 
     /**
-     * 构造测试用资源管理器：把给定线程池登记为磁盘IO线程池资源，
+     * 构造测试用资源管理器：把给定线程池以内置空间登记为磁盘IO线程池资源，
      * 供写出器管理器按 {@link ResourceNames#DISK_IO_THREAD_POOL} 从其中获取
      */
     private static ResourceManager resourceManagerOf(ThreadPool threadPool) {
-        return new ResourceManager.Builder()
-                .addResource(ResourceNames.DISK_IO_THREAD_POOL, threadPool)
-                .build();
+        Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
+        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, threadPool);
+        return new ResourceManager.Builder().build(builtins);
     }
 }

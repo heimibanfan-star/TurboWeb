@@ -16,11 +16,6 @@ public final class ResourceNames {
      */
     public static final String MICRO_TASK_EXECUTOR = "microTaskExecutor";
 
-    /**
-     * 中间件链销毁适配器：应用关闭时沿链头到链尾调用各中间件的destroy
-     */
-    public static final String MIDDLEWARE_DESTROYER = "middlewareDestroyer";
-
     private ResourceNames() {
     }
 }

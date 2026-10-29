@@ -4,7 +4,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -317,5 +320,202 @@ class ResourceManagerTest {
         ResourceManager manager = builder.build();
         builder.addResource("b", new TraceResource("b", new ArrayList<>()));
         assertThrows(ResourceException.class, () -> manager.getResource("b"));
+    }
+
+    // ---------- 内置空间：build 一次性传入 ----------
+
+    @Test
+    void builtinResourcesPassedAtBuildAreQueryableByName() {
+        TraceResource resource = new TraceResource("b", new ArrayList<>());
+        ResourceManager manager = new ResourceManager.Builder().build(Map.of("bi", resource));
+        assertSame(resource, manager.getBuiltinResource("bi"));
+    }
+
+    @Test
+    void getBuiltinResourceByNameAndTypeReturnsTypedInstance() {
+        TraceResource resource = new TraceResource("b", new ArrayList<>());
+        ResourceManager manager = new ResourceManager.Builder().build(Map.of("bi", resource));
+        assertSame(resource, manager.getBuiltinResource("bi", TraceResource.class));
+    }
+
+    @Test
+    void getBuiltinResourceByNameAndTypeThrowsOnTypeMismatch() {
+        ResourceManager manager = new ResourceManager.Builder()
+                .build(Map.of("bi", new TraceResource("b", new ArrayList<>())));
+        ResourceException ex = assertThrows(ResourceException.class,
+                () -> manager.getBuiltinResource("bi", URLResource.class));
+        assertTrue(ex.getMessage().startsWith("The type of resource bi does not match the expected type: "));
+    }
+
+    @Test
+    void getBuiltinResourceByNameAndTypeRejectsNullType() {
+        ResourceManager manager = new ResourceManager.Builder().build();
+        NullPointerException ex = assertThrows(NullPointerException.class,
+                () -> manager.getBuiltinResource("bi", null));
+        assertEquals("type must not be null", ex.getMessage());
+    }
+
+    @Test
+    void getBuiltinResourceThrowsWhenAbsent() {
+        ResourceManager manager = new ResourceManager.Builder().build();
+        ResourceException ex = assertThrows(ResourceException.class,
+                () -> manager.getBuiltinResource("missing"));
+        assertEquals("Resource not found: missing", ex.getMessage());
+    }
+
+    @Test
+    void builtinResourcesAreNotVisibleToCustomQueries() {
+        TraceResource resource = new TraceResource("b", new ArrayList<>());
+        ResourceManager manager = new ResourceManager.Builder().build(Map.of("bi", resource));
+        assertThrows(ResourceException.class, () -> manager.getResource("bi"));
+        assertThrows(ResourceException.class, () -> manager.getResource("bi", TraceResource.class));
+        assertThrows(ResourceException.class, () -> manager.getResource(TraceResource.class));
+    }
+
+    @Test
+    void customResourcesAreNotVisibleToBuiltinQueries() {
+        TraceResource resource = new TraceResource("a", new ArrayList<>());
+        ResourceManager manager = new ResourceManager.Builder()
+                .addResource("a", resource)
+                .build();
+        assertThrows(ResourceException.class, () -> manager.getBuiltinResource("a"));
+    }
+
+    @Test
+    void sameNameAllowedAcrossBuiltinAndCustomSpaces() {
+        TraceResource builtin = new TraceResource("b", new ArrayList<>());
+        TraceResource custom = new TraceResource("c", new ArrayList<>());
+        ResourceManager manager = new ResourceManager.Builder()
+                .addResource("same", custom)
+                .build(Map.of("same", builtin));
+        assertSame(builtin, manager.getBuiltinResource("same"));
+        assertSame(custom, manager.getResource("same"));
+    }
+
+    @Test
+    void buildRejectsNullBuiltinMap() {
+        NullPointerException ex = assertThrows(NullPointerException.class,
+                () -> new ResourceManager.Builder().build(null));
+        assertEquals("builtinResources must not be null", ex.getMessage());
+    }
+
+    @Test
+    void buildRejectsBlankBuiltinName() {
+        for (String blank : Arrays.asList(null, "", " ")) {
+            Map<String, AutoCloseable> builtins = new HashMap<>();
+            builtins.put(blank, new TraceResource("r", new ArrayList<>()));
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> new ResourceManager.Builder().build(builtins));
+            assertEquals("resourceName can not be blank", ex.getMessage());
+        }
+    }
+
+    @Test
+    void buildRejectsNullBuiltinResource() {
+        Map<String, AutoCloseable> builtins = new HashMap<>();
+        builtins.put("bi", null);
+        NullPointerException ex = assertThrows(NullPointerException.class,
+                () -> new ResourceManager.Builder().build(builtins));
+        assertEquals("resource must not be null", ex.getMessage());
+    }
+
+    @Test
+    void buildRejectsBuiltinInstanceAlreadyRegisteredInChain() {
+        TraceResource resource = new TraceResource("a", new ArrayList<>());
+        ResourceManager.Builder builder = new ResourceManager.Builder();
+        builder.addResource("a", resource);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> builder.build(Map.of("bi", resource)));
+        assertEquals("Duplicate resource: " + resource.getClass(), ex.getMessage());
+    }
+
+    @Test
+    void buildRejectsSameInstanceTwiceInBuiltinMap() {
+        TraceResource resource = new TraceResource("b", new ArrayList<>());
+        Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
+        builtins.put("bi1", resource);
+        builtins.put("bi2", resource);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> new ResourceManager.Builder().build(builtins));
+        assertEquals("Duplicate resource: " + resource.getClass(), ex.getMessage());
+    }
+
+    @Test
+    void callerMapMutationAfterBuildDoesNotAffectBuiltManager() {
+        Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
+        builtins.put("bi", new TraceResource("b", new ArrayList<>()));
+        ResourceManager manager = new ResourceManager.Builder().build(builtins);
+        builtins.put("extra", new TraceResource("e", new ArrayList<>()));
+        assertThrows(ResourceException.class, () -> manager.getBuiltinResource("extra"));
+    }
+
+    // ---------- 托管空间：仅释放、不可查询 ----------
+
+    @Test
+    void managedResourcesAreNotQueryable() {
+        TraceResource resource = new TraceResource("m", new ArrayList<>());
+        ResourceManager manager = new ResourceManager.Builder()
+                .addManaged(resource)
+                .build();
+        assertThrows(ResourceException.class, () -> manager.getResource("traceResource"));
+        assertThrows(ResourceException.class, () -> manager.getResource(TraceResource.class));
+        assertThrows(ResourceException.class, () -> manager.getBuiltinResource("traceResource"));
+    }
+
+    @Test
+    void addManagedRejectsNullResource() {
+        NullPointerException ex = assertThrows(NullPointerException.class,
+                () -> new ResourceManager.Builder().addManaged(null));
+        assertEquals("resource must not be null", ex.getMessage());
+    }
+
+    @Test
+    void addManagedReturnsBuilderForChaining() {
+        ResourceManager.Builder builder = new ResourceManager.Builder();
+        assertSame(builder, builder.addManaged(new TraceResource("m", new ArrayList<>())));
+    }
+
+    @Test
+    void builderRejectsSameInstanceAsCustomThenManaged() {
+        TraceResource resource = new TraceResource("r", new ArrayList<>());
+        ResourceManager.Builder builder = new ResourceManager.Builder();
+        builder.addResource("a", resource);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> builder.addManaged(resource));
+        assertEquals("Duplicate resource: " + resource.getClass(), ex.getMessage());
+    }
+
+    @Test
+    void builderRejectsSameInstanceAsManagedThenCustom() {
+        TraceResource resource = new TraceResource("r", new ArrayList<>());
+        ResourceManager.Builder builder = new ResourceManager.Builder();
+        builder.addManaged(resource);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> builder.addResource("a", resource));
+        assertEquals("Duplicate resource: " + resource.getClass(), ex.getMessage());
+    }
+
+    // ---------- 统一释放：三空间全局登记顺序 ----------
+
+    @Test
+    void freeReleasesChainEntriesThenBuiltinsInGlobalRegistrationOrder() {
+        List<String> trace = new ArrayList<>();
+        ResourceManager manager = new ResourceManager.Builder()
+                .addManaged(new TraceResource("m", trace))
+                .addResource("c", new TraceResource("c", trace))
+                .build(orderedBuiltins(new TraceResource("b1", trace), new TraceResource("b2", trace)));
+        manager.free();
+        assertEquals(List.of("m", "c", "b1", "b2"), trace);
+        manager.free();
+        assertEquals(List.of("m", "c", "b1", "b2"), trace);
+    }
+
+    /** 组装内置资源表：按传入顺序以 b1、b2……为键登记 */
+    private static Map<String, AutoCloseable> orderedBuiltins(TraceResource... resources) {
+        Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
+        for (int i = 0; i < resources.length; i++) {
+            builtins.put("b" + (i + 1), resources[i]);
+        }
+        return builtins;
     }
 }

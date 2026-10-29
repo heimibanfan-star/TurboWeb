@@ -361,9 +361,9 @@ public class HttpServerRuntime implements ServerRuntime {
          * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}，内容解析器管理器
          * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
-         * 装配出的中间件链销毁适配器先登记、创建的磁盘IO线程池与微任务执行器随后登记进
-         * 资源管理器交给应用持有，编排器与响应写出器管理器按资源名从管理器获取所需资源，
-         * 由 {@link #close()} 按登记顺序释放。
+         * 装配出的中间件链销毁适配器经托管通道登记、创建的磁盘IO线程池与微任务执行器
+         * 作为内置资源随构建传入资源管理器交给应用持有，编排器与响应写出器管理器按资源名
+         * 从管理器的内置空间获取所需资源，由 {@link #close()} 按登记顺序释放。
          * <p>
          * 同一 Builder 仅允许构建一次，重复调用在装配开始前抛出 {@link IllegalStateException}
          *
@@ -374,8 +374,9 @@ public class HttpServerRuntime implements ServerRuntime {
                 throw new IllegalStateException("build() can only be called once on the same Builder");
             }
             log.info("Assembling http request runtime...");
-            // 应用持有的资源管理器：装配期创建的可关闭资源逐个登记进来，关闭时按登记顺序统一释放，
-            // 使用方按ResourceNames的资源名从其中获取
+            // 应用持有的资源管理器：装配期创建的可关闭资源经托管通道逐个登记进来，
+            // 内置资源在构建时一次性传入，关闭时按登记顺序统一释放，
+            // 使用方按ResourceNames的资源名从内置空间获取
             ResourceManager.Builder resourceBuilder = new ResourceManager.Builder();
             // 路由生产：以本建造者的json序列化器装配登记表，使路由侧与结果转化侧共用同一序列化实例
             RouteHandlerManager routeHandlerManager = this.routeRegister != null
@@ -383,8 +384,8 @@ public class HttpServerRuntime implements ServerRuntime {
                     : null;
             // 串联并初始化中间件链：链头为哨兵，存在路由处理器管理器时路由调用中间件追加链尾
             Middleware middlewareChain = initMiddlewareChain(routeHandlerManager);
-            // 中间件链销毁适配器先登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
-            resourceBuilder.addResource(ResourceNames.MIDDLEWARE_DESTROYER, () -> destroyMiddlewareChain(middlewareChain));
+            // 中间件链销毁适配器以托管资源登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
+            resourceBuilder.addManaged(() -> destroyMiddlewareChain(middlewareChain));
             // 创建磁盘IO线程池，构建期注入响应写出器管理器供文件流写出器调度分块读取；应用只是使用者，关闭责任留在应用
             ThreadPool diskOpeThreadPool = new ElasticThreadPool(
                     httpConfig.getDiskOpeThreadCacheQueue(),
@@ -395,11 +396,14 @@ public class HttpServerRuntime implements ServerRuntime {
                     httpConfig.getDiskOpeThreadCacheQueue(),
                     httpConfig.getDiskOpeThreadCoreQueue(),
                     httpConfig.getDiskOpeThreadMaxThreadNum());
-            resourceBuilder.addResource(ResourceNames.DISK_IO_THREAD_POOL, diskOpeThreadPool);
+            // 磁盘IO线程池与微任务执行器作为内置资源随构建一次性传入，
+            // 传入顺序即释放顺序，保持磁盘池在前、微任务执行器在后
+            Map<String, AutoCloseable> builtinResources = new LinkedHashMap<>();
+            builtinResources.put(ResourceNames.DISK_IO_THREAD_POOL, diskOpeThreadPool);
             // 按配置限流参数创建虚拟线程资源
             VirtualThreadMicroTaskExecutor virtualThreadResource = createVirtualThreadResource();
-            resourceBuilder.addResource(ResourceNames.MICRO_TASK_EXECUTOR, virtualThreadResource);
-            ResourceManager resourceManager = resourceBuilder.build();
+            builtinResources.put(ResourceNames.MICRO_TASK_EXECUTOR, virtualThreadResource);
+            ResourceManager resourceManager = resourceBuilder.build(builtinResources);
             // 未传入的组件补全默认值后，按九组件装定请求编排器；微任务执行器与磁盘IO线程池按资源名从管理器获取
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)

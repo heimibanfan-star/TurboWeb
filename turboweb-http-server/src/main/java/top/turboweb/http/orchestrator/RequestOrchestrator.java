@@ -84,8 +84,8 @@ public class RequestOrchestrator {
      */
     private RequestOrchestrator(Builder builder) {
         this.middleware = builder.middleware;
-        // 微任务执行器按名从资源管理器获取，获取即保存到本类final字段
-        this.microTaskExecutor = builder.resourceManager.getResource(ResourceNames.MICRO_TASK_EXECUTOR, MicroTaskExecutor.class);
+        // 微任务执行器作为内置资源按名从资源管理器获取，获取即保存到本类final字段
+        this.microTaskExecutor = builder.resourceManager.getBuiltinResource(ResourceNames.MICRO_TASK_EXECUTOR, MicroTaskExecutor.class);
         this.responseWriterManager = builder.responseWriterManager;
         this.resultConverterManager = builder.resultConverterManager;
         this.corsConfig = builder.corsConfig;

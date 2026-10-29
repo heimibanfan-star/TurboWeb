@@ -178,7 +178,7 @@ class HttpServerRuntimeTest {
                 .middleware(mw, probe)
                 .build();
 
-        ThreadPool diskPool = runtime.getResourceManager().getResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
+        ThreadPool diskPool = runtime.getResourceManager().getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
         probe.attachDiskPool(diskPool);
         assertFalse(diskPool.isShutdown(), "构建后磁盘池尚未关闭");
         events.clear();
