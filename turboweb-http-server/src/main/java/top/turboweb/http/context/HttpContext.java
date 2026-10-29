@@ -3,8 +3,8 @@ package top.turboweb.http.context;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.session.HttpSession;
-import top.turboweb.rest.core.HttpContent;
-import top.turboweb.rest.core.HttpRequestMessage;
+import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.HttpRequestMessage;
 
 import java.nio.charset.Charset;
 
@@ -13,7 +13,7 @@ import java.nio.charset.Charset;
  * <p>
  * 它封装了请求消息（方式、请求头、请求地址与请求体内容）、连接会话、Session 管理、
  * Cookie 管理、缺省编码与挂载对象。
- * 请求体内容经 {@link HttpRequestMessage#content()} 读取（读取契约见 {@link HttpContent}）；
+ * 请求体内容经 {@link HttpRequestMessage#content()} 读取（读取契约见 {@link RequestContent}）；
  * 表单字段与上传文件、JSON 体字符串由内置解析器产出的具体内容类承载
  * （分别为 {@code HttpFormContent} 与 {@code HttpJsonContent}），读取侧认其具体类转型取数。
  * 本接口不单独暴露内容访问器，也不承担内容的关闭与释放——
@@ -39,7 +39,7 @@ import java.nio.charset.Charset;
  *     // 获取请求消息：方式、请求头、请求地址与请求体内容
  *     HttpRequestMessage message = ctx.message();
  *     HttpRequestMethod method = message.method();
- *     String path = message.url().url(true);
+ *     String path = message.requestLine().target().path();
  *
  *     // 获取Session属性
  *     HttpSession session = ctx.httpSession();

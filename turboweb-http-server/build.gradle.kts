@@ -14,8 +14,8 @@ dependencies {
     api(libs.netty.codec.http)
     api(libs.netty.codec.http2)
     api(libs.reactor.core)
-    // 参数绑定与路由注解、上下文消息契约与媒体类型由 turboweb-rest-core 提供
-    api(project(":turboweb-rest-core"))
+    // 参数绑定与路由注解、上下文消息契约与媒体类型由 turboweb-http-core 提供
+    api(project(":turboweb-http-core"))
     // Bean 校验器契约由 turboweb-validation 提供；BeanValidator 出现在绑定接口与路由处理器公开签名，用 api 暴露
     api(project(":turboweb-validation"))
     // 服务器运行时契约由 turboweb-server-runtime 提供；ServerRuntime 出现在应用管理器注册方法与服务器注册的公开签名，用 api 暴露

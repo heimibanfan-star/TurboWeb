@@ -1,10 +1,10 @@
 package org.example.request;
 
 
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Post;
-import top.turboweb.rest.annotation.router.Route;
-import top.turboweb.rest.annotation.binder.*;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Post;
+import top.turboweb.http.core.annotation.router.Route;
+import top.turboweb.http.core.annotation.binder.*;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.cookie.HttpCookies;
 import top.turboweb.http.core.response.SseEmitter;

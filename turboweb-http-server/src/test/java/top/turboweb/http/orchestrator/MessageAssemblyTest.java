@@ -5,10 +5,10 @@ import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.testkit.Requests;
-import top.turboweb.rest.core.HttpContent;
-import top.turboweb.rest.core.HttpRequestMethod;
-import top.turboweb.rest.core.HttpRequestMessage;
-import top.turboweb.rest.core.RequestLine;
+import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.HttpRequestMethod;
+import top.turboweb.http.core.HttpRequestMessage;
+import top.turboweb.http.core.RequestLine;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -23,13 +23,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link RequestOrchestrator} 的消息装配口径：请求行与地址构造期快照、
+ * {@link RequestOrchestrator} 的消息装配口径：请求行构造期快照、
  * 缺省字符集透传、请求头拷贝为消息自有的可写存储——装配后与请求头集合不再联动。
  */
 class MessageAssemblyTest {
 
     /** 不经头与地址通道的用例统一带入的请求体内容 */
-    private static final HttpContent NO_CONTENT = new HttpUnknowContent(null);
+    private static final RequestContent NO_CONTENT = new HttpUnknowContent(null);
 
     private static HttpRequestMessage assemble(FullHttpRequest request, Charset charset) {
         return RequestOrchestrator.assembleMessage(request, NO_CONTENT, charset);
@@ -109,29 +109,29 @@ class MessageAssemblyTest {
         }
     }
 
-    // ---------- 请求地址 ----------
+    // ---------- 请求目标 ----------
 
     @Test
-    void urlExposesUriAndDecodedQueryParams() {
+    void targetCarriesRawPathAndQueryParams() {
         FullHttpRequest req = Requests.get("/api/search?q=hello&tag=a&tag=b");
         try {
             HttpRequestMessage message = assemble(req, StandardCharsets.UTF_8);
-            assertEquals("/api/search?q=hello&tag=a&tag=b", message.url().url(false));
-            assertEquals("/api/search", message.url().url(true));
-            assertEquals(List.of("hello"), message.url().queryParams().get("q"));
-            assertEquals(List.of("a", "b"), message.url().queryParams().get("tag"));
+            assertEquals("/api/search?q=hello&tag=a&tag=b", message.requestLine().target().raw(), "请求目标承载地址原文");
+            assertEquals("/api/search", message.requestLine().target().path(), "请求目标承载剥离查询参数后的路径");
+            assertEquals(List.of("hello"), message.requestLine().target().queryParams().get("q"));
+            assertEquals(List.of("a", "b"), message.requestLine().target().queryParams().get("tag"));
         } finally {
             Requests.release(req);
         }
     }
 
     @Test
-    void queryCharsetPlumbedToUrlDecoding() {
+    void queryCharsetPlumbedToTargetDecoding() {
         FullHttpRequest req = Requests.get("/x?n=%D6%D0");
         try {
             HttpRequestMessage message = assemble(req, Charset.forName("GBK"));
-            assertEquals("中", message.url().queryParams().get("n").get(0),
-                    "装配期缺省字符集透传至地址对象的查询解码");
+            assertEquals("中", message.requestLine().target().queryParams().get("n").get(0),
+                    "装配期缺省字符集透传至请求目标的查询解码");
         } finally {
             Requests.release(req);
         }
@@ -143,7 +143,7 @@ class MessageAssemblyTest {
     void contentIsTheInjectedInstance() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            HttpContent content = new HttpUnknowContent(null);
+            RequestContent content = new HttpUnknowContent(null);
             HttpRequestMessage message = RequestOrchestrator.assembleMessage(req, content, StandardCharsets.UTF_8);
             assertSame(content, message.content(), "内容由装配方带入，消息不另建");
         } finally {
@@ -156,7 +156,7 @@ class MessageAssemblyTest {
         FullHttpRequest req = Requests.get("/x");
         try {
             HttpRequestMessage message = assemble(req, StandardCharsets.UTF_8);
-            assertSame(message.url(), message.url(), "地址对象构造期建立，重复访问同实例");
+            assertSame(message.requestLine().target(), message.requestLine().target(), "请求目标构造期建立，重复访问同实例");
             assertSame(message.content(), message.content());
         } finally {
             Requests.release(req);
@@ -188,7 +188,7 @@ class MessageAssemblyTest {
         try {
             NullPointerException ex = assertThrows(NullPointerException.class,
                     () -> RequestOrchestrator.assembleMessage(req, NO_CONTENT, null));
-            assertEquals("queryCharset can not be null", ex.getMessage());
+            assertEquals("charset must not be null", ex.getMessage());
         } finally {
             Requests.release(req);
         }

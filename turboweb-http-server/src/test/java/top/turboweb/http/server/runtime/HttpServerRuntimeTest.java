@@ -29,8 +29,8 @@ import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
-import top.turboweb.rest.core.ContentType;
-import top.turboweb.rest.core.HttpContent;
+import top.turboweb.http.core.ContentType;
+import top.turboweb.http.core.RequestContent;
 import top.turboweb.server.runtime.ResourceProvider;
 
 import java.lang.reflect.Field;
@@ -541,7 +541,7 @@ class HttpServerRuntimeTest {
         }
 
         @Override
-        public HttpContent parse(FullHttpRequest request, Charset defaultCharset) {
+        public RequestContent parse(FullHttpRequest request, Charset defaultCharset) {
             throw new AssertionError("marker parser must not be invoked during assembly");
         }
     }

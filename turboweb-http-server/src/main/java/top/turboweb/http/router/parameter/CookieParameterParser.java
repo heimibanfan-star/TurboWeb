@@ -1,6 +1,6 @@
 package top.turboweb.http.router.parameter;
 
-import top.turboweb.rest.annotation.binder.CookieParam;
+import top.turboweb.http.core.annotation.binder.CookieParam;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;

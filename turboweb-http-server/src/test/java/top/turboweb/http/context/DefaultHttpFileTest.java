@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.multipart.MemoryFileUpload;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.rest.core.ContentType;
+import top.turboweb.http.core.ContentType;
 
 import java.io.IOException;
 import java.io.InputStream;

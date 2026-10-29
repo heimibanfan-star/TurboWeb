@@ -1,7 +1,7 @@
 package top.turboweb.http.context.respmeta;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
-import top.turboweb.rest.core.ContentType;
+import top.turboweb.http.core.ContentType;
 
 /**
  * {@code ResponseMetaGetter} 用于提供响应元信息的只读访问能力。

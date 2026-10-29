@@ -14,11 +14,11 @@ import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.server.constant.ResourceNames;
-import top.turboweb.rest.core.HttpContent;
-import top.turboweb.rest.core.HttpRequestMessage;
-import top.turboweb.rest.core.HttpRequestMethod;
-import top.turboweb.rest.core.HttpRequestTarget;
-import top.turboweb.rest.core.RequestLine;
+import top.turboweb.http.core.HttpRequestMessage;
+import top.turboweb.http.core.HttpRequestMethod;
+import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.RequestLine;
+import top.turboweb.http.core.RequestTarget;
 import top.turboweb.server.runtime.ResourceManager;
 
 import java.nio.charset.Charset;
@@ -242,8 +242,9 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 从请求装配消息：构造期快照请求行与地址、把请求头集合拷贝为消息自有的可写存储，
-     * 请求体内容由装配方解析产出后带入；装配返回后消息与请求头集合不再联动。
+     * 从请求装配消息：构造期快照请求行（含按缺省字符集解码查询参数的请求目标）、
+     * 把请求头集合拷贝为消息自有的可写存储，请求体内容由装配方解析产出后带入；
+     * 装配返回后消息与请求头集合不再联动。
      *
      * @param request      请求对象，不能为空
      * @param content      请求体内容，不能为空
@@ -252,11 +253,11 @@ public class RequestOrchestrator {
      * @throws NullPointerException     当 {@code request}、{@code content} 或 {@code queryCharset} 为 {@code null} 时抛出
      * @throws IllegalArgumentException 请求行的方法字面量不在标准方法范围内时抛出
      */
-    public static HttpRequestMessage assembleMessage(FullHttpRequest request, HttpContent content, Charset queryCharset) {
+    public static HttpRequestMessage assembleMessage(FullHttpRequest request, RequestContent content, Charset queryCharset) {
         Objects.requireNonNull(request, "request can not be null");
         HttpRequestMessage message = new HttpRequestMessage(
-                new RequestLine(HttpRequestMethod.valueOf(request.method().name()), new HttpRequestTarget(request.uri())),
-                new DefaultURL(request, queryCharset),
+                new RequestLine(HttpRequestMethod.valueOf(request.method().name()),
+                        new RequestTarget(request.uri(), queryCharset)),
                 content);
         for (Map.Entry<String, String> entry : request.headers()) {
             message.addHeader(entry.getKey(), entry.getValue());
@@ -338,7 +339,7 @@ public class RequestOrchestrator {
      */
     private HttpResponse executeMiddleware(FullHttpRequest request, HttpConnection connectSession,
                                            SessionManager sessionManager) {
-        HttpContent content = null;
+        RequestContent content = null;
         HttpSession httpSession = null;
         try {
             HttpCookies cookies;
@@ -389,7 +390,7 @@ public class RequestOrchestrator {
      * @param content 内容解析与装配阶段产出的内容对象，可为 null（装配在产出内容前失败），
      *                为 null 时为空操作
      */
-    private void closeContentQuietly(HttpContent content) {
+    private void closeContentQuietly(RequestContent content) {
         if (content instanceof AutoCloseContent autoCloseContent) {
             try {
                 autoCloseContent.close();

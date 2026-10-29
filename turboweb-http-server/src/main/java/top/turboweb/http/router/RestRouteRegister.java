@@ -1,7 +1,7 @@
 package top.turboweb.http.router;
 
-import top.turboweb.rest.core.HttpRequestMessage;
-import top.turboweb.rest.core.HttpUrl;
+import top.turboweb.http.core.HttpRequestMessage;
+import top.turboweb.http.core.RequestTarget;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
@@ -382,7 +382,7 @@ public class RestRouteRegister implements RouteRegister {
          * 处理请求:按请求路径匹配路由处理器并执行
          *
          * <p>匹配路径取上下文消息地址的仅路径形态（查询段与片段段不入匹配）;命中后路径参数按
-         * 上下文缺省字符集解码,查询参数直接取消息地址按同一字符集解码并按名聚合的结果,
+         * 上下文缺省字符集解码,查询参数直接取消息请求目标按同一字符集解码并按名聚合的结果,
          * 两者一并装入非请求体参数承载随处理器调用传递,由参数绑定器取用,处理器按请求方式分发。
          *
          * @param context 请求上下文
@@ -395,13 +395,12 @@ public class RestRouteRegister implements RouteRegister {
         @Override
         public Object handle(HttpContext context) {
             HttpRequestMessage message = context.message();
-            HttpUrl url = message.url();
-            String path = url.url(true);
-            RouteTree.Result<RouteHandler> matched = this.routeHandlerRadixTree.match(path);
+            RequestTarget target = message.requestLine().target();
+            RouteTree.Result<RouteHandler> matched = this.routeHandlerRadixTree.match(target.path());
             if (matched == null) {
                 // 与注解路由同口径:未匹配按路由不匹配错误码抛出,由异常处理器转 404
                 throw new RouteHandlerException(
-                        String.format("router not found: %s %s", message.method(), url.url(false)),
+                        String.format("router not found: %s %s", message.method(), target.raw()),
                         ErrorCode.RouterNotMatch);
             }
             // 路径与查询参数都是 URI 侧数据,装配期解码就位后随处理器调用传递,不进请求上下文;
@@ -414,7 +413,7 @@ public class RestRouteRegister implements RouteRegister {
             }
             Map<String, List<String>> queryParams;
             try {
-                queryParams = url.queryParams();
+                queryParams = target.queryParams();
             } catch (IllegalArgumentException e) {
                 throw new RouteHandlerException(e, ErrorCode.ParamDecodeError);
             }

@@ -2,8 +2,8 @@ package org.example.response;
 
 import io.netty.handler.codec.http.*;
 import reactor.core.publisher.Flux;
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Route;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Route;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.response.HttpInfoResponse;

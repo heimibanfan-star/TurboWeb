@@ -3,7 +3,7 @@ package top.turboweb.http.context;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.session.HttpSession;
-import top.turboweb.rest.core.HttpRequestMessage;
+import top.turboweb.http.core.HttpRequestMessage;
 
 import java.nio.charset.Charset;
 import java.util.Objects;

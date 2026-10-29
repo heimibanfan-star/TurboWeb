@@ -9,8 +9,8 @@ import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.rest.core.ContentType;
-import top.turboweb.rest.core.MultipartFile;
+import top.turboweb.http.core.ContentType;
+import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.core.helper.HttpRequestHelper;
 import top.turboweb.http.exception.RequestParseException;
 

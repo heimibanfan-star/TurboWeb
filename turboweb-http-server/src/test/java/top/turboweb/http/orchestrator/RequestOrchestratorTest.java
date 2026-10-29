@@ -1,68 +1,41 @@
 package top.turboweb.http.orchestrator;
 
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import org.junit.jupiter.api.Test;
-import top.turboweb.rest.core.HttpContent;
-import top.turboweb.rest.core.HttpRequestMethod;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
-import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
-import top.turboweb.http.server.constant.ResourceNames;
-import top.turboweb.server.runtime.ResourceManager;
-import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyHandler;
-import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallySignal;
 import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
-import top.turboweb.http.context.AutoCloseContent;
-import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.context.HttpFormContent;
-import top.turboweb.http.context.HttpJsonContent;
-import top.turboweb.http.context.HttpUnknowContent;
+import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
+import top.turboweb.http.context.*;
 import top.turboweb.http.context.respmeta.DefaultResponseMeta;
 import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.rest.core.ContentType;
 import top.turboweb.http.core.session.BackHoleSessionManager;
-import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
+import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.testkit.Stubs;
+import top.turboweb.http.core.ContentType;
+import top.turboweb.http.core.HttpRequestMethod;
+import top.turboweb.http.core.RequestContent;
 import top.turboweb.serializer.JacksonJsonSerializer;
+import top.turboweb.server.runtime.ResourceManager;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * {@link RequestOrchestrator} 的行为锚：建造者装配九组件（中间件、资源管理器、
@@ -713,7 +686,7 @@ class RequestOrchestratorTest {
         HttpContext context = chain.captured();
         assertNotNull(context, "链进入时上下文已装配");
         assertEquals(HttpRequestMethod.POST, context.message().method(), "请求方式来自请求行");
-        assertEquals("/submit", context.message().url().url(true), "地址由请求转化为消息");
+        assertEquals("/submit", context.message().requestLine().target().path(), "地址由请求转化为消息");
         assertInstanceOf(HttpJsonContent.class, context.message().content(), "JSON 请求体分派给内置 JSON 解析器");
         assertEquals("{\"name\":\"alice\"}", ((HttpJsonContent) context.message().content()).jsonString(),
                 "请求体在装配上下文时已解码为字符串");
@@ -730,7 +703,7 @@ class RequestOrchestratorTest {
 
         orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
 
-        HttpContent content = chain.captured().message().content();
+        RequestContent content = chain.captured().message().content();
         assertInstanceOf(HttpUnknowContent.class, content, "HEAD 不进内容解析器");
         assertNull(content.contentType(), "HEAD 无请求体，内容侧不声明类型（夹具的类型头不被读取）");
         request.release();
@@ -783,7 +756,7 @@ class RequestOrchestratorTest {
             @Override
             public Object invoke(HttpContext ctx) {
                 refCntAtChain.set(request.refCnt());
-                HttpContent content = ctx.message().content();
+                RequestContent content = ctx.message().content();
                 nameAtChain.set(content instanceof HttpFormContent form
                         ? form.formParams().get("name").getFirst() : null);
                 return "hello";
@@ -960,7 +933,7 @@ class RequestOrchestratorTest {
     /** 自定义解析器：承接 text/csv 并返回标记内容对象，用于证明注册后的分派。 */
     private static class MarkedContentParser implements HttpContentParser {
 
-        static final HttpContent MARKER = new HttpContent() {
+        static final RequestContent MARKER = new RequestContent() {
             @Override
             public ContentType contentType() {
                 return ContentType.create("text/csv");
@@ -973,7 +946,7 @@ class RequestOrchestratorTest {
         }
 
         @Override
-        public HttpContent parse(FullHttpRequest request, Charset defaultCharset) {
+        public RequestContent parse(FullHttpRequest request, Charset defaultCharset) {
             return MARKER;
         }
     }
@@ -994,7 +967,7 @@ class RequestOrchestratorTest {
     }
 
     /** 自定义解析器：恒产出给定内容对象，供关闭时机钉用例投喂持有资源的内容。 */
-    private record FixedContentParser(HttpContent produced) implements HttpContentParser {
+    private record FixedContentParser(RequestContent produced) implements HttpContentParser {
 
         @Override
         public Set<ContentType> contentTypes() {
@@ -1002,7 +975,7 @@ class RequestOrchestratorTest {
         }
 
         @Override
-        public HttpContent parse(FullHttpRequest request, Charset defaultCharset) {
+        public RequestContent parse(FullHttpRequest request, Charset defaultCharset) {
             return produced;
         }
     }

@@ -5,20 +5,19 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.rest.core.HttpContent;
-import top.turboweb.rest.core.HttpRequestMessage;
-import top.turboweb.rest.core.HttpRequestMethod;
-import top.turboweb.rest.core.HttpRequestTarget;
-import top.turboweb.rest.core.HttpUrl;
-import top.turboweb.rest.core.MultipartFile;
-import top.turboweb.rest.core.RequestLine;
+import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.HttpRequestMessage;
+import top.turboweb.http.core.HttpRequestMethod;
+import top.turboweb.http.core.RequestTarget;
+import top.turboweb.http.core.MultipartFile;
+import top.turboweb.http.core.RequestLine;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.context.HttpJsonContent;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.rest.core.ContentType;
+import top.turboweb.http.core.ContentType;
 import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
@@ -28,7 +27,7 @@ import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.exception.SseBufferException;
-import top.turboweb.rest.annotation.binder.*;
+import top.turboweb.http.core.annotation.binder.*;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
@@ -198,7 +197,7 @@ class ParamInfoParsersTest {
 
         Stub returning(String method, Object value) {
             if ("content".equals(method)) {
-                returns.put("message", new ContentFeedingMessage((HttpContent) value));
+                returns.put("message", new ContentFeedingMessage((RequestContent) value));
             } else {
                 returns.put(method, value);
             }
@@ -363,7 +362,7 @@ class ParamInfoParsersTest {
     }
 
     /** 无通道内容夹具：只实现 Content 基础契约，供绑定器拒绑用例。 */
-    private record PlainContentFixture() implements HttpContent {
+    private record PlainContentFixture() implements RequestContent {
 
         @Override
         public ContentType contentType() {
@@ -424,24 +423,11 @@ class ParamInfoParsersTest {
         }
     }
 
-    /** 请求消息夹具：只承接请求头通道，方式、地址与内容通道不经绑定，误调即响。 */
+    /** 请求消息夹具：只承接请求头通道，方式与内容通道不经绑定，误调即响。 */
     private static final class MessageFixture extends HttpRequestMessage {
 
-        /** 地址替身：不经绑定，误调即响 */
-        private static final HttpUrl OFF_CHANNEL_URL = new HttpUrl() {
-            @Override
-            public String url(boolean pathOnly) {
-                throw offChannel("url");
-            }
-
-            @Override
-            public Map<String, List<String>> queryParams() {
-                throw offChannel("url");
-            }
-        };
-
         /** 内容替身：不经绑定，误调即响 */
-        private static final HttpContent OFF_CHANNEL_CONTENT = new HttpContent() {
+        private static final RequestContent OFF_CHANNEL_CONTENT = new RequestContent() {
             @Override
             public ContentType contentType() {
                 throw offChannel("content");
@@ -451,8 +437,7 @@ class ParamInfoParsersTest {
         private final Map<String, String> headers;
 
         MessageFixture(Map<String, String> headers) {
-            super(new RequestLine(HttpRequestMethod.GET, new HttpRequestTarget("/")),
-                    OFF_CHANNEL_URL, OFF_CHANNEL_CONTENT);
+            super(new RequestLine(HttpRequestMethod.GET, new RequestTarget("/")), OFF_CHANNEL_CONTENT);
             this.headers = headers;
         }
 
@@ -462,12 +447,7 @@ class ParamInfoParsersTest {
         }
 
         @Override
-        public HttpUrl url() {
-            throw offChannel("url");
-        }
-
-        @Override
-        public HttpContent content() {
+        public RequestContent content() {
             throw offChannel("content");
         }
 
@@ -515,31 +495,13 @@ class ParamInfoParsersTest {
     /** 内容投喂消息替身：只应答内容通道，其余消息通道不经绑定、误调即响。 */
     private static final class ContentFeedingMessage extends HttpRequestMessage {
 
-        /** 地址替身：不经绑定，误调即响 */
-        private static final HttpUrl OFF_CHANNEL_URL = new HttpUrl() {
-            @Override
-            public String url(boolean pathOnly) {
-                throw offChannel("url");
-            }
-
-            @Override
-            public Map<String, List<String>> queryParams() {
-                throw offChannel("url");
-            }
-        };
-
-        ContentFeedingMessage(HttpContent content) {
-            super(new RequestLine(HttpRequestMethod.GET, new HttpRequestTarget("/")), OFF_CHANNEL_URL, content);
+        ContentFeedingMessage(RequestContent content) {
+            super(new RequestLine(HttpRequestMethod.GET, new RequestTarget("/")), content);
         }
 
         @Override
         public HttpRequestMethod method() {
             throw offChannel("method");
-        }
-
-        @Override
-        public HttpUrl url() {
-            throw offChannel("url");
         }
 
         @Override

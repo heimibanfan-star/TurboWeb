@@ -1,0 +1,16 @@
+package top.turboweb.http.core.annotation.binder;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * 标注cookie参数获取的注解
+ */
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface CookieParam {
+    // cookie名称
+    String value();
+}

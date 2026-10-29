@@ -1,8 +1,8 @@
 package org.example.cookie;
 
 
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Route;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Route;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.cookie.DefaultHttpCookie;
 import top.turboweb.http.core.cookie.HttpCookie;

@@ -1,7 +1,7 @@
 package org.example.gateway;
 
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Route;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Route;
 
 @Route("/order")
 public class OrderController {

@@ -1,14 +1,14 @@
 package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.rest.core.HttpContent;
-import top.turboweb.rest.core.ContentType;
+import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.ContentType;
 
 import java.nio.charset.Charset;
 import java.util.Set;
 
 /**
- * http内容解析器：按请求体类型把请求解析为 {@link HttpContent}。
+ * http内容解析器：按请求体类型把请求解析为 {@link RequestContent}。
  *
  * <p>实现类声明自己承接的内容类型集合（一个解析器可覆盖多个类型），
  * 由 {@link HttpContentParserManager} 按请求头声明的类型路由调用。
@@ -31,5 +31,5 @@ public interface HttpContentParser {
      * @param defaultCharset 请求头未声明 charset 时的缺省解码编码
      * @return 解析出的内容对象
      */
-    HttpContent parse(FullHttpRequest request, Charset defaultCharset);
+    RequestContent parse(FullHttpRequest request, Charset defaultCharset);
 }

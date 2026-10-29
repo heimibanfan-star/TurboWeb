@@ -1,7 +1,7 @@
 package org.example.session;
 
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Route;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Route;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.session.HttpSession;
 

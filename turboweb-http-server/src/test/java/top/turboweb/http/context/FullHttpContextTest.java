@@ -2,11 +2,11 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import org.junit.jupiter.api.Test;
-import top.turboweb.rest.core.HttpContent;
-import top.turboweb.rest.core.HttpRequestMessage;
-import top.turboweb.rest.core.HttpRequestMethod;
+import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.HttpRequestMessage;
+import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.rest.core.ContentType;
+import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
@@ -53,7 +53,7 @@ class FullHttpContextTest {
     void messageAndContentAreTheInjectedInstances() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            HttpContent content = Contexts.content(req, StandardCharsets.UTF_8);
+            RequestContent content = Contexts.content(req, StandardCharsets.UTF_8);
             HttpRequestMessage message = Contexts.message(req, content, StandardCharsets.UTF_8);
             FullHttpContext ctx = new FullHttpContext(message, newSession(),
                     new DefaultHttpCookies(req.headers()), CONNECT_SESSION, StandardCharsets.UTF_8);
@@ -70,8 +70,8 @@ class FullHttpContextTest {
         try {
             FullHttpContext ctx = context(req);
             assertEquals(HttpRequestMethod.GET, ctx.message().method(), "请求方式取请求行方法字面量");
-            assertEquals("/x", ctx.message().url().url(true), "仅地址形态截除查询段");
-            assertEquals("/x?a=1", ctx.message().url().url(false));
+            assertEquals("/x", ctx.message().requestLine().target().path(), "仅地址形态截除查询段");
+            assertEquals("/x?a=1", ctx.message().requestLine().target().raw());
         } finally {
             Requests.release(req);
         }
@@ -136,7 +136,7 @@ class FullHttpContextTest {
         try {
             assertEquals(ContentType.APPLICATION_JSON, context(json).message().content().contentType(),
                     "JSON 体命中内置 JSON 解析器，内容侧类型就位");
-            HttpContent csvContent = context(csv).message().content();
+            RequestContent csvContent = context(csv).message().content();
             assertInstanceOf(HttpUnknowContent.class, csvContent, "无匹配解析器的类型回落未知内容，不解析体");
             assertEquals("text/csv", csvContent.contentType().getMimeType(), "未知内容仍携带头声明的类型");
         } finally {
@@ -180,7 +180,7 @@ class FullHttpContextTest {
     void plainContentExposesNeitherFormNorJsonChannel() {
         FullHttpRequest req = Requests.get("/json");
         try {
-            HttpContent content = context(req).message().content();
+            RequestContent content = context(req).message().content();
             assertFalse(content instanceof HttpFormContent, "未声明类型的未知内容不是内置表单内容类");
             assertFalse(content instanceof HttpJsonContent, "未声明类型的未知内容不是内置 JSON 内容类");
         } finally {

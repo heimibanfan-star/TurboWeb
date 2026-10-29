@@ -1,7 +1,7 @@
 package top.turboweb.http.router;
 
 import io.netty.handler.codec.http.HttpMethod;
-import top.turboweb.rest.core.HttpRequestMessage;
+import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
@@ -131,7 +131,7 @@ public class RouteHandler {
             }
         }
         // 无匹配的请求方式,按路由不匹配错误码抛出
-        throw new RouteHandlerException("not found route:" + httpMethod + " " + message.url().url(false),
+        throw new RouteHandlerException("not found route:" + httpMethod + " " + message.requestLine().target().raw(),
                 ErrorCode.RouterNotMatch);
     }
 

@@ -6,7 +6,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.rest.core.ContentType;
+import top.turboweb.http.core.ContentType;
 
 import java.io.File;
 import java.io.IOException;

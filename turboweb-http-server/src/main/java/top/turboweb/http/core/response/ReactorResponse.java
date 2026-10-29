@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
-import top.turboweb.rest.core.ContentType;
+import top.turboweb.http.core.ContentType;
 import top.turboweb.http.orchestrator.ReactorResponseWriter;
 import top.turboweb.http.orchestrator.ResponseWriter;
 

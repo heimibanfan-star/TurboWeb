@@ -2,8 +2,8 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderValues;
-import top.turboweb.rest.core.HttpContent;
-import top.turboweb.rest.core.ContentType;
+import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.helper.HttpRequestHelper;
 import top.turboweb.http.exception.RequestParseException;
 
@@ -19,11 +19,11 @@ import java.util.Objects;
  * 与请求体其余解码口径一致。
  *
  * <p>本类不持有请求对象的引用，体字节在构造期即复制为字符串；构造返回后调用方可立即释放请求。
- * 实现 {@link HttpContent} 读取契约：
+ * 实现 {@link RequestContent} 读取契约：
  * 字符串是堆上对象，生命周期由 GC 管理，
  * 无需要归还的原生内存，因此不背负关闭义务。
  */
-public class HttpJsonContent implements HttpContent {
+public class HttpJsonContent implements RequestContent {
 
     private final String jsonString;
 

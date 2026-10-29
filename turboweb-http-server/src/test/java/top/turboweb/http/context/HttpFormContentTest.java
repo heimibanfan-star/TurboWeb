@@ -4,8 +4,8 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import org.junit.jupiter.api.Test;
-import top.turboweb.rest.core.ContentType;
-import top.turboweb.rest.core.MultipartFile;
+import top.turboweb.http.core.ContentType;
+import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Requests;
 

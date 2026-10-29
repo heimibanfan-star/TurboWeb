@@ -2,11 +2,11 @@ package org.example.file;
 
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.multipart.FileUpload;
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Post;
-import top.turboweb.rest.annotation.router.Route;
-import top.turboweb.rest.core.MultipartFile;
-import top.turboweb.rest.annotation.binder.FormParam;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Post;
+import top.turboweb.http.core.annotation.router.Route;
+import top.turboweb.http.core.MultipartFile;
+import top.turboweb.http.core.annotation.binder.FormParam;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.response.FileStreamResponse;
 import top.turboweb.http.core.response.HttpFileResult;

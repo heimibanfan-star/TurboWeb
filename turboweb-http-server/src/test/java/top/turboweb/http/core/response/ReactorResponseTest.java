@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import top.turboweb.rest.core.ContentType;
+import top.turboweb.http.core.ContentType;
 import top.turboweb.http.orchestrator.ReactorResponseWriter;
 
 import java.nio.charset.StandardCharsets;
