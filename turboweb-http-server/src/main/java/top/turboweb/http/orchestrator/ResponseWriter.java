@@ -2,8 +2,8 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.server.runtime.ResourceProvider;
 
 import java.util.Objects;
 
@@ -63,15 +63,14 @@ public interface ResponseWriter {
     }
 
     /**
-     * 注入磁盘IO线程池，供需要调度磁盘读取任务的写出器（文件流响应）使用；
-     * 不消费线程池的写出器存储后不使用，构造期可统一调用。
-     * 注入按实例一次性生效：同一写出器实例重复注入抛
+     * 初始化写出器：装配期统一调用，注入资源提供者供写出器按需取用系统内置资源
+     * （如磁盘IO线程池）。初始化按实例一次性生效：同一写出器实例重复初始化抛
      * {@link IllegalStateException}（继承 {@link AbstractResponseWriter} 的写出器由基类提供该护栏）。
      *
-     * @param threadPool 磁盘IO线程池
-     * @throws IllegalStateException 本实例已注入过线程池，不能重复注入
+     * @param resourceProvider 资源提供者，只读查询视图，不含释放操作
+     * @throws IllegalStateException 本实例已初始化过，不能重复初始化
      */
-    void injectThreadPool(ThreadPool threadPool);
+    void initWriter(ResourceProvider resourceProvider);
 
     /**
      * 写出响应。

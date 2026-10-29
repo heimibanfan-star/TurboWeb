@@ -31,6 +31,7 @@ import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
 import top.turboweb.rest.core.ContentType;
 import top.turboweb.rest.core.HttpContent;
+import top.turboweb.server.runtime.ResourceProvider;
 
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
@@ -497,13 +498,13 @@ class HttpServerRuntimeTest {
     }
 
     /**
-     * 自定义写出器夹具：线程池注入为空操作、写出恒不被调用（用例只核查构建期登记结果），
+     * 自定义写出器夹具：初始化为空操作、写出恒不被调用（用例只核查构建期登记结果），
      * 用于钉住用户传入的自定义写出器经构建期装配进入响应写出器管理器的自定义表。
      */
     private static final class MarkerResponseWriter implements ResponseWriter {
 
         @Override
-        public void injectThreadPool(ThreadPool threadPool) {
+        public void initWriter(ResourceProvider resourceProvider) {
         }
 
         @Override

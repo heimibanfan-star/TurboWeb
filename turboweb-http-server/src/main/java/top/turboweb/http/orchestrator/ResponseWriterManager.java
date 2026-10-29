@@ -1,12 +1,10 @@
 package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.connect.InternalHttpConnection;
 import top.turboweb.http.core.response.ResponseCall;
-import top.turboweb.http.server.constant.ResourceNames;
-import top.turboweb.server.runtime.ResourceManager;
+import top.turboweb.server.runtime.ResourceProvider;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,7 +19,7 @@ import java.util.stream.Stream;
  * 构造期将全部内置 {@link ResponseWriter} 实现按具体类登记到内置表；
  * 自定义写出器经构造器列表传入，按写出器具体类收集为不可变登记表：
  * 系统内置写出器类型拒登，同一写出器类重复登记拒登，列表或元素为 null 拒登。
- * 内置表与自定义表的全部实例在 final 字段赋值之前完成磁盘IO线程池注入，
+ * 内置表与自定义表的全部实例在 final 字段赋值之前完成初始化注入，
  * 保证经对象发布可见的写出器均已完成初始化。
  * </p>
  * <p>
@@ -37,8 +35,8 @@ import java.util.stream.Stream;
  *     <li>默认写出器兜底，避免空指针与未声明响应类型问题。</li>
  *     <li>写出结果以 {@link ResponseWriter.WriteResult} 返回凭据状态与完成凭据，
  *         上游按状态判断即可，无须对凭据做空值检查。</li>
- *     <li>磁盘IO线程池按名从资源管理器获取，构造期经 injectThreadPool 交给
- *         {@link FileStreamResponseWriter} 等写出器调度文件分块读取。</li>
+ *     <li>构造期经 initWriter 把资源提供者交给全部写出器，
+ *         {@link FileStreamResponseWriter} 等按需从其中取用磁盘IO线程池调度文件分块读取。</li>
  * </ul>
  */
 public class ResponseWriterManager {
@@ -58,23 +56,21 @@ public class ResponseWriterManager {
     /**
      * 构造响应写出器管理器。
      * <p>
-     * 内置表与经校验的自定义不可变表先在线程池注入完成后，
+     * 内置表与经校验的自定义不可变表先在写出器初始化完成后，
      * 再统一赋值 final 字段（发布安全：final 字段随对象发布可见时，写出器已初始化完毕）。
      *
-     * @param resourceManager 资源管理器，磁盘IO线程池按 {@link ResourceNames#DISK_IO_THREAD_POOL}
-     *                        从其中获取并注入 {@link FileStreamResponseWriter} 用于调度文件分块读取，不能为null
+     * @param resourceProvider 资源提供者，经 initWriter 交给全部写出器按需取用内置资源
+     *                         （磁盘IO线程池供 {@link FileStreamResponseWriter} 调度文件分块读取），不能为null
      * @param customerWriters 自定义写出器列表，按写出器具体类登记为不可变表，不能为null、元素不能为null
-     * @throws NullPointerException     资源管理器或列表为null、列表元素为null
+     * @throws NullPointerException     资源提供者或列表为null、列表元素为null
      * @throws IllegalArgumentException 列表含系统内置写出器类
-     * @throws IllegalStateException    自定义写出器实例已注入过线程池（同一实例传入过其他管理器），或同一写出器类在列表中出现多次
-     * @throws top.turboweb.server.runtime.ResourceException 资源管理器中未登记磁盘IO线程池
+     * @throws IllegalStateException    自定义写出器实例已初始化过（同一实例传入过其他管理器），或同一写出器类在列表中出现多次
+     * @throws top.turboweb.server.runtime.ResourceException 资源提供者中未登记磁盘IO线程池
      */
-    public ResponseWriterManager(ResourceManager resourceManager, List<ResponseWriter> customerWriters) {
-        Objects.requireNonNull(resourceManager, "The resource manager must not be null");
+    public ResponseWriterManager(ResourceProvider resourceProvider, List<ResponseWriter> customerWriters) {
+        Objects.requireNonNull(resourceProvider, "The resource provider must not be null");
         Objects.requireNonNull(customerWriters, "The custom writer list must not be null");
-        // 磁盘IO线程池作为内置资源按名从资源管理器获取，使用方保存到局部变量完成注入
-        ThreadPool threadPool = resourceManager.getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
-        // 全部初始化（建表、校验、注入线程池）先在局部变量上完成，后赋值 final 字段
+        // 全部初始化（建表、校验、注入资源提供者）先在局部变量上完成，后赋值 final 字段
         Map<Class<? extends ResponseWriter>, ResponseWriter> internalTable = Map.of(
                 SseResponseWriter.class, new SseResponseWriter(),
                 FileStreamResponseWriter.class, new FileStreamResponseWriter(),
@@ -86,7 +82,7 @@ public class ResponseWriterManager {
         Map<Class<? extends ResponseWriter>, ResponseWriter> customerTable =
                 collectCustomerTable(customerWriters, internalTable.keySet());
         Stream.concat(internalTable.values().stream(), customerTable.values().stream())
-                .forEach(writer -> writer.injectThreadPool(threadPool));
+                .forEach(writer -> writer.initWriter(resourceProvider));
         this.internalResponseWriter = internalTable;
         this.customerResponseWriter = customerTable;
         this.DEFAULT_RESPONSE_WRITER = internalTable.get(DefaultResponseWriter.class);

@@ -6,45 +6,48 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.server.runtime.ResourceProvider;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 响应写出器抽象基类：封装统一的异常处理与线程池注入。
+ * 响应写出器抽象基类：封装统一的异常处理与初始化注入。
  * <p>
  * {@link #write} 为模板方法：捕获写出过程中抛出的任何异常——写出异常不可预知且无法正常恢复，
  * 记录错误日志后直接关闭连接，本次写出以不可监听结果返回；
  * 子类只需实现 {@link #doWrite} 关注自身响应类型的写出逻辑，无须关心异常处理。
  * </p>
  * <p>
- * 磁盘IO线程池经 {@link #injectThreadPool} 统一存储于本基类字段，
+ * 初始化经 {@link #initWriter} 注入资源提供者，基类按名取出磁盘IO线程池统一存储于本类字段，
  * 仅文件流类写出器在写出时消费它，其余写出器忽略即可；
- * 注入状态由原子布尔维护，同一写出器实例仅可注入一次，重复注入被拒绝。
+ * 初始化状态由原子布尔维护，同一写出器实例仅可初始化一次，重复初始化被拒绝。
  * </p>
  */
 public abstract class AbstractResponseWriter implements ResponseWriter {
 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(AbstractResponseWriter.class);
 
-    /** 磁盘IO线程池，构造期经 injectThreadPool 注入一次；本写出器不负责其生命周期。 */
+    /** 磁盘IO线程池，初始化时从资源提供者按名取出；本写出器不负责其生命周期。 */
     protected ThreadPool threadPool;
 
-    /** 线程池注入状态：注入成功即置位，用于拒绝同一实例的重复注入。 */
-    private final AtomicBoolean threadPoolInjected = new AtomicBoolean(false);
+    /** 初始化状态：初始化成功即置位，用于拒绝同一实例的重复初始化。 */
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
 
     /**
-     * 注入磁盘IO线程池：CAS 先置位再赋值，同一实例仅首次注入生效；
-     * 竞态或误用下的后续调用抛异常，不会覆写已注入的线程池。
+     * 初始化写出器：CAS 先置位再从资源提供者按名取出磁盘IO线程池，同一实例仅首次初始化生效；
+     * 竞态或误用下的后续调用抛异常，不会覆写已注入的线程池；
+     * 资源提供者未登记磁盘IO线程池时抛 {@link top.turboweb.server.runtime.ResourceException}。
      *
-     * @param threadPool 磁盘IO线程池
-     * @throws IllegalStateException 本实例已注入过线程池，不能重复注入
+     * @param resourceProvider 资源提供者，只读查询视图，不含释放操作
+     * @throws IllegalStateException 本实例已初始化过，不能重复初始化
      */
     @Override
-    public void injectThreadPool(ThreadPool threadPool) {
-        if (!threadPoolInjected.compareAndSet(false, true)) {
-            throw new IllegalStateException("The disk IO thread pool has already been injected and can not be injected again");
+    public void initWriter(ResourceProvider resourceProvider) {
+        if (!initialized.compareAndSet(false, true)) {
+            throw new IllegalStateException("The response writer has already been initialized and can not be initialized again");
         }
-        this.threadPool = threadPool;
+        this.threadPool = resourceProvider.getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class);
     }
 
     /**

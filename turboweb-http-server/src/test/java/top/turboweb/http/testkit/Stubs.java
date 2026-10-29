@@ -3,9 +3,14 @@ package top.turboweb.http.testkit;
 import io.netty.handler.codec.http.FullHttpRequest;
 import top.turboweb.concurrent.thread.ThreadPool;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.server.runtime.ResourceProvider;
+import top.turboweb.server.runtime.ResourceManager;
 
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -43,6 +48,16 @@ public final class Stubs {
 
     public static ThreadPool threadPool() {
         return NoopThreadPool.INSTANCE;
+    }
+
+    /**
+     * 构造仅登记磁盘IO线程池的资源提供者：供写出器 {@code initWriter} 初始化注入用，
+     * 写出器按 {@link ResourceNames#DISK_IO_THREAD_POOL} 从其中取池
+     */
+    public static ResourceProvider diskPoolProvider(ThreadPool threadPool) {
+        Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
+        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, threadPool);
+        return new ResourceManager.Builder().build(builtins);
     }
 
     /** 直接在调用线程跑任务并返回 true：让策略的背压链变成同步可断言。 */

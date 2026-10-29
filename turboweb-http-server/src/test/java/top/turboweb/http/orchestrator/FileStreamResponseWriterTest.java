@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * {@link FileStreamResponseWriter} 的写出路径行为锚（复刻旧文件流策略用例面）：
  * 分块 generate→背压 request→DefaultHttpContent→LAST。
- * 线程池经 injectThreadPool 注入同步替身，整条链在调用线程上跑完，返回凭据即终态；
+ * 线程池经 initWriter 随资源提供者注入同步替身，整条链在调用线程上跑完，返回凭据即终态；
  * 拒绝型替身钉"忙即取消"。通道为 EmbeddedChannel，不碰真实 socket。
  */
 class FileStreamResponseWriterTest {
@@ -43,10 +43,10 @@ class FileStreamResponseWriterTest {
         return p;
     }
 
-    /** 建写出器并注入给定线程池替身（池经接口注入，与旧构造注入等义）。 */
+    /** 建写出器并初始化：磁盘IO线程池替身经资源提供者按名携带注入。 */
     private static FileStreamResponseWriter newWriter(ThreadPool pool) {
         FileStreamResponseWriter writer = new FileStreamResponseWriter();
-        writer.injectThreadPool(pool);
+        writer.initWriter(Stubs.diskPoolProvider(pool));
         return writer;
     }
 

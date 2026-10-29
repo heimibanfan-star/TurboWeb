@@ -8,7 +8,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 资源管理器：分三个空间持有装配期登记的可关闭资源，生命周期结束时由 {@link #free()}
- * 按全局登记顺序统一释放。
+ * 按全局登记顺序统一释放；查询能力同时以 {@link ResourceProvider} 只读视图暴露，
+ * 释放操作不进入该视图。
  * <p>
  * 三个空间的登记口径与可见性各不相同：
  * <ul>
@@ -39,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *         .build(builtins);
  * }</pre>
  */
-public class ResourceManager {
+public class ResourceManager implements ResourceProvider {
 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(ResourceManager.class);
 
@@ -78,6 +79,7 @@ public class ResourceManager {
      * @param <T>          资源的类型
      * @return 资源
      */
+    @Override
     public <T extends AutoCloseable> T getBuiltinResource(String resourceName, Class<T> type) {
         Objects.requireNonNull(type, "type must not be null");
         return checkedCast(resourceName, getBuiltinResource(resourceName), type);
@@ -89,6 +91,7 @@ public class ResourceManager {
      * @param resourceName 资源名称
      * @return 资源
      */
+    @Override
     public AutoCloseable getBuiltinResource(String resourceName) {
         AutoCloseable resource = builtinResources.get(resourceName);
         if (resource == null) {
@@ -106,6 +109,7 @@ public class ResourceManager {
      * @param <T>          资源的类型
      * @return 资源
      */
+    @Override
     public <T extends AutoCloseable> T getResource(String resourceName, Class<T> type) {
         Objects.requireNonNull(type, "type must not be null");
         return checkedCast(resourceName, getResource(resourceName), type);
@@ -127,6 +131,7 @@ public class ResourceManager {
      * @param resourceName 资源名称
      * @return 资源
      */
+    @Override
     public AutoCloseable getResource(String resourceName) {
         AutoCloseable resource = customResources.get(resourceName);
         if (resource == null) {
@@ -143,6 +148,7 @@ public class ResourceManager {
      * @param <T>  资源的类型
      * @return 资源
      */
+    @Override
     public <T extends AutoCloseable> T getResource(Class<T> type) {
         Objects.requireNonNull(type, "type must not be null");
         AutoCloseable matched = null;

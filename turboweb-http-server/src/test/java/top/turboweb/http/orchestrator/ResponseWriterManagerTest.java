@@ -15,6 +15,7 @@ import top.turboweb.http.core.response.ResponseCall;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.http.testkit.Stubs;
 import top.turboweb.server.runtime.ResourceManager;
+import top.turboweb.server.runtime.ResourceProvider;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -29,8 +30,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * {@link ResponseWriterManager} 的行为锚：三级选择次序
  * （响应经 ResponseCall 声明写出器类型——内置表优先、自定义表其次、默认写出器兜底）、
  * 构造期自定义登记规则（列表按写出器类收集为不可变表：系统内置类型拒登、
- * 同类重复拒登、null 列表与 null 元素拒登、构造即注入线程池、
- * 已注入实例跨管理器复用被拒），以及装配期线程池与列表非空约束。
+ * 同类重复拒登、null 列表与 null 元素拒登、构造即经 initWriter 注入资源提供者、
+ * 已初始化实例跨管理器复用被拒），以及装配期资源提供者与列表非空约束。
  * 选择结果经各写出器互异的写出副作用甄别：忽略不可监听且零出站、
  * 默认补齐 Content-Length、自定义只置标记、Reactor 类型在平台线程被虚拟线程契约拒绝并关闭连接。
  */
@@ -52,10 +53,11 @@ class ResponseWriterManagerTest {
         }
     }
 
-    /** 自定义写出器夹具：不写出任何内容，仅置写出标记，用于甄别自定义表命中。 */
+    /** 自定义写出器夹具：不写出任何内容，仅置写出标记并捕获收到的资源提供者，用于甄别自定义表命中。 */
     private static final class MarkingWriter extends AbstractResponseWriter {
 
         private final AtomicBoolean written = new AtomicBoolean(false);
+        private ResourceProvider provider;
 
         @Override
         protected ChannelFuture doWrite(HttpResponse response, InternalHttpConnection session) {
@@ -63,8 +65,18 @@ class ResponseWriterManagerTest {
             return session.getChannel().newPromise().setSuccess();
         }
 
+        @Override
+        public void initWriter(ResourceProvider resourceProvider) {
+            super.initWriter(resourceProvider);
+            this.provider = resourceProvider;
+        }
+
         ThreadPool injectedPool() {
             return threadPool;
+        }
+
+        ResourceProvider injectedProvider() {
+            return provider;
         }
 
         boolean wasWritten() {
@@ -202,7 +214,7 @@ class ResponseWriterManagerTest {
         IllegalStateException thrown = assertThrows(IllegalStateException.class,
                 () -> new ResponseWriterManager(resourceManagerOf(Stubs.directExecutorThreadPool()), List.of(writer)),
                 "同一写出器实例不得注入两个管理器");
-        assertEquals("The disk IO thread pool has already been injected and can not be injected again", thrown.getMessage());
+        assertEquals("The response writer has already been initialized and can not be initialized again", thrown.getMessage());
         assertSame(first, writer.injectedPool(), "被拒的第二个管理器不得覆写首次注入的线程池");
     }
 
@@ -224,7 +236,20 @@ class ResponseWriterManagerTest {
     void constructorRejectsNullResourceManager() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
                 () -> new ResponseWriterManager(null, List.of()));
-        assertEquals("The resource manager must not be null", thrown.getMessage());
+        assertEquals("The resource provider must not be null", thrown.getMessage());
+    }
+
+    @Test
+    void initWriterHandsProviderToCustomWritersForBuiltinFetch() {
+        ThreadPool pool = Stubs.threadPool();
+        ResourceProvider provider = Stubs.diskPoolProvider(pool);
+        MarkingWriter writer = new MarkingWriter();
+
+        new ResponseWriterManager(provider, List.of(writer));
+
+        assertSame(provider, writer.injectedProvider(), "构造期必须把资源提供者交给自定义写出器");
+        assertSame(pool, writer.injectedProvider().getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, ThreadPool.class),
+                "写出器可从资源提供者按名取内置磁盘IO线程池");
     }
 
     /**

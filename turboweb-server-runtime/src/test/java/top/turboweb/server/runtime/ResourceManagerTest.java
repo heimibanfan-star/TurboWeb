@@ -2,6 +2,7 @@ package top.turboweb.server.runtime;
 
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -11,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -517,5 +519,30 @@ class ResourceManagerTest {
             builtins.put("b" + (i + 1), resources[i]);
         }
         return builtins;
+    }
+
+    // ---------- ResourceProvider：只读查询视图 ----------
+
+    @Test
+    void managerIsAResourceProviderAndQueriesWorkThroughIt() {
+        TraceResource builtin = new TraceResource("b", new ArrayList<>());
+        TraceResource custom = new TraceResource("c", new ArrayList<>());
+        ResourceProvider provider = new ResourceManager.Builder()
+                .addResource("c", custom)
+                .build(Map.of("b", builtin));
+        assertSame(builtin, provider.getBuiltinResource("b"));
+        assertSame(builtin, provider.getBuiltinResource("b", TraceResource.class));
+        assertSame(custom, provider.getResource("c"));
+        assertSame(custom, provider.getResource("c", TraceResource.class));
+        assertSame(custom, provider.getResource(TraceResource.class));
+    }
+
+    @Test
+    void resourceProviderExposesNoReleaseOperation() {
+        // 钉住接口隔离口径：ResourceProvider 只收编查询，释放由 ResourceManager 独自持有
+        for (Method method : ResourceProvider.class.getMethods()) {
+            assertNotEquals("free", method.getName(),
+                    "ResourceProvider 不得暴露释放操作");
+        }
     }
 }
