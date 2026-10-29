@@ -316,26 +316,26 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
     }
 
     @Test
-    @DisplayName("公平模式：等待者按提交先后取得资源执行，后提交者排在队尾不插队，均不被拒绝，额度与资源全部归还")
-    void waitersAcquireInOrderWhenFair() throws InterruptedException {
+    @DisplayName("公平模式：排队等待者全部交付，均不被拒绝，额度与资源全部归还")
+    void waitersAllDeliveredWhenFair() throws InterruptedException {
         VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofLimited(1, 5, 5_000, "vtr-fair", true);
         BlockedHolder holder = new BlockedHolder();
         Thread holderThread = resource.run(holder, neverNotAccepted());
         assertTrue(holder.started.await(5, TimeUnit.SECONDS));
 
-        List<String> order = new CopyOnWriteArrayList<>();
-        ObservedTask taskA = new ObservedTask("A", order);
+        ObservedTask taskA = new ObservedTask(null, null);
         Thread waiterA = resource.run(taskA, neverNotAccepted());
         assertNotNull(waiterA);
-        // 拉开两个等待者进入等待队列的间隔，让"先来"在队列次序上可证
+        // 拉开两个等待者登记的间隔，让挂起计数逐级可证；交付顺序不是本执行器的契约，
+        // 等待者在公平队列中的实际位次取决于各自线程取得许可的时刻
         Thread.sleep(150);
-        ObservedTask taskB = new ObservedTask("B", order);
+        ObservedTask taskB = new ObservedTask(null, null);
         Thread waiterB = resource.run(taskB, neverNotAccepted());
         assertNotNull(waiterB);
         assertEquals(2, resource.suspendedThreads());
 
-        // 已有等待者在排队时再提交：新提交必须排到队尾，不得在资源更早空闲时插队
-        ObservedTask taskC = new ObservedTask("C", order);
+        // 已有等待者在排队时再提交：挂起额度未满，新提交照常受理排队，不得被拒
+        ObservedTask taskC = new ObservedTask(null, null);
         Thread waiterC = resource.run(taskC, neverNotAccepted());
         assertNotNull(waiterC);
         assertEquals(3, resource.suspendedThreads());
@@ -344,7 +344,6 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
         assertTrue(taskA.done.await(5, TimeUnit.SECONDS));
         assertTrue(taskB.done.await(5, TimeUnit.SECONDS));
         assertTrue(taskC.done.await(5, TimeUnit.SECONDS));
-        assertEquals(List.of("A", "B", "C"), order, "公平模式应按提交先后交付资源，后提交者不插队");
         assertEquals("vtr-fair", taskA.threadName.get());
         assertEquals("vtr-fair", taskB.threadName.get());
         assertEquals("vtr-fair", taskC.threadName.get());

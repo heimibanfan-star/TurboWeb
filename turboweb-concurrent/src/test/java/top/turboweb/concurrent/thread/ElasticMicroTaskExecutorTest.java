@@ -8,10 +8,13 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,10 +64,17 @@ class ElasticMicroTaskExecutorTest {
     private static final class SignalCatcher implements MicroTaskExecutor.FinallyHandler {
 
         private volatile MicroTaskExecutor.FinallySignal signal;
+        private final AtomicInteger calls = new AtomicInteger();
 
         @Override
         public void onFinally(MicroTaskExecutor.FinallySignal finallySignal) {
+            calls.incrementAndGet();
             this.signal = finallySignal;
+        }
+
+        /** 收尾回调被调用的次数：收尾必达且仅一次契约下必须恒为 1。 */
+        int calls() {
+            return calls.get();
         }
 
         boolean executed() {
@@ -194,6 +204,118 @@ class ElasticMicroTaskExecutorTest {
             assertTrue(awaitUntil(() -> executed.get() == 3, 5_000), () -> "3 个被受理的任务全部执行；实际 "
                     + executed.get() + " 个——若少一个，说明搬运线程手上那个任务在 close 序列里滞留缓冲队列");
             assertTrue(queued.executed(), "进过缓冲队列的任务执行后同样以已执行收尾");
+        } finally {
+            blockerGate.countDown();
+            executor.close();
+        }
+    }
+
+    @Test
+    @DisplayName("关闭宽限期内提交的任务不丢弃：缓冲队列置为关闭前入队的任务由收尾线程执行完毕")
+    void taskSubmittedDuringCloseWindowIsStillExecuted() throws Exception {
+        // 4 格缓冲 + 1 格核心队列 + 2 条上限线程：三层占满后，任务只能进缓冲或被拒
+        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        CountDownLatch blockerGate = new CountDownLatch(1);
+        // A 卡住搬运线程的就地执行路径：A 开跑即证明核心执行器已关闭且关闭状态尚未置位
+        CountDownLatch taskAGate = new CountDownLatch(1);
+        CountDownLatch aStarted = new CountDownLatch(1);
+        Runnable blocker = () -> {
+            try {
+                blockerGate.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        };
+        Runnable taskA = () -> {
+            aStarted.countDown();
+            // 搬运线程就地执行 A 时带着 close 留下的中断标志，首轮 await 会立即被打断；
+            // 吞掉中断继续等，才能把"搬运线程已进入退出路径但关闭状态未置位"的窗口撑住
+            while (true) {
+                try {
+                    taskAGate.await();
+                    return;
+                } catch (InterruptedException e) {
+                    // 中断已随异常清位，循环重入等待
+                }
+            }
+        };
+        SignalCatcher aCatcher = new SignalCatcher();
+        SignalCatcher bCatcher = new SignalCatcher();
+        SignalCatcher cCatcher = new SignalCatcher();
+        SignalCatcher eCatcher = new SignalCatcher();
+        AtomicInteger executed = new AtomicInteger();
+        AtomicReference<Throwable> closeError = new AtomicReference<>();
+        Thread closer = new Thread(() -> {
+            try {
+                executor.close();
+            } catch (Throwable t) {
+                closeError.set(t);
+            }
+        });
+        try {
+            executor.submit(blocker, new SignalCatcher());
+            executor.submit(blocker, new SignalCatcher());
+            executor.submit(blocker, new SignalCatcher());
+            executor.submit(taskA, aCatcher);
+            assertTrue(awaitUntil(() -> cacheSize(executor) == 0, 2_000),
+                    "搬运线程必须已取走 A 并卡在退避重试——这是缓冲队列腾空的观测点");
+            executor.submit(executed::incrementAndGet, bCatcher);
+            executor.submit(executed::incrementAndGet, cCatcher);
+
+            closer.start();
+            assertTrue(aStarted.await(5, TimeUnit.SECONDS),
+                    "A 必须在关闭序列中被就地执行，否则本用例的窗口构造不成立");
+            // 此刻关闭已开始但缓冲队列尚未置为关闭：新提交必须照常受理，不许丢弃
+            executor.submit(executed::incrementAndGet, eCatcher);
+
+            taskAGate.countDown();
+            closer.join(10_000);
+            assertFalse(closer.isAlive(), "close 必须等缓冲队列执行完毕后才返回");
+            assertNull(closeError.get(), "close 不得抛出异常");
+            assertTrue(awaitUntil(() -> executed.get() == 3, 5_000),
+                    () -> "宽限期内提交的 E 与缓冲中的 B、C 都必须被执行；实际 " + executed.get() + " 个");
+            assertTrue(aCatcher.executed(), "就地执行的 A 同样以已执行收尾");
+            assertTrue(eCatcher.executed(), "宽限期内提交的 E 必须被执行并以已执行收尾");
+            assertEquals(1, aCatcher.calls(), "A 的收尾回调必须恰好一次");
+            assertEquals(1, eCatcher.calls(), "E 的收尾回调必须恰好一次");
+        } finally {
+            taskAGate.countDown();
+            blockerGate.countDown();
+            executor.close();
+        }
+    }
+
+    @Test
+    @DisplayName("缓冲任务抛 Error 不得中断排空也不得从 close 冒出，其后的任务仍须执行")
+    void errorFromCachedTaskDoesNotAbortCloseDrain() throws Exception {
+        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        CountDownLatch blockerGate = new CountDownLatch(1);
+        Runnable blocker = () -> {
+            try {
+                blockerGate.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        };
+        SignalCatcher errorCatcher = new SignalCatcher();
+        SignalCatcher afterCatcher = new SignalCatcher();
+        AtomicInteger after = new AtomicInteger();
+        try {
+            executor.submit(blocker, new SignalCatcher());
+            executor.submit(blocker, new SignalCatcher());
+            executor.submit(blocker, new SignalCatcher());
+            executor.submit(() -> {
+                throw new AssertionError("cached task boom");
+            }, errorCatcher);
+            assertTrue(awaitUntil(() -> cacheSize(executor) == 0, 2_000),
+                    "搬运线程必须已取走抛 Error 的任务并卡在退避重试");
+            executor.submit(after::incrementAndGet, afterCatcher);
+
+            assertDoesNotThrow(executor::close, "单个任务抛出的 Error 不得从 close 冒出");
+            assertTrue(awaitUntil(() -> after.get() == 1, 5_000), "Error 之后的任务仍须被执行");
+            assertTrue(errorCatcher.executed(), "抛 Error 的任务同样以已执行收尾");
+            assertEquals(1, errorCatcher.calls(), "收尾回调必须恰好一次");
+            assertTrue(afterCatcher.executed(), "其后的任务以已执行收尾");
         } finally {
             blockerGate.countDown();
             executor.close();
