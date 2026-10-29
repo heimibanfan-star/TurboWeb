@@ -47,6 +47,7 @@ public interface MicroTaskExecutor extends AutoCloseable {
 
     /**
      * 任务提交的收尾回调：任务执行完毕与任务未受理二者必居其一，每次提交保证被调用且仅调用一次。
+     * 回调自身抛出的异常由执行器就地记账，不向提交方传播、不掩盖任务原始异常，也不影响恰好一次的收尾。
      */
     @FunctionalInterface
     interface FinallyHandler {

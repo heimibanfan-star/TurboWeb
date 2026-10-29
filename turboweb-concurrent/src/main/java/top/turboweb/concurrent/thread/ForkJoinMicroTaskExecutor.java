@@ -118,7 +118,8 @@ public final class ForkJoinMicroTaskExecutor implements MicroTaskExecutor, AutoC
         try {
             pool.execute(withExecuteFinally(task, finallyHandler));
         } catch (RuntimeException | Error unstarted) {
-            finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
+            FinallyCallbackGuard.run(finallyHandler,
+                    new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
             throw unstarted;
         }
     }
@@ -168,7 +169,8 @@ public final class ForkJoinMicroTaskExecutor implements MicroTaskExecutor, AutoC
             try {
                 task.run();
             } finally {
-                finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.WORKER, FinallyType.EXECUTED));
+                FinallyCallbackGuard.run(finallyHandler,
+                        new FinallySignal(FinallySignal.CallbackThread.WORKER, FinallyType.EXECUTED));
             }
         };
     }

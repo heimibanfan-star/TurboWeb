@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -502,6 +503,36 @@ class LimitedVirtualThreadMicroTaskExecutorTest {
         holder.gate.countDown();
         holderThread.join(5_000);
         assertTrue(awaitUntil(() -> resource.availableResources() == 1, 2_000), "许可应回到占用者释放后的满额");
+    }
+
+    @Test
+    @DisplayName("提交线程方未受理收尾回调自身抛异常：不向提交方传播且恰好一次")
+    void submitterNotAcceptedCallbackFailureDoesNotPropagate() throws Exception {
+        VirtualThreadMicroTaskExecutor resource =
+                VirtualThreadMicroTaskExecutor.ofLimited(1, 0, 0, "lvt-callback-throw", false);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch occupied = new CountDownLatch(1);
+        try {
+            // 占住唯一资源：此后提交在资源侧直接未受理（timeout 为 0，不走挂起等待）
+            resource.submit(() -> {
+                occupied.countDown();
+                try {
+                    release.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, signal -> { });
+            assertTrue(occupied.await(5, TimeUnit.SECONDS), "占用资源的任务应已开跑");
+
+            AtomicInteger calls = new AtomicInteger();
+            assertDoesNotThrow(() -> resource.submit(() -> { }, signal -> {
+                calls.incrementAndGet();
+                throw new IllegalStateException("callback boom");
+            }), "未受理收尾回调自身抛出的异常不得传播给提交方");
+            assertEquals(1, calls.get(), "收尾回调必须恰好一次");
+        } finally {
+            release.countDown();
+        }
     }
 
     @Test

@@ -205,7 +205,8 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
             try {
                 task.run();
             } finally {
-                finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.WORKER, FinallyType.EXECUTED));
+                FinallyCallbackGuard.run(finallyHandler,
+                        new FinallySignal(FinallySignal.CallbackThread.WORKER, FinallyType.EXECUTED));
             }
         };
     }
@@ -243,11 +244,8 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
             } catch (Throwable compensationFailure) {
                 e.addSuppressed(compensationFailure);
             }
-            try {
-                finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
-            } catch (Throwable callbackFailure) {
-                e.addSuppressed(callbackFailure);
-            }
+            FinallyCallbackGuard.run(finallyHandler,
+                    new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
             throw e;
         }
     }
@@ -332,7 +330,8 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
                         releasePermitOnStartFailure, finallyHandler);
             }
             if (timeout <= 0 || !trySuspend()) {
-                finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
+                FinallyCallbackGuard.run(finallyHandler,
+                        new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
                 return null;
             }
             return startThread(() -> {
@@ -345,7 +344,8 @@ public abstract class VirtualThreadMicroTaskExecutor implements MicroTaskExecuto
                 if (acquired) {
                     executeWithPermit(withExecuteFinally(task, finallyHandler));
                 } else {
-                    finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.WORKER, FinallyType.NOT_ACCEPT));
+                    FinallyCallbackGuard.run(finallyHandler,
+                            new FinallySignal(FinallySignal.CallbackThread.WORKER, FinallyType.NOT_ACCEPT));
                 }
             }, suspendThreads::decrementAndGet, finallyHandler);
         }

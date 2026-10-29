@@ -218,6 +218,22 @@ class ForkJoinMicroTaskExecutorTest {
     }
 
     @Test
+    @DisplayName("未受理收尾回调自身抛异常：拒绝异常原样传播不被顶掉，回调恰好一次")
+    void notAcceptedCallbackFailureDoesNotMaskRejection() throws Exception {
+        ForkJoinMicroTaskExecutor executor = ForkJoinMicroTaskExecutor.ofIsolated("iso-callback-throw", 1);
+        ForkJoinPool pool = poolOf(executor);
+        pool.shutdownNow();
+        assertTrue(pool.awaitTermination(5, TimeUnit.SECONDS), "任务池应终止");
+
+        AtomicInteger calls = new AtomicInteger();
+        assertThrows(RejectedExecutionException.class, () -> executor.submit(() -> { }, signal -> {
+            calls.incrementAndGet();
+            throw new IllegalStateException("callback boom");
+        }), "收尾回调自身抛出的异常不得顶掉本应传播的拒绝异常");
+        assertEquals(1, calls.get(), "收尾回调必须恰好一次");
+    }
+
+    @Test
     @DisplayName("close 关闭隔离任务池：池终止，后续提交以未受理情形收尾并抛出拒绝异常，重复关闭为空操作")
     void closeTerminatesPoolAndRejectsLaterSubmissions() throws Exception {
         ForkJoinMicroTaskExecutor executor = ForkJoinMicroTaskExecutor.ofIsolated("iso-close", 1);

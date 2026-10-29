@@ -160,7 +160,8 @@ class ElasticMicroTaskExecutorTest {
         // close() 只保证"不再接新任务"，核心队列里那个任务由 worker 线程异步跑，
         // close() 返回时它可能还没执行——直接断言计数是抖的，须等它落地
         assertTrue(awaitUntil(() -> executed.get() == 1, 5_000), "5s 内必须跑完已受理的任务");
-        assertTrue(catcher.executed(), "已受理的任务在关闭后仍要以已执行收尾");
+        // 收尾回调在任务计数落地之后异步触发，与计数之间无先后保证，同样须轮询等待
+        assertTrue(awaitUntil(catcher::executed, 5_000), "已受理的任务在关闭后仍要以已执行收尾");
         executor.close();
         assertEquals(1, executed.get(), "重复 close() 必须幂等，不得重复执行或丢任务");
     }
@@ -318,6 +319,40 @@ class ElasticMicroTaskExecutorTest {
             assertTrue(afterCatcher.executed(), "其后的任务以已执行收尾");
         } finally {
             blockerGate.countDown();
+            executor.close();
+        }
+    }
+
+    @Test
+    @DisplayName("收尾回调自身抛异常：工作线程不死亡重建，后续任务仍在同一承载线程执行")
+    void callbackFailureDoesNotKillWorkerThread() throws Exception {
+        ElasticMicroTaskExecutor executor = new ElasticMicroTaskExecutor(4, 1, 2);
+        try {
+            AtomicReference<String> firstWorker = new AtomicReference<>();
+            AtomicReference<String> secondWorker = new AtomicReference<>();
+            CountDownLatch firstDone = new CountDownLatch(1);
+            CountDownLatch secondDone = new CountDownLatch(1);
+            AtomicInteger callbackCalls = new AtomicInteger();
+
+            executor.submit(() -> {
+                firstWorker.set(Thread.currentThread().getName());
+                firstDone.countDown();
+            }, signal -> {
+                callbackCalls.incrementAndGet();
+                throw new IllegalStateException("callback boom");
+            });
+            assertTrue(firstDone.await(5, TimeUnit.SECONDS), "第一个任务应被执行");
+
+            executor.submit(() -> {
+                secondWorker.set(Thread.currentThread().getName());
+                secondDone.countDown();
+            }, new SignalCatcher());
+            assertTrue(secondDone.await(5, TimeUnit.SECONDS), "回调抛异常后的后续任务仍应被执行");
+
+            assertEquals(1, callbackCalls.get(), "收尾回调必须恰好一次");
+            assertEquals(firstWorker.get(), secondWorker.get(),
+                    "回调异常不得杀死承载工作线程：后续任务应在同一工作线程执行");
+        } finally {
             executor.close();
         }
     }

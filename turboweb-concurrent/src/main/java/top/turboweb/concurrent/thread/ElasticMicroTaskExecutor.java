@@ -203,7 +203,7 @@ public class ElasticMicroTaskExecutor implements MicroTaskExecutor {
             try {
                 task.run();
             } finally {
-                finallyHandler.onFinally(new MicroTaskExecutor.FinallySignal(
+                FinallyCallbackGuard.run(finallyHandler, new MicroTaskExecutor.FinallySignal(
                         MicroTaskExecutor.FinallySignal.CallbackThread.WORKER,
                         MicroTaskExecutor.FinallyType.EXECUTED));
             }
@@ -212,11 +212,12 @@ public class ElasticMicroTaskExecutor implements MicroTaskExecutor {
 
     /**
      * 以未受理收尾：任务未被执行器接受，在提交线程方回调，调用方据此降级。
+     * 回调自身抛出的异常就地记账，不向提交方追加异常，不改变本类的既有传播语义。
      *
      * @param finallyHandler 收尾回调
      */
     private static void notAccepted(FinallyHandler finallyHandler) {
-        finallyHandler.onFinally(new MicroTaskExecutor.FinallySignal(
+        FinallyCallbackGuard.run(finallyHandler, new MicroTaskExecutor.FinallySignal(
                 MicroTaskExecutor.FinallySignal.CallbackThread.SUBMITTER,
                 MicroTaskExecutor.FinallyType.NOT_ACCEPT));
     }

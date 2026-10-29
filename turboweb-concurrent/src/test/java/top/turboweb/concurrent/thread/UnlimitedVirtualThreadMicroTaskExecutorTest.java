@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -170,5 +171,40 @@ class UnlimitedVirtualThreadMicroTaskExecutorTest {
         assertEquals(total, finishes.size(), "每次提交恰好一次收尾");
         assertTrue(finishes.stream().allMatch(type -> type == FinallyType.EXECUTED),
                 "全部提交均以执行完毕情形收尾，不应出现拒绝");
+    }
+
+    @Test
+    @DisplayName("收尾回调自身抛异常：不漏入未捕获处理器，任务原始异常不被掩盖")
+    void callbackFailureDoesNotReachUncaughtHandlerNorMaskTaskFailure() throws Exception {
+        List<Throwable> uncaught = new CopyOnWriteArrayList<>();
+        Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> uncaught.add(e));
+        try {
+            VirtualThreadMicroTaskExecutor resource = VirtualThreadMicroTaskExecutor.ofUnlimited("uvt-callback-throw");
+            IllegalStateException taskBoom = new IllegalStateException("task boom");
+            IllegalStateException callbackBoom = new IllegalStateException("callback boom");
+            AtomicInteger calls = new AtomicInteger();
+
+            // 任务成功、回调抛异常：回调异常不得漏入未捕获处理器
+            Thread first = resource.run(() -> { }, signal -> {
+                calls.incrementAndGet();
+                throw callbackBoom;
+            });
+            first.join(5_000);
+            // 任务抛异常、回调也抛异常：未捕获处理器收到的必须是任务原始异常
+            Thread second = resource.run(() -> {
+                throw taskBoom;
+            }, signal -> {
+                calls.incrementAndGet();
+                throw callbackBoom;
+            });
+            second.join(5_000);
+
+            assertEquals(2, calls.get(), "每次提交收尾回调恰好一次");
+            assertEquals(1, uncaught.size(), "回调异常不得漏入未捕获处理器，实测 " + uncaught);
+            assertSame(taskBoom, uncaught.get(0), "未捕获处理器收到的应是任务原始异常，而非回调异常");
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous);
+        }
     }
 }
