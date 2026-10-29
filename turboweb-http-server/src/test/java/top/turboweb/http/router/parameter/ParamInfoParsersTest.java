@@ -10,6 +10,7 @@ import top.turboweb.rest.core.HttpRequestMessage;
 import top.turboweb.rest.core.HttpRequestMethod;
 import top.turboweb.rest.core.HttpUrl;
 import top.turboweb.rest.core.MultipartFile;
+import top.turboweb.rest.core.RequestLine;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.context.HttpJsonContent;
@@ -441,6 +442,11 @@ class ParamInfoParsersTest {
         }
 
         @Override
+        public RequestLine requestLine() {
+            throw offChannel("requestLine");
+        }
+
+        @Override
         public String header(String name) {
             return headers.get(name);
         }
@@ -492,6 +498,11 @@ class ParamInfoParsersTest {
         @Override
         public HttpUrl url() {
             throw offChannel("url");
+        }
+
+        @Override
+        public RequestLine requestLine() {
+            throw offChannel("requestLine");
         }
 
         @Override

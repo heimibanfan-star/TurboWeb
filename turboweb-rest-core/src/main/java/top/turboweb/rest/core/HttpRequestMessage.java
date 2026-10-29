@@ -1,17 +1,14 @@
 package top.turboweb.rest.core;
 
-import java.util.List;
-import java.util.Set;
-
 /**
- * http请求消息的读取契约：请求方式、请求地址与请求体内容的取用入口，并平铺承载
- * 请求头的读取访问。
+ * http请求消息的读取契约：请求方式、请求行、请求地址与请求体内容的取用入口，
+ * 并经 {@link HttpMessage} 平铺承载请求头的读取访问。
  *
- * <p>请求头不设独立视图对象，读取访问直接平铺在消息上，头名查询大小写不敏感；
+ * <p>请求头读取访问由 {@link HttpMessage} 承载，头名查询大小写不敏感；
  * 头未发送时返回 {@code null}，仅 {@link #contentLength()} 未发送或取值无效时记 0。
  * 请求体侧声明的内容类型经 {@link #content()} 返回的 {@link HttpContent} 读取。</p>
  */
-public interface HttpRequestMessage {
+public interface HttpRequestMessage extends HttpMessage<RequestLine, HttpContent> {
 
     /**
      * 获取请求方式，取请求行的方法字面量。
@@ -19,6 +16,13 @@ public interface HttpRequestMessage {
      * @return 请求方式
      */
     HttpRequestMethod method();
+
+    /**
+     * 获取请求行。
+     *
+     * @return 请求行，永不为 null
+     */
+    RequestLine requestLine();
 
     /**
      * 获取请求地址。
@@ -33,67 +37,5 @@ public interface HttpRequestMessage {
      * @return 请求体内容，永不为 null
      */
     HttpContent content();
-
-    /**
-     * 获取指定头名的首个取值。
-     *
-     * @param name 头名，大小写不敏感，不能为空
-     * @return 首个取值；头不存在时返回 {@code null}
-     */
-    String header(String name);
-
-    /**
-     * 获取指定头名的全部取值，按出现顺序。
-     *
-     * @param name 头名，大小写不敏感，不能为空
-     * @return 取值列表；头不存在时返回空列表
-     */
-    List<String> headerValues(String name);
-
-    /**
-     * 判断指定头名是否存在。
-     *
-     * @param name 头名，大小写不敏感，不能为空
-     * @return 存在返回 true
-     */
-    boolean containsHeader(String name);
-
-    /**
-     * 获取全部头名，按发送原文并去重。
-     *
-     * @return 头名集合
-     */
-    Set<String> headerNames();
-
-    /**
-     * 获取头条目数，同名多值按条目分别计数。
-     *
-     * @return 条目数
-     */
-    int headerSize();
-
-    /**
-     * 判断是否无任何请求头。
-     *
-     * @return 无头返回 true
-     */
-    boolean headerIsEmpty();
-
-    /**
-     * Content-Length 头取值。头缺失、非数值或为负时记 0。
-     *
-     * @return 请求体声明长度
-     */
-    default long contentLength() {
-        String value = header("Content-Length");
-        if (value == null) {
-            return 0L;
-        }
-        try {
-            return Math.max(Long.parseLong(value.trim()), 0L);
-        } catch (NumberFormatException e) {
-            return 0L;
-        }
-    }
 
 }

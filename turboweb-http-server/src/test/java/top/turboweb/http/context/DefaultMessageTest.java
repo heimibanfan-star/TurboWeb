@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.rest.core.HttpContent;
 import top.turboweb.rest.core.HttpRequestMethod;
+import top.turboweb.rest.core.RequestLine;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -48,6 +49,23 @@ class DefaultMessageTest {
         } finally {
             Requests.release(get);
             Requests.release(post);
+        }
+    }
+
+    @Test
+    void requestLineIsSnapshottedWithMethodAndTarget() {
+        FullHttpRequest req = Requests.get("/x?y=1");
+        try {
+            DefaultMessage message = message(req, StandardCharsets.UTF_8);
+
+            RequestLine line = message.requestLine();
+
+            assertEquals(HttpRequestMethod.GET, line.method(), "请求行承载请求方式");
+            assertEquals("/x?y=1", line.target().raw(), "请求行承载请求目标原文");
+            assertEquals("/x", line.target().path(), "请求行承载剥离查询参数后的路径");
+            assertSame(line, message.requestLine(), "构造期快照，重复访问同实例");
+        } finally {
+            Requests.release(req);
         }
     }
 

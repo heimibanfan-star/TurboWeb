@@ -5,6 +5,8 @@ import io.netty.handler.codec.http.HttpHeaders;
 import top.turboweb.rest.core.HttpContent;
 import top.turboweb.rest.core.HttpRequestMessage;
 import top.turboweb.rest.core.HttpRequestMethod;
+import top.turboweb.rest.core.HttpRequestTarget;
+import top.turboweb.rest.core.RequestLine;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -12,8 +14,8 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * {@code DefaultMessage} 是 {@link HttpRequestMessage} 的默认实现：构造期快照请求方式、
- * 建立地址对象并持有，两个访问器重复访问返回同一值；请求体内容由装配方解析产出后带入。
+ * {@code DefaultMessage} 是 {@link HttpRequestMessage} 的默认实现：构造期快照请求方式
+ * 与请求行、建立地址对象并持有，各访问器重复访问返回同一值；请求体内容由装配方解析产出后带入。
  *
  * <p>请求方式取请求行的方法字面量并转化为标准方法枚举；请求头读取实时委托请求的
  * Netty 头集合，不拷贝快照，头名查询大小写不敏感、多值保持与条目计数均由该集合保证；
@@ -23,6 +25,9 @@ public final class DefaultMessage implements HttpRequestMessage {
 
     /** 构造期快照的请求方式 */
     private final HttpRequestMethod method;
+
+    /** 构造期快照的请求行 */
+    private final RequestLine requestLine;
 
     /** 被委托的 Netty 请求头集合，读取实时生效 */
     private final HttpHeaders headers;
@@ -45,6 +50,7 @@ public final class DefaultMessage implements HttpRequestMessage {
     public DefaultMessage(FullHttpRequest request, HttpContent content, Charset queryCharset) {
         Objects.requireNonNull(request, "request can not be null");
         this.method = HttpRequestMethod.valueOf(request.method().name());
+        this.requestLine = new RequestLine(this.method, new HttpRequestTarget(request.uri()));
         this.headers = request.headers();
         this.url = new DefaultURL(request, queryCharset);
         this.content = Objects.requireNonNull(content, "content can not be null");
@@ -56,6 +62,14 @@ public final class DefaultMessage implements HttpRequestMessage {
     @Override
     public HttpRequestMethod method() {
         return method;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public RequestLine requestLine() {
+        return requestLine;
     }
 
     /**

@@ -33,6 +33,11 @@ class HttpRequestMessageTest {
             }
 
             @Override
+            public RequestLine requestLine() {
+                return new RequestLine(HttpRequestMethod.GET, new HttpRequestTarget("/index?x=1"));
+            }
+
+            @Override
             public String header(String name) {
                 return headerLookup.apply(name);
             }
@@ -86,5 +91,23 @@ class HttpRequestMessageTest {
     void contentLengthFloorsNegativeValueToZero() {
         HttpRequestMessage message = stub(name -> "-5");
         assertEquals(0L, message.contentLength());
+    }
+
+    @Test
+    void requestLineCarriesMethodAndTarget() {
+        HttpRequestMessage message = stub(name -> null);
+
+        RequestLine line = message.requestLine();
+
+        assertEquals(HttpRequestMethod.GET, line.method(), "请求行承载请求方式");
+        assertEquals("/index?x=1", line.target().raw(), "请求行承载请求目标");
+    }
+
+    @Test
+    void headerChannelIsReachableThroughHttpMessageView() {
+        HttpMessage<RequestLine, HttpContent> message = stub(name -> " 42 ");
+
+        assertEquals(" 42 ", message.header("Content-Length"), "头读取经 HttpMessage 视图可达");
+        assertEquals(42L, message.contentLength(), "Content-Length 兜底口径经 HttpMessage 视图继承");
     }
 }
