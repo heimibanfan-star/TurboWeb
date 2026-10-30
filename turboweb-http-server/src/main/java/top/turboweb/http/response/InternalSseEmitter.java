@@ -3,6 +3,7 @@ package top.turboweb.http.response;
 import io.netty.channel.ChannelFuture;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.server.runtime.ChannelAttributeKeys;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -38,8 +39,9 @@ public class InternalSseEmitter extends SseEmitter{
 		ChannelFuture channelFuture = null;
 		try {
 			writeLock.lock();
-			// 发送SSE响应头
+			// 发送SSE响应头；SSE启动即移交长生命周期协议：先落空闲豁免标记，再写出响应头
 			InternalHttpConnection internalHttpConnection = (InternalHttpConnection) session;
+			internalHttpConnection.getChannel().attr(ChannelAttributeKeys.IDLE_EXEMPT).set(Boolean.TRUE);
 			channelFuture = internalHttpConnection.getChannel().writeAndFlush(this);
 			// 清空缓冲区
 			cacheLock.lock();

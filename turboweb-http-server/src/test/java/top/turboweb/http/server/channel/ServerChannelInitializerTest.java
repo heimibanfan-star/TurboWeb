@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.server.config.ServerConfig;
 import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
+import top.turboweb.http.server.handler.IdleCloseChannelHandler;
 import top.turboweb.http.server.manager.ServerRuntimeManager;
 import top.turboweb.server.runtime.ServerRuntime;
 
@@ -101,6 +102,51 @@ class ServerChannelInitializerTest {
                     "聚合器必须排在编解码之后");
             assertTrue(classes.indexOf(TestMarkerHandler.class) > classes.indexOf(HttpObjectAggregator.class),
                     "应用处理器必须排在协议层之后");
+        } finally {
+            channel.close();
+        }
+    }
+
+    @Test
+    @DisplayName("配置空闲回收阈值时，空闲处理器装配在聚合器之后应用之前")
+    void assemblesIdleCloseHandlerWhenConfigured() {
+        List<String> events = new ArrayList<>();
+        ServerRuntimeManager manager = new ServerRuntimeManager();
+        manager.addLast(new MarkerRuntime("marker", events));
+        ServerConfig config = ServerConfig.builder().maxContentLength(2048).idleCloseTime(30000).build();
+        ServerChannelInitializer initializer =
+                new ServerChannelInitializer(manager, new ConnectLimiterChannelHandler(10, 1, 4), config);
+
+        EmbeddedChannel channel = new EmbeddedChannel(initializer);
+        try {
+            channel.runPendingTasks();
+            channel.checkException();
+
+            List<Class<?>> classes = handlerClasses(channel);
+            int idleIndex = classes.indexOf(IdleCloseChannelHandler.class);
+            assertTrue(idleIndex > classes.indexOf(HttpObjectAggregator.class),
+                    "空闲处理器必须排在聚合器之后，实际管道: " + classes);
+            assertTrue(classes.indexOf(TestMarkerHandler.class) > idleIndex,
+                    "空闲处理器必须排在应用之前，实际管道: " + classes);
+        } finally {
+            channel.close();
+        }
+    }
+
+    @Test
+    @DisplayName("缺省启用空闲回收，空闲处理器默认装配")
+    void idleCloseHandlerAssembledByDefault() {
+        ServerRuntimeManager manager = new ServerRuntimeManager();
+        ServerChannelInitializer initializer =
+                new ServerChannelInitializer(manager, new ConnectLimiterChannelHandler(10, 1, 4), plainHttp11Config());
+
+        EmbeddedChannel channel = new EmbeddedChannel(initializer);
+        try {
+            channel.runPendingTasks();
+            channel.checkException();
+
+            assertTrue(handlerClasses(channel).indexOf(IdleCloseChannelHandler.class) >= 0,
+                    "缺省空闲回收启用时必须装配空闲处理器");
         } finally {
             channel.close();
         }

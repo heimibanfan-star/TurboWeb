@@ -18,6 +18,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.server.config.ServerConfig;
 import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
+import top.turboweb.http.server.handler.IdleCloseChannelHandler;
 import top.turboweb.http.server.manager.ServerRuntimeManager;
 
 import java.util.Objects;
@@ -149,13 +150,18 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
     }
 
     /**
-     * 装配http/1.1编解码（每连接新建）并随后委托运行时管理器装配应用，
-     * 同时用于未启用http2的连接管道与http2协商降级的回退装配，装配前按类型去重
+     * 装配http/1.1编解码（每连接新建）、空闲回收处理器（配置了阈值时置于聚合器之后应用之前，
+     * 其空闲判定只计入真正流向socket的读写，定序处理器缓冲中未放行的写出不计入活动）
+     * 并随后委托运行时管理器装配应用，同时用于未启用http2的连接管道与http2协商降级的
+     * 回退装配，装配前按类型去重
      */
     private void configureHttp11(ChannelPipeline pipeline) {
         if (pipeline.get(HttpServerCodec.class) == null && pipeline.get(HttpObjectAggregator.class) == null) {
             pipeline.addLast(new HttpServerCodec());
             pipeline.addLast(new HttpObjectAggregator(serverConfig.getMaxContentLength()));
+        }
+        if (serverConfig.getIdleCloseTime() > 0 && pipeline.get(IdleCloseChannelHandler.class) == null) {
+            pipeline.addLast(new IdleCloseChannelHandler(serverConfig.getIdleCloseTime()));
         }
         serverRuntimeManager.configure(pipeline);
     }

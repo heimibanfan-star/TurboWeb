@@ -7,6 +7,7 @@ import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.testkit.RecordingHttpConnection;
+import top.turboweb.server.runtime.ChannelAttributeKeys;
 
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,7 +36,7 @@ class InternalSseEmitterTest {
                 InternalSseEmitterTest.class.getClassLoader(),
                 new Class<?>[]{Channel.class},
                 (proxy, method, args) -> {
-                    if ("writeAndFlush".equals(method.getName()) && args != null && args.length == 1) {
+                    if ("writeAndFlush".equals(method.getName()) && args != null && (args.length == 1 || args.length == 2)) {
                         Object msg = args[0];
                         if (msg instanceof DefaultHttpContent content) {
                             writes.add(content.content().toString(CharsetUtil.UTF_8));
@@ -42,7 +44,21 @@ class InternalSseEmitterTest {
                         } else {
                             writes.add(msg);
                         }
+                        if (args.length == 2) {
+                            // 双参变体：写出结果记入传入凭据并原样返回
+                            io.netty.channel.ChannelPromise promise = (io.netty.channel.ChannelPromise) args[1];
+                            promise.trySuccess();
+                            return promise;
+                        }
                         return futureChannel.newSucceededFuture();
+                    }
+                    if ("newPromise".equals(method.getName())) {
+                        // 连接写出的凭据由通道新建，桩须给出真实可完成的凭据
+                        return futureChannel.newPromise();
+                    }
+                    if ("attr".equals(method.getName())) {
+                        // 属性表委托底层真实通道，豁免标记落标可观测
+                        return futureChannel.attr((io.netty.util.AttributeKey<Object>) args[0]);
                     }
                     Class<?> rt = method.getReturnType();
                     if (rt == boolean.class) {
@@ -104,6 +120,18 @@ class InternalSseEmitterTest {
         assertEquals(1, writes.size());
         assertEquals(emitter, writes.get(0));
         assertTrue(emitter.isInit);
+    }
+
+    @Test
+    void initSseMarksChannelIdleExempt() {
+        List<Object> writes = new ArrayList<>();
+        InternalHttpConnection session = new InternalHttpConnection(recordingChannel(writes));
+        InternalSseEmitter emitter = new InternalSseEmitter(session, 10);
+
+        emitter.initSse();
+
+        assertNotNull(session.getChannel().attr(ChannelAttributeKeys.IDLE_EXEMPT).get(),
+                "SSE启动即移交长生命周期协议，必须落空闲豁免标记");
     }
 
     @Test

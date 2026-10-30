@@ -32,6 +32,7 @@ class ServerConfigTest {
         assertNull(config.getSslContext(), "未配置ssl时上下文为null");
         assertEquals(1024 * 1024 * 10, config.getMaxContentLength());
         assertFalse(config.isEnableHttp2());
+        assertEquals(60000L, config.getIdleCloseTime(), "缺省启用空闲回收60秒");
         Http2Settings defaults = config.getHttp2Settings();
         assertNotNull(defaults);
         // 这批 getter 在 Netty 里混用 Long 与 int 返回；统一 (long) 转换后必然走
@@ -78,6 +79,14 @@ class ServerConfigTest {
     @DisplayName("http2Settings 不能为null")
     void http2SettingsNotNull() {
         assertThrows(NullPointerException.class, () -> ServerConfig.builder().http2Settings(null));
+    }
+
+    @Test
+    @DisplayName("idleCloseTime 被原样承载且负数立即拒绝")
+    void idleCloseTimeIsCarriedAndValidated() {
+        assertEquals(30000L, ServerConfig.builder().idleCloseTime(30000).build().getIdleCloseTime());
+        assertThrows(IllegalArgumentException.class, () -> ServerConfig.builder().idleCloseTime(-1),
+                "负数阈值必须立即抛出");
     }
 
     @Test

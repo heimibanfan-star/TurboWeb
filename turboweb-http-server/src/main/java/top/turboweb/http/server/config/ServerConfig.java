@@ -7,7 +7,8 @@ import java.util.Objects;
 
 /**
  * 服务器配置类（不可变），承载与服务器相关的纯参数配置：连接限流参数（最大连接数、
- * io线程数、零拷贝线程数、cpu核数）、ssl上下文与聚合器最大内容长度、http2开关与参数。
+ * io线程数、零拷贝线程数、cpu核数）、ssl上下文与聚合器最大内容长度、空闲回收阈值、
+ * http2开关与参数。
  * 配置有两条消费路径：{@link top.turboweb.http.server.BootStrapWebServer} 在启动时消费，
  * 按io线程数与零拷贝线程数创建线程资源、按ssl上下文决定通道类型、按限流参数创建连接限流器，
  * 并完成http2需ssl等校验；启动时创建的
@@ -68,6 +69,13 @@ public final class ServerConfig {
      */
     private final Http2Settings http2Settings;
 
+    /**
+     * 连接空闲回收阈值：单连接读写皆无持续超过该时长即关闭连接以回收其内存，
+     * 0表示不启用。携带空闲豁免标记的连接（websocket、SSE等）不受影响
+     */
+    private final long idleCloseTime;
+
+
     private ServerConfig(Builder builder) {
         this.maxConnect = builder.maxConnect;
         this.ioThreadNum = builder.ioThreadNum;
@@ -77,6 +85,7 @@ public final class ServerConfig {
         this.maxContentLength = builder.maxContentLength;
         this.enableHttp2 = builder.enableHttp2;
         this.http2Settings = builder.http2Settings;
+        this.idleCloseTime = builder.idleCloseTime;
     }
 
     /**
@@ -121,11 +130,15 @@ public final class ServerConfig {
         return http2Settings;
     }
 
+    public long getIdleCloseTime() {
+        return idleCloseTime;
+    }
+
     /**
      * {@link ServerConfig} 的建造者，链式方法名与配置字段同名，非法参数立即抛出
      * {@link IllegalArgumentException}。各字段默认值：连接数10000、io线程数1、
      * 零拷贝线程数cpu核数*2、cpu核数取运行时可用处理器数、不启用ssl、聚合器10MB、
-     * 不启用http2、http2参数为并发流256/初始窗口1MB/帧16KB/头列表8KB。
+     * 不启用http2、http2参数为并发流256/初始窗口1MB/帧16KB/头列表8KB、空闲回收60秒。
      */
     public static final class Builder {
 
@@ -148,6 +161,8 @@ public final class ServerConfig {
                 .initialWindowSize(1 << 20)
                 .maxFrameSize(1 << 14)
                 .maxHeaderListSize(8192);
+
+        private long idleCloseTime = 60000;
 
         private Builder() {
         }
@@ -228,6 +243,17 @@ public final class ServerConfig {
          */
         public Builder http2Settings(Http2Settings http2Settings) {
             this.http2Settings = Objects.requireNonNull(http2Settings, "http2Settings can not be null");
+            return this;
+        }
+
+        /**
+         * 设置连接空闲回收阈值，单位ms，0表示不启用，必须大于等于0
+         */
+        public Builder idleCloseTime(long idleCloseTime) {
+            if (idleCloseTime < 0) {
+                throw new IllegalArgumentException("idleCloseTime must be >= 0");
+            }
+            this.idleCloseTime = idleCloseTime;
             return this;
         }
 

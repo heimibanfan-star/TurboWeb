@@ -18,6 +18,7 @@ import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.Test;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
+import top.turboweb.server.runtime.ChannelAttributeKeys;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -133,6 +135,28 @@ class WebSocketInitChannelHandlerTest {
         assertSame(session, business.lastSession);
         assertEquals(0, frame.refCnt());
 
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void handshakeCompleteMarksChannelIdleExempt() {
+        EmbeddedChannel channel = new EmbeddedChannel(new HttpServerCodec(), newHandler());
+
+        channel.writeInbound(handshakeRequest("/ws/chat", "Upgrade"));
+
+        assertNotNull(channel.attr(ChannelAttributeKeys.IDLE_EXEMPT).get(),
+                "握手完成移交长生命周期协议的连接必须落空闲豁免标记");
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void nonUpgradedRequestDoesNotMarkIdleExempt() {
+        EmbeddedChannel channel = new EmbeddedChannel(new HttpServerCodec(), newHandler());
+
+        channel.writeInbound(upgradeRequest(HttpMethod.GET, "/elsewhere", "websocket", "Upgrade"));
+
+        assertNull(channel.attr(ChannelAttributeKeys.IDLE_EXEMPT).get(),
+                "未完成协议移交的连接不落空闲豁免标记");
         channel.finishAndReleaseAll();
     }
 

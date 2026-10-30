@@ -11,6 +11,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
+import top.turboweb.server.runtime.ChannelAttributeKeys;
 
 import java.util.Objects;
 
@@ -114,6 +115,8 @@ public class WebSocketInitChannelHandler extends SimpleChannelInboundHandler<Ful
                 @Override
                 public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
                     if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete handshakeComplete) {
+                        // 握手完成即移交长生命周期协议：落空闲豁免标记，服务器层空闲管理不再回收
+                        ctx.channel().attr(ChannelAttributeKeys.IDLE_EXEMPT).set(Boolean.TRUE);
                         webSocketDispatcherHandler.noticeFinishShakeHand(ctx, handshakeComplete);
                     }
                     super.userEventTriggered(ctx, evt);
