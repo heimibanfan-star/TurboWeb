@@ -10,6 +10,8 @@ import io.netty.util.ReferenceCountUtil;
 import top.turboweb.http.connection.SequencedDataChunk;
 import top.turboweb.http.connection.SequencedRequest;
 
+import io.netty.util.concurrent.EventExecutor;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -17,8 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 定序处理器：同一连接上并发处理的请求，其响应必须按请求到达顺序写出——
@@ -37,8 +39,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * 不携带序列号的出站消息（如升级协议握手响应）不经定序，原样透传。
  * <p>
  * 处理器持有连接级状态（游标、堆与缓冲），不能跨channel复用，
- * 由 {@link top.turboweb.http.server.runtime.HttpServerRuntime} 在装配每条管道时新建独立实例；
- * 写出可来自任意线程（虚拟线程直接写出），游标与缓冲统一由本处理器内的锁保护。
+ * 由 {@link top.turboweb.http.server.runtime.HttpServerRuntime} 在装配每条管道时新建独立实例。
+ * 本处理器不持锁：入站事件由 Netty 保证在eventLoop线程触发，状态直接读写；
+ * 写出可来自任意线程（虚拟线程直接写出），落在eventLoop线程时直接执行定序裁决，
+ * 否则按 Netty 默认语义提交eventLoop执行，游标与缓冲仅由eventLoop线程访问。
  */
 public class SequencerChannelHandler extends ChannelDuplexHandler {
 
@@ -60,9 +64,6 @@ public class SequencerChannelHandler extends ChannelDuplexHandler {
     /** 断连或失活后置位，其后到达的序列化写出直接失败 */
     private boolean closed = false;
 
-    /** 游标、堆与缓冲的并发保护锁 */
-    private final ReentrantLock lock = new ReentrantLock();
-
     /**
      * 构建响应定序处理器。
      *
@@ -82,26 +83,21 @@ public class SequencerChannelHandler extends ChannelDuplexHandler {
             ctx.fireChannelRead(msg);
             return;
         }
-        lock.lock();
-        try {
-            if (closed) {
-                // 断连后残余流入的请求直接释放，不再派发
-                request.release();
-                return;
-            }
-            long sequence = sequenceAllocator.incrementAndGet();
-            if (sequence - (writeCursor - 1) > maxInFlightResponses) {
-                // 在途请求数（请求游标与写出游标的差值）超过上限：
-                // 客户端异常积压，断开连接，本请求不再派发
-                request.release();
-                closeAndFail(ctx);
-                return;
-            }
-            // 入站封章：携带分配的序列号向下游派发
-            ctx.fireChannelRead(new SequencedRequest(sequence, request));
-        } finally {
-            lock.unlock();
+        if (closed) {
+            // 断连后残余流入的请求直接释放，不再派发
+            request.release();
+            return;
         }
+        long sequence = sequenceAllocator.incrementAndGet();
+        if (sequence - (writeCursor - 1) > maxInFlightResponses) {
+            // 在途请求数（请求游标与写出游标的差值）超过上限：
+            // 客户端异常积压，断开连接，本请求不再派发
+            request.release();
+            closeAndFail(ctx);
+            return;
+        }
+        // 入站封章：携带分配的序列号向下游派发
+        ctx.fireChannelRead(new SequencedRequest(sequence, request));
     }
 
     @Override
@@ -111,26 +107,39 @@ public class SequencerChannelHandler extends ChannelDuplexHandler {
             ctx.write(msg, promise);
             return;
         }
-        lock.lock();
-        try {
-            if (closed) {
-                ReferenceCountUtil.release(msg);
-                promise.tryFailure(new IllegalStateException("connection is closed"));
-                return;
+        EventExecutor executor = ctx.executor();
+        if (executor.inEventLoop()) {
+            writeSequenced(ctx, data, promise);
+        } else {
+            // 按Netty默认语义提交eventLoop执行：提交被拒时释放消息并以失败收场凭据
+            try {
+                executor.execute(() -> writeSequenced(ctx, data, promise));
+            } catch (RejectedExecutionException e) {
+                ReferenceCountUtil.release(data.message());
+                promise.tryFailure(e);
             }
-            Object message = data.message();
-            if (data.sequence() == writeCursor) {
-                // 轮到本序列写出：直写管道；终止块写出后游标进一并冲刷堆顶
-                ctx.write(message, promise);
-                if (message instanceof LastHttpContent) {
-                    writeCursor++;
-                    drain(ctx);
-                }
-            } else {
-                buffer(data, promise);
+        }
+    }
+
+    /**
+     * 序列化写出的定序裁决：仅由eventLoop线程执行，游标与缓冲无并发访问。
+     */
+    private void writeSequenced(ChannelHandlerContext ctx, SequencedDataChunk data, ChannelPromise promise) {
+        if (closed) {
+            ReferenceCountUtil.release(data.message());
+            promise.tryFailure(new IllegalStateException("connection is closed"));
+            return;
+        }
+        Object message = data.message();
+        if (data.sequence() == writeCursor) {
+            // 轮到本序列写出：直写管道；终止块写出后游标进一并冲刷堆顶
+            ctx.write(message, promise);
+            if (message instanceof LastHttpContent) {
+                writeCursor++;
+                drain(ctx);
             }
-        } finally {
-            lock.unlock();
+        } else {
+            buffer(data, promise);
         }
     }
 
@@ -153,7 +162,7 @@ public class SequencerChannelHandler extends ChannelDuplexHandler {
     /**
      * 冲刷堆顶恰为写出游标的缓冲链表：不含终止块的响应只冲刷已缓冲分块后移出堆，
      * 其后到达的分块因游标已对齐继续直写；含终止块的响应整体冲刷后游标再进一，
-     * 循环至堆顶序列断档为止。调用方须已持有锁。
+     * 循环至堆顶序列断档为止。仅由eventLoop线程调用。
      */
     private void drain(ChannelHandlerContext ctx) {
         while (!pendingHeap.isEmpty() && pendingHeap.peek().sequence == writeCursor) {
@@ -180,13 +189,8 @@ public class SequencerChannelHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        lock.lock();
-        try {
-            failAndReleaseBuffered();
-            closed = true;
-        } finally {
-            lock.unlock();
-        }
+        failAndReleaseBuffered();
+        closed = true;
         ctx.fireChannelInactive();
     }
 

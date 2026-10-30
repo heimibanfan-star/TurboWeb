@@ -3,6 +3,7 @@ package top.turboweb.http.server.handler;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.DefaultHttpContent;
@@ -18,6 +19,8 @@ import top.turboweb.http.connection.SequencedRequest;
 
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
+import io.netty.util.concurrent.EventExecutor;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -276,6 +279,49 @@ class SequencerChannelHandlerTest {
         SequencedRequest sequenced = assertInstanceOf(SequencedRequest.class, channel.readInbound());
         assertEquals(1, sequenced.sequence(), "升级协议请求不占用序列号");
         channel.finishAndReleaseAll();
+    }
+
+    // ---------- 线程语义 ----------
+
+    @Test
+    void writeFromNonEventLoopThreadIsSubmittedToEventLoop() throws Exception {
+        DefaultEventLoopGroup group = new DefaultEventLoopGroup(1);
+        try {
+            EventExecutor eventLoop = group.next();
+            List<Thread> writeThreads = new ArrayList<>();
+            ChannelHandlerContext ctx = (ChannelHandlerContext) Proxy.newProxyInstance(
+                    getClass().getClassLoader(),
+                    new Class<?>[]{ChannelHandlerContext.class},
+                    (proxy, method, args) -> {
+                        if ("executor".equals(method.getName())) {
+                            return eventLoop;
+                        }
+                        if ("write".equals(method.getName())) {
+                            writeThreads.add(Thread.currentThread());
+                            return null;
+                        }
+                        Class<?> rt = method.getReturnType();
+                        if (rt == boolean.class) {
+                            return false;
+                        }
+                        return null;
+                    });
+            EmbeddedChannel channel = new EmbeddedChannel();
+            try {
+                // 主线程（非eventLoop线程）调用写出：定序裁决须提交eventLoop执行
+                new SequencerChannelHandler(8).write(ctx, sequenced(1, response("head")), channel.newPromise());
+                // FIFO：本标记任务执行完时，先于它提交的写任务必已执行
+                eventLoop.submit(() -> {
+                }).sync();
+
+                assertEquals(1, writeThreads.size());
+                assertTrue(eventLoop.inEventLoop(writeThreads.get(0)), "非eventLoop线程的写出提交eventLoop执行");
+            } finally {
+                channel.finishAndReleaseAll();
+            }
+        } finally {
+            group.shutdownGracefully().sync();
+        }
     }
 
     // ---------- 非封装消息透传 ----------
