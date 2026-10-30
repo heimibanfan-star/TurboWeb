@@ -1,6 +1,7 @@
 package top.turboweb.http.core;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * {@link HttpMessage} 头部操作的全量实现：自带头存储，构造后即可读写，
@@ -15,13 +16,19 @@ import java.util.*;
  */
 public abstract class AbstractHttpMessage<LINE> implements HttpMessage<LINE> {
 
-    /** 自有的头存储：键为头名首现原文，值为该头名的取值序列 */
+    /**
+     * 自有的头存储：键为头名首现原文，值为该头名的取值序列
+     */
     private final Map<String, List<String>> headers = new LinkedHashMap<>();
 
-    /** 构造期持有的消息行 */
+    /**
+     * 构造期持有的消息行
+     */
     private final LINE line;
 
-    /** 构造期持有的消息体内容 */
+    /**
+     * 构造期持有的消息体内容
+     */
     private final Content content;
 
     /**
@@ -59,6 +66,23 @@ public abstract class AbstractHttpMessage<LINE> implements HttpMessage<LINE> {
     public String header(String name) {
         List<String> values = valuesOf(name);
         return values == null ? null : values.getFirst();
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Map<String, List<String>> headers() {
+        return headers.entrySet()
+                .stream()
+                .filter(entry -> !entry.getValue().isEmpty())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> Collections.unmodifiableList(entry.getValue()),
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
     }
 
     /**

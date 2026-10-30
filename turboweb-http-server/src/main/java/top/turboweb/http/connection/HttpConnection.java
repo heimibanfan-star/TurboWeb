@@ -1,6 +1,10 @@
 package top.turboweb.http.connection;
 
+import top.turboweb.http.core.StatusLine;
+
 import java.net.SocketAddress;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -13,6 +17,25 @@ import java.util.concurrent.CompletableFuture;
  * </p>
  */
 public interface HttpConnection {
+
+    /**
+     * 以状态行与消息头集合构成响应首部，写出一条响应消息头到连接上。
+     * <p>按调用顺序先于后续 {@link #write(byte[])} 写出的响应体到达客户端；
+     * 同一头名的取值序列逐条写出，不合并。</p>
+     *
+     * @param statusLine 状态行，承载状态码与原因短语
+     * @param headers    消息头键值集合：键为头名，值为该头名的取值序列
+     * @return 写出结果的异步凭据，首部写出成功时正常完成，写出失败时以异常结束
+     */
+    CompletableFuture<Void> writeHeaders(StatusLine statusLine, Map<String, List<String>> headers);
+
+    /**
+     * 写出一条响应消息体的结束标记（终止块），宣告本轮响应消息体已完整写出。
+     * <p>与响应首部、响应体共同构成一条完整响应消息，写出终止块后不主动关闭连接。</p>
+     *
+     * @return 写出结果的异步凭据，结束标记写出成功时正常完成，写出失败时以异常结束
+     */
+    CompletableFuture<Void> finishWrite();
 
     /**
      * 向客户端写出一块数据。

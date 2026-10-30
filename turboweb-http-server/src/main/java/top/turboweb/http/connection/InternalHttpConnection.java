@@ -3,11 +3,12 @@ package top.turboweb.http.connection;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
-import io.netty.handler.codec.http.DefaultHttpContent;
-import io.netty.handler.codec.http.LastHttpContent;
-import top.turboweb.http.connection.HttpConnection;
+import io.netty.handler.codec.http.*;
+import top.turboweb.http.core.StatusLine;
 
 import java.net.SocketAddress;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -33,6 +34,49 @@ public class InternalHttpConnection implements HttpConnection {
 
     public EventLoop getExecutor() {
         return channel.eventLoop();
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>以 Netty 响应消息（{@link DefaultHttpResponse}）承载状态行与消息头写出，
+     * 状态行经构造期校验，非法状态码或非法头名的同步异常在此转为异步失败凭据。</p>
+     */
+    @Override
+    public CompletableFuture<Void> writeHeaders(StatusLine statusLine, Map<String, List<String>> headers) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            HttpResponseStatus status = new HttpResponseStatus(statusLine.code(), statusLine.reason());
+            HttpResponse httpResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
+            HttpHeaders httpHeaders = httpResponse.headers();
+            headers.forEach(httpHeaders::set);
+            channel.writeAndFlush(httpResponse).addListener(f -> {
+                if (f.cause() != null) {
+                    future.completeExceptionally(f.cause());
+                } else {
+                    future.complete(null);
+                }
+            });
+        } catch (Throwable e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>以 Netty 终止块 {@link LastHttpContent#EMPTY_LAST_CONTENT} 作为结束标记写出。</p>
+     */
+    @Override
+    public CompletableFuture<Void> finishWrite() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(f -> {
+            if (f.cause() != null) {
+                future.completeExceptionally(f.cause());
+            } else {
+                future.complete(null);
+            }
+        });
+        return future;
     }
 
     @Override

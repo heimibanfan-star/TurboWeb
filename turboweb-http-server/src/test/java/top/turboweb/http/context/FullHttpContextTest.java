@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.http.core.Content;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
+import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.DefaultHttpCookies;
 import top.turboweb.http.session.DefaultHttpSession;
@@ -17,6 +18,7 @@ import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -267,6 +269,16 @@ class FullHttpContextTest {
     private static final class NoopHttpConnection implements HttpConnection {
         @Override
         public CompletableFuture<Void> write(byte[] bytes) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> writeHeaders(StatusLine statusLine, Map<String, List<String>> headers) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> finishWrite() {
             return CompletableFuture.completedFuture(null);
         }
 

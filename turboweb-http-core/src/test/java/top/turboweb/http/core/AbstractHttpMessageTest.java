@@ -3,6 +3,7 @@ package top.turboweb.http.core;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -221,6 +222,38 @@ class AbstractHttpMessageTest {
                 assertThrows(NullPointerException.class, () -> message.addHeader("X-One", null)).getMessage());
         assertEquals("name must not be null",
                 assertThrows(NullPointerException.class, () -> message.removeHeader(null)).getMessage());
+    }
+
+    // ---------- 全部头键值对视图 ----------
+
+    @Test
+    void headersReturnsAllStoredEntriesWithOriginalCase() {
+        TestMessage message = message();
+        message.addHeader("X-Multi", "a");
+        message.addHeader("x-multi", "b");
+        message.setHeader("Host", "localhost");
+
+        Map<String, List<String>> headers = message.headers();
+
+        assertEquals(2, headers.size(), "同名大小写变体合并为一条条目");
+        assertEquals(List.of("a", "b"), headers.get("X-Multi"), "合并后取值按出现顺序保持，键按首现原文");
+        assertEquals(List.of("localhost"), headers.get("Host"));
+    }
+
+    @Test
+    void headersEmptyWhenNoneStored() {
+        assertTrue(message().headers().isEmpty(), "无写入时记为无头键值集合");
+    }
+
+    @Test
+    void headersValueListsAreReadOnlyViews() {
+        TestMessage message = message();
+        message.setHeader("X-One", "v");
+
+        List<String> values = message.headers().get("X-One");
+
+        assertThrows(UnsupportedOperationException.class, () -> values.add("other"),
+                "取值列表为只读视图，写入须走消息的写通道");
     }
 
     // ---------- 与消息契约 default 方法的衔接 ----------

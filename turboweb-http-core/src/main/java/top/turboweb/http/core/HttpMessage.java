@@ -1,6 +1,7 @@
 package top.turboweb.http.core;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -44,6 +45,14 @@ public interface HttpMessage<LINE> {
      * @return 取值列表；头不存在时返回空列表
      */
     List<String> headerValues(String name);
+
+    /**
+     * 获取全部消息头的键值对：键为头名首现原文，值为该头名的取值序列。
+     * <p>取值序列为只读视图，写入须走消息的写通道；不含空取值列表的头条目。</p>
+     *
+     * @return 消息头键值对集合
+     */
+    Map<String, List<String>> headers();
 
     /**
      * 判断指定头名是否存在。

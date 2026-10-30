@@ -1,11 +1,13 @@
 package top.turboweb.http.testkit;
 
 import top.turboweb.http.connection.HttpConnection;
+import top.turboweb.http.core.StatusLine;
 
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -23,6 +25,16 @@ public class RecordingHttpConnection implements HttpConnection {
     @Override
     public CompletableFuture<Void> write(byte[] bytes) {
         sent.add(new String(bytes, StandardCharsets.UTF_8));
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> writeHeaders(StatusLine statusLine, Map<String, List<String>> headers) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> finishWrite() {
         return CompletableFuture.completedFuture(null);
     }
 
