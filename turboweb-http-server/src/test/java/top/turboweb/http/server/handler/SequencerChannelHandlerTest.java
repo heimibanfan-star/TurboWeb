@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.http.connection.SequencedDataChunk;
 import top.turboweb.http.connection.SequencedRequest;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import io.netty.util.concurrent.EventExecutor;
@@ -213,6 +214,25 @@ class SequencerChannelHandlerTest {
 
         assertEquals(0, request.refCnt(), "断连后到达的请求直接释放");
         assertTrue(fired.isEmpty(), "断连后到达的请求不向下游派发");
+    }
+
+    // ---------- 序列分配器溢出 ----------
+
+    @Test
+    void allocatorOverflowClosesChannelAndDropsRequest() throws Exception {
+        EmbeddedChannel channel = newChannel(8);
+        // 经反射把序列分配器拨到Long上界，下一次分配即回绕溢出
+        Field allocator = SequencerChannelHandler.class.getDeclaredField("sequenceAllocator");
+        allocator.setAccessible(true);
+        allocator.setLong(channel.pipeline().get(SequencerChannelHandler.class), Long.MAX_VALUE);
+
+        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/overflow");
+        channel.writeInbound(request);
+
+        channel.runPendingTasks();
+        assertFalse(channel.isOpen(), "序列号分配器溢出断开连接");
+        assertEquals(0, request.refCnt(), "溢出时到达的请求已释放不派发");
+        assertNull(channel.readInbound(), "溢出时到达的请求不向下游派发");
     }
 
     // ---------- 连接关闭释放 ----------

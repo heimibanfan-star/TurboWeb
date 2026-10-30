@@ -88,6 +88,12 @@ public class SequencerChannelHandler extends ChannelDuplexHandler {
             return;
         }
         long sequence = ++sequenceAllocator;
+        if (sequence < 0) {
+            // 序列号分配器越过Long上界回绕为负，序列比较与游标差值语义失效：断开连接回收
+            request.release();
+            closeAndFail(ctx);
+            return;
+        }
         if (sequence - (writeCursor - 1) > maxInFlightResponses) {
             // 在途请求数（请求游标与写出游标的差值）超过上限：
             // 客户端异常积压，断开连接，本请求不再派发
