@@ -30,7 +30,7 @@ import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
-import top.turboweb.http.server.handler.RequestSerializerChannelHandler;
+import top.turboweb.http.server.handler.SequencerChannelHandler;
 import top.turboweb.server.runtime.ServerRuntime;
 
 import java.util.*;
@@ -41,7 +41,7 @@ import java.util.stream.Stream;
  * http请求应用，服务器与业务装配逻辑之间的桥梁。
  * <p>
  * 对外只暴露 {@link #configure(ChannelPipeline)}：每条新连接建立时向pipeline尾部追加
- * 请求串行化处理器（可选，连接级新实例）与http请求调度处理器（无状态单例，跨连接复用）；
+ * 请求定序处理器（连接级新实例）与http请求调度处理器（无状态单例，跨连接复用）；
  * 对内通过 {@link Builder} 在构建期一次性完成请求编排器的装配：以应用自身的 json 序列化器生产
  * 路由处理器管理器、串联中间件链（业务中间件按注册顺序，在其后追加路由调用中间件为链尾）、
  * 按 {@link HttpConfig} 创建磁盘IO线程池与虚拟线程资源、未由调用方传入的组件补全默认实例，
@@ -58,7 +58,7 @@ import java.util.stream.Stream;
  * HttpServerRuntime runtime = new HttpServerRuntime.Builder()
  *         .routeRegister(routeRegister)
  *         .config(HttpConfig.builder()
- *                 .serializePerConnection(true)
+ *                 .maxInFlightResponses(16)
  *                 .sessionMaxNotUseTime(1800000)
  *                 .build())
  *         .build();
@@ -74,11 +74,10 @@ public class HttpServerRuntime implements ServerRuntime {
     private static final String VIRTUAL_THREAD_NAME = "turboweb-http-handler";
 
     /**
-     * 是否开启连接级请求串行化（来源为 {@link HttpConfig#isSerializePerConnection()}），
-     * 开启后每条连接的pipeline中先加入 {@link RequestSerializerChannelHandler}，
-     * 保证同一连接的请求按到达顺序被处理
+     * 单连接在途请求数上限（来源为 {@link HttpConfig#getMaxInFlightResponses()}）：
+     * 请求游标与写出游标的差值在派发时超过即断连
      */
-    private final boolean requestSerial;
+    private final int maxInFlightResponses;
 
     /**
      * http请求调度处理器，构建期装配好的无状态单例（{@code @Sharable}），
@@ -93,10 +92,10 @@ public class HttpServerRuntime implements ServerRuntime {
      */
     private final ResourceManager resourceManager;
 
-    public HttpServerRuntime(boolean requestSerial,
+    public HttpServerRuntime(int maxInFlightResponses,
                                   HttpRequestSchedulerChannelHandler httpRequestSchedulerHandler,
                                   ResourceManager resourceManager) {
-        this.requestSerial = requestSerial;
+        this.maxInFlightResponses = maxInFlightResponses;
         this.httpRequestSchedulerHandler = httpRequestSchedulerHandler;
         this.resourceManager = Objects.requireNonNull(resourceManager, "The resource manager must not be null");
     }
@@ -104,16 +103,14 @@ public class HttpServerRuntime implements ServerRuntime {
 
     /**
      * 每条新连接建立时被调用一次，向pipeline尾部追加应用级处理器。
-     * 串行化处理器有连接级状态必须每次新建，调度处理器为单例直接复用
+     * 定序处理器持有连接级状态必须每次新建，调度处理器为单例直接复用
      */
     @Override
     public void configure(ChannelPipeline pipeline) {
-        if (this.requestSerial) {
-            pipeline.addLast(new RequestSerializerChannelHandler());
-        }
+        pipeline.addLast(new SequencerChannelHandler(maxInFlightResponses));
         pipeline.addLast(httpRequestSchedulerHandler);
-        log.debug("Http runtime handlers assembled for connection [{}], request serialization: {}",
-                pipeline.channel().id().asShortText(), this.requestSerial);
+        log.debug("Http runtime handlers assembled for connection [{}], max in-flight responses: {}",
+                pipeline.channel().id().asShortText(), this.maxInFlightResponses);
     }
 
     /**
@@ -227,7 +224,7 @@ public class HttpServerRuntime implements ServerRuntime {
          */
         private final List<HttpContentParser> contentParsers = new ArrayList<>();
         /**
-         * 应用纯参数配置（串行化开关、session回收参数、虚拟线程限流参数等），
+         * 应用纯参数配置（在途请求数上限、session回收参数、虚拟线程限流参数等），
          * 默认为 {@link HttpConfig} 的默认值
          */
         private HttpConfig httpConfig = HttpConfig.builder().build();
@@ -346,7 +343,7 @@ public class HttpServerRuntime implements ServerRuntime {
         }
 
         /**
-         * 整体替换应用纯参数配置（串行化开关、session回收与虚拟线程限流参数等），不能为null
+         * 整体替换应用纯参数配置（在途请求数上限、session回收与虚拟线程限流参数等），不能为null
          */
         public Builder config(HttpConfig config) {
             Objects.requireNonNull(config, "The HttpConfig must not be null");
@@ -422,9 +419,9 @@ public class HttpServerRuntime implements ServerRuntime {
             HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
                     .orchestrator(orchestrator)
                     .build();
-            log.info("Http request runtime assembled, per-connection request serialization: {}", httpConfig.isSerializePerConnection());
+            log.info("Http request runtime assembled, max in-flight responses: {}", httpConfig.getMaxInFlightResponses());
             return new HttpServerRuntime(
-                    httpConfig.isSerializePerConnection(),
+                    httpConfig.getMaxInFlightResponses(),
                     schedulerHandler,
                     resourceManager
             );

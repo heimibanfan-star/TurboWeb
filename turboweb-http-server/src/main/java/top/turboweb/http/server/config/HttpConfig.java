@@ -15,7 +15,7 @@ import java.util.Objects;
  *
  * <pre>{@code
  * HttpConfig config = HttpConfig.builder()
- *         .serializePerConnection(true)
+ *         .maxInFlightResponses(16)
  *         .showRequestLog(true)
  *         .sessionMaxNotUseTime(1800000)
  *         .build();
@@ -24,9 +24,10 @@ import java.util.Objects;
 public final class HttpConfig {
 
     /**
-     * 是否每个连接都进串行化处理，默认关闭
+     * 单连接在途请求数上限：请求游标与写出游标的差值在派发时超过即断连，
+     * 防止管线化积压或永不终结的响应（如SSE）使定序缓冲无界增长
      */
-    private final boolean serializePerConnection;
+    private final int maxInFlightResponses;
 
     /**
      * 是否显示请求日志
@@ -90,7 +91,7 @@ public final class HttpConfig {
     private final Charset defaultCharset;
 
     private HttpConfig(Builder builder) {
-        this.serializePerConnection = builder.serializePerConnection;
+        this.maxInFlightResponses = builder.maxInFlightResponses;
         this.showRequestLog = builder.showRequestLog;
         this.sessionCheckTime = builder.sessionCheckTime;
         this.sessionMaxNotUseTime = builder.sessionMaxNotUseTime;
@@ -112,8 +113,8 @@ public final class HttpConfig {
         return new Builder();
     }
 
-    public boolean isSerializePerConnection() {
-        return serializePerConnection;
+    public int getMaxInFlightResponses() {
+        return maxInFlightResponses;
     }
 
     public boolean isShowRequestLog() {
@@ -170,7 +171,7 @@ public final class HttpConfig {
      */
     public static final class Builder {
 
-        private boolean serializePerConnection = false;
+        private int maxInFlightResponses = 8;
 
         private boolean showRequestLog = true;
 
@@ -200,12 +201,15 @@ public final class HttpConfig {
         }
 
         /**
-         * 是否每个连接都进行串行化处理，默认关闭，需显式开启
+         * 设置单连接在途请求数上限，必须大于0
          *
-         * @param serializePerConnection true串行化
+         * @param maxInFlightResponses 在途请求数上限
          */
-        public Builder serializePerConnection(boolean serializePerConnection) {
-            this.serializePerConnection = serializePerConnection;
+        public Builder maxInFlightResponses(int maxInFlightResponses) {
+            if (maxInFlightResponses < 1) {
+                throw new IllegalArgumentException("maxInFlightResponses must be > 0");
+            }
+            this.maxInFlightResponses = maxInFlightResponses;
             return this;
         }
 

@@ -4,8 +4,8 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.connection.SequencedRequest;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 
 import java.util.Objects;
@@ -13,15 +13,10 @@ import java.util.Objects;
 /**
  * http请求调度处理器（纯http版本，不可变）。
  * <p>
- * 参考 top.turboweb.core.dispatch.HttpProtocolDispatcher 实现，区别在于本处理器内部
- * 不聚合任何websocket相关的处理器，只专注于把http请求送进请求编排器：
- * <ul>
- *     <li>普通http请求：封装连接会话对象后交给 {@link RequestOrchestrator} 编排执行；</li>
- *     <li>http升级协议请求（携带Upgrade头，如websocket握手）：不在本处理器处理，
- *     retain后继续向后转发，由pipeline中后续的处理器完成协议升级。</li>
- * </ul>
- * 创建方式参考 top.turboweb.core.initializer.factory.HttpProtocolDispatcherInitFactory，
- * 改为建造者模式，默认没有websocket。
+ * 只接收上游定序处理器封章的 {@link SequencedRequest}：以封装携带的序列号建立
+ * 一请求一连接（连接写出的每条消息以该序列号封章，供响应定序），原始请求交给
+ * {@link RequestOrchestrator} 编排执行，返回后归还收到的请求引用。
+ * 未封章的裸请求（如升级协议握手）不经本处理器，自动透传由后续处理器决定。
  * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
  * {@link top.turboweb.http.server.runtime.HttpServerRuntime} 装配并跨channel复用。
  *
@@ -32,7 +27,7 @@ import java.util.Objects;
  * }</pre>
  */
 @ChannelHandler.Sharable
-public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHandler<SequencedRequest> {
 
     /**
      * 请求编排器
@@ -51,18 +46,16 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext channelHandlerContext, FullHttpRequest fullHttpRequest) throws Exception {
-        // http升级协议请求（携带Upgrade头），本分发器不处理，继续向后转发
-        if (fullHttpRequest.headers().contains(HttpHeaderNames.UPGRADE)) {
-            // 增加引用，防止被当前处理器给释放内存
-            fullHttpRequest.retain();
-            channelHandlerContext.fireChannelRead(fullHttpRequest);
-            return;
+    protected void channelRead0(ChannelHandlerContext ctx, SequencedRequest sequencedRequest) throws Exception {
+        FullHttpRequest fullHttpRequest = sequencedRequest.request();
+        // 以封装携带的序列号建立一请求一连接
+        InternalHttpConnection connectSession = new InternalHttpConnection(ctx.channel(), sequencedRequest.sequence());
+        try {
+            // 请求引用由编排器在提交前自行持有，本处理器返回后归还收到的引用
+            requestOrchestrator.orchestrate(fullHttpRequest, connectSession);
+        } finally {
+            fullHttpRequest.release();
         }
-        // 封装连接的会话对象
-        InternalHttpConnection connectSession = new InternalHttpConnection(channelHandlerContext.channel());
-        // 请求引用由编排器在提交前自行持有，本处理器返回后由基类归还本处理器的引用
-        requestOrchestrator.orchestrate(fullHttpRequest, connectSession);
     }
 
     /**

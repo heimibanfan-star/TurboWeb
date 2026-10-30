@@ -69,4 +69,55 @@ class InternalHttpConnectionTest {
         assertInstanceOf(LastHttpContent.class, channel.readOutbound(), "结束标记以终止块写出");
         channel.finishAndReleaseAll();
     }
+
+    // ---------- 序列封章 ----------
+
+    @Test
+    void sequencedConnectionSealsEveryContractWrite() throws Exception {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        InternalHttpConnection connection = new InternalHttpConnection(channel, 7);
+
+        connection.writeHeaders(StatusLine.OK, new LinkedHashMap<>()).get(5, TimeUnit.SECONDS);
+        connection.write("body".getBytes()).get(5, TimeUnit.SECONDS);
+        connection.finishWrite().get(5, TimeUnit.SECONDS);
+
+        SequencedDataChunk head = assertInstanceOf(SequencedDataChunk.class, channel.readOutbound(),
+                "首部写出以序列号封章");
+        assertEquals(7, head.sequence());
+        assertInstanceOf(HttpResponse.class, head.message());
+        SequencedDataChunk body = assertInstanceOf(SequencedDataChunk.class, channel.readOutbound());
+        assertEquals(7, body.sequence());
+        ((io.netty.util.ReferenceCounted) body.message()).release();
+        SequencedDataChunk last = assertInstanceOf(SequencedDataChunk.class, channel.readOutbound());
+        assertEquals(7, last.sequence());
+        assertInstanceOf(LastHttpContent.class, last.message());
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void sequencedConnectionSealsTerminalWriteOfClose() throws Exception {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        InternalHttpConnection connection = new InternalHttpConnection(channel, 3);
+
+        connection.close();
+        channel.runPendingTasks();
+        channel.closeFuture().awaitUninterruptibly(5, TimeUnit.SECONDS);
+
+        SequencedDataChunk last = assertInstanceOf(SequencedDataChunk.class, channel.readOutbound(),
+                "close 的结束标记同样封章");
+        assertEquals(3, last.sequence());
+        assertInstanceOf(LastHttpContent.class, last.message());
+    }
+
+    @Test
+    void unsequencedConnectionWritesPassRaw() throws Exception {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        InternalHttpConnection connection = new InternalHttpConnection(channel);
+
+        connection.write("body".getBytes()).get(5, TimeUnit.SECONDS);
+
+        // 未携带序列号的连接不参与响应定序，写出保持裸消息
+        assertInstanceOf(DefaultHttpContent.class, channel.readOutbound());
+        channel.finishAndReleaseAll();
+    }
 }

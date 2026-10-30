@@ -24,7 +24,7 @@ class HttpConfigTest {
         int cpu = Runtime.getRuntime().availableProcessors();
         HttpConfig config = HttpConfig.builder().build();
 
-        assertFalse(config.isSerializePerConnection(), "默认关闭每连接串行化");
+        assertEquals(8, config.getMaxInFlightResponses(), "单连接在途请求数上限默认8");
         assertTrue(config.isShowRequestLog(), "默认显示请求日志");
         assertEquals(300000L, config.getSessionCheckTime());
         assertEquals(-1L, config.getSessionMaxNotUseTime());
@@ -51,6 +51,15 @@ class HttpConfigTest {
         NullPointerException ex = assertThrows(NullPointerException.class,
                 () -> HttpConfig.builder().defaultCharset(null));
         assertEquals("defaultCharset can not be null", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("maxInFlightResponses 必须大于0")
+    void maxInFlightResponsesFloor() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> HttpConfig.builder().maxInFlightResponses(0));
+        assertEquals("maxInFlightResponses must be > 0", ex.getMessage());
+        assertDoesNotThrow(() -> HttpConfig.builder().maxInFlightResponses(1));
     }
 
     @Test
@@ -132,7 +141,7 @@ class HttpConfigTest {
     @DisplayName("合法参数被原样承载（每个 setter 都不得吞掉入参）")
     void validValuesAreCarried() {
         HttpConfig config = HttpConfig.builder()
-                .serializePerConnection(true)
+                .maxInFlightResponses(12)
                 .showRequestLog(false)
                 .sessionCheckTime(1234L)
                 .sessionMaxNotUseTime(5678L)
@@ -146,7 +155,7 @@ class HttpConfigTest {
                 .diskOpeThreadMaxThreadNum(66)
                 .build();
 
-        assertTrue(config.isSerializePerConnection());
+        assertEquals(12, config.getMaxInFlightResponses());
         assertFalse(config.isShowRequestLog(), "传入 false 必须覆盖默认 true");
         assertTrue(config.isEnableHttpSchedulerLimit());
         assertEquals(1234L, config.getSessionCheckTime());

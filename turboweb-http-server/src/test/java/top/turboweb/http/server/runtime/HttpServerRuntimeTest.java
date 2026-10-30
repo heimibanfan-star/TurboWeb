@@ -1,7 +1,11 @@
 package top.turboweb.http.server.runtime;
 
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.serializer.JacksonJsonSerializer;
@@ -65,7 +69,7 @@ class HttpServerRuntimeTest {
     @Test
     void npeWhenResourceManagerIsNull() {
         NullPointerException ex = assertThrows(NullPointerException.class,
-                () -> new HttpServerRuntime(false, null, null));
+                () -> new HttpServerRuntime(8, null, null));
         assertEquals("The resource manager must not be null", ex.getMessage());
     }
 
@@ -223,6 +227,29 @@ class HttpServerRuntimeTest {
         runtime.close();
     }
 
+    // ---------- 装配管道（configure） ----------
+
+    @Test
+    void configureAppliesInFlightLimitFromConfig() {
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
+                .sessionManager(new NoopSessionManager())
+                .config(HttpConfig.builder().maxInFlightResponses(2).build())
+                .build();
+        try {
+            EmbeddedChannel channel = new EmbeddedChannel();
+            runtime.configure(channel.pipeline());
+            channel.writeInbound(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/1"));
+            channel.writeInbound(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/2"));
+            channel.writeInbound(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/3"));
+
+            channel.runPendingTasks();
+            assertFalse(channel.isOpen(), "在途请求数超过配置的上限即断开连接");
+            channel.finishAndReleaseAll();
+        } finally {
+            runtime.close();
+        }
+    }
+
     // ---------- 全量 setter 直通编排器 ----------
 
     @Test
@@ -243,7 +270,7 @@ class HttpServerRuntimeTest {
                 .resultConverters(customConverter)
                 .responseWriters(customWriter)
                 .corsConfig(corsConfig)
-                .config(HttpConfig.builder().serializePerConnection(true).build())
+                .config(HttpConfig.builder().maxInFlightResponses(16).build())
                 .middleware(mw)
                 .build();
 
