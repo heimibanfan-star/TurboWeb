@@ -2,8 +2,8 @@ package top.turboweb.http.response;
 
 import io.netty.handler.codec.http.*;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.http.orchestrator.ResponseWriter;
-import top.turboweb.http.orchestrator.FileStreamResponseWriter;
+import top.turboweb.http.orchestrator.writer.ResponseWriter;
+import top.turboweb.http.orchestrator.writer.FileStreamResponseWriter;
 
 import java.io.File;
 import java.io.IOException;

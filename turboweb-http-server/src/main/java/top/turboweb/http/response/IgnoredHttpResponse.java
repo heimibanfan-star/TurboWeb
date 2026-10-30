@@ -3,8 +3,8 @@ package top.turboweb.http.response;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import top.turboweb.http.orchestrator.IgnoredResponseWriter;
-import top.turboweb.http.orchestrator.ResponseWriter;
+import top.turboweb.http.orchestrator.writer.IgnoredResponseWriter;
+import top.turboweb.http.orchestrator.writer.ResponseWriter;
 
 /**
  * 表示被忽略的 HTTP 响应。

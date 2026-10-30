@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.http.orchestrator.FileStreamResponseWriter;
+import top.turboweb.http.orchestrator.writer.FileStreamResponseWriter;
 
 import java.io.File;
 import java.lang.reflect.Field;

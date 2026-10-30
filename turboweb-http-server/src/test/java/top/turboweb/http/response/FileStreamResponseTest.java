@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.http.orchestrator.FileStreamResponseWriter;
+import top.turboweb.http.orchestrator.writer.FileStreamResponseWriter;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

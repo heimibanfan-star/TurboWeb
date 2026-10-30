@@ -1,6 +1,6 @@
 package top.turboweb.http.response;
 
-import top.turboweb.http.orchestrator.ResponseWriter;
+import top.turboweb.http.orchestrator.writer.ResponseWriter;
 
 /**
  * 响应写出声明接口。

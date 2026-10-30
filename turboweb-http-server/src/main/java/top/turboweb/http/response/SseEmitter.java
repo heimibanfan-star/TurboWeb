@@ -3,8 +3,8 @@ package top.turboweb.http.response;
 import io.netty.handler.codec.http.*;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.exception.SseBufferException;
-import top.turboweb.http.orchestrator.ResponseWriter;
-import top.turboweb.http.orchestrator.SseResponseWriter;
+import top.turboweb.http.orchestrator.writer.ResponseWriter;
+import top.turboweb.http.orchestrator.writer.SseResponseWriter;
 
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.http.orchestrator.ZeroCopyResponseWriter;
+import top.turboweb.http.orchestrator.writer.ZeroCopyResponseWriter;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;

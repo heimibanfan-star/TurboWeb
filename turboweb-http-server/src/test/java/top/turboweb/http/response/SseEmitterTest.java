@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpUtil;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.exception.SseBufferException;
 import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.http.orchestrator.SseResponseWriter;
+import top.turboweb.http.orchestrator.writer.SseResponseWriter;
 import top.turboweb.http.testkit.RecordingHttpConnection;
 
 import java.util.List;

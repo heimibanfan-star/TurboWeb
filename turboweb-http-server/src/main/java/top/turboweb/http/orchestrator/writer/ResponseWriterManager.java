@@ -1,4 +1,4 @@
-package top.turboweb.http.orchestrator;
+package top.turboweb.http.orchestrator.writer;
 
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.http.connection.HttpConnection;

@@ -1,4 +1,4 @@
-package top.turboweb.http.orchestrator;
+package top.turboweb.http.orchestrator.parser;
 
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;

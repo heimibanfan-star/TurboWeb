@@ -4,8 +4,8 @@ import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import top.turboweb.http.orchestrator.ResponseWriter;
-import top.turboweb.http.orchestrator.ZeroCopyResponseWriter;
+import top.turboweb.http.orchestrator.writer.ResponseWriter;
+import top.turboweb.http.orchestrator.writer.ZeroCopyResponseWriter;
 
 import java.io.File;
 import java.io.IOException;
