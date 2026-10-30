@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 定序处理器：同一连接上并发处理的请求，其响应必须按请求到达顺序写出——
@@ -40,14 +39,14 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>
  * 处理器持有连接级状态（游标、堆与缓冲），不能跨channel复用，
  * 由 {@link top.turboweb.http.server.runtime.HttpServerRuntime} 在装配每条管道时新建独立实例。
- * 本处理器不持锁：入站事件由 Netty 保证在eventLoop线程触发，状态直接读写；
- * 写出可来自任意线程（虚拟线程直接写出），落在eventLoop线程时直接执行定序裁决，
- * 否则按 Netty 默认语义提交eventLoop执行，游标与缓冲仅由eventLoop线程访问。
+ * 本处理器不持锁：读入与连接失活由 Netty 管线分发保证在本channel的eventLoop线程调用，
+ * 状态直接读写；写出可来自任意线程（虚拟线程直接写出），落在eventLoop线程时直接执行定序裁决，
+ * 否则按 Netty 默认语义提交eventLoop执行。游标、缓冲与关闭标记仅由eventLoop线程访问。
  */
 public class SequencerChannelHandler extends ChannelDuplexHandler {
 
-    /** 请求游标：调度期为每个请求分配的自增序列号 */
-    private final AtomicLong sequenceAllocator = new AtomicLong(0);
+    /** 请求游标：调度期为每个请求分配的自增序列号，仅eventLoop线程访问 */
+    private long sequenceAllocator;
 
     /** 在途响应数上限：请求游标与写出游标的差值超过即断连 */
     private final int maxInFlightResponses;
@@ -88,7 +87,7 @@ public class SequencerChannelHandler extends ChannelDuplexHandler {
             request.release();
             return;
         }
-        long sequence = sequenceAllocator.incrementAndGet();
+        long sequence = ++sequenceAllocator;
         if (sequence - (writeCursor - 1) > maxInFlightResponses) {
             // 在途请求数（请求游标与写出游标的差值）超过上限：
             // 客户端异常积压，断开连接，本请求不再派发
