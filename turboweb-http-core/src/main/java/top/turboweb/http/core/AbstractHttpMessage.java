@@ -8,20 +8,48 @@ import java.util.*;
  *
  * <p>头名查询与写入修改均大小写不敏感；头名按首现原文记录，大小写变体的写入
  * 并入既有条目，覆盖式写入则改按写入原文记录；同名取值按出现顺序保持。
+ * 消息行与消息体内容亦由本类存储，构造期经子类构造器传入。
  * 本类按消息单线程使用，不加同步。</p>
  *
- * @param <LINE>    消息行信息的类型
- * @param <CONTENT> 消息体内容的类型
+ * @param <LINE> 消息行信息的类型
  */
-public abstract class AbstractHttpMessage<LINE, CONTENT> implements HttpMessage<LINE, CONTENT> {
+public abstract class AbstractHttpMessage<LINE> implements HttpMessage<LINE> {
 
     /** 自有的头存储：键为头名首现原文，值为该头名的取值序列 */
     private final Map<String, List<String>> headers = new LinkedHashMap<>();
 
+    /** 构造期持有的消息行 */
+    private final LINE line;
+
+    /** 构造期持有的消息体内容 */
+    private final Content content;
+
     /**
-     * 供子类建立消息，头存储初始为空。
+     * 供子类建立消息，持有消息行与消息体内容，头存储初始为空。
+     *
+     * @param line    消息行信息，不能为空
+     * @param content 消息体内容，不能为空
+     * @throws NullPointerException 当 {@code line} 或 {@code content} 为 {@code null} 时抛出
      */
-    protected AbstractHttpMessage() {
+    protected AbstractHttpMessage(LINE line, Content content) {
+        this.line = Objects.requireNonNull(line, "line must not be null");
+        this.content = Objects.requireNonNull(content, "content must not be null");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public LINE line() {
+        return line;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Content content() {
+        return content;
     }
 
     /**

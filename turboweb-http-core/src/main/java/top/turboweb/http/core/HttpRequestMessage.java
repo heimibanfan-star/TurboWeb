@@ -1,20 +1,12 @@
 package top.turboweb.http.core;
 
-import java.util.Objects;
-
 /**
  * http 请求消息：构造期持有请求行与请求体内容，各访问器重复访问返回同一值。
  *
- * <p>请求方式与请求目标（地址原文、路径与查询参数）由请求行承接；头部读写由
- * {@link AbstractHttpMessage} 承载，自带头存储在构造后即可写入与修改。</p>
+ * <p>请求方式与请求目标（地址原文、路径与查询参数）由请求行承接；消息行、请求体内容
+ * 与头部读写由 {@link AbstractHttpMessage} 承载。</p>
  */
-public class HttpRequestMessage extends AbstractHttpMessage<RequestLine, Content> {
-
-    /** 构造期持有的请求行 */
-    private final RequestLine requestLine;
-
-    /** 请求体内容 */
-    private final Content content;
+public class HttpRequestMessage extends AbstractHttpMessage<RequestLine> {
 
     /**
      * 建立请求消息。
@@ -24,8 +16,7 @@ public class HttpRequestMessage extends AbstractHttpMessage<RequestLine, Content
      * @throws NullPointerException 当 {@code requestLine} 或 {@code content} 为 {@code null} 时抛出
      */
     public HttpRequestMessage(RequestLine requestLine, Content content) {
-        this.requestLine = Objects.requireNonNull(requestLine, "requestLine must not be null");
-        this.content = Objects.requireNonNull(content, "content must not be null");
+        super(requestLine, content);
     }
 
     /**
@@ -34,7 +25,7 @@ public class HttpRequestMessage extends AbstractHttpMessage<RequestLine, Content
      * @return 请求方式
      */
     public HttpRequestMethod method() {
-        return requestLine.method();
+        return requestLine().method();
     }
 
     /**
@@ -43,15 +34,6 @@ public class HttpRequestMessage extends AbstractHttpMessage<RequestLine, Content
      * @return 请求行
      */
     public RequestLine requestLine() {
-        return requestLine;
-    }
-
-    /**
-     * 获取请求体内容。
-     *
-     * @return 请求体内容
-     */
-    public Content content() {
-        return content;
+        return line();
     }
 }

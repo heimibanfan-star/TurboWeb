@@ -51,7 +51,7 @@ class HttpRequestMessageTest {
         HttpRequestMessage message = message();
         message.setHeader("Content-Length", " 42 ");
 
-        HttpMessage<RequestLine, Content> view = message;
+        HttpMessage<RequestLine> view = message;
 
         assertEquals(" 42 ", view.header("Content-Length"), "头读取经 HttpMessage 视图可达");
         assertEquals(42L, view.contentLength(), "Content-Length 兜底口径经 HttpMessage 视图继承");
@@ -62,7 +62,7 @@ class HttpRequestMessageTest {
         NullPointerException e = assertThrows(NullPointerException.class,
                 () -> new HttpRequestMessage(null, NO_CONTENT));
 
-        assertEquals("requestLine must not be null", e.getMessage());
+        assertEquals("line must not be null", e.getMessage());
     }
 
     @Test

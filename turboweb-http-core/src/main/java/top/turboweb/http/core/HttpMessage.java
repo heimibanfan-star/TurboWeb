@@ -4,16 +4,30 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * http消息的读写契约：平铺承载消息头的读取与写入修改访问，行信息与消息体内容的类型由
- * 子契约以泛型实参填充（如 http 请求消息以 {@link RequestLine} 与 {@link Content} 填充）。
+ * http消息的读写契约：平铺承载消息行与消息体内容的读取，以及消息头的读取与写入修改访问；
+ * 消息行的类型由子契约以泛型实参填充（如 http 请求消息以 {@link RequestLine} 填充，
+ * http 响应消息以 {@link StatusLine} 填充），消息体内容统一为 {@link Content}。
  *
  * <p>消息头不设独立视图对象，读写访问直接平铺在消息上，头名查询大小写不敏感；
  * 头未发送时返回 {@code null}，仅 {@link #contentLength()} 未发送或取值无效时记 0。</p>
  *
- * @param <LINE>    消息行信息的类型
- * @param <CONTENT> 消息体内容的类型
+ * @param <LINE> 消息行信息的类型
  */
-public interface HttpMessage<LINE, CONTENT> {
+public interface HttpMessage<LINE> {
+
+    /**
+     * 获取消息行信息：请求消息为请求行，响应消息为状态行。
+     *
+     * @return 消息行信息
+     */
+    LINE line();
+
+    /**
+     * 获取消息体内容。
+     *
+     * @return 消息体内容
+     */
+    Content content();
 
     /**
      * 获取指定头名的首个取值。

@@ -8,6 +8,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,11 +19,39 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AbstractHttpMessageTest {
 
     /** 头部操作全量由抽象类实现，测试用空实现子类承载 */
-    private static final class TestMessage extends AbstractHttpMessage<String, String> {
+    private static final class TestMessage extends AbstractHttpMessage<String> {
+
+        private TestMessage(String line, Content content) {
+            super(line, content);
+        }
     }
 
+    /** 头部用例不经行与内容通道，统一带入的标记内容 */
+    private static final Content NO_CONTENT = new Content() {
+    };
+
     private static TestMessage message() {
-        return new TestMessage();
+        return new TestMessage("LINE", NO_CONTENT);
+    }
+
+    // ---------- 行与内容的持有 ----------
+
+    @Test
+    void carriesConstructorInjectedLineAndContent() {
+        Content content = new Content() {
+        };
+        TestMessage message = new TestMessage("L", content);
+
+        assertSame("L", message.line(), "消息行按入参原样持有");
+        assertSame(content, message.content(), "内容按入参原样持有");
+    }
+
+    @Test
+    void nullLineOrContentRejectedOnConstruction() {
+        assertEquals("line must not be null",
+                assertThrows(NullPointerException.class, () -> new TestMessage(null, NO_CONTENT)).getMessage());
+        assertEquals("content must not be null",
+                assertThrows(NullPointerException.class, () -> new TestMessage("L", null)).getMessage());
     }
 
     // ---------- 读取 ----------
