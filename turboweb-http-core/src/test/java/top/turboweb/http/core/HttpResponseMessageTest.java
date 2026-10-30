@@ -18,7 +18,7 @@ class HttpResponseMessageTest {
 
     @Test
     void carriesConstructorInjectedState() {
-        StatusLine statusLine = new StatusLine(404);
+        StatusLine statusLine = StatusLine.of(404);
         HttpResponseMessage message = new HttpResponseMessage(statusLine, NO_CONTENT);
 
         assertEquals(404, message.statusLine().code(), "响应状态由状态行承接");
@@ -28,7 +28,7 @@ class HttpResponseMessageTest {
 
     @Test
     void headerChannelInheritedFromAbstractHttpMessage() {
-        HttpResponseMessage message = new HttpResponseMessage(new StatusLine(200), NO_CONTENT);
+        HttpResponseMessage message = new HttpResponseMessage(StatusLine.of(200), NO_CONTENT);
         message.setHeader("Content-Type", "application/json");
 
         assertEquals("application/json", message.header("content-type"),
@@ -37,7 +37,7 @@ class HttpResponseMessageTest {
 
     @Test
     void headerChannelIsReachableThroughHttpMessageView() {
-        HttpResponseMessage message = new HttpResponseMessage(new StatusLine(200), NO_CONTENT);
+        HttpResponseMessage message = new HttpResponseMessage(StatusLine.of(200), NO_CONTENT);
         message.setHeader("Content-Length", " 42 ");
 
         HttpMessage<StatusLine> view = message;
@@ -57,7 +57,7 @@ class HttpResponseMessageTest {
     @Test
     void nullContentIsRejected() {
         NullPointerException e = assertThrows(NullPointerException.class,
-                () -> new HttpResponseMessage(new StatusLine(200), null));
+                () -> new HttpResponseMessage(StatusLine.of(200), null));
 
         assertEquals("content must not be null", e.getMessage());
     }
