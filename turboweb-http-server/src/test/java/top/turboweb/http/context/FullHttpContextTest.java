@@ -6,10 +6,10 @@ import top.turboweb.http.core.Content;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.http.core.cookie.DefaultHttpCookies;
-import top.turboweb.http.core.session.DefaultHttpSession;
+import top.turboweb.http.cookie.DefaultHttpCookies;
+import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
-import top.turboweb.http.core.session.MemorySessionManager;
+import top.turboweb.http.session.MemorySessionManager;
 import top.turboweb.http.testkit.Contexts;
 import top.turboweb.http.testkit.Requests;
 

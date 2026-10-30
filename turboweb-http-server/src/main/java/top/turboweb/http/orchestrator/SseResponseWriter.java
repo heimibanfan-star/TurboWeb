@@ -2,9 +2,9 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.http.core.response.InternalSseEmitter;
-import top.turboweb.http.core.response.SseEmitter;
+import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.response.InternalSseEmitter;
+import top.turboweb.http.response.SseEmitter;
 
 /**
  * SSE（Server-Sent Events）响应写出器。

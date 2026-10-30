@@ -108,7 +108,7 @@ one after
 鉴权是最常见的短路场景。校验不通过时直接返回自己的响应，不调用 `next`：
 
 ```java
-import top.turboweb.http.core.response.HttpResult;
+import top.turboweb.http.response.HttpResult;
 
 public class AuthMiddleware extends Middleware {
 

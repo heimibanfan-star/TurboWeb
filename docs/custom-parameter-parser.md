@@ -244,7 +244,7 @@ public final class CsvContent implements HttpContent {
 package demo;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.http.core.helper.HttpRequestHelper;
+import top.turboweb.http.orchestrator.HttpRequestHelper;
 import top.turboweb.http.orchestrator.HttpContentParser;
 import top.turboweb.rest.core.ContentType;
 import top.turboweb.rest.core.HttpContent;

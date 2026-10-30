@@ -2,8 +2,8 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.HttpResponse;
 import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.http.core.response.ResponseCall;
+import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.response.ResponseCall;
 import top.turboweb.server.runtime.ResourceProvider;
 
 import java.util.LinkedHashMap;

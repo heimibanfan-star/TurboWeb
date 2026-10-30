@@ -5,7 +5,6 @@ import top.turboweb.http.core.Content;
 import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.core.ContentType;
-import top.turboweb.http.core.helper.HttpRequestHelper;
 
 import java.nio.charset.Charset;
 import java.util.HashMap;

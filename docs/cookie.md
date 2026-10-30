@@ -7,7 +7,7 @@ TurboWeb 把当前请求的 Cookie 收在 `HttpCookies` 里，通过 `ctx.cookie
 ## 变更说明
 
 - Cookie 的读取与写入统一由 `ctx.cookies()` 提供，旧的响应对象写 Cookie 方式已不可用。
-- Cookie 契约改为 `HttpCookie`，默认实现 `DefaultHttpCookie` 位于 `top.turboweb.http.core.cookie`，`Set-Cookie` 头由 Cookie 自身序列化，序列化不再依赖 Netty 响应对象。
+- Cookie 契约改为 `HttpCookie`，默认实现 `DefaultHttpCookie` 位于 `top.turboweb.http.cookie`，`Set-Cookie` 头由 Cookie 自身序列化，序列化不再依赖 Netty 响应对象。
 - 写回时机固定在中间件链返回、结果转化完成之后，由编排器统一写出，控制器里调用 `setCookie` 即可。
 
 ## 1. 读取 Cookie

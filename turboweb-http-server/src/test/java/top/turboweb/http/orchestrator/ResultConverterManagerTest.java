@@ -10,9 +10,9 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import top.turboweb.http.core.response.HttpFileResult;
-import top.turboweb.http.core.response.HttpResult;
-import top.turboweb.http.core.response.ReactorResponse;
+import top.turboweb.http.response.HttpFileResult;
+import top.turboweb.http.response.HttpResult;
+import top.turboweb.http.response.ReactorResponse;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.serializer.exception.SerializerException;
@@ -160,8 +160,8 @@ class ResultConverterManagerTest {
     void pendingFilenameOfAbstractFileResponseIsEncodedWithGivenCharset() throws Exception {
         java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("rcm");
         java.nio.file.Path file = java.nio.file.Files.write(dir.resolve("报告.txt"), new byte[]{'x'});
-        top.turboweb.http.core.response.ZeroCopyResponse response =
-                new top.turboweb.http.core.response.ZeroCopyResponse(file.toFile());
+        top.turboweb.http.response.ZeroCopyResponse response =
+                new top.turboweb.http.response.ZeroCopyResponse(file.toFile());
         assertNull(response.headers().get(HttpHeaderNames.CONTENT_DISPOSITION),
                 "构造期不写 Content-Disposition");
 

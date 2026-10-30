@@ -3,7 +3,7 @@ package top.turboweb.http.orchestrator;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.http.core.response.HttpResult;
+import top.turboweb.http.response.HttpResult;
 import top.turboweb.http.exception.ExceptionHandlerException;
 import top.turboweb.http.exception.RouteHandlerException;
 

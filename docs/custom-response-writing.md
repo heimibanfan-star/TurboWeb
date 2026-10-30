@@ -235,7 +235,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import top.turboweb.http.core.response.ResponseCall;
+import top.turboweb.http.response.ResponseCall;
 import top.turboweb.http.orchestrator.ResponseWriter;
 
 import java.nio.charset.Charset;
@@ -282,7 +282,7 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.orchestrator.AbstractResponseWriter;
 
 import java.util.List;

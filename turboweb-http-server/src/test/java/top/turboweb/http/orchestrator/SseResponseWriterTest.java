@@ -5,8 +5,8 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.http.core.response.InternalSseEmitter;
+import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.response.InternalSseEmitter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

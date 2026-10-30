@@ -11,8 +11,8 @@ import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.http.core.response.ZeroCopyResponse;
+import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.response.ZeroCopyResponse;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

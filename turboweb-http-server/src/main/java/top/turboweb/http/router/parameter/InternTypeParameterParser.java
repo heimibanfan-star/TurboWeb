@@ -2,10 +2,10 @@ package top.turboweb.http.router.parameter;
 
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
-import top.turboweb.http.core.response.InternalSseEmitter;
-import top.turboweb.http.core.response.SseEmitter;
+import top.turboweb.http.response.InternalSseEmitter;
+import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.session.HttpSession;
 
 import java.lang.reflect.Parameter;

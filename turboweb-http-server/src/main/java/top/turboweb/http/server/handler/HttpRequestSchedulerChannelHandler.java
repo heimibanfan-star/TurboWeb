@@ -5,7 +5,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 
 import java.util.Objects;

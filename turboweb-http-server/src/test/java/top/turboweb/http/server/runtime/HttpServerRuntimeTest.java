@@ -9,7 +9,7 @@ import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;

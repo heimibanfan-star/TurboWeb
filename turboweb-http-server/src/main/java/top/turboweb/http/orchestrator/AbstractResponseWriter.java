@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
-import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.server.runtime.ResourceProvider;
 

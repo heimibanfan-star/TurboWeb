@@ -3,7 +3,7 @@ package top.turboweb.http.orchestrator;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.connection.InternalHttpConnection;
 
 /**
  * 默认的响应写出器。

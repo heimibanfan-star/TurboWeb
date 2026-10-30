@@ -16,8 +16,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.SynchronousSink;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.http.core.response.FileStreamResponse;
+import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.response.FileStreamResponse;
 
 import java.io.IOException;
 

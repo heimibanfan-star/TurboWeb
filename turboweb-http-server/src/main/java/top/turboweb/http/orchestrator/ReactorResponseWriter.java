@@ -8,8 +8,8 @@ import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import top.turboweb.http.exception.ResponseHandleException;
-import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.http.core.response.ReactorResponse;
+import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.response.ReactorResponse;
 
 /**
  * 基于 Reactor 的响应式 HTTP 输出写出器。

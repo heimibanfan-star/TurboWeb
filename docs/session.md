@@ -162,7 +162,7 @@ HttpRequestApplication application = new HttpRequestApplication.Builder()
 完全不用会话时，换成黑洞管理器，省掉存储与回收开销：
 
 ```java
-import top.turboweb.http.core.session.BackHoleSessionManager;
+import top.turboweb.http.session.BackHoleSessionManager;
 
 HttpRequestApplication application = new HttpRequestApplication.Builder()
         .routeRegister(routeRegister)

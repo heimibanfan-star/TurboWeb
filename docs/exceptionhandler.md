@@ -50,7 +50,7 @@ package demo;
 
 import top.turboweb.validation.BeanValidationException;
 import top.turboweb.http.exception.RouteHandlerException;
-import top.turboweb.http.core.response.HttpResult;
+import top.turboweb.http.response.HttpResult;
 
 public class GlobalExceptionHandler {
 

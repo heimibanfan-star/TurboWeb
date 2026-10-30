@@ -15,8 +15,8 @@ import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.http.core.response.ReactorResponse;
+import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.response.ReactorResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;

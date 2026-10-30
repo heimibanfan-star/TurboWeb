@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
-import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.testkit.Stubs;
 import top.turboweb.server.runtime.ResourceException;
 import top.turboweb.server.runtime.ResourceManager;

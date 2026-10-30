@@ -2,7 +2,7 @@ package top.turboweb.http.orchestrator;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.http.core.connect.InternalHttpConnection;
+import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.server.runtime.ResourceProvider;
 
 import java.util.Objects;
@@ -10,7 +10,7 @@ import java.util.Objects;
 /**
  * 响应写出器接口：负责一类响应对象的写出。
  * <p>
- * 响应对象通过 {@link top.turboweb.http.core.response.ResponseCall} 声明由哪个写出器
+ * 响应对象通过 {@link top.turboweb.http.response.ResponseCall} 声明由哪个写出器
  * 负责写出自身；{@link ResponseWriterManager} 按声明类型先查内置表、再查自定义表，
  * 均未命中时落默认写出器兜底。
  * {@link #write} 执行写出动作，结果以 {@link WriteResult} 返回：

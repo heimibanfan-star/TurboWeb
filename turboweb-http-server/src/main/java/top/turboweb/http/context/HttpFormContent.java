@@ -10,7 +10,7 @@ import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.core.MultipartFile;
-import top.turboweb.http.core.helper.HttpRequestHelper;
+import top.turboweb.http.orchestrator.HttpRequestHelper;
 import top.turboweb.http.exception.RequestParseException;
 
 import java.io.IOException;
