@@ -160,8 +160,8 @@ class ResultConverterManagerTest {
     void pendingFilenameOfAbstractFileResponseIsEncodedWithGivenCharset() throws Exception {
         java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("rcm");
         java.nio.file.Path file = java.nio.file.Files.write(dir.resolve("报告.txt"), new byte[]{'x'});
-        top.turboweb.http.response.ZeroCopyResponse response =
-                new top.turboweb.http.response.ZeroCopyResponse(file.toFile());
+        top.turboweb.http.response.FileStreamResponse response =
+                new top.turboweb.http.response.FileStreamResponse(file.toFile());
         assertNull(response.headers().get(HttpHeaderNames.CONTENT_DISPOSITION),
                 "构造期不写 Content-Disposition");
 
@@ -170,7 +170,7 @@ class ResultConverterManagerTest {
         assertEquals("attachment; filename=\"%E6%8A%A5%E5%91%8A.txt\"",
                 response.headers().get(HttpHeaderNames.CONTENT_DISPOSITION),
                 "暂存的中文文件名在转化出口按传入字符集 URL 编码写出");
-        response.getFileRegion().release();
+        response.getFileChannel().close();
         java.nio.file.Files.deleteIfExists(file);
         java.nio.file.Files.deleteIfExists(dir);
     }

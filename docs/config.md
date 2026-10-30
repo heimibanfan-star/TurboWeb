@@ -199,7 +199,6 @@ import top.turboweb.http.server.config.ServerConfig;
 ServerConfig serverConfig = ServerConfig.builder()
         .maxConnect(20_000)
         .ioThreadNum(2)
-        .zeroCopyThreadNum(8)
         .cpuNum(8)
         .maxContentLength(1024 * 1024 * 20)
         .build();
@@ -213,7 +212,6 @@ BootStrapWebServer server = new BootStrapWebServer(serverConfig);
 | --- | --- | --- | --- |
 | `maxConnect` | `10000` | 大于 `0` | 最大连接数 |
 | `ioThreadNum` | `1` | 大于 `0` | IO 事件线程数 |
-| `zeroCopyThreadNum` | CPU 核心数 × 2 | 大于 `0` | 零拷贝传输线程数 |
 | `cpuNum` | 运行时可用处理器数 | 大于 `0` | 选择连接计数方式的参考值 |
 | `sslContext` | `null` | 无 | SSL 上下文，`null` 表示不启用 HTTPS |
 | `maxContentLength` | `10485760`（10 MB） | 不小于 `1024` | 聚合后的请求体上限，字节 |
@@ -228,11 +226,9 @@ BootStrapWebServer server = new BootStrapWebServer(serverConfig);
 
 连接上限和调度限流是两回事：一个限制接入的连接，一个限制同时执行的请求。
 
-### 3.2 IO 与零拷贝线程
+### 3.2 IO 线程
 
 `ioThreadNum` 是 worker 的事件循环数量，负责读写事件与协议编解码，默认 1 个。业务逻辑跑在虚拟线程上，IO 线程不参与业务计算，常规服务不必调大，高连接数或高吞吐时再加。
-
-`zeroCopyThreadNum` 只在未配置 SSL 时生效：此时服务端通道使用零拷贝实现，文件传输等写操作交给这组线程。配置了 SSL 上下文后通道换成普通实现，这组线程不会被创建。
 
 ### 3.3 请求体上限
 
@@ -260,7 +256,7 @@ ServerConfig serverConfig = ServerConfig.builder()
         .build();
 ```
 
-启用 SSL 后服务端通道改用普通 Nio 实现，零拷贝通道与零拷贝线程组都不会创建，文件传输退回普通写出路径。
+启用 SSL 后服务端通道仍是普通 Nio 实现，写出路径不变。
 
 `enableHttp2` 为 `true` 时必须同时提供 `sslContext`，因为 HTTP/2 依赖 ALPN 协商；只开 HTTP/2 不配 SSL，服务器启动时直接抛 `IllegalArgumentException`。`http2Settings` 的默认值是并发流 256、初始窗口 1 MB、最大帧 16 KB、头列表 8 KB。
 
@@ -308,7 +304,6 @@ HttpConfig.builder()
 ```java
 ServerConfig.builder()
         .maxContentLength(1024 * 1024 * 50)
-        .zeroCopyThreadNum(16)
         .build();
 
 HttpConfig.builder()
@@ -318,6 +313,6 @@ HttpConfig.builder()
         .build();
 ```
 
-零拷贝线程与磁盘 IO 线程都服务于文件传输：前者处理通道写出，后者处理分块读取，按磁盘的并发能力一起调整。
+磁盘 IO 线程服务于文件传输的分块读取，按磁盘的并发能力调整。
 
 [首页](../README.md) | [快速入门](./quickstart.md) | [定制：参数解析器](./custom-parameter-parser.md)

@@ -27,7 +27,6 @@ class ServerConfigTest {
 
         assertEquals(10000, config.getMaxConnect());
         assertEquals(1, config.getIoThreadNum());
-        assertEquals(cpu * 2, config.getZeroCopyThreadNum());
         assertEquals(cpu, config.getCpuNum());
         assertNull(config.getSslContext(), "未配置ssl时上下文为null");
         assertEquals(1024 * 1024 * 10, config.getMaxContentLength());
@@ -54,12 +53,6 @@ class ServerConfigTest {
     @DisplayName("ioThreadNum 必须大于0")
     void ioThreadNumMustBePositive() {
         assertThrows(IllegalArgumentException.class, () -> ServerConfig.builder().ioThreadNum(0));
-    }
-
-    @Test
-    @DisplayName("zeroCopyThreadNum 必须大于0")
-    void zeroCopyThreadNumMustBePositive() {
-        assertThrows(IllegalArgumentException.class, () -> ServerConfig.builder().zeroCopyThreadNum(0));
     }
 
     @Test
@@ -143,7 +136,6 @@ class ServerConfigTest {
         ServerConfig config = ServerConfig.builder()
                 .maxConnect(10)
                 .ioThreadNum(2)
-                .zeroCopyThreadNum(3)
                 .cpuNum(4)
                 .maxContentLength(2048)
                 .enableHttp2(true)
@@ -152,7 +144,6 @@ class ServerConfigTest {
 
         assertEquals(10, config.getMaxConnect());
         assertEquals(2, config.getIoThreadNum());
-        assertEquals(3, config.getZeroCopyThreadNum());
         assertEquals(4, config.getCpuNum());
         assertEquals(2048, config.getMaxContentLength());
         assertTrue(config.isEnableHttp2());

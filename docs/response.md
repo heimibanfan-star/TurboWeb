@@ -230,10 +230,9 @@ HttpFileResult.png(byte[] bytes);    // jpeg、gif、mp4 用法相同
 
 ```java
 return new FileStreamResponse(file);   // 分块流式，默认每块 2MB
-return new ZeroCopyResponse(file);     // 零拷贝，适合大文件
 ```
 
-两者都只支持磁盘文件，构造时校验文件存在、不是目录、可读，不满足抛 `ResponseHandleException`。`FileStreamResponse` 可以传入分块大小覆盖默认值。
+只支持磁盘文件，构造时校验文件存在、不是目录、可读，不满足抛 `ResponseHandleException`。`FileStreamResponse` 可以传入分块大小覆盖默认值。
 
 ## 8. SSE 响应
 

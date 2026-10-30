@@ -9,23 +9,15 @@ import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.ssl.SslContext;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.jspecify.annotations.NonNull;
 import top.turboweb.server.runtime.ServerRuntime;
 import top.turboweb.http.server.channel.ServerChannelInitializer;
-import top.turboweb.http.server.channel.TurboWebNioServerSocketChannel;
 import top.turboweb.http.server.config.ServerConfig;
 import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
 import top.turboweb.http.server.manager.ServerRuntimeManager;
 
 import java.util.Objects;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * TurboWeb http服务器。
@@ -38,12 +30,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * （绑定端口前）完成。
  * <ul>
  *     <li>线程模型（数量统一由 {@link ServerConfig} 配置）：1个boss线程 + ioThreadNum个
- *     worker线程（默认1） + zeroCopyThreadNum个零拷贝线程（默认cpu核数*2，守护线程且允许核心
- *     线程超时）；netty 4.2起NioEventLoopGroup已废弃，按官方迁移指引使用NioIoHandler工厂的
+ *     worker线程（默认1）；netty 4.2起NioEventLoopGroup已废弃，按官方迁移指引使用NioIoHandler工厂的
  *     MultiThreadIoEventLoopGroup；</li>
- *     <li>通道选择（启动时按配置的sslContext确定）：未启用SSL时使用零拷贝
- *     {@link TurboWebNioServerSocketChannel}，启用SSL时使用普通 {@link NioServerSocketChannel}
- *     （二者互斥，零拷贝线程池由通道关闭逻辑负责释放）；</li>
+ *     <li>通道：服务端通道固定使用 {@link NioServerSocketChannel}；</li>
  *     <li>pipeline装配：服务器自身不做装配，启动时创建连接限流器与 {@link ServerChannelInitializer}
  *     并作为childHandler交给bootstrap，由装配器按 限流 → ssl → 编解码（或http2协议协商）→ 应用
  *     的固定顺序装配每条连接，其中应用部分委托 {@link ServerRuntimeManager#configure(ChannelPipeline)}
@@ -72,23 +61,6 @@ public final class BootStrapWebServer implements AutoCloseable {
     private static final InternalLogger log = InternalLoggerFactory.getInstance(BootStrapWebServer.class);
 
     /**
-     * 自定义零拷贝线程工厂。
-     * <p>用于命名线程并确保后台守护进程模式。</p>
-     */
-    private static class ZeroCopyThreadFactory implements ThreadFactory {
-
-        private final AtomicLong count = new AtomicLong();
-
-        @Override
-        public Thread newThread(@NonNull Runnable r) {
-            count.compareAndSet(Long.MAX_VALUE, 0);
-            Thread thread = new Thread(r, "zero-copy-thread-" + count.getAndIncrement());
-            thread.setDaemon(true);
-            return thread;
-        }
-    }
-
-    /**
      * 运行时管理器（final持有，由本类内部创建且不对外暴露），应用级处理器在每条新连接建立时
      * 由它按注册顺序装配，调用方经 {@link #registerRuntimeFirst(ServerRuntime)} /
      * {@link #registerRuntimeLast(ServerRuntime)} 间接注册应用；
@@ -97,7 +69,7 @@ public final class BootStrapWebServer implements AutoCloseable {
     private final ServerRuntimeManager serverRuntimeManager;
 
     /**
-     * 服务器配置（不可变），io线程数、零拷贝线程数与ssl上下文等启动期资源参数取自本配置；
+     * 服务器配置（不可变），io线程数与ssl上下文等启动期资源参数取自本配置；
      * 启动时创建的 {@link ServerChannelInitializer} 也持有同一份配置，用于每条连接的装配
      */
     private final ServerConfig serverConfig;
@@ -113,7 +85,7 @@ public final class BootStrapWebServer implements AutoCloseable {
     private EventLoopGroup workerGroup;
 
     /**
-     * 服务端通道，启动时按是否启用ssl确定零拷贝通道或普通通道
+     * 服务端通道，启动时创建
      */
     private ServerChannel serverChannel;
 
@@ -229,24 +201,7 @@ public final class BootStrapWebServer implements AutoCloseable {
         // （netty 4.2起NioEventLoopGroup已废弃，按官方迁移指引使用NioIoHandler工厂的MultiThreadIoEventLoopGroup）
         this.bossGroup = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
         this.workerGroup = new MultiThreadIoEventLoopGroup(serverConfig.getIoThreadNum(), NioIoHandler.newFactory());
-        // 通道选择：未启用ssl使用零拷贝通道（零拷贝线程数取配置），启用ssl使用普通通道（零拷贝与ssl互斥）
-        SslContext sslContext = serverConfig.getSslContext();
-        if (sslContext == null) {
-            // 创建专门用于零拷贝的线程池
-            ThreadPoolExecutor zeroCopyExecutor = new ThreadPoolExecutor(
-                    serverConfig.getZeroCopyThreadNum(),
-                    serverConfig.getZeroCopyThreadNum(),
-                    60,
-                    TimeUnit.SECONDS,
-                    new LinkedBlockingQueue<>(),
-                    new ZeroCopyThreadFactory()
-            );
-            // 允许核心线程过期
-            zeroCopyExecutor.allowCoreThreadTimeOut(true);
-            this.serverChannel = new TurboWebNioServerSocketChannel(zeroCopyExecutor);
-        } else {
-            this.serverChannel = new NioServerSocketChannel();
-        }
+        this.serverChannel = new NioServerSocketChannel();
         // 连接限流器：服务器级单例（@Sharable），此处一次性创建，跨全部连接复用
         ConnectLimiterChannelHandler connectLimiter = new ConnectLimiterChannelHandler(
                 serverConfig.getMaxConnect(), serverConfig.getIoThreadNum(), serverConfig.getCpuNum());
@@ -263,7 +218,6 @@ public final class BootStrapWebServer implements AutoCloseable {
 
     /**
      * 优雅关闭服务器，先关闭boss线程组，再关闭worker线程组；从未启动过时为空操作（无线程资源）。
-     * <p>零拷贝线程池由 {@link TurboWebNioServerSocketChannel} 的通道关闭逻辑负责释放。</p>
      */
     public void shutdown() {
         EventLoopGroup boss = this.bossGroup;
@@ -287,8 +241,7 @@ public final class BootStrapWebServer implements AutoCloseable {
     }
 
     /**
-     * 关闭服务器：先关闭服务端监听通道（零拷贝通道的关闭逻辑会同时释放零拷贝线程池），
-     * 再调用 {@link #shutdown()} 优雅关闭boss与worker线程组，最后调用
+     * 关闭服务器：先关闭服务端监听通道，再调用 {@link #shutdown()} 优雅关闭boss与worker线程组，最后调用
      * {@link ServerRuntimeManager#close()} 按注册顺序关闭全部应用，由各应用释放自己装配的资源；
      * 从未启动过时只跳过通道关闭（线程组与应用资源仍需释放）。
      * <p>

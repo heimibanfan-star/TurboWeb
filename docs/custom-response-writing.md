@@ -177,12 +177,11 @@ curl -i http://localhost:8080/readme
 | --- | --- |
 | `SseResponseWriter` | `SseEmitter` |
 | `FileStreamResponseWriter` | `FileStreamResponse` |
-| `ZeroCopyResponseWriter` | `ZeroCopyResponse` |
 | `ReactorResponseWriter` | `ReactorResponse` |
 | `IgnoredResponseWriter` | `IgnoredHttpResponse` |
 | `DefaultResponseWriter` | 兜底：任意普通 `HttpResponse` |
 
-普通响应不需要自定义写出器。只有发送方式与默认写出不同（分块、异步、零拷贝、自行管理资源生命周期）时，才需要写一个。
+普通响应不需要自定义写出器。只有发送方式与默认写出不同（分块、异步、自行管理资源生命周期）时，才需要写一个。
 
 ### 3.2 契约
 
@@ -391,7 +390,7 @@ curl -i http://localhost:8080/export
 | 需求 | 做法 |
 | --- | --- |
 | 换正文格式、状态码或响应头 | 只写结果转化器，产出普通 `HttpResponse`，由默认写出器发送 |
-| 换发送方式（分块、异步、零拷贝、资源生命周期） | 自定义响应实现 `ResponseCall`，再注册对应写出器 |
+| 换发送方式（分块、异步、资源生命周期） | 自定义响应实现 `ResponseCall`，再注册对应写出器 |
 | 正文格式与发送方式都要自定义 | 转化器产出自定义响应类，写出器按这个类写出 |
 
 只在确实需要控制发送过程时才引入写出器。一个只换了 `Content-Type` 的 `FullHttpResponse` 交给默认写出器即可，写一个自定义写出器没有收益。

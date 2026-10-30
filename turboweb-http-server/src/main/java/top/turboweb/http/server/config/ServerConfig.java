@@ -7,10 +7,10 @@ import java.util.Objects;
 
 /**
  * 服务器配置类（不可变），承载与服务器相关的纯参数配置：连接限流参数（最大连接数、
- * io线程数、零拷贝线程数、cpu核数）、ssl上下文与聚合器最大内容长度、空闲回收阈值、
+ * io线程数、cpu核数）、ssl上下文与聚合器最大内容长度、空闲回收阈值、
  * http2开关与参数。
  * 配置有两条消费路径：{@link top.turboweb.http.server.BootStrapWebServer} 在启动时消费，
- * 按io线程数与零拷贝线程数创建线程资源、按ssl上下文决定通道类型、按限流参数创建连接限流器，
+ * 按io线程数创建线程资源、按限流参数创建连接限流器，
  * 并完成http2需ssl等校验；启动时创建的
  * {@link top.turboweb.http.server.channel.ServerChannelInitializer} 持有同一份配置，
  * 在每条连接的装配期消费ssl、聚合器长度与http2设置等参数。
@@ -38,11 +38,6 @@ public final class ServerConfig {
      * io工作线程数（连接限流处理器选择计数器实现时使用）
      */
     private final int ioThreadNum;
-
-    /**
-     * 零拷贝线程数（未启用ssl时，零拷贝服务端通道处理读写事件的线程池大小）
-     */
-    private final int zeroCopyThreadNum;
 
     /**
      * cpu核数（连接限流处理器选择计数器实现时使用）
@@ -79,7 +74,6 @@ public final class ServerConfig {
     private ServerConfig(Builder builder) {
         this.maxConnect = builder.maxConnect;
         this.ioThreadNum = builder.ioThreadNum;
-        this.zeroCopyThreadNum = builder.zeroCopyThreadNum;
         this.cpuNum = builder.cpuNum;
         this.sslContext = builder.sslContext;
         this.maxContentLength = builder.maxContentLength;
@@ -101,10 +95,6 @@ public final class ServerConfig {
 
     public int getIoThreadNum() {
         return ioThreadNum;
-    }
-
-    public int getZeroCopyThreadNum() {
-        return zeroCopyThreadNum;
     }
 
     public int getCpuNum() {
@@ -137,7 +127,7 @@ public final class ServerConfig {
     /**
      * {@link ServerConfig} 的建造者，链式方法名与配置字段同名，非法参数立即抛出
      * {@link IllegalArgumentException}。各字段默认值：连接数10000、io线程数1、
-     * 零拷贝线程数cpu核数*2、cpu核数取运行时可用处理器数、不启用ssl、聚合器10MB、
+     * cpu核数取运行时可用处理器数、不启用ssl、聚合器10MB、
      * 不启用http2、http2参数为并发流256/初始窗口1MB/帧16KB/头列表8KB、空闲回收60秒。
      */
     public static final class Builder {
@@ -145,8 +135,6 @@ public final class ServerConfig {
         private int maxConnect = 10000;
 
         private int ioThreadNum = 1;
-
-        private int zeroCopyThreadNum = Runtime.getRuntime().availableProcessors() * 2;
 
         private int cpuNum = Runtime.getRuntime().availableProcessors();
 
@@ -186,17 +174,6 @@ public final class ServerConfig {
                 throw new IllegalArgumentException("ioThreadNum must be greater than 0");
             }
             this.ioThreadNum = ioThreadNum;
-            return this;
-        }
-
-        /**
-         * 设置零拷贝线程数（未启用ssl时创建零拷贝通道才使用），必须大于0
-         */
-        public Builder zeroCopyThreadNum(int zeroCopyThreadNum) {
-            if (zeroCopyThreadNum <= 0) {
-                throw new IllegalArgumentException("zeroCopyThreadNum must be greater than 0");
-            }
-            this.zeroCopyThreadNum = zeroCopyThreadNum;
             return this;
         }
 
