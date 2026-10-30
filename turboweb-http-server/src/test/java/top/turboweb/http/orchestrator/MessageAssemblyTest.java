@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.testkit.Requests;
-import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.Content;
 import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.RequestLine;
@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MessageAssemblyTest {
 
     /** 不经头与地址通道的用例统一带入的请求体内容 */
-    private static final RequestContent NO_CONTENT = new HttpUnknowContent(null);
+    private static final Content NO_CONTENT = new HttpUnknowContent();
 
     private static HttpRequestMessage assemble(FullHttpRequest request, Charset charset) {
         return RequestOrchestrator.assembleMessage(request, NO_CONTENT, charset);
@@ -143,7 +143,7 @@ class MessageAssemblyTest {
     void contentIsTheInjectedInstance() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            RequestContent content = new HttpUnknowContent(null);
+            Content content = new HttpUnknowContent();
             HttpRequestMessage message = RequestOrchestrator.assembleMessage(req, content, StandardCharsets.UTF_8);
             assertSame(content, message.content(), "内容由装配方带入，消息不另建");
         } finally {

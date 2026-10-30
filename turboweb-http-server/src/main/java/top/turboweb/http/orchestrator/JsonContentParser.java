@@ -1,7 +1,7 @@
 package top.turboweb.http.orchestrator;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.Content;
 import top.turboweb.http.context.HttpJsonContent;
 import top.turboweb.http.core.ContentType;
 
@@ -25,7 +25,7 @@ public class JsonContentParser implements HttpContentParser {
      * {@inheritDoc}
      */
     @Override
-    public RequestContent parse(FullHttpRequest request, Charset defaultCharset) {
+    public Content parse(FullHttpRequest request, Charset defaultCharset) {
         return new HttpJsonContent(request, defaultCharset);
     }
 }

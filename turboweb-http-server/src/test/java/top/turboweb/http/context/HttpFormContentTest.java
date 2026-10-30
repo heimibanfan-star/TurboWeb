@@ -4,7 +4,6 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Requests;
@@ -64,7 +63,6 @@ class HttpFormContentTest {
             assertEquals(List.of("30"), params.get("age"));
             assertEquals(List.of("a", "b"), params.get("tag"));
             assertTrue(content.formFiles().isEmpty(), "urlencoded 无文件段，formFiles 为空 Map");
-            assertSame(ContentType.APPLICATION_FORM_URLENCODED, content.contentType());
         } finally {
             Requests.release(req);
         }
@@ -79,7 +77,6 @@ class HttpFormContentTest {
             List<MultipartFile> docs = content.formFiles().get("doc");
             assertEquals(1, docs.size(), "multipart 文件段归档进 formFiles");
             assertEquals("a.txt", docs.getFirst().filename());
-            assertSame(ContentType.MULTIPART_FORM_DATA, content.contentType());
             content.close();
         } finally {
             Requests.release(req);

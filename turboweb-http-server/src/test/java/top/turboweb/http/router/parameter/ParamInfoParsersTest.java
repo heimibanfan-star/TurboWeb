@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.Content;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.core.RequestTarget;
@@ -17,7 +17,6 @@ import top.turboweb.http.context.HttpJsonContent;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.connect.InternalHttpConnection;
-import top.turboweb.http.core.ContentType;
 import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.core.response.InternalSseEmitter;
@@ -197,7 +196,7 @@ class ParamInfoParsersTest {
 
         Stub returning(String method, Object value) {
             if ("content".equals(method)) {
-                returns.put("message", new ContentFeedingMessage((RequestContent) value));
+                returns.put("message", new ContentFeedingMessage((Content) value));
             } else {
                 returns.put(method, value);
             }
@@ -361,13 +360,8 @@ class ParamInfoParsersTest {
         }
     }
 
-    /** 无通道内容夹具：只实现 Content 基础契约，供绑定器拒绑用例。 */
-    private record PlainContentFixture() implements RequestContent {
-
-        @Override
-        public ContentType contentType() {
-            return ContentType.APPLICATION_OCTET_STREAM;
-        }
+    /** 无通道内容夹具：只实现 Content 标记契约，供绑定器拒绑用例。 */
+    private record PlainContentFixture() implements Content {
     }
 
     /** Cookie 集合夹具：仅 getCookie 读取通道向绑定器投喂指定名称归档，其余通道误调即响。 */
@@ -426,12 +420,8 @@ class ParamInfoParsersTest {
     /** 请求消息夹具：只承接请求头通道，方式与内容通道不经绑定，误调即响。 */
     private static final class MessageFixture extends HttpRequestMessage {
 
-        /** 内容替身：不经绑定，误调即响 */
-        private static final RequestContent OFF_CHANNEL_CONTENT = new RequestContent() {
-            @Override
-            public ContentType contentType() {
-                throw offChannel("content");
-            }
+        /** 内容替身：标记契约无读取通道，内容通道经 {@link #content()} 覆写拒答 */
+        private static final Content OFF_CHANNEL_CONTENT = new Content() {
         };
 
         private final Map<String, String> headers;
@@ -447,7 +437,7 @@ class ParamInfoParsersTest {
         }
 
         @Override
-        public RequestContent content() {
+        public Content content() {
             throw offChannel("content");
         }
 
@@ -495,7 +485,7 @@ class ParamInfoParsersTest {
     /** 内容投喂消息替身：只应答内容通道，其余消息通道不经绑定、误调即响。 */
     private static final class ContentFeedingMessage extends HttpRequestMessage {
 
-        ContentFeedingMessage(RequestContent content) {
+        ContentFeedingMessage(Content content) {
             super(new RequestLine(HttpRequestMethod.GET, new RequestTarget("/")), content);
         }
 

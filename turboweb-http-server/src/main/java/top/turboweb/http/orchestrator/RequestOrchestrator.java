@@ -16,7 +16,7 @@ import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
-import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.Content;
 import top.turboweb.http.core.RequestLine;
 import top.turboweb.http.core.RequestTarget;
 import top.turboweb.server.runtime.ResourceManager;
@@ -253,7 +253,7 @@ public class RequestOrchestrator {
      * @throws NullPointerException     当 {@code request}、{@code content} 或 {@code queryCharset} 为 {@code null} 时抛出
      * @throws IllegalArgumentException 请求行的方法字面量不在标准方法范围内时抛出
      */
-    public static HttpRequestMessage assembleMessage(FullHttpRequest request, RequestContent content, Charset queryCharset) {
+    public static HttpRequestMessage assembleMessage(FullHttpRequest request, Content content, Charset queryCharset) {
         Objects.requireNonNull(request, "request can not be null");
         HttpRequestMessage message = new HttpRequestMessage(
                 new RequestLine(HttpRequestMethod.valueOf(request.method().name()),
@@ -339,7 +339,7 @@ public class RequestOrchestrator {
      */
     private HttpResponse executeMiddleware(FullHttpRequest request, HttpConnection connectSession,
                                            SessionManager sessionManager) {
-        RequestContent content = null;
+        Content content = null;
         HttpSession httpSession = null;
         try {
             HttpCookies cookies;
@@ -350,7 +350,7 @@ public class RequestOrchestrator {
             originSessionId = cookies.getCookie("JSESSIONID");
             // 请求对象在编排器内转化为上下文的对外契约：请求体内容先就位，再连同请求装配为请求消息
             content = HttpMethod.HEAD == request.method()
-                    ? new HttpUnknowContent(null)
+                    ? new HttpUnknowContent()
                     : contentParserManager.parse(request);
             message = assembleMessage(request, content, defaultCharset);
             // 初始化session
@@ -390,7 +390,7 @@ public class RequestOrchestrator {
      * @param content 内容解析与装配阶段产出的内容对象，可为 null（装配在产出内容前失败），
      *                为 null 时为空操作
      */
-    private void closeContentQuietly(RequestContent content) {
+    private void closeContentQuietly(Content content) {
         if (content instanceof AutoCloseContent autoCloseContent) {
             try {
                 autoCloseContent.close();

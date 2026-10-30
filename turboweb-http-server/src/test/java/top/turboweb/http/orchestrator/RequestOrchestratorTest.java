@@ -21,7 +21,7 @@ import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.testkit.Stubs;
 import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.HttpRequestMethod;
-import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.Content;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.server.runtime.ResourceManager;
 
@@ -703,9 +703,8 @@ class RequestOrchestratorTest {
 
         orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
 
-        RequestContent content = chain.captured().message().content();
-        assertInstanceOf(HttpUnknowContent.class, content, "HEAD 不进内容解析器");
-        assertNull(content.contentType(), "HEAD 无请求体，内容侧不声明类型（夹具的类型头不被读取）");
+        Content content = chain.captured().message().content();
+        assertInstanceOf(HttpUnknowContent.class, content, "HEAD 不进内容解析器，无请求体回落未知内容");
         request.release();
         channel.finishAndReleaseAll();
     }
@@ -756,7 +755,7 @@ class RequestOrchestratorTest {
             @Override
             public Object invoke(HttpContext ctx) {
                 refCntAtChain.set(request.refCnt());
-                RequestContent content = ctx.message().content();
+                Content content = ctx.message().content();
                 nameAtChain.set(content instanceof HttpFormContent form
                         ? form.formParams().get("name").getFirst() : null);
                 return "hello";
@@ -933,11 +932,7 @@ class RequestOrchestratorTest {
     /** 自定义解析器：承接 text/csv 并返回标记内容对象，用于证明注册后的分派。 */
     private static class MarkedContentParser implements HttpContentParser {
 
-        static final RequestContent MARKER = new RequestContent() {
-            @Override
-            public ContentType contentType() {
-                return ContentType.create("text/csv");
-            }
+        static final Content MARKER = new Content() {
         };
 
         @Override
@@ -946,7 +941,7 @@ class RequestOrchestratorTest {
         }
 
         @Override
-        public RequestContent parse(FullHttpRequest request, Charset defaultCharset) {
+        public Content parse(FullHttpRequest request, Charset defaultCharset) {
             return MARKER;
         }
     }
@@ -956,18 +951,13 @@ class RequestOrchestratorTest {
         private boolean closed;
 
         @Override
-        public ContentType contentType() {
-            return ContentType.create("x-test/probe");
-        }
-
-        @Override
         public void close() {
             closed = true;
         }
     }
 
     /** 自定义解析器：恒产出给定内容对象，供关闭时机钉用例投喂持有资源的内容。 */
-    private record FixedContentParser(RequestContent produced) implements HttpContentParser {
+    private record FixedContentParser(Content produced) implements HttpContentParser {
 
         @Override
         public Set<ContentType> contentTypes() {
@@ -975,7 +965,7 @@ class RequestOrchestratorTest {
         }
 
         @Override
-        public RequestContent parse(FullHttpRequest request, Charset defaultCharset) {
+        public Content parse(FullHttpRequest request, Charset defaultCharset) {
             return produced;
         }
     }

@@ -3,7 +3,6 @@ package top.turboweb.http.context;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.ContentType;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Requests;
 
@@ -11,7 +10,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -140,15 +138,5 @@ class HttpJsonContentTest {
         HttpJsonContent content = new HttpJsonContent(req, StandardCharsets.UTF_8);
         Requests.release(req);
         assertEquals("{\"a\":1}", content.jsonString());
-    }
-
-    @Test
-    void contentTypeIsApplicationJson() {
-        FullHttpRequest req = Requests.postJson("/x", "{}");
-        try {
-            assertSame(ContentType.APPLICATION_JSON, new HttpJsonContent(req, StandardCharsets.UTF_8).contentType());
-        } finally {
-            Requests.release(req);
-        }
     }
 }

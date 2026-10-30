@@ -5,7 +5,7 @@ import java.util.Set;
 
 /**
  * http消息的读写契约：平铺承载消息头的读取与写入修改访问，行信息与消息体内容的类型由
- * 子契约以泛型实参填充（如 http 请求消息以 {@link RequestLine} 与 {@link RequestContent} 填充）。
+ * 子契约以泛型实参填充（如 http 请求消息以 {@link RequestLine} 与 {@link Content} 填充）。
  *
  * <p>消息头不设独立视图对象，读写访问直接平铺在消息上，头名查询大小写不敏感；
  * 头未发送时返回 {@code null}，仅 {@link #contentLength()} 未发送或取值无效时记 0。</p>

@@ -9,7 +9,6 @@ import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.core.helper.HttpRequestHelper;
 import top.turboweb.http.exception.RequestParseException;
@@ -45,9 +44,6 @@ public class HttpFormContent implements AutoCloseContent {
 
     private static final InternalLogger log = InternalLoggerFactory.getInstance(HttpFormContent.class);
 
-    /** 构造期判定的表单内容类型，urlencoded 与 multipart 二选一 */
-    private final ContentType contentType;
-
     /** 普通字段缓存：首个访问器调用时建立，与 {@link #formFiles} 同一次遍历成型 */
     private Map<String, List<String>> formParams;
 
@@ -77,7 +73,6 @@ public class HttpFormContent implements AutoCloseContent {
         if (!multipart && !HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED.contentEqualsIgnoreCase(mimeType)) {
             throw new RequestParseException("contentType is not application/x-www-form-urlencoded or multipart/form-data");
         }
-        this.contentType = multipart ? ContentType.MULTIPART_FORM_DATA : ContentType.APPLICATION_FORM_URLENCODED;
         // 判定一次的解码字符集同时传给数据工厂与解码器：工厂缺省为 UTF-8，
         // 若不显式传入，属性取值会把非 UTF-8 请求体按 UTF-8 解出乱码
         Charset charset = HttpRequestHelper.getRequestCharset(request, defaultCharset);
@@ -152,14 +147,6 @@ public class HttpFormContent implements AutoCloseContent {
     public Map<String, List<String>> formParams() {
         ensureParsed();
         return formParams;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ContentType contentType() {
-        return contentType;
     }
 
     /**

@@ -14,8 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 class HttpRequestMessageTest {
 
-    /** 不经内容通道的用例统一带入的未声明类型内容 */
-    private static final RequestContent NO_CONTENT = () -> null;
+    /** 不经内容通道的用例统一带入的标记内容 */
+    private static final Content NO_CONTENT = new Content() {
+    };
 
     private static HttpRequestMessage message() {
         return new HttpRequestMessage(
@@ -50,7 +51,7 @@ class HttpRequestMessageTest {
         HttpRequestMessage message = message();
         message.setHeader("Content-Length", " 42 ");
 
-        HttpMessage<RequestLine, RequestContent> view = message;
+        HttpMessage<RequestLine, Content> view = message;
 
         assertEquals(" 42 ", view.header("Content-Length"), "头读取经 HttpMessage 视图可达");
         assertEquals(42L, view.contentLength(), "Content-Length 兜底口径经 HttpMessage 视图继承");

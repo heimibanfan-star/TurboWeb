@@ -3,7 +3,7 @@ package top.turboweb.http.orchestrator;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.Content;
 import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.context.HttpFormContent;
@@ -20,8 +20,6 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,17 +59,13 @@ class HttpContentParserManagerTest {
         }
 
         @Override
-        public RequestContent parse(FullHttpRequest request, Charset defaultCharset) {
+        public Content parse(FullHttpRequest request, Charset defaultCharset) {
             this.seenCharset = defaultCharset;
             return new MarkerContent();
         }
     }
 
-    private static final class MarkerContent implements RequestContent {
-        @Override
-        public ContentType contentType() {
-            return ContentType.APPLICATION_OCTET_STREAM;
-        }
+    private static final class MarkerContent implements Content {
     }
 
     @Test
@@ -98,11 +92,10 @@ class HttpContentParserManagerTest {
     void urlencodedRequestRoutesToFormContent() throws Exception {
         FullHttpRequest req = Requests.postForm("/x", "name=alice&tag=a&tag=b");
         try {
-            RequestContent content = manager().parse(req);
+            Content content = manager().parse(req);
             HttpFormContent form = assertInstanceOf(HttpFormContent.class, content);
             assertEquals(List.of("alice"), form.formParams().get("name"));
             assertEquals(List.of("a", "b"), form.formParams().get("tag"));
-            assertSame(ContentType.APPLICATION_FORM_URLENCODED, form.contentType());
             form.close();
         } finally {
             Requests.release(req);
@@ -113,9 +106,8 @@ class HttpContentParserManagerTest {
     void multipartRequestRoutesToFormContent() throws Exception {
         FullHttpRequest req = multipart();
         try {
-            RequestContent content = manager().parse(req);
+            Content content = manager().parse(req);
             HttpFormContent form = assertInstanceOf(HttpFormContent.class, content);
-            assertSame(ContentType.MULTIPART_FORM_DATA, form.contentType());
             List<MultipartFile> docs = form.formFiles().get("doc");
             assertEquals(1, docs.size(), "multipart 与 urlencoded 同由表单解析器承接");
             form.close();
@@ -128,10 +120,9 @@ class HttpContentParserManagerTest {
     void jsonRequestRoutesToJsonContent() {
         FullHttpRequest req = Requests.postJson("/x", "{\"a\":1}");
         try {
-            RequestContent content = manager().parse(req);
+            Content content = manager().parse(req);
             HttpJsonContent json = assertInstanceOf(HttpJsonContent.class, content);
             assertEquals("{\"a\":1}", json.jsonString());
-            assertSame(ContentType.APPLICATION_JSON, json.contentType());
         } finally {
             Requests.release(req);
         }
@@ -175,10 +166,9 @@ class HttpContentParserManagerTest {
         FullHttpRequest req = Requests.raw(HttpMethod.POST, "/x", "text/plain; charset=UTF-8",
                 "hello", StandardCharsets.UTF_8);
         try {
-            RequestContent content = manager().parse(req);
-            HttpUnknowContent unknow = assertInstanceOf(HttpUnknowContent.class, content);
-            assertEquals("text/plain", unknow.contentType().getMimeType(),
-                    "未知内容携带头声明的类型，编码段不参与路由");
+            Content content = manager().parse(req);
+            assertInstanceOf(HttpUnknowContent.class, content,
+                    "无匹配解析器的声明类型回落未知内容，编码段不参与路由");
         } finally {
             Requests.release(req);
         }
@@ -188,8 +178,7 @@ class HttpContentParserManagerTest {
     void missingContentTypeBecomesUnknownContent() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            HttpUnknowContent unknow = assertInstanceOf(HttpUnknowContent.class, manager().parse(req));
-            assertNull(unknow.contentType(), "无 Content-Type 头时未知内容不携类型");
+            assertInstanceOf(HttpUnknowContent.class, manager().parse(req), "无 Content-Type 头时回落未知内容");
         } finally {
             Requests.release(req);
         }

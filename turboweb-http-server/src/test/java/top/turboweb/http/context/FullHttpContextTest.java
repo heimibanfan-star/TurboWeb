@@ -2,11 +2,10 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.RequestContent;
+import top.turboweb.http.core.Content;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.cookie.DefaultHttpCookies;
 import top.turboweb.http.core.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
@@ -53,7 +52,7 @@ class FullHttpContextTest {
     void messageAndContentAreTheInjectedInstances() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            RequestContent content = Contexts.content(req, StandardCharsets.UTF_8);
+            Content content = Contexts.content(req, StandardCharsets.UTF_8);
             HttpRequestMessage message = Contexts.message(req, content, StandardCharsets.UTF_8);
             FullHttpContext ctx = new FullHttpContext(message, newSession(),
                     new DefaultHttpCookies(req.headers()), CONNECT_SESSION, StandardCharsets.UTF_8);
@@ -134,11 +133,10 @@ class FullHttpContextTest {
         FullHttpRequest csv = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/x",
                 "text/csv", "a,b", StandardCharsets.UTF_8);
         try {
-            assertEquals(ContentType.APPLICATION_JSON, context(json).message().content().contentType(),
-                    "JSON 体命中内置 JSON 解析器，内容侧类型就位");
-            RequestContent csvContent = context(csv).message().content();
-            assertInstanceOf(HttpUnknowContent.class, csvContent, "无匹配解析器的类型回落未知内容，不解析体");
-            assertEquals("text/csv", csvContent.contentType().getMimeType(), "未知内容仍携带头声明的类型");
+            assertInstanceOf(HttpJsonContent.class, context(json).message().content(),
+                    "JSON 体命中内置 JSON 解析器");
+            assertInstanceOf(HttpUnknowContent.class, context(csv).message().content(),
+                    "无匹配解析器的类型回落未知内容，不解析体");
         } finally {
             Requests.release(json);
             Requests.release(csv);
@@ -180,7 +178,7 @@ class FullHttpContextTest {
     void plainContentExposesNeitherFormNorJsonChannel() {
         FullHttpRequest req = Requests.get("/json");
         try {
-            RequestContent content = context(req).message().content();
+            Content content = context(req).message().content();
             assertFalse(content instanceof HttpFormContent, "未声明类型的未知内容不是内置表单内容类");
             assertFalse(content instanceof HttpJsonContent, "未声明类型的未知内容不是内置 JSON 内容类");
         } finally {
