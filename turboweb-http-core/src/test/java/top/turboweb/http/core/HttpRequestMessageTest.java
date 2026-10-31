@@ -17,9 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class HttpRequestMessageTest {
 
     /** 不经内容通道的用例统一带入的标记内容 */
-    private static final ByteContent NO_CONTENT = new ByteContent(new byte[0]);
+    private static final byte[] NO_CONTENT = new byte[0];
 
-    private static HttpRequestMessage<ByteContent> message() {
+    private static HttpRequestMessage<byte[]> message() {
         return new HttpRequestMessage<>(
                 new RequestLine(HttpRequestMethod.GET, new RequestTarget("/index?x=1")),
                 NO_CONTENT);
@@ -28,7 +28,7 @@ class HttpRequestMessageTest {
     @Test
     void carriesConstructorInjectedState() {
         RequestLine line = new RequestLine(HttpRequestMethod.POST, new RequestTarget("/x"));
-        HttpRequestMessage<ByteContent> message = new HttpRequestMessage<>(line, NO_CONTENT);
+        HttpRequestMessage<byte[]> message = new HttpRequestMessage<>(line, NO_CONTENT);
 
         assertEquals(HttpRequestMethod.POST, message.method(), "请求方式由请求行承接");
         assertSame(line, message.requestLine(), "请求行按入参原样持有");
@@ -37,7 +37,7 @@ class HttpRequestMessageTest {
 
     @Test
     void headerChannelInheritedFromAbstractHttpMessage() {
-        HttpRequestMessage<ByteContent> message = message();
+        HttpRequestMessage<byte[]> message = message();
         message.setHeader("Content-Type", "application/json");
         message.addHeader("X-Multi", "a");
         message.addHeader("X-Multi", "b");
@@ -49,10 +49,10 @@ class HttpRequestMessageTest {
 
     @Test
     void headerChannelIsReachableThroughHttpMessageView() {
-        HttpRequestMessage<ByteContent> message = message();
+        HttpRequestMessage<byte[]> message = message();
         message.setHeader("Content-Length", " 42 ");
 
-        HttpMessage<RequestLine, ByteContent> view = message;
+        HttpMessage<RequestLine, byte[]> view = message;
 
         assertEquals(" 42 ", view.header("Content-Length"), "头读取经 HttpMessage 视图可达");
         assertEquals(42L, view.contentLength(), "Content-Length 兜底口径经 HttpMessage 视图继承");

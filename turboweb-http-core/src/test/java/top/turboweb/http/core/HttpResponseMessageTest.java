@@ -15,12 +15,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class HttpResponseMessageTest {
 
     /** 不经内容通道的用例统一带入的标记内容 */
-    private static final ByteContent NO_CONTENT = new ByteContent(new byte[0]);
+    private static final byte[] NO_CONTENT = new byte[0];
 
     @Test
     void carriesConstructorInjectedState() {
         StatusLine statusLine = StatusLine.of(404);
-        HttpResponseMessage<ByteContent> message = new HttpResponseMessage<>(statusLine, NO_CONTENT);
+        HttpResponseMessage<byte[]> message = new HttpResponseMessage<>(statusLine, NO_CONTENT);
 
         assertEquals(404, message.statusLine().code(), "响应状态由状态行承接");
         assertSame(statusLine, message.statusLine(), "状态行按入参原样持有");
@@ -29,7 +29,7 @@ class HttpResponseMessageTest {
 
     @Test
     void headerChannelInheritedFromAbstractHttpMessage() {
-        HttpResponseMessage<ByteContent> message = new HttpResponseMessage<>(StatusLine.of(200), NO_CONTENT);
+        HttpResponseMessage<byte[]> message = new HttpResponseMessage<>(StatusLine.of(200), NO_CONTENT);
         message.setHeader("Content-Type", "application/json");
 
         assertEquals("application/json", message.header("content-type"),
@@ -38,10 +38,10 @@ class HttpResponseMessageTest {
 
     @Test
     void headerChannelIsReachableThroughHttpMessageView() {
-        HttpResponseMessage<ByteContent> message = new HttpResponseMessage<>(StatusLine.of(200), NO_CONTENT);
+        HttpResponseMessage<byte[]> message = new HttpResponseMessage<>(StatusLine.of(200), NO_CONTENT);
         message.setHeader("Content-Length", " 42 ");
 
-        HttpMessage<StatusLine, ByteContent> view = message;
+        HttpMessage<StatusLine, byte[]> view = message;
 
         assertEquals(" 42 ", view.header("Content-Length"), "头读取经 HttpMessage 视图可达");
         assertEquals(42L, view.contentLength(), "Content-Length 兜底口径经 HttpMessage 视图继承");
