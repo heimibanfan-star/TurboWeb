@@ -1,11 +1,13 @@
 package top.turboweb.http.orchestrator.writer;
 
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.ByteResponseMessage;
 import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.orchestrator.ExceptionMessageHelper;
+import top.turboweb.http.response.StreamResponseMessage;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.http.testkit.RecordingHttpConnection;
 import top.turboweb.http.testkit.Stubs;
@@ -28,9 +30,10 @@ import static org.junit.jupiter.api.Assertions.*;
  * {@link ResponseMessageWriter} 的行为锚：Content-Type 门禁与三区间路由次序
  * （未携带 Content-Type 的响应等同找不到处理器直接降级、字节消息直认写出器内建字节写出方法、
  * 订阅声明先查内置策略组再查自定义策略组、
+ * 流式消息命中内置流式写出处理器逐块写出、
  * 其余消息一律等同找不到处理器而降级写出 500 报错页）、
  * 字节写出方法的三步写出与回调契约（Content-Length 补齐口径、失败链经回调上报且不再写结束标记）、
- * 构造期自定义登记规则（同类重复拒登、null 列表与 null 元素拒登、
+ * 构造期自定义登记规则（内置处理器类拒登、同类重复拒登、null 列表与 null 元素拒登、
  * 构造即经 init 注入资源提供者）、
  * 降级报错页的消息头继承（原响应非实体头按序继承，实体头剔除且头名匹配大小写不敏感）。
  */
@@ -202,6 +205,22 @@ class ResponseMessageWriterTest {
     }
 
     @Test
+    void byteMessageClearsStaleTransferEncoding() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        message.setHeader("Transfer-Encoding", "chunked");
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback);
+
+        assertFalse(connection.writtenHeaders().containsKey("Transfer-Encoding"),
+                "定长写出与分块传输互斥，携带的 Transfer-Encoding 头写出前剔除");
+        assertEquals("2", connection.writtenHeaders().get("Content-Length").getFirst(),
+                "定长写出按消息体长度补齐 Content-Length");
+    }
+
+    @Test
     void byteMessageWithEmptyContentSkipsBodyWriteButStillFinishes() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         ByteResponseMessage message = byteMessage(new byte[0]);
@@ -243,6 +262,42 @@ class ResponseMessageWriterTest {
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
                 "声明了写出职责但两级策略组均未登记，降级写出报错页");
+    }
+
+    @Test
+    void streamMessageHitsBuiltinStreamHandler() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        StreamResponseMessage message = new StreamResponseMessage(StatusLine.OK,
+                Flux.just("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        message.setHeader("Content-Type", "text/event-stream");
+        CallbackTrap callback = new CallbackTrap();
+        assertSame(StreamMessageWriteHandler.class, message.subscriber(), "流式消息声明内置流式写出处理器");
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback);
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertNull(callback.error(), "写出成功无错误");
+        assertEquals(MessageWriteHandler.CallbackType.FINISHED, callback.type());
+        assertEquals(200, connection.writtenStatusLine().code(), "流式消息命中内置策略组，按消息原样写出");
+        assertEquals(List.of("ok"), connection.sentMessages(), "流式响应体逐块写出");
+        assertEquals("chunked", connection.writtenHeaders().get("Transfer-Encoding").getFirst(),
+                "流式写出补齐分块传输声明");
+        assertEquals(1, connection.finishCount(), "流正常结束后写结束标记");
+    }
+
+    @Test
+    void streamMessageWithoutContentTypeFallsBackToErrorPage() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection,
+                        new StreamResponseMessage(StatusLine.OK, Flux.just("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8))),
+                        callback);
+
+        assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
+                "流式消息同样受 Content-Type 门禁约束");
     }
 
     @Test
@@ -415,6 +470,14 @@ class ResponseMessageWriterTest {
                         List.of(new MarkingHandler(), new MarkingHandler())));
         assertEquals("Duplicate message write handler registration: " + MarkingHandler.class.getName(),
                 again.getMessage());
+    }
+
+    @Test
+    void constructorRejectsBuiltinHandlerClass() {
+        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,
+                () -> new ResponseMessageWriter(resourceManagerOf(), List.of(new StreamMessageWriteHandler())));
+        assertEquals("Can not register a built-in message write handler: " + StreamMessageWriteHandler.class.getName(),
+                thrown.getMessage());
     }
 
     @Test

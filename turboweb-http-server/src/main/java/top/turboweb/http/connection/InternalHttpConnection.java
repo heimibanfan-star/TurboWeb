@@ -133,7 +133,7 @@ public class InternalHttpConnection implements HttpConnection {
 
     @Override
     public CompletableFuture<Void> write(byte[] bytes) {
-        DefaultHttpContent content = new DefaultHttpContent(Unpooled.copiedBuffer(bytes));
+        DefaultHttpContent content = new DefaultHttpContent(Unpooled.wrappedBuffer(bytes));
         CompletableFuture<Void> future = new CompletableFuture<>();
         toCredentials(writeOut(content), future);
         return future;

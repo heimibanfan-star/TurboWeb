@@ -19,13 +19,14 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.server.config.ServerConfig;
 import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
 import top.turboweb.http.server.handler.IdleCloseChannelHandler;
+import top.turboweb.http.server.handler.WriteThrottleChannelHandler;
 import top.turboweb.http.server.manager.ServerRuntimeManager;
 
 import java.util.Objects;
 
 /**
  * 服务器连接管道装配器：作为 {@code ServerBootstrap} 的 childHandler，在每条新连接建立时被调用一次，
- * 按 限流 → ssl → 编解码（或http2协议协商）→ 应用 的固定顺序装配连接管道。
+ * 按 限流 → 背压节流 → ssl → 编解码（或http2协议协商）→ 应用 的固定顺序装配连接管道。
  * <p>
  * 本类只负责服务器级传输处理器的装配，应用处理器统一委托 {@link ServerRuntimeManager#configure(ChannelPipeline)}
  * 在协议层就绪后追加，因此应用始终排在协议编解码之后；服务器级参数（限流上限、ssl上下文、聚合器最大内容长度、
@@ -35,6 +36,8 @@ import java.util.Objects;
  * <ol>
  *     <li>限流：连接限流器为服务器级单例（{@code @Sharable}）跨连接复用，由
  *     {@link top.turboweb.http.server.BootStrapWebServer} 启动时创建并传入，addFirst置于管道最前；</li>
+ *     <li>背压节流：通道不可写期间暂扣出站消息与冲刷事件，持有连接级暂扣状态，每连接新建独立实例，
+ *     置于ssl与编解码之前，先于全部应用与协议处理器接管出站；</li>
  *     <li>ssl：ssl上下文可共享，{@link SslHandler} 每连接新建，未配置ssl上下文时不装配；</li>
  *     <li>编解码：未启用http2时每连接新建 {@link HttpServerCodec} 与 {@link HttpObjectAggregator}
  *     （聚合器最大内容长度取传入配置），随后委托运行时管理器装配应用；启用http2时改装
@@ -87,8 +90,8 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
     }
 
     /**
-     * 装配新连接管道：限流置于最前，随后ssl，再按是否启用http2装协商处理器或直接装http/1.1编解码，
-     * 各协议分支末尾统一委托运行时管理器追加应用
+     * 装配新连接管道：限流置于最前，随后背压节流，再随后ssl，再按是否启用http2装协商处理器
+     * 或直接装http/1.1编解码，各协议分支末尾统一委托运行时管理器追加应用
      */
     @Override
     protected void initChannel(Channel ch) {
@@ -97,6 +100,8 @@ public final class ServerChannelInitializer extends ChannelInitializer<Channel> 
         if (pipeline.get(ConnectLimiterChannelHandler.class) == null) {
             pipeline.addFirst(connectLimiter);
         }
+        // 背压节流：通道不可写期间暂扣出站消息与冲刷事件，持有连接级状态，每条连接新建独立实例
+        pipeline.addLast(new WriteThrottleChannelHandler());
         // ssl：上下文可共享，SslHandler每连接新建独立实例（未配置ssl上下文时不装配）
         SslContext sslContext = serverConfig.getSslContext();
         if (sslContext != null && pipeline.get(SslHandler.class) == null) {

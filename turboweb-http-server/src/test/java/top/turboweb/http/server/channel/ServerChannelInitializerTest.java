@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.http.server.config.ServerConfig;
 import top.turboweb.http.server.handler.ConnectLimiterChannelHandler;
 import top.turboweb.http.server.handler.IdleCloseChannelHandler;
+import top.turboweb.http.server.handler.WriteThrottleChannelHandler;
 import top.turboweb.http.server.manager.ServerRuntimeManager;
 import top.turboweb.server.runtime.ServerRuntime;
 
@@ -77,7 +78,7 @@ class ServerChannelInitializerTest {
     }
 
     @Test
-    @DisplayName("http/1.1装配顺序：限流最前、codec、aggregator、应用")
+    @DisplayName("http/1.1装配顺序：限流最前、背压节流、codec、aggregator、应用")
     void assemblesHttp11PipelineInOrder() {
         List<String> events = new ArrayList<>();
         ServerRuntimeManager manager = new ServerRuntimeManager();
@@ -94,9 +95,12 @@ class ServerChannelInitializerTest {
 
             List<Class<?>> classes = handlerClasses(channel);
             int limiterIndex = classes.indexOf(ConnectLimiterChannelHandler.class);
+            int throttleIndex = classes.indexOf(WriteThrottleChannelHandler.class);
             int codecIndex = classes.indexOf(HttpServerCodec.class);
             // aggregator 与 codec 成对出现，按 configureHttp11 顺序 codec 在前
             assertTrue(limiterIndex == 0, "限流器必须是管道首位，实际管道: " + classes);
+            assertTrue(throttleIndex > limiterIndex && throttleIndex < codecIndex,
+                    "背压节流必须排在限流之后编解码之前，实际管道: " + classes);
             assertTrue(codecIndex > limiterIndex, "编解码器必须排在限流之后");
             assertTrue(codecIndex >= 0 && classes.indexOf(HttpObjectAggregator.class) > codecIndex,
                     "聚合器必须排在编解码之后");

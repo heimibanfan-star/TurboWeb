@@ -42,6 +42,8 @@ public class ResponseMessageWriter {
     private static final String CONTENT_LENGTH = "Content-Length";
     /** Content-Type 头名 */
     private static final String CONTENT_TYPE = "Content-Type";
+    /** Transfer-Encoding 头名：流式分块传输声明，与定长写出互斥 */
+    private static final String TRANSFER_ENCODING = "Transfer-Encoding";
     /** 实体头名集合：描述原消息体的头，降级报错页更换消息体后不再成立，不继承，头名匹配大小写不敏感 */
     private static final List<String> ENTITY_HEADERS =
             List.of("Content-Type", "Content-Length", "Content-Encoding", "Transfer-Encoding");
@@ -73,7 +75,8 @@ public class ResponseMessageWriter {
         Objects.requireNonNull(resourceProvider, "The resource provider must not be null");
         Objects.requireNonNull(customerHandlers, "The custom handler list must not be null");
         // 全部初始化（建表、校验、注入资源提供者）先在局部变量上完成，后赋值 final 字段
-        Map<Class<? extends MessageWriteHandler>, MessageWriteHandler> builtinTable = Map.of();
+        Map<Class<? extends MessageWriteHandler>, MessageWriteHandler> builtinTable =
+                Map.of(StreamMessageWriteHandler.class, new StreamMessageWriteHandler());
         Map<Class<? extends MessageWriteHandler>, MessageWriteHandler> customerTable =
                 collectCustomerTable(customerHandlers, builtinTable.keySet());
         Stream.concat(builtinTable.values().stream(), customerTable.values().stream())
@@ -153,6 +156,7 @@ public class ResponseMessageWriter {
      * 经连接的消息头、消息体与结束标记三步写出，写出结果经回调恰好上报一次。
      * <p>
      * 消息头中未携带 {@code Content-Length} 时按消息体长度补齐，已携带时不覆写；
+     * 分块传输声明与定长写出互斥，已携带的 {@code Transfer-Encoding} 头在写出前剔除；
      * 消息体为空数组时跳过消息体写出，仍写出结束标记；
      * 异步写出失败与写出通道同步抛错经回调以 FINISHED 上报，失败链不再写结束标记。
      * </p>
@@ -166,6 +170,7 @@ public class ResponseMessageWriter {
         if (!message.containsHeader(CONTENT_LENGTH)) {
             message.setHeader(CONTENT_LENGTH, String.valueOf(content.length));
         }
+        message.removeHeader(TRANSFER_ENCODING);
         try {
             connection.writeHeaders(message.statusLine(), message.headers())
                     .thenCompose(v -> content.length == 0

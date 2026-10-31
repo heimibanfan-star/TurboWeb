@@ -64,7 +64,7 @@ public final class BootStrapWebServer implements AutoCloseable {
      * 运行时管理器（final持有，由本类内部创建且不对外暴露），应用级处理器在每条新连接建立时
      * 由它按注册顺序装配，调用方经 {@link #registerRuntimeFirst(ServerRuntime)} /
      * {@link #registerRuntimeLast(ServerRuntime)} 间接注册应用；
-     * 服务器级传输处理器（限流、ssl、编解码/http2）由 {@link ServerChannelInitializer} 装配
+     * 服务器级传输处理器（限流、背压节流、ssl、编解码/http2）由 {@link ServerChannelInitializer} 装配
      */
     private final ServerRuntimeManager serverRuntimeManager;
 

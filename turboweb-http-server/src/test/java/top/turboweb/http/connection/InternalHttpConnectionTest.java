@@ -16,6 +16,8 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link InternalHttpConnection} 的写出通道行为锚：
@@ -55,6 +57,21 @@ class InternalHttpConnectionTest {
         byte[] written = new byte[content.content().readableBytes()];
         content.content().readBytes(written);
         assertArrayEquals(body, written, "响应体按入参字节原样写出");
+        content.release();
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void writeCarriesCallerArrayWithoutCopy() throws Exception {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        byte[] body = "hello".getBytes();
+
+        connection.write(body).get(5, TimeUnit.SECONDS);
+
+        DefaultHttpContent content = channel.readOutbound();
+        assertTrue(content.content().hasArray(), "写出内容由堆数组承载");
+        assertSame(body, content.content().array(), "写出零拷贝：直接承载入参数组，不做复制");
         content.release();
         channel.finishAndReleaseAll();
     }
