@@ -25,8 +25,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * {@link WriteHandlerManager} 的行为锚：Content-Type 门禁与三区间路由次序
- * （未携带 Content-Type 的响应等同找不到处理器直接降级、字节消息直认管理器内建字节写出方法、
+ * {@link ResponseMessageWriter} 的行为锚：Content-Type 门禁与三区间路由次序
+ * （未携带 Content-Type 的响应等同找不到处理器直接降级、字节消息直认写出器内建字节写出方法、
  * 订阅声明先查内置策略组再查自定义策略组、
  * 其余消息一律等同找不到处理器而降级写出 500 报错页）、
  * 字节写出方法的三步写出与回调契约（Content-Length 补齐口径、失败链经回调上报且不再写结束标记）、
@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 构造即经 init 注入资源提供者）、
  * 降级报错页的消息头继承（原响应非实体头按序继承，实体头剔除且头名匹配大小写不敏感）。
  */
-class WriteHandlerManagerTest {
+class ResponseMessageWriterTest {
 
     /** 订阅声明消息夹具：实现 WriteHandlerSubscribe，把选择结果钉到指定处理器类 */
     private static final class SubscribedMessage extends HttpResponseMessage<Object> implements WriteHandlerSubscribe {
@@ -177,7 +177,7 @@ class WriteHandlerManagerTest {
         ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertEquals(1, callback.count(), "回调恰好一次");
@@ -195,7 +195,7 @@ class WriteHandlerManagerTest {
         message.setHeader("Content-Length", "99");
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertEquals("99", connection.writtenHeaders().get("Content-Length").getFirst(), "已携带 Content-Length 时不覆写");
@@ -207,7 +207,7 @@ class WriteHandlerManagerTest {
         ByteResponseMessage message = byteMessage(new byte[0]);
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertTrue(connection.sentMessages().isEmpty(), "空消息体跳过消息体写出");
@@ -223,7 +223,7 @@ class WriteHandlerManagerTest {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of(handler))
+        new ResponseMessageWriter(resourceManagerOf(), List.of(handler))
                 .write(connection, new SubscribedMessage(MarkingHandler.class, new Object()), callback);
 
         assertTrue(handler.wasWritten(), "订阅声明的处理器命中自定义策略组");
@@ -238,7 +238,7 @@ class WriteHandlerManagerTest {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, new SubscribedMessage(MarkingHandler.class, new Object()), callback);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
@@ -252,7 +252,7 @@ class WriteHandlerManagerTest {
         message.setHeader("Content-Type", "text/plain");
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
@@ -265,7 +265,7 @@ class WriteHandlerManagerTest {
         SubscribedMessage message = new SubscribedMessage(null, new Object());
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
@@ -277,7 +277,7 @@ class WriteHandlerManagerTest {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, new HttpResponseMessage<>(StatusLine.OK, "text"), callback);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
@@ -289,7 +289,7 @@ class WriteHandlerManagerTest {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8)), callback);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
@@ -305,7 +305,7 @@ class WriteHandlerManagerTest {
         message.addHeader("Set-Cookie", "b=2");
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
@@ -326,7 +326,7 @@ class WriteHandlerManagerTest {
         message.setHeader("transfer-encoding", "chunked");
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
@@ -343,7 +343,7 @@ class WriteHandlerManagerTest {
         ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertEquals(1, callback.count(), "回调恰好一次");
@@ -359,7 +359,7 @@ class WriteHandlerManagerTest {
         ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertEquals(1, callback.count(), "写出通道同步抛错也经回调恰好上报一次");
@@ -374,7 +374,7 @@ class WriteHandlerManagerTest {
         ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         assertEquals(List.of("headers"), connection.operations(), "响应头未完成前不得发出消息体");
@@ -396,7 +396,7 @@ class WriteHandlerManagerTest {
         ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
-        new WriteHandlerManager(resourceManagerOf(), List.of())
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
         connection.failHeaders(new IllegalStateException("headers failed"));
@@ -411,7 +411,7 @@ class WriteHandlerManagerTest {
     void constructorRejectsDuplicateHandlerClass() {
         // 重复判定按处理器类进行：同类不同实例同样拒登
         IllegalStateException again = assertThrows(IllegalStateException.class,
-                () -> new WriteHandlerManager(resourceManagerOf(),
+                () -> new ResponseMessageWriter(resourceManagerOf(),
                         List.of(new MarkingHandler(), new MarkingHandler())));
         assertEquals("Duplicate message write handler registration: " + MarkingHandler.class.getName(),
                 again.getMessage());
@@ -422,7 +422,7 @@ class WriteHandlerManagerTest {
         ResourceProvider provider = resourceManagerOf();
         MarkingHandler handler = new MarkingHandler();
 
-        new WriteHandlerManager(provider, List.of(handler));
+        new ResponseMessageWriter(provider, List.of(handler));
 
         assertSame(provider, handler.injectedProvider(), "构造期必须把资源提供者交给自定义处理器");
     }
@@ -430,21 +430,21 @@ class WriteHandlerManagerTest {
     @Test
     void constructorRejectsNullHandlerElement() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
-                () -> new WriteHandlerManager(resourceManagerOf(), Arrays.asList((MessageWriteHandler) null)));
+                () -> new ResponseMessageWriter(resourceManagerOf(), Arrays.asList((MessageWriteHandler) null)));
         assertEquals("The message write handler must not be null", thrown.getMessage());
     }
 
     @Test
     void constructorRejectsNullHandlerList() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
-                () -> new WriteHandlerManager(resourceManagerOf(), null));
+                () -> new ResponseMessageWriter(resourceManagerOf(), null));
         assertEquals("The custom handler list must not be null", thrown.getMessage());
     }
 
     @Test
     void constructorRejectsNullResourceProvider() {
         NullPointerException thrown = assertThrows(NullPointerException.class,
-                () -> new WriteHandlerManager(null, List.of()));
+                () -> new ResponseMessageWriter(null, List.of()));
         assertEquals("The resource provider must not be null", thrown.getMessage());
     }
 
@@ -466,7 +466,7 @@ class WriteHandlerManagerTest {
 
     /**
      * 构造测试用资源管理器：以内置空间登记磁盘IO执行器资源，
-     * 供处理器管理器按 {@link ResourceNames#DISK_IO_THREAD_POOL} 从其中获取
+     * 供写出器按 {@link ResourceNames#DISK_IO_THREAD_POOL} 从其中获取
      */
     private static ResourceProvider resourceManagerOf() {
         Map<String, AutoCloseable> builtins = new LinkedHashMap<>();

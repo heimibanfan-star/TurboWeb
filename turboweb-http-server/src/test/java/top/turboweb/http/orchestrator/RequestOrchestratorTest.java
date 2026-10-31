@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * {@link RequestOrchestrator} 的行为锚：建造者装配九组件（中间件、资源管理器、
- * 响应写出器管理器、结果转化器管理器、cors 配置、异常处理器管理器、
+ * 响应消息写出器、结果转化器管理器、cors 配置、异常处理器管理器、
  * 会话管理器持有者、缺省字符集、请求体内容解析器管理器）的构造契约——
  * 配置方法 null 入参即时拒收、缺配在 build 时拒收且消息指名组件、
  * 九件齐配构建成功且重复 build 产物互不相同；

@@ -14,13 +14,13 @@ import java.util.concurrent.CompletionException;
 import java.util.stream.Stream;
 
 /**
- * 响应写出处理器管理器：按消息类型与订阅声明选择写出方，
+ * 响应消息写出器：按消息类型与订阅声明选择写出方，
  * 把一条响应消息异步写出到一条连接上，写出结果经 {@link MessageWriteHandler.Callback} 上报。
  * <p>
  * 选择按 Content-Type 门禁与三个区间次序路由：
  * 门禁为消息头完备性——响应消息未携带 {@code Content-Type} 时等同找不到处理器，降级写出报错页；
  * 区间一为字节消息直认——{@link ByteResponseMessage} 为 final 类，类型按字面判定，
- * 命中即由本管理器的字节写出方法写出；
+ * 命中即由本写出器的字节写出方法写出；
  * 区间二为订阅声明匹配——消息实现 {@link WriteHandlerSubscribe} 且声明了订阅者类型时，
  * 先查内置策略组，未命中再查自定义策略组；
  * 区间三为降级写出——其余消息（未实现订阅声明、未声明订阅者类型，
@@ -36,7 +36,7 @@ import java.util.stream.Stream;
  * 保证经对象发布可见的处理器均已完成初始化。
  * </p>
  */
-public class WriteHandlerManager {
+public class ResponseMessageWriter {
 
     /** Content-Length 头名 */
     private static final String CONTENT_LENGTH = "Content-Length";
@@ -57,7 +57,7 @@ public class WriteHandlerManager {
     private final Map<Class<? extends MessageWriteHandler>, MessageWriteHandler> customerHandlers;
 
     /**
-     * 构造响应写出处理器管理器。
+     * 构造响应消息写出器。
      * <p>
      * 自定义表与处理器初始化先在局部变量上完成，再统一赋值 final 字段
      * （发布安全：final 字段随对象发布可见时，处理器已初始化完毕）。
@@ -69,7 +69,7 @@ public class WriteHandlerManager {
      * @throws IllegalArgumentException 列表含内置处理器类
      * @throws IllegalStateException    同一处理器类在列表中出现多次
      */
-    public WriteHandlerManager(ResourceProvider resourceProvider, List<MessageWriteHandler> customerHandlers) {
+    public ResponseMessageWriter(ResourceProvider resourceProvider, List<MessageWriteHandler> customerHandlers) {
         Objects.requireNonNull(resourceProvider, "The resource provider must not be null");
         Objects.requireNonNull(customerHandlers, "The custom handler list must not be null");
         // 全部初始化（建表、校验、注入资源提供者）先在局部变量上完成，后赋值 final 字段
