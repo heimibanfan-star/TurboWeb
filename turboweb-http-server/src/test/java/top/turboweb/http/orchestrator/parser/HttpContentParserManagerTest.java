@@ -3,14 +3,12 @@ package top.turboweb.http.orchestrator.parser;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.Content;
 import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.context.AutoCloseContent;
-import top.turboweb.http.context.HttpFormContent;
-import top.turboweb.http.context.HttpJsonContent;
-import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.core.ContentType;
 import top.turboweb.http.exception.RequestParseException;
+import top.turboweb.http.request.FormRequestMessage;
+import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.http.testkit.Requests;
 
 import java.nio.charset.Charset;
@@ -20,12 +18,12 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link HttpContentParserManager} 的内容类型路由：内置解析器优先、自定义解析器次之、
- * 无匹配回落未知内容；以及构造期注册校验口径。
+ * 无匹配回落 {@code null}；以及构造期注册校验口径。
  */
 class HttpContentParserManagerTest {
 
@@ -59,13 +57,13 @@ class HttpContentParserManagerTest {
         }
 
         @Override
-        public Content parse(FullHttpRequest request, Charset defaultCharset) {
+        public Object parse(FullHttpRequest request, Charset defaultCharset) {
             this.seenCharset = defaultCharset;
             return new MarkerContent();
         }
     }
 
-    private static final class MarkerContent implements Content {
+    private static final class MarkerContent {
     }
 
     @Test
@@ -92,8 +90,8 @@ class HttpContentParserManagerTest {
     void urlencodedRequestRoutesToFormContent() throws Exception {
         FullHttpRequest req = Requests.postForm("/x", "name=alice&tag=a&tag=b");
         try {
-            Content content = manager().parse(req);
-            HttpFormContent form = assertInstanceOf(HttpFormContent.class, content);
+            Object content = manager().parse(req);
+            FormRequestMessage.FormData form = assertInstanceOf(FormRequestMessage.FormData.class, content);
             assertEquals(List.of("alice"), form.formParams().get("name"));
             assertEquals(List.of("a", "b"), form.formParams().get("tag"));
             form.close();
@@ -106,8 +104,8 @@ class HttpContentParserManagerTest {
     void multipartRequestRoutesToFormContent() throws Exception {
         FullHttpRequest req = multipart();
         try {
-            Content content = manager().parse(req);
-            HttpFormContent form = assertInstanceOf(HttpFormContent.class, content);
+            Object content = manager().parse(req);
+            FormRequestMessage.FormData form = assertInstanceOf(FormRequestMessage.FormData.class, content);
             List<MultipartFile> docs = form.formFiles().get("doc");
             assertEquals(1, docs.size(), "multipart 与 urlencoded 同由表单解析器承接");
             form.close();
@@ -120,8 +118,8 @@ class HttpContentParserManagerTest {
     void jsonRequestRoutesToJsonContent() {
         FullHttpRequest req = Requests.postJson("/x", "{\"a\":1}");
         try {
-            Content content = manager().parse(req);
-            HttpJsonContent json = assertInstanceOf(HttpJsonContent.class, content);
+            Object content = manager().parse(req);
+            JsonRequestMessage.JsonData json = assertInstanceOf(JsonRequestMessage.JsonData.class, content);
             assertEquals("{\"a\":1}", json.jsonString());
         } finally {
             Requests.release(req);
@@ -133,12 +131,12 @@ class HttpContentParserManagerTest {
         FullHttpRequest formReq = Requests.postForm("/x", "k=v");
         FullHttpRequest jsonReq = Requests.postJson("/x", "{}");
         try {
-            HttpFormContent form = assertInstanceOf(HttpFormContent.class, manager().parse(formReq),
-                    "表单渠道就是内置表单内容类，取数方按具体类认领");
+            FormRequestMessage.FormData form = assertInstanceOf(FormRequestMessage.FormData.class,
+                    manager().parse(formReq), "表单渠道就是内置表单内容类，取数方按具体类认领");
             assertInstanceOf(AutoCloseContent.class, form,
                     "持有解码器的表单内容经 AutoCloseContent 进入统一关闭通道");
             form.close();
-            assertInstanceOf(HttpJsonContent.class, manager().parse(jsonReq),
+            assertInstanceOf(JsonRequestMessage.JsonData.class, manager().parse(jsonReq),
                     "JSON 渠道就是内置 JSON 内容类");
         } finally {
             Requests.release(formReq);
@@ -154,7 +152,8 @@ class HttpContentParserManagerTest {
         try {
             HttpContentParserManager gbkManager =
                     new HttpContentParserManager(Charset.forName("GBK"), List.of());
-            HttpJsonContent json = assertInstanceOf(HttpJsonContent.class, gbkManager.parse(req));
+            JsonRequestMessage.JsonData json = assertInstanceOf(JsonRequestMessage.JsonData.class,
+                    gbkManager.parse(req));
             assertEquals("{\"n\":\"张三\"}", json.jsonString());
         } finally {
             Requests.release(req);
@@ -162,23 +161,21 @@ class HttpContentParserManagerTest {
     }
 
     @Test
-    void unsupportedDeclaredTypeBecomesUnknownContent() {
+    void unsupportedDeclaredTypeFallsBackToNull() {
         FullHttpRequest req = Requests.raw(HttpMethod.POST, "/x", "text/plain; charset=UTF-8",
                 "hello", StandardCharsets.UTF_8);
         try {
-            Content content = manager().parse(req);
-            assertInstanceOf(HttpUnknowContent.class, content,
-                    "无匹配解析器的声明类型回落未知内容，编码段不参与路由");
+            assertNull(manager().parse(req), "无匹配解析器的声明类型回落 null，编码段不参与路由");
         } finally {
             Requests.release(req);
         }
     }
 
     @Test
-    void missingContentTypeBecomesUnknownContent() {
+    void missingContentTypeFallsBackToNull() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            assertInstanceOf(HttpUnknowContent.class, manager().parse(req), "无 Content-Type 头时回落未知内容");
+            assertNull(manager().parse(req), "无 Content-Type 头时回落 null");
         } finally {
             Requests.release(req);
         }
@@ -189,7 +186,7 @@ class HttpContentParserManagerTest {
         FullHttpRequest req = Requests.raw(HttpMethod.POST, "/x", "APPLICATION/JSON",
                 "{\"a\":1}", StandardCharsets.UTF_8);
         try {
-            assertInstanceOf(HttpJsonContent.class, manager().parse(req));
+            assertInstanceOf(JsonRequestMessage.JsonData.class, manager().parse(req));
         } finally {
             Requests.release(req);
         }

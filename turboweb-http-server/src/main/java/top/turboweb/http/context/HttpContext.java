@@ -2,8 +2,9 @@ package top.turboweb.http.context;
 
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
+import top.turboweb.http.request.FormRequestMessage;
+import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.http.session.HttpSession;
-import top.turboweb.http.core.Content;
 import top.turboweb.http.core.HttpRequestMessage;
 
 import java.nio.charset.Charset;
@@ -13,9 +14,10 @@ import java.nio.charset.Charset;
  * <p>
  * 它封装了请求消息（方式、请求头、请求地址与请求体内容）、连接会话、Session 管理、
  * Cookie 管理、缺省编码与挂载对象。
- * 请求体内容经 {@link HttpRequestMessage#content()} 读取（读取契约见 {@link Content}）；
- * 表单字段与上传文件、JSON 体字符串由内置解析器产出的具体内容类承载
- * （分别为 {@code HttpFormContent} 与 {@code HttpJsonContent}），读取侧认其具体类转型取数。
+ * 请求体内容经 {@link HttpRequestMessage#content()} 读取；
+ * JSON 体字符串与表单字段、上传文件由内置解析器产出的具体内容类承载
+ * （分别为 {@link JsonRequestMessage.JsonData} 与 {@link FormRequestMessage.FormData}），
+ * 读取侧按消息具体类型模式匹配取数。
  * 本接口不单独暴露内容访问器，也不承担内容的关闭与释放——
  * 请求体资源由创建方（请求编排器）在请求结束时统一释放。
  * <br>
@@ -37,7 +39,7 @@ import java.nio.charset.Charset;
  * <pre>{@code
  * void handle(HttpContext ctx) {
  *     // 获取请求消息：方式、请求头、请求地址与请求体内容
- *     HttpRequestMessage message = ctx.message();
+ *     HttpRequestMessage<?> message = ctx.message();
  *     HttpRequestMethod method = message.method();
  *     String path = message.requestLine().target().path();
  *
@@ -45,9 +47,10 @@ import java.nio.charset.Charset;
  *     HttpSession session = ctx.httpSession();
  *     session.setAttr("user", "Alice");
  *
- *     // 读表单字段：参数取数经消息内容转型内置表单内容类；表单到对象的绑定由路由侧 @BeanForm 参数绑定器完成
- *     HttpFormContent form = (HttpFormContent) message.content();
- *     String keyword = form.formParams().get("keyword").getFirst();
+ *     // 读表单字段：按消息具体类型匹配后取内容；表单到对象的绑定由路由侧 @BeanForm 参数绑定器完成
+ *     if (message instanceof FormRequestMessage formMessage) {
+ *         String keyword = formMessage.content().formParams().get("keyword").getFirst();
+ *     }
  * }
  * }</pre>
  *
@@ -62,7 +65,7 @@ public interface HttpContext {
 	 *
 	 * @return 请求消息，永不为 null
 	 */
-	HttpRequestMessage message();
+	HttpRequestMessage<?> message();
 
 	/**
 	 * 获取连接会话。

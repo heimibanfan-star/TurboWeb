@@ -17,7 +17,8 @@ import java.util.Objects;
  * {@code DefaultHttpFile} 是 {@link MultipartFile} 在服务端的默认实现，内部聚合 Netty 解码器产出的
  * {@link FileUpload}：文件名、内容类型、内容长度与内容读取均委托给被聚合的上传段。
  *
- * <p>上传段可能驻留堆外内存或磁盘临时文件，其生命周期由持有解码器的 {@link HttpFormContent}
+ * <p>上传段可能驻留堆外内存或磁盘临时文件，其生命周期由持有解码器的
+ * {@link top.turboweb.http.request.FormRequestMessage.FormData}
  * 统一管理：本类不复制内容（{@link #readAll()} 除外，它按契约返回独立字节数组）、不承担释放义务，
  * 也不实现 {@link AutoCloseable}。请求处理结束后继续使用本类读取数据，与直接访问已释放的上传段
  * 风险相同；需要跨请求保留内容时，应在处理结束前经 {@link #readAll()} 或 {@link #inputStream()}

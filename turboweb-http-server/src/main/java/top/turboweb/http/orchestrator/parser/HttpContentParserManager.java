@@ -1,9 +1,7 @@
 package top.turboweb.http.orchestrator.parser;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.http.core.Content;
 import top.turboweb.http.context.AutoCloseContent;
-import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.core.ContentType;
 
 import java.nio.charset.Charset;
@@ -17,11 +15,11 @@ import java.util.Set;
 
 /**
  * {@code HttpContentParserManager} 按请求头声明的 Content-Type 把请求体路由给内容解析器，
- * 产出 {@link Content}。
+ * 产出内容对象，具体类型由解析器定义。
  *
  * <p><b>路由顺序：</b>请求头有类型声明时，先遍历内置解析器（内置数量少，线性遍历优于哈希查找），
  * 未命中再查自定义解析器表（按归一化 MIME 类型哈希定位）；两者皆未命中、或请求头未声明类型时，
- * 返回 {@link HttpUnknowContent} 兜底，不解析体。
+ * 返回 {@code null} 兜底，不解析体。
  * 命中解析器后请求体无效（如 JSON 体外非花括号包裹）时异常原样传播，不回落未知内容。
  *
  * <p><b>注册约束：</b>自定义解析器的类型与内置类型冲突、或自定义之间重复注册同一类型时，
@@ -84,15 +82,16 @@ public class HttpContentParserManager {
      * 按请求头声明的内容类型解析请求体。
      *
      * @param request 待解析的请求对象，不能为空
-     * @return 命中的解析器产出的内容对象；无匹配类型或请求头未声明类型时返回 {@link HttpUnknowContent}
+     * @return 命中的解析器产出的内容对象，不为 {@code null}；
+     *         无匹配类型或请求头未声明类型时返回 {@code null}
      * @throws NullPointerException  当 {@code request} 为 {@code null} 时抛出
      * @throws top.turboweb.http.exception.RequestParseException 命中解析器后请求体无效时由解析器抛出，原样传播
      */
-    public Content parse(FullHttpRequest request) {
+    public Object parse(FullHttpRequest request) {
         Objects.requireNonNull(request, "request can not be null");
         String mimeType = HttpRequestHelper.getContentType(request);
         if (mimeType == null) {
-            return new HttpUnknowContent();
+            return null;
         }
         String key = normalize(mimeType);
         for (HttpContentParser parser : builtinParsers) {
@@ -104,7 +103,7 @@ public class HttpContentParserManager {
         if (custom != null) {
             return custom.parse(request, defaultCharset);
         }
-        return new HttpUnknowContent();
+        return null;
     }
 
     /**

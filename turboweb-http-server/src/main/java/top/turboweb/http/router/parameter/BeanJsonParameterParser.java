@@ -1,10 +1,9 @@
 package top.turboweb.http.router.parameter;
 
-import top.turboweb.http.core.Content;
 import top.turboweb.http.core.annotation.binder.BeanJson;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.context.HttpJsonContent;
 import top.turboweb.http.exception.RequestParseException;
+import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
 
@@ -16,7 +15,8 @@ import java.lang.reflect.Parameter;
 public class BeanJsonParameterParser extends AbstractParameterParser{
 
     /**
-     * json参数绑定器:取数经请求体内容转型内置 JSON 内容类（{@link HttpJsonContent}），体字符串经传入的 json 序列化器反序列化为 bean,
+     * json参数绑定器:取数经请求消息匹配内置 JSON 请求消息（{@link JsonRequestMessage}），
+     * 体字符串经传入的 json 序列化器反序列化为 bean,
      * 注解要求校验时在绑定器内经传入的 Bean 校验器执行
      */
     private record BeanJsonParameterBinder(
@@ -28,11 +28,10 @@ public class BeanJsonParameterParser extends AbstractParameterParser{
         @Override
         public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
                                     JsonSerializer jsonSerializer) {
-            Content content = ctx.message().content();
-            if (!(content instanceof HttpJsonContent jsonContent)) {
+            if (!(ctx.message() instanceof JsonRequestMessage jsonMessage)) {
                 throw new RequestParseException("contentType is not application/json");
             }
-            Object bean = jsonSerializer.jsonToBean(jsonContent.jsonString(), type);
+            Object bean = jsonSerializer.jsonToBean(jsonMessage.content().jsonString(), type);
             if (validate) {
                 if (groups == null || groups.length == 0) {
                     beanValidator.validate(bean);

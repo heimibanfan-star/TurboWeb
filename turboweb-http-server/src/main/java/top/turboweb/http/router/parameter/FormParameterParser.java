@@ -1,11 +1,10 @@
 package top.turboweb.http.router.parameter;
 
-import top.turboweb.http.core.Content;
 import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.core.annotation.binder.FormParam;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.exception.RequestParseException;
+import top.turboweb.http.request.FormRequestMessage;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.serializer.JsonSerializer;
@@ -27,9 +26,9 @@ import java.util.Set;
 public class FormParameterParser extends AbstractParameterParser {
 
     /**
-     * 表单参数绑定器:取数经请求体内容转型内置表单内容类（{@link HttpFormContent}）;
+     * 表单参数绑定器:取数经请求消息匹配内置表单请求消息（{@link FormRequestMessage}）;
      * {@code simpleTypeHandler} 非空时按注解 value 取该字段归档的首值,再按声明类型转化;
-     * 为空时按注解 value 取该字段的文件归档。内容不是内置表单内容类时拒绑
+     * 为空时按注解 value 取该字段的文件归档。消息不是内置表单请求消息时拒绑
      *
      * @param collectionType 文件绑定的集合形态 0 单个对象 1 list集合 2 set集合;文本绑定不使用
      */
@@ -42,13 +41,12 @@ public class FormParameterParser extends AbstractParameterParser {
         @Override
         public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
                                     JsonSerializer jsonSerializer) {
-            Content content = ctx.message().content();
-            if (!(content instanceof HttpFormContent formContent)) {
+            if (!(ctx.message() instanceof FormRequestMessage formMessage)) {
                 throw new RequestParseException(
                         "contentType is not application/x-www-form-urlencoded or multipart/form-data");
             }
             if (simpleTypeHandler == null) {
-                Map<String, List<MultipartFile>> files = formContent.formFiles();
+                Map<String, List<MultipartFile>> files = formMessage.content().formFiles();
                 List<MultipartFile> uploads = files.get(name);
                 List<MultipartFile> normalized = uploads == null ? List.of() : uploads;
                 if (collectionType == 0) {
@@ -59,7 +57,7 @@ public class FormParameterParser extends AbstractParameterParser {
                 }
                 return new HashSet<MultipartFile>(normalized);
             }
-            Map<String, List<String>> formParams = formContent.formParams();
+            Map<String, List<String>> formParams = formMessage.content().formParams();
             List<String> values = formParams.get(name);
             String value = (values == null || values.isEmpty()) ? null : values.getFirst();
             return simpleTypeHandler.handle(value);

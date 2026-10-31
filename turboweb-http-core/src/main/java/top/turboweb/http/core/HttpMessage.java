@@ -6,15 +6,16 @@ import java.util.Set;
 
 /**
  * http消息的读写契约：平铺承载消息行与消息体内容的读取，以及消息头的读取与写入修改访问；
- * 消息行的类型由子契约以泛型实参填充（如 http 请求消息以 {@link RequestLine} 填充，
- * http 响应消息以 {@link StatusLine} 填充），消息体内容统一为 {@link Content}。
+ * 消息行与消息体内容的类型均由子契约以泛型实参填充（如 http 请求消息以 {@link RequestLine} 填充请求行），
+ * 无消息体的消息以 {@link Void} 填充内容类型，{@link #content()} 恒返回 {@code null}。
  *
  * <p>消息头不设独立视图对象，读写访问直接平铺在消息上，头名查询大小写不敏感；
  * 头未发送时返回 {@code null}，仅 {@link #contentLength()} 未发送或取值无效时记 0。</p>
  *
- * @param <LINE> 消息行信息的类型
+ * @param <LINE>    消息行信息的类型
+ * @param <CONTENT> 消息体内容的类型
  */
-public interface HttpMessage<LINE> {
+public interface HttpMessage<LINE, CONTENT> {
 
     /**
      * 获取消息行信息：请求消息为请求行，响应消息为状态行。
@@ -24,11 +25,11 @@ public interface HttpMessage<LINE> {
     LINE line();
 
     /**
-     * 获取消息体内容。
+     * 获取消息体内容：无消息体的消息（内容类型为 {@link Void}）恒返回 {@code null}。
      *
      * @return 消息体内容
      */
-    Content content();
+    CONTENT content();
 
     /**
      * 获取指定头名的首个取值。

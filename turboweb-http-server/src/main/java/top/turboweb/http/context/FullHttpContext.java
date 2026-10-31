@@ -2,6 +2,8 @@ package top.turboweb.http.context;
 
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
+import top.turboweb.http.request.FormRequestMessage;
+import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.core.HttpRequestMessage;
 
@@ -14,8 +16,8 @@ import java.util.Objects;
  * 它封装请求消息（{@link HttpRequestMessage}，承载请求方式、请求头、请求地址与请求体内容）、
  * Session、Cookie、连接会话、缺省编码与挂载对象；
  * 请求体参数的封装由内置解析器产出的具体内容类承载（表单字段与上传文件在
- * {@link HttpFormContent}、JSON 体字符串在 {@link HttpJsonContent}），读取侧认其具体类转型取数，
- * 本类不分派内容。
+ * {@link FormRequestMessage.FormData}、JSON 体字符串在 {@link JsonRequestMessage.JsonData}），
+ * 读取侧按消息具体类型模式匹配取数，本类不分派内容。
  * <p>
  * 本类不持有 Netty 的请求对象：请求的方式、头、地址与请求体内容统一经
  * {@link HttpRequestMessage} 读取，由编排器在装配上下文时就位。
@@ -36,7 +38,7 @@ import java.util.Objects;
 public final class FullHttpContext implements HttpContext {
 
 	/** 请求消息：请求方式、请求头、请求地址与请求体内容 */
-	private final HttpRequestMessage message;
+	private final HttpRequestMessage<?> message;
 
 	/** 当前请求关联的会话对象 */
 	private final HttpSession session;
@@ -65,7 +67,7 @@ public final class FullHttpContext implements HttpContext {
 	 * @throws NullPointerException message 或 defaultCharset 为 null
 	 */
 	public FullHttpContext(
-			HttpRequestMessage message,
+			HttpRequestMessage<?> message,
 			HttpSession httpSession,
 			HttpCookies cookies,
 			HttpConnection connectSession,
@@ -82,7 +84,7 @@ public final class FullHttpContext implements HttpContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public HttpRequestMessage message() {
+	public HttpRequestMessage<?> message() {
 		return this.message;
 	}
 

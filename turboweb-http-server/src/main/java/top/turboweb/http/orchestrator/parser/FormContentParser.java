@@ -1,16 +1,15 @@
 package top.turboweb.http.orchestrator.parser;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.http.core.Content;
-import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.core.ContentType;
+import top.turboweb.http.request.FormRequestMessage;
 
 import java.nio.charset.Charset;
 import java.util.Set;
 
 /**
  * 表单内容解析器：同时承接 {@code application/x-www-form-urlencoded} 与
- * {@code multipart/form-data} 请求体，产出 {@link HttpFormContent}。
+ * {@code multipart/form-data} 请求体，产出 {@link FormRequestMessage.FormData}。
  */
 public class FormContentParser implements HttpContentParser {
 
@@ -26,7 +25,7 @@ public class FormContentParser implements HttpContentParser {
      * {@inheritDoc}
      */
     @Override
-    public Content parse(FullHttpRequest request, Charset defaultCharset) {
-        return new HttpFormContent(request, defaultCharset);
+    public Object parse(FullHttpRequest request, Charset defaultCharset) {
+        return new FormRequestMessage.FormData(request, defaultCharset);
     }
 }

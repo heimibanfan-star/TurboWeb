@@ -1,10 +1,12 @@
-package top.turboweb.http.context;
+package top.turboweb.http.request;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.core.MultipartFile;
+import top.turboweb.http.core.RequestLine;
+import top.turboweb.http.core.RequestTarget;
 import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.testkit.Requests;
 
@@ -20,9 +22,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link HttpFormContent} 的表单请求体即时解析与解码器释放。
+ * {@link FormRequestMessage} 与其 {@link FormRequestMessage.FormData} 内容类的
+ * 表单请求体即时解析与解码器释放。
  */
-class HttpFormContentTest {
+class FormRequestMessageTest {
 
     /** multipart 夹具：一个普通字段 k 与一个文件字段 doc。 */
     private static final String MULTIPART_BODY =
@@ -38,7 +41,7 @@ class HttpFormContentTest {
     @Test
     void nullRequestIsRejected() {
         NullPointerException ex = assertThrows(NullPointerException.class,
-                () -> new HttpFormContent(null, StandardCharsets.UTF_8));
+                () -> new FormRequestMessage.FormData(null, StandardCharsets.UTF_8));
         assertEquals("request can not be null", ex.getMessage());
     }
 
@@ -46,7 +49,8 @@ class HttpFormContentTest {
     void nullDefaultCharsetIsRejected() {
         FullHttpRequest req = Requests.postForm("/x", "a=1");
         try {
-            NullPointerException ex = assertThrows(NullPointerException.class, () -> new HttpFormContent(req, null));
+            NullPointerException ex = assertThrows(NullPointerException.class,
+                    () -> new FormRequestMessage.FormData(req, null));
             assertEquals("defaultCharset can not be null", ex.getMessage());
         } finally {
             Requests.release(req);
@@ -57,7 +61,7 @@ class HttpFormContentTest {
     void urlencodedBodyIsParsedOnConstruction() {
         FullHttpRequest req = Requests.postForm("/x", "name=alice&age=30&tag=a&tag=b");
         try {
-            HttpFormContent content = new HttpFormContent(req, StandardCharsets.UTF_8);
+            FormRequestMessage.FormData content = new FormRequestMessage.FormData(req, StandardCharsets.UTF_8);
             Map<String, List<String>> params = content.formParams();
             assertEquals(List.of("alice"), params.get("name"));
             assertEquals(List.of("30"), params.get("age"));
@@ -72,7 +76,7 @@ class HttpFormContentTest {
     void multipartBodyIsParsedOnConstruction() throws Exception {
         FullHttpRequest req = multipart();
         try {
-            HttpFormContent content = new HttpFormContent(req, StandardCharsets.UTF_8);
+            FormRequestMessage.FormData content = new FormRequestMessage.FormData(req, StandardCharsets.UTF_8);
             assertEquals(List.of("v"), content.formParams().get("k"));
             List<MultipartFile> docs = content.formFiles().get("doc");
             assertEquals(1, docs.size(), "multipart 文件段归档进 formFiles");
@@ -89,9 +93,9 @@ class HttpFormContentTest {
         FullHttpRequest none = Requests.get("/x");
         try {
             RequestParseException ex = assertThrows(RequestParseException.class,
-                    () -> new HttpFormContent(json, StandardCharsets.UTF_8));
+                    () -> new FormRequestMessage.FormData(json, StandardCharsets.UTF_8));
             assertEquals("contentType is not application/x-www-form-urlencoded or multipart/form-data", ex.getMessage());
-            assertThrows(RequestParseException.class, () -> new HttpFormContent(none, StandardCharsets.UTF_8));
+            assertThrows(RequestParseException.class, () -> new FormRequestMessage.FormData(none, StandardCharsets.UTF_8));
         } finally {
             Requests.release(json);
             Requests.release(none);
@@ -104,7 +108,7 @@ class HttpFormContentTest {
         FullHttpRequest req = Requests.raw(HttpMethod.POST, "/x",
                 "application/x-www-form-urlencoded; charset=GBK", "n=%D5%C5%C8%FD", StandardCharsets.UTF_8);
         try {
-            HttpFormContent content = new HttpFormContent(req, StandardCharsets.UTF_8);
+            FormRequestMessage.FormData content = new FormRequestMessage.FormData(req, StandardCharsets.UTF_8);
             assertEquals(List.of("张三"), content.formParams().get("n"), "解码按头声明的字符集，不受缺省字符集影响");
         } finally {
             Requests.release(req);
@@ -116,7 +120,7 @@ class HttpFormContentTest {
         FullHttpRequest req = Requests.raw(HttpMethod.POST, "/x",
                 "application/x-www-form-urlencoded", "n=%D5%C5%C8%FD", StandardCharsets.UTF_8);
         try {
-            HttpFormContent content = new HttpFormContent(req, Charset.forName("GBK"));
+            FormRequestMessage.FormData content = new FormRequestMessage.FormData(req, Charset.forName("GBK"));
             assertEquals(List.of("张三"), content.formParams().get("n"), "头不带 charset 段时回落到构造传入的缺省字符集");
         } finally {
             Requests.release(req);
@@ -127,7 +131,7 @@ class HttpFormContentTest {
     void parsedMapsAreStableAcrossCalls() {
         FullHttpRequest req = Requests.postForm("/x", "a=1");
         try {
-            HttpFormContent content = new HttpFormContent(req, StandardCharsets.UTF_8);
+            FormRequestMessage.FormData content = new FormRequestMessage.FormData(req, StandardCharsets.UTF_8);
             assertSame(content.formParams(), content.formParams(), "解析结果一次成型，多次访问返回同一 Map");
             assertSame(content.formFiles(), content.formFiles());
         } finally {
@@ -139,7 +143,7 @@ class HttpFormContentTest {
     void parsedDataAvailableAfterRequestRelease() throws Exception {
         // 构造期请求体字节已转入解码器持有的数据对象，请求对象可先于属性访问释放
         FullHttpRequest req = Requests.postForm("/x", "a=1");
-        HttpFormContent content = new HttpFormContent(req, StandardCharsets.UTF_8);
+        FormRequestMessage.FormData content = new FormRequestMessage.FormData(req, StandardCharsets.UTF_8);
         Requests.release(req);
         assertEquals(List.of("1"), content.formParams().get("a"));
         content.close();
@@ -153,7 +157,7 @@ class HttpFormContentTest {
                 "application/x-www-form-urlencoded", "n=%zz", StandardCharsets.UTF_8);
         try {
             assertThrows(HttpPostRequestDecoder.ErrorDataDecoderException.class,
-                    () -> new HttpFormContent(req, StandardCharsets.UTF_8));
+                    () -> new FormRequestMessage.FormData(req, StandardCharsets.UTF_8));
         } finally {
             Requests.release(req);
         }
@@ -163,7 +167,7 @@ class HttpFormContentTest {
     void closeIsIdempotentAfterUrlencodedParsing() throws Exception {
         FullHttpRequest req = Requests.postForm("/x", "a=1");
         try {
-            HttpFormContent content = new HttpFormContent(req, StandardCharsets.UTF_8);
+            FormRequestMessage.FormData content = new FormRequestMessage.FormData(req, StandardCharsets.UTF_8);
             content.close();
             assertDoesNotThrow(content::close, "二次 close 不再触发解码器销毁");
         } finally {
@@ -175,9 +179,24 @@ class HttpFormContentTest {
     void closeIsIdempotentAfterMultipartParsing() throws Exception {
         FullHttpRequest req = multipart();
         try {
-            HttpFormContent content = new HttpFormContent(req, StandardCharsets.UTF_8);
+            FormRequestMessage.FormData content = new FormRequestMessage.FormData(req, StandardCharsets.UTF_8);
             content.close();
             assertDoesNotThrow(content::close, "带 FileUpload 的解码器销毁后置空，二次 close 无副作用");
+        } finally {
+            Requests.release(req);
+        }
+    }
+
+    @Test
+    void messageCarriesInjectedLineAndTypedContent() {
+        RequestLine line = new RequestLine(top.turboweb.http.core.HttpRequestMethod.POST,
+                new RequestTarget("/x"));
+        FullHttpRequest req = Requests.postForm("/x", "a=1");
+        try {
+            FormRequestMessage.FormData content = new FormRequestMessage.FormData(req, StandardCharsets.UTF_8);
+            FormRequestMessage message = new FormRequestMessage(line, content);
+            assertSame(line, message.requestLine(), "请求行按入参原样持有");
+            assertSame(content, message.content(), "内容按入参原样持有且类型为 FormData");
         } finally {
             Requests.release(req);
         }

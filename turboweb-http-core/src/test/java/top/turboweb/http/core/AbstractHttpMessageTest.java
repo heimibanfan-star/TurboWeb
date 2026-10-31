@@ -20,16 +20,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AbstractHttpMessageTest {
 
     /** 头部操作全量由抽象类实现，测试用空实现子类承载 */
-    private static final class TestMessage extends AbstractHttpMessage<String> {
+    private static final class TestMessage extends AbstractHttpMessage<String, Object> {
 
-        private TestMessage(String line, Content content) {
+        private TestMessage(String line, Object content) {
             super(line, content);
         }
     }
 
     /** 头部用例不经行与内容通道，统一带入的标记内容 */
-    private static final Content NO_CONTENT = new Content() {
-    };
+    private static final Object NO_CONTENT = new Object();
 
     private static TestMessage message() {
         return new TestMessage("LINE", NO_CONTENT);
@@ -39,8 +38,7 @@ class AbstractHttpMessageTest {
 
     @Test
     void carriesConstructorInjectedLineAndContent() {
-        Content content = new Content() {
-        };
+        Object content = new Object();
         TestMessage message = new TestMessage("L", content);
 
         assertSame("L", message.line(), "消息行按入参原样持有");

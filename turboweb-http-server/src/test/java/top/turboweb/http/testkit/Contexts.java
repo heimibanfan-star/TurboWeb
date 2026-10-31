@@ -2,10 +2,8 @@ package top.turboweb.http.testkit;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
-import top.turboweb.http.core.Content;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.context.HttpUnknowContent;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 
@@ -17,7 +15,7 @@ import java.util.List;
  * 供需要真实 {@link HttpContext}（而非代理替身）的用例复用。
  *
  * <p>转化口径与生产一致：{@link #content} 按请求头声明的内容类型分派解析器产出请求体内容，
- * HEAD 请求无请求体，以未知内容承载；{@link #message} 再连同请求把内容装配为
+ * HEAD 请求无请求体，内容为 {@code null} 装配为无体消息；{@link #message} 再连同请求把内容装配为
  * 请求消息。需要自行指定内容的用例取三参形态。
  *
  * <p>与生产的差异只在解析器管理器按调用现场建立（不持有自定义解析器），
@@ -37,7 +35,7 @@ public final class Contexts {
      * @param defaultCharset 装配期缺省字符集
      * @return 请求消息
      */
-    public static HttpRequestMessage message(FullHttpRequest request, Charset defaultCharset) {
+    public static HttpRequestMessage<?> message(FullHttpRequest request, Charset defaultCharset) {
         return message(request, content(request, defaultCharset), defaultCharset);
     }
 
@@ -46,11 +44,11 @@ public final class Contexts {
      * 查询参数按给定缺省字符集解码。
      *
      * @param request        请求对象
-     * @param content        请求体内容
+     * @param content        请求体内容，无请求体时为 {@code null}
      * @param defaultCharset 装配期缺省字符集
      * @return 请求消息
      */
-    public static HttpRequestMessage message(FullHttpRequest request, Content content, Charset defaultCharset) {
+    public static HttpRequestMessage<?> message(FullHttpRequest request, Object content, Charset defaultCharset) {
         return RequestOrchestrator.assembleMessage(request, content, defaultCharset);
     }
 
@@ -59,11 +57,11 @@ public final class Contexts {
      *
      * @param request        请求对象
      * @param defaultCharset 装配期缺省字符集
-     * @return 内容对象；HEAD 请求返回未知内容
+     * @return 内容对象；HEAD 请求或未命中解析器时返回 {@code null}
      */
-    public static Content content(FullHttpRequest request, Charset defaultCharset) {
+    public static Object content(FullHttpRequest request, Charset defaultCharset) {
         if (HttpMethod.HEAD == request.method()) {
-            return new HttpUnknowContent();
+            return null;
         }
         return new HttpContentParserManager(defaultCharset, List.of()).parse(request);
     }

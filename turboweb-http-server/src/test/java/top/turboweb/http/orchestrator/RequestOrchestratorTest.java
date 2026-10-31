@@ -25,7 +25,10 @@ import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.testkit.Stubs;
 import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.HttpRequestMethod;
-import top.turboweb.http.core.Content;
+import top.turboweb.http.core.HttpRequestMessage;
+import top.turboweb.http.core.VoidRequestMessage;
+import top.turboweb.http.request.FormRequestMessage;
+import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.server.runtime.ResourceManager;
 
@@ -691,8 +694,8 @@ class RequestOrchestratorTest {
         assertNotNull(context, "链进入时上下文已装配");
         assertEquals(HttpRequestMethod.POST, context.message().method(), "请求方式来自请求行");
         assertEquals("/submit", context.message().requestLine().target().path(), "地址由请求转化为消息");
-        assertInstanceOf(HttpJsonContent.class, context.message().content(), "JSON 请求体分派给内置 JSON 解析器");
-        assertEquals("{\"name\":\"alice\"}", ((HttpJsonContent) context.message().content()).jsonString(),
+        assertInstanceOf(JsonRequestMessage.JsonData.class, context.message().content(), "JSON 请求体分派给内置 JSON 解析器");
+        assertEquals("{\"name\":\"alice\"}", ((JsonRequestMessage.JsonData) context.message().content()).jsonString(),
                 "请求体在装配上下文时已解码为字符串");
         request.release();
         channel.finishAndReleaseAll();
@@ -707,8 +710,9 @@ class RequestOrchestratorTest {
 
         orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
 
-        Content content = chain.captured().message().content();
-        assertInstanceOf(HttpUnknowContent.class, content, "HEAD 不进内容解析器，无请求体回落未知内容");
+        HttpRequestMessage<?> message = chain.captured().message();
+        assertInstanceOf(VoidRequestMessage.class, message, "HEAD 不进内容解析器，无请求体装配为无体消息");
+        assertNull(message.content(), "无体消息不携带内容");
         request.release();
         channel.finishAndReleaseAll();
     }
@@ -759,9 +763,8 @@ class RequestOrchestratorTest {
             @Override
             public Object invoke(HttpContext ctx) {
                 refCntAtChain.set(request.refCnt());
-                Content content = ctx.message().content();
-                nameAtChain.set(content instanceof HttpFormContent form
-                        ? form.formParams().get("name").getFirst() : null);
+                nameAtChain.set(ctx.message() instanceof FormRequestMessage form
+                        ? form.content().formParams().get("name").getFirst() : null);
                 return "hello";
             }
         };
@@ -936,8 +939,7 @@ class RequestOrchestratorTest {
     /** 自定义解析器：承接 text/csv 并返回标记内容对象，用于证明注册后的分派。 */
     private static class MarkedContentParser implements HttpContentParser {
 
-        static final Content MARKER = new Content() {
-        };
+        static final Object MARKER = new Object();
 
         @Override
         public Set<ContentType> contentTypes() {
@@ -945,7 +947,7 @@ class RequestOrchestratorTest {
         }
 
         @Override
-        public Content parse(FullHttpRequest request, Charset defaultCharset) {
+        public Object parse(FullHttpRequest request, Charset defaultCharset) {
             return MARKER;
         }
     }
@@ -961,7 +963,7 @@ class RequestOrchestratorTest {
     }
 
     /** 自定义解析器：恒产出给定内容对象，供关闭时机钉用例投喂持有资源的内容。 */
-    private record FixedContentParser(Content produced) implements HttpContentParser {
+    private record FixedContentParser(Object produced) implements HttpContentParser {
 
         @Override
         public Set<ContentType> contentTypes() {
@@ -969,7 +971,7 @@ class RequestOrchestratorTest {
         }
 
         @Override
-        public Content parse(FullHttpRequest request, Charset defaultCharset) {
+        public Object parse(FullHttpRequest request, Charset defaultCharset) {
             return produced;
         }
     }

@@ -2,12 +2,14 @@ package top.turboweb.http.context;
 
 import io.netty.handler.codec.http.FullHttpRequest;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.Content;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.core.StatusLine;
+import top.turboweb.http.core.VoidRequestMessage;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.DefaultHttpCookies;
+import top.turboweb.http.request.FormRequestMessage;
+import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.session.MemorySessionManager;
@@ -25,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * {@link FullHttpContext} 的请求解析与内置内容通道（spec §5：context 行）。
- * 内容读取一律经消息的 content() 取回，表单与 JSON 侧认内置具体类；
+ * 内容读取一律经消息的 content() 取回，表单与 JSON 侧按消息具体类型匹配内置内容类；
  * bean 绑定语义由路由侧参数绑定器承载，其用例见参数解析器测试。
  *
  * <p>每条用例只断言可从返回值/异常观察的行为；请求夹具产出的 {@link FullHttpRequest}
@@ -54,8 +56,8 @@ class FullHttpContextTest {
     void messageAndContentAreTheInjectedInstances() {
         FullHttpRequest req = Requests.get("/x");
         try {
-            Content content = Contexts.content(req, StandardCharsets.UTF_8);
-            HttpRequestMessage message = Contexts.message(req, content, StandardCharsets.UTF_8);
+            Object content = Contexts.content(req, StandardCharsets.UTF_8);
+            HttpRequestMessage<?> message = Contexts.message(req, content, StandardCharsets.UTF_8);
             FullHttpContext ctx = new FullHttpContext(message, newSession(),
                     new DefaultHttpCookies(req.headers()), CONNECT_SESSION, StandardCharsets.UTF_8);
             assertSame(message, ctx.message(), "上下文按注入就位，不另建契约对象");
@@ -135,10 +137,10 @@ class FullHttpContextTest {
         FullHttpRequest csv = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/x",
                 "text/csv", "a,b", StandardCharsets.UTF_8);
         try {
-            assertInstanceOf(HttpJsonContent.class, context(json).message().content(),
+            assertInstanceOf(JsonRequestMessage.JsonData.class, context(json).message().content(),
                     "JSON 体命中内置 JSON 解析器");
-            assertInstanceOf(HttpUnknowContent.class, context(csv).message().content(),
-                    "无匹配解析器的类型回落未知内容，不解析体");
+            assertInstanceOf(VoidRequestMessage.class, context(csv).message(),
+                    "无匹配解析器的类型回落无体消息，不解析体");
         } finally {
             Requests.release(json);
             Requests.release(csv);
@@ -152,10 +154,10 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.postForm("/form", "name=alice&age=30");
         try {
             FullHttpContext ctx = context(req);
-            HttpFormContent formContent = assertInstanceOf(HttpFormContent.class, ctx.message().content(),
-                    "表单请求产出内置表单内容类，参数封装权在内容侧");
-            assertEquals(List.of("alice"), formContent.formParams().get("name"));
-            assertEquals(List.of("30"), formContent.formParams().get("age"),
+            FormRequestMessage.FormData formData = assertInstanceOf(FormRequestMessage.FormData.class,
+                    ctx.message().content(), "表单请求产出内置表单内容类，参数封装权在内容侧");
+            assertEquals(List.of("alice"), formData.formParams().get("name"));
+            assertEquals(List.of("30"), formData.formParams().get("age"),
                     "字段值以多值列表原样呈现，折叠与绑定归绑定器");
         } finally {
             Requests.release(req);
@@ -167,9 +169,9 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.postJson("/json", "{\"name\":\"alice\",\"age\":30}");
         try {
             FullHttpContext ctx = context(req);
-            HttpJsonContent jsonContent = assertInstanceOf(HttpJsonContent.class, ctx.message().content(),
-                    "JSON 请求产出内置 JSON 内容类，字符串供数在内容侧");
-            assertEquals("{\"name\":\"alice\",\"age\":30}", jsonContent.jsonString(),
+            JsonRequestMessage.JsonData jsonData = assertInstanceOf(JsonRequestMessage.JsonData.class,
+                    ctx.message().content(), "JSON 请求产出内置 JSON 内容类，字符串供数在内容侧");
+            assertEquals("{\"name\":\"alice\",\"age\":30}", jsonData.jsonString(),
                     "取回的就是体字符串，反序列化归绑定器");
         } finally {
             Requests.release(req);
@@ -177,12 +179,12 @@ class FullHttpContextTest {
     }
 
     @Test
-    void plainContentExposesNeitherFormNorJsonChannel() {
+    void requestWithoutDeclaredTypeFallsBackToVoidMessage() {
         FullHttpRequest req = Requests.get("/json");
         try {
-            Content content = context(req).message().content();
-            assertFalse(content instanceof HttpFormContent, "未声明类型的未知内容不是内置表单内容类");
-            assertFalse(content instanceof HttpJsonContent, "未声明类型的未知内容不是内置 JSON 内容类");
+            HttpRequestMessage<?> message = context(req).message();
+            assertInstanceOf(VoidRequestMessage.class, message, "未声明类型不命中解析器，装配为无体消息");
+            assertNull(message.content(), "无体消息不携带内容");
         } finally {
             Requests.release(req);
         }
@@ -194,8 +196,8 @@ class FullHttpContextTest {
         try {
             FullHttpContext ctx = context(req);
             // 内容装配期把空体规整成 "{}"，内置 JSON 内容类取回的字符串即规整结果
-            HttpJsonContent jsonContent = (HttpJsonContent) ctx.message().content();
-            assertEquals("{}", jsonContent.jsonString());
+            JsonRequestMessage.JsonData jsonData = (JsonRequestMessage.JsonData) ctx.message().content();
+            assertEquals("{}", jsonData.jsonString());
         } finally {
             Requests.release(req);
         }
@@ -212,11 +214,11 @@ class FullHttpContextTest {
                 StandardCharsets.UTF_8);
         try {
             FullHttpContext ctx = context(req);
-            HttpFormContent formContent = assertInstanceOf(HttpFormContent.class, ctx.message().content(),
-                    "multipart 请求产出内置表单内容类");
-            assertEquals(1, formContent.formFiles().get("doc").size(), "multipart 文件段归档进 formFiles");
-            assertNull(formContent.formFiles().get("absent"), "缺名不建键,空值归一由取用方决定");
-            formContent.close();
+            FormRequestMessage.FormData formData = assertInstanceOf(FormRequestMessage.FormData.class,
+                    ctx.message().content(), "multipart 请求产出内置表单内容类");
+            assertEquals(1, formData.formFiles().get("doc").size(), "multipart 文件段归档进 formFiles");
+            assertNull(formData.formFiles().get("absent"), "缺名不建键,空值归一由取用方决定");
+            formData.close();
         } finally {
             Requests.release(req);
         }
@@ -246,7 +248,7 @@ class FullHttpContextTest {
                 "application/json; charset=GBK", "{\"name\":\"张三\"}", Charset.forName("GBK"));
         try {
             // 缺省给 UTF-8，请求头声明 GBK 时请求体按 GBK 解码（经内容解析器与消息全链路）
-            assertEquals("{\"name\":\"张三\"}", ((HttpJsonContent) context(req).message().content()).jsonString());
+            assertEquals("{\"name\":\"张三\"}", ((JsonRequestMessage.JsonData) context(req).message().content()).jsonString());
         } finally {
             Requests.release(req);
         }
@@ -259,7 +261,7 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/json",
                 "application/json", "{\"name\":\"café\"}", charset);
         try {
-            assertEquals("{\"name\":\"café\"}", new HttpJsonContent(req, charset).jsonString());
+            assertEquals("{\"name\":\"café\"}", new JsonRequestMessage.JsonData(req, charset).jsonString());
         } finally {
             Requests.release(req);
         }

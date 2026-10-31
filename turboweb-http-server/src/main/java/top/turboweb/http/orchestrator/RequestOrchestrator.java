@@ -19,9 +19,11 @@ import top.turboweb.http.orchestrator.writer.ResponseWriterManager;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
-import top.turboweb.http.core.Content;
 import top.turboweb.http.core.RequestLine;
 import top.turboweb.http.core.RequestTarget;
+import top.turboweb.http.core.VoidRequestMessage;
+import top.turboweb.http.request.FormRequestMessage;
+import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.server.runtime.ResourceManager;
 
 import java.nio.charset.Charset;
@@ -249,19 +251,30 @@ public class RequestOrchestrator {
      * 把请求头集合拷贝为消息自有的可写存储，请求体内容由装配方解析产出后带入；
      * 装配返回后消息与请求头集合不再联动。
      *
+     * <p>消息类按内容类型分派：内置内容对象配对应的强类型消息
+     * （{@link JsonRequestMessage.JsonData} 配 {@link JsonRequestMessage}、
+     * {@link FormRequestMessage.FormData} 配 {@link FormRequestMessage}），
+     * 内容为 {@code null} 装配无体消息 {@link VoidRequestMessage}，
+     * 其余内容（自定义解析器产出等）装配泛型请求消息。</p>
+     *
      * @param request      请求对象，不能为空
-     * @param content      请求体内容，不能为空
+     * @param content      请求体内容，无请求体或未命中解析器时为 {@code null}
      * @param queryCharset 查询参数解码的缺省字符集，不能为空
      * @return 请求消息
-     * @throws NullPointerException     当 {@code request}、{@code content} 或 {@code queryCharset} 为 {@code null} 时抛出
+     * @throws NullPointerException     当 {@code request} 或 {@code queryCharset} 为 {@code null} 时抛出
      * @throws IllegalArgumentException 请求行的方法字面量不在标准方法范围内时抛出
      */
-    public static HttpRequestMessage assembleMessage(FullHttpRequest request, Content content, Charset queryCharset) {
+    public static HttpRequestMessage<?> assembleMessage(FullHttpRequest request, Object content, Charset queryCharset) {
         Objects.requireNonNull(request, "request can not be null");
-        HttpRequestMessage message = new HttpRequestMessage(
-                new RequestLine(HttpRequestMethod.valueOf(request.method().name()),
-                        new RequestTarget(request.uri(), queryCharset)),
-                content);
+        RequestLine requestLine = new RequestLine(HttpRequestMethod.valueOf(request.method().name()),
+                new RequestTarget(request.uri(), queryCharset));
+        HttpRequestMessage<?> message;
+        switch (content) {
+            case JsonRequestMessage.JsonData jsonData -> message = new JsonRequestMessage(requestLine, jsonData);
+            case FormRequestMessage.FormData formData -> message = new FormRequestMessage(requestLine, formData);
+            case null -> message = new VoidRequestMessage(requestLine);
+            default -> message = new HttpRequestMessage<>(requestLine, content);
+        }
         for (Map.Entry<String, String> entry : request.headers()) {
             message.addHeader(entry.getKey(), entry.getValue());
         }
@@ -342,18 +355,19 @@ public class RequestOrchestrator {
      */
     private HttpResponse executeMiddleware(FullHttpRequest request, HttpConnection connectSession,
                                            SessionManager sessionManager) {
-        Content content = null;
+        Object content = null;
         HttpSession httpSession = null;
         try {
             HttpCookies cookies;
             String originSessionId;
-            HttpRequestMessage message;
+            HttpRequestMessage<?> message;
             // 初始化Cookie
             cookies = new DefaultHttpCookies(request.headers());
             originSessionId = cookies.getCookie("JSESSIONID");
-            // 请求对象在编排器内转化为上下文的对外契约：请求体内容先就位，再连同请求装配为请求消息
+            // 请求对象在编排器内转化为上下文的对外契约：请求体内容先就位，再连同请求装配为请求消息；
+            // HEAD 请求不携带请求体，内容留 null 装配为无体消息
             content = HttpMethod.HEAD == request.method()
-                    ? new HttpUnknowContent()
+                    ? null
                     : contentParserManager.parse(request);
             message = assembleMessage(request, content, defaultCharset);
             // 初始化session
@@ -393,7 +407,7 @@ public class RequestOrchestrator {
      * @param content 内容解析与装配阶段产出的内容对象，可为 null（装配在产出内容前失败），
      *                为 null 时为空操作
      */
-    private void closeContentQuietly(Content content) {
+    private void closeContentQuietly(Object content) {
         if (content instanceof AutoCloseContent autoCloseContent) {
             try {
                 autoCloseContent.close();

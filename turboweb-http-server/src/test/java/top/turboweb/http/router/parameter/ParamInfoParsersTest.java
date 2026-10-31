@@ -5,15 +5,14 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.core.Content;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.core.RequestTarget;
 import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.core.RequestLine;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.context.HttpFormContent;
-import top.turboweb.http.context.HttpJsonContent;
+import top.turboweb.http.request.FormRequestMessage;
+import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.connection.InternalHttpConnection;
@@ -171,10 +170,14 @@ class ParamInfoParsersTest {
                 .getParameters()[0];
     }
 
+    /** 内容投喂消息的公共请求行：绑定不经消息行通道，行内容不参与断言 */
+    private static final RequestLine FEEDING_LINE =
+            new RequestLine(HttpRequestMethod.GET, new RequestTarget("/"));
+
     /**
      * 记录型 {@link HttpContext} 替身：按方法名返回预设值，并留下最后一次调用的实参。
-     * "content" 为内容投喂口径——上下文的取数经 {@code message().content()}，故该项注册时
-     * 包装为只应答内容通道的消息替身挂到 message() 下。
+     * "content" 为内容投喂口径——内置内容对象包装为对应强类型请求消息挂到 message() 下，
+     * 其余内容经只应答内容通道的消息替身。
      */
     private static final class Stub {
         private final Map<String, Object> returns = new HashMap<>();
@@ -196,7 +199,11 @@ class ParamInfoParsersTest {
 
         Stub returning(String method, Object value) {
             if ("content".equals(method)) {
-                returns.put("message", new ContentFeedingMessage((Content) value));
+                returns.put("message", switch (value) {
+                    case JsonRequestMessage.JsonData jsonData -> new JsonRequestMessage(FEEDING_LINE, jsonData);
+                    case FormRequestMessage.FormData formData -> new FormRequestMessage(FEEDING_LINE, formData);
+                    default -> new ContentFeedingMessage(value);
+                });
             } else {
                 returns.put(method, value);
             }
@@ -322,18 +329,18 @@ class ParamInfoParsersTest {
     /** 空承载夹具:路径与查询都无参数的装配结果,表达"缺名"入料 */
     private static final RequestParameter NO_PARAMS = new RequestParameter(Map.of(), Map.of());
 
-    /** 内置表单内容工厂：以 urlencoded 请求构造 {@link HttpFormContent}，向绑定器投喂真实字段归档。 */
-    private static HttpFormContent formContentOf(String urlencoded) {
+    /** 内置表单内容工厂：以 urlencoded 请求构造 {@link FormRequestMessage.FormData}，向绑定器投喂真实字段归档。 */
+    private static FormRequestMessage.FormData formContentOf(String urlencoded) {
         FullHttpRequest request = Requests.postForm("/fixture", urlencoded);
         try {
-            return new HttpFormContent(request, StandardCharsets.UTF_8);
+            return new FormRequestMessage.FormData(request, StandardCharsets.UTF_8);
         } finally {
             Requests.release(request);
         }
     }
 
     /** 内置 multipart 表单内容工厂：每个三元组（字段名、文件名、内容）编码为一个文件段，归档进 formFiles。 */
-    private static HttpFormContent multipartContentOf(String[]... files) {
+    private static FormRequestMessage.FormData multipartContentOf(String[]... files) {
         StringBuilder body = new StringBuilder();
         for (String[] entry : files) {
             body.append("--B\r\nContent-Disposition: form-data; name=\"").append(entry[0])
@@ -344,24 +351,24 @@ class ParamInfoParsersTest {
         FullHttpRequest request = Requests.raw(HttpMethod.POST, "/fixture",
                 "multipart/form-data; boundary=B", body.toString(), StandardCharsets.UTF_8);
         try {
-            return new HttpFormContent(request, StandardCharsets.UTF_8);
+            return new FormRequestMessage.FormData(request, StandardCharsets.UTF_8);
         } finally {
             Requests.release(request);
         }
     }
 
-    /** 内置 JSON 内容工厂：以 JSON 请求构造 {@link HttpJsonContent}，向绑定器投喂真实体字符串。 */
-    private static HttpJsonContent jsonContentOf(String jsonBody) {
+    /** 内置 JSON 内容工厂：以 JSON 请求构造 {@link JsonRequestMessage.JsonData}，向绑定器投喂真实体字符串。 */
+    private static JsonRequestMessage.JsonData jsonContentOf(String jsonBody) {
         FullHttpRequest request = Requests.postJson("/fixture", jsonBody);
         try {
-            return new HttpJsonContent(request, StandardCharsets.UTF_8);
+            return new JsonRequestMessage.JsonData(request, StandardCharsets.UTF_8);
         } finally {
             Requests.release(request);
         }
     }
 
-    /** 无通道内容夹具：只实现 Content 标记契约，供绑定器拒绑用例。 */
-    private record PlainContentFixture() implements Content {
+    /** 无通道内容夹具：不实现任何读取契约的普通对象，供绑定器拒绑用例。 */
+    private record PlainContentFixture() {
     }
 
     /** Cookie 集合夹具：仅 getCookie 读取通道向绑定器投喂指定名称归档，其余通道误调即响。 */
@@ -418,11 +425,10 @@ class ParamInfoParsersTest {
     }
 
     /** 请求消息夹具：只承接请求头通道，方式与内容通道不经绑定，误调即响。 */
-    private static final class MessageFixture extends HttpRequestMessage {
+    private static final class MessageFixture extends HttpRequestMessage<Object> {
 
-        /** 内容替身：标记契约无读取通道，内容通道经 {@link #content()} 覆写拒答 */
-        private static final Content OFF_CHANNEL_CONTENT = new Content() {
-        };
+        /** 内容替身：标记对象无读取通道，内容通道经 {@link #content()} 覆写拒答 */
+        private static final Object OFF_CHANNEL_CONTENT = new Object();
 
         private final Map<String, String> headers;
 
@@ -437,7 +443,7 @@ class ParamInfoParsersTest {
         }
 
         @Override
-        public Content content() {
+        public Object content() {
             throw offChannel("content");
         }
 
@@ -483,10 +489,10 @@ class ParamInfoParsersTest {
     }
 
     /** 内容投喂消息替身：只应答内容通道，其余消息通道不经绑定、误调即响。 */
-    private static final class ContentFeedingMessage extends HttpRequestMessage {
+    private static final class ContentFeedingMessage extends HttpRequestMessage<Object> {
 
-        ContentFeedingMessage(Content content) {
-            super(new RequestLine(HttpRequestMethod.GET, new RequestTarget("/")), content);
+        ContentFeedingMessage(Object content) {
+            super(FEEDING_LINE, content);
         }
 
         @Override
@@ -690,7 +696,7 @@ class ParamInfoParsersTest {
 
     @Test
     void uploadFileBindsSingleFile() throws Exception {
-        HttpFormContent form = multipartContentOf(
+        FormRequestMessage.FormData form = multipartContentOf(
                 new String[]{"f", "a.txt", "first"}, new String[]{"other", "o.txt", "second"});
         Stub stub = new Stub().returning("content", form);
         ParameterParser.Binder b = new FormParameterParser().parse(parameter("uploadFile"));
@@ -724,7 +730,7 @@ class ParamInfoParsersTest {
     @DisplayName("HS-16 回归：@FormParam 集合参数经内置表单内容的文件归档绑定，集合分支可达")
     void uploadCollectionTypesBindFileCollections() throws Exception {
         // 集合形参经 @FormParam 标注且元素类型为 MultipartFile 才认领，collectionType 1/2 与归档取数/HashSet 分支可达
-        HttpFormContent form = multipartContentOf(
+        FormRequestMessage.FormData form = multipartContentOf(
                 new String[]{"f", "a.txt", "1"}, new String[]{"f", "b.txt", "2"},
                 new String[]{"other", "c.txt", "3"});
         Stub stub = new Stub().returning("content", form);
