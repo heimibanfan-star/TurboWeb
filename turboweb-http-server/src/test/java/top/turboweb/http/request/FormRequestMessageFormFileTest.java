@@ -1,4 +1,4 @@
-package top.turboweb.http.context;
+package top.turboweb.http.request;
 
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.multipart.DiskFileUpload;
@@ -23,10 +23,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * {@link DefaultHttpFile} 委托 Netty 上传段的读取面：内容通道每次自起始处读取，
+ * {@link FormRequestMessage.FormFile} 委托 Netty 上传段的读取面：内容通道每次自起始处读取，
  * 元信息按上传段声明透出，Content-Type 在构造期完成 MIME 与 charset 解析。
  */
-class DefaultHttpFileTest {
+class FormRequestMessageFormFileTest {
 
     private final List<FileUpload> uploads = new ArrayList<>();
 
@@ -61,14 +61,16 @@ class DefaultHttpFileTest {
 
     @Test
     void readAllReturnsWholeContent() throws IOException {
-        DefaultHttpFile file = new DefaultHttpFile(memoryUpload("a.txt", "text/plain", new byte[]{'a', 'b', 'c'}));
+        FormRequestMessage.FormFile file =
+                new FormRequestMessage.FormFile(memoryUpload("a.txt", "text/plain", new byte[]{'a', 'b', 'c'}));
 
         assertArrayEquals(new byte[]{'a', 'b', 'c'}, file.readAll());
     }
 
     @Test
     void inputStreamReadsFromBeginningOnEveryCall() throws IOException {
-        DefaultHttpFile file = new DefaultHttpFile(memoryUpload("a.txt", "text/plain", new byte[]{'a', 'b', 'c'}));
+        FormRequestMessage.FormFile file =
+                new FormRequestMessage.FormFile(memoryUpload("a.txt", "text/plain", new byte[]{'a', 'b', 'c'}));
 
         try (InputStream first = file.inputStream()) {
             assertEquals('a', first.read());
@@ -83,7 +85,7 @@ class DefaultHttpFileTest {
         MemoryFileUpload upload = new MemoryFileUpload("file", "a.txt", "application/octet-stream", null,
                 StandardCharsets.UTF_8, 0);
         uploads.add(upload);
-        DefaultHttpFile file = new DefaultHttpFile(upload);
+        FormRequestMessage.FormFile file = new FormRequestMessage.FormFile(upload);
 
         try (InputStream in = file.inputStream()) {
             assertEquals(-1, in.read());
@@ -97,7 +99,7 @@ class DefaultHttpFileTest {
                 StandardCharsets.UTF_8, 3, tempDir.toString(), false);
         uploads.add(upload);
         upload.setContent(Unpooled.wrappedBuffer(new byte[]{'x', 'y', 'z'}));
-        DefaultHttpFile file = new DefaultHttpFile(upload);
+        FormRequestMessage.FormFile file = new FormRequestMessage.FormFile(upload);
 
         try (InputStream in = file.inputStream()) {
             assertArrayEquals(new byte[]{'x', 'y', 'z'}, in.readAllBytes());
@@ -107,21 +109,23 @@ class DefaultHttpFileTest {
 
     @Test
     void filenameReturnsOriginalName() throws IOException {
-        DefaultHttpFile file = new DefaultHttpFile(memoryUpload("report.pdf", "application/pdf", new byte[]{1}));
+        FormRequestMessage.FormFile file =
+                new FormRequestMessage.FormFile(memoryUpload("report.pdf", "application/pdf", new byte[]{1}));
 
         assertEquals("report.pdf", file.filename());
     }
 
     @Test
     void lengthReturnsContentLength() throws IOException {
-        DefaultHttpFile file = new DefaultHttpFile(memoryUpload("a.txt", "text/plain", new byte[]{'a', 'b', 'c'}));
+        FormRequestMessage.FormFile file =
+                new FormRequestMessage.FormFile(memoryUpload("a.txt", "text/plain", new byte[]{'a', 'b', 'c'}));
 
         assertEquals(3L, file.length());
     }
 
     @Test
     void contentTypeParsesMimeTypeAndDeclaredCharset() {
-        ContentType type = new DefaultHttpFile(stagingUpload("text/plain; charset=UTF-8")).contentType();
+        ContentType type = new FormRequestMessage.FormFile(stagingUpload("text/plain; charset=UTF-8")).contentType();
 
         assertNotNull(type);
         assertEquals("text/plain", type.getMimeType());
@@ -130,7 +134,7 @@ class DefaultHttpFileTest {
 
     @Test
     void contentTypeLeavesCharsetUnsetWhenAbsent() {
-        ContentType type = new DefaultHttpFile(stagingUpload("image/png")).contentType();
+        ContentType type = new FormRequestMessage.FormFile(stagingUpload("image/png")).contentType();
 
         assertNotNull(type);
         assertEquals("image/png", type.getMimeType());
@@ -139,7 +143,7 @@ class DefaultHttpFileTest {
 
     @Test
     void contentTypeFindsCharsetAfterOtherParameters() {
-        ContentType type = new DefaultHttpFile(
+        ContentType type = new FormRequestMessage.FormFile(
                 stagingUpload("text/plain; format=flowed; charset=UTF-8")).contentType();
 
         assertNotNull(type);
@@ -149,23 +153,22 @@ class DefaultHttpFileTest {
 
     @Test
     void contentTypeMatchesCharsetParameterCaseInsensitively() {
-        ContentType type = new DefaultHttpFile(stagingUpload("text/plain; Charset=UTF-8")).contentType();
+        ContentType type = new FormRequestMessage.FormFile(stagingUpload("text/plain; Charset=UTF-8")).contentType();
 
-        assertNotNull(type);
         assertEquals(StandardCharsets.UTF_8, type.getCharset());
     }
 
     @Test
     void contentTypeStripsQuotesAroundCharsetName() {
-        ContentType type = new DefaultHttpFile(stagingUpload("text/plain; charset=\"UTF-8\"")).contentType();
+        ContentType type = new FormRequestMessage.FormFile(
+                stagingUpload("text/plain; charset=\"UTF-8\"")).contentType();
 
-        assertNotNull(type);
         assertEquals(StandardCharsets.UTF_8, type.getCharset());
     }
 
     @Test
     void contentTypeKeepsMimeTypeWhenCharsetUnknown() {
-        ContentType type = new DefaultHttpFile(
+        ContentType type = new FormRequestMessage.FormFile(
                 stagingUpload("text/plain; charset=no-such-charset")).contentType();
 
         assertNotNull(type);
@@ -175,7 +178,7 @@ class DefaultHttpFileTest {
 
     @Test
     void contentTypeIgnoresEmptyCharsetName() {
-        ContentType type = new DefaultHttpFile(stagingUpload("text/plain; charset= ")).contentType();
+        ContentType type = new FormRequestMessage.FormFile(stagingUpload("text/plain; charset= ")).contentType();
 
         assertNotNull(type);
         assertEquals("text/plain", type.getMimeType());
@@ -184,21 +187,21 @@ class DefaultHttpFileTest {
 
     @Test
     void contentTypeReturnsNullWhenNotDeclared() {
-        assertNull(new DefaultHttpFile(stagingUpload(null)).contentType());
+        assertNull(new FormRequestMessage.FormFile(stagingUpload(null)).contentType());
     }
 
     @Test
     void contentTypeReturnsNullWhenDeclaredValueIsBlank() {
-        assertNull(new DefaultHttpFile(stagingUpload("  ")).contentType());
+        assertNull(new FormRequestMessage.FormFile(stagingUpload("  ")).contentType());
     }
 
     @Test
     void contentTypeReturnsNullWhenMimeTypeIsEmpty() {
-        assertNull(new DefaultHttpFile(stagingUpload("; charset=UTF-8")).contentType());
+        assertNull(new FormRequestMessage.FormFile(stagingUpload("; charset=UTF-8")).contentType());
     }
 
     @Test
     void constructorRejectsNullFileUpload() {
-        assertThrows(NullPointerException.class, () -> new DefaultHttpFile(null));
+        assertThrows(NullPointerException.class, () -> new FormRequestMessage.FormFile(null));
     }
 }

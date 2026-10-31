@@ -16,7 +16,7 @@ import java.nio.charset.Charset;
  * Cookie 管理、缺省编码与挂载对象。
  * 请求体内容经 {@link HttpRequestMessage#content()} 读取；
  * JSON 体字符串与表单字段、上传文件由内置解析器产出的具体内容类承载
- * （分别为 {@link JsonRequestMessage.JsonData} 与 {@link FormRequestMessage.FormData}），
+ * （JSON 体为 {@link JsonRequestMessage} 中的字符串，表单为 {@link FormRequestMessage.FormData}），
  * 读取侧按消息具体类型模式匹配取数。
  * 本接口不单独暴露内容访问器，也不承担内容的关闭与释放——
  * 请求体资源由创建方（请求编排器）在请求结束时统一释放。

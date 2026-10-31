@@ -16,7 +16,7 @@ import java.util.Objects;
  * 它封装请求消息（{@link HttpRequestMessage}，承载请求方式、请求头、请求地址与请求体内容）、
  * Session、Cookie、连接会话、缺省编码与挂载对象；
  * 请求体参数的封装由内置解析器产出的具体内容类承载（表单字段与上传文件在
- * {@link FormRequestMessage.FormData}、JSON 体字符串在 {@link JsonRequestMessage.JsonData}），
+ * {@link FormRequestMessage.FormData}、JSON 体字符串在 {@link JsonRequestMessage}），
  * 读取侧按消息具体类型模式匹配取数，本类不分派内容。
  * <p>
  * 本类不持有 Netty 的请求对象：请求的方式、头、地址与请求体内容统一经

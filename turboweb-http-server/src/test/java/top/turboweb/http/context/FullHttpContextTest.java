@@ -8,8 +8,8 @@ import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.core.VoidRequestMessage;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.cookie.DefaultHttpCookies;
+import top.turboweb.http.orchestrator.parser.JsonContentParser;
 import top.turboweb.http.request.FormRequestMessage;
-import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.http.session.DefaultHttpSession;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.session.MemorySessionManager;
@@ -137,8 +137,8 @@ class FullHttpContextTest {
         FullHttpRequest csv = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/x",
                 "text/csv", "a,b", StandardCharsets.UTF_8);
         try {
-            assertInstanceOf(JsonRequestMessage.JsonData.class, context(json).message().content(),
-                    "JSON 体命中内置 JSON 解析器");
+            assertInstanceOf(String.class, context(json).message().content(),
+                    "JSON 体命中内置 JSON 解析器，产出体字符串");
             assertInstanceOf(VoidRequestMessage.class, context(csv).message(),
                     "无匹配解析器的类型回落无体消息，不解析体");
         } finally {
@@ -169,9 +169,9 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.postJson("/json", "{\"name\":\"alice\",\"age\":30}");
         try {
             FullHttpContext ctx = context(req);
-            JsonRequestMessage.JsonData jsonData = assertInstanceOf(JsonRequestMessage.JsonData.class,
-                    ctx.message().content(), "JSON 请求产出内置 JSON 内容类，字符串供数在内容侧");
-            assertEquals("{\"name\":\"alice\",\"age\":30}", jsonData.jsonString(),
+            String jsonString = assertInstanceOf(String.class,
+                    ctx.message().content(), "JSON 请求产出内置解析的体字符串");
+            assertEquals("{\"name\":\"alice\",\"age\":30}", jsonString,
                     "取回的就是体字符串，反序列化归绑定器");
         } finally {
             Requests.release(req);
@@ -195,9 +195,8 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.postJson("/json", "");
         try {
             FullHttpContext ctx = context(req);
-            // 内容装配期把空体规整成 "{}"，内置 JSON 内容类取回的字符串即规整结果
-            JsonRequestMessage.JsonData jsonData = (JsonRequestMessage.JsonData) ctx.message().content();
-            assertEquals("{}", jsonData.jsonString());
+            // 内容装配期把空体规整成 "{}"，消息内容取回的字符串即规整结果
+            assertEquals("{}", (String) ctx.message().content());
         } finally {
             Requests.release(req);
         }
@@ -214,8 +213,9 @@ class FullHttpContextTest {
                 StandardCharsets.UTF_8);
         try {
             FullHttpContext ctx = context(req);
-            FormRequestMessage.FormData formData = assertInstanceOf(FormRequestMessage.FormData.class,
-                    ctx.message().content(), "multipart 请求产出内置表单内容类");
+            FormRequestMessage.MultipartFormData formData = assertInstanceOf(
+                    FormRequestMessage.MultipartFormData.class,
+                    ctx.message().content(), "multipart 请求产出内置多部分表单内容类");
             assertEquals(1, formData.formFiles().get("doc").size(), "multipart 文件段归档进 formFiles");
             assertNull(formData.formFiles().get("absent"), "缺名不建键,空值归一由取用方决定");
             formData.close();
@@ -248,7 +248,7 @@ class FullHttpContextTest {
                 "application/json; charset=GBK", "{\"name\":\"张三\"}", Charset.forName("GBK"));
         try {
             // 缺省给 UTF-8，请求头声明 GBK 时请求体按 GBK 解码（经内容解析器与消息全链路）
-            assertEquals("{\"name\":\"张三\"}", ((JsonRequestMessage.JsonData) context(req).message().content()).jsonString());
+            assertEquals("{\"name\":\"张三\"}", (String) context(req).message().content());
         } finally {
             Requests.release(req);
         }
@@ -261,7 +261,7 @@ class FullHttpContextTest {
         FullHttpRequest req = Requests.raw(io.netty.handler.codec.http.HttpMethod.POST, "/json",
                 "application/json", "{\"name\":\"café\"}", charset);
         try {
-            assertEquals("{\"name\":\"café\"}", new JsonRequestMessage.JsonData(req, charset).jsonString());
+            assertEquals("{\"name\":\"café\"}", new JsonContentParser().parse(req, charset));
         } finally {
             Requests.release(req);
         }

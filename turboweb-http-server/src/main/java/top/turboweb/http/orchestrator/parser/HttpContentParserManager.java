@@ -1,7 +1,6 @@
 package top.turboweb.http.orchestrator.parser;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.http.context.AutoCloseContent;
 import top.turboweb.http.core.ContentType;
 
 import java.nio.charset.Charset;
@@ -30,7 +29,7 @@ import java.util.Set;
  * 由各内容对象按"请求头声明优先、缺省回落"口径解码请求体。
  *
  * <p>本管理器构造后只读，可跨请求共享、多线程并发调用；产出的内容对象按请求单线程使用，
- * 其中持有资源的实现（{@link AutoCloseContent}）由请求编排器在请求处理结束后关闭。
+ * 其中持有资源的实现（实现 {@link AutoCloseable}）由请求编排器在请求处理结束后关闭。
  */
 public class HttpContentParserManager {
 

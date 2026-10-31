@@ -198,7 +198,7 @@ public interface HttpContentParser {
 
 - `contentTypes()` 至少返回一个类型，一个解析器可以声明多个 MIME 类型；
 - `parse` 必须在本次调用内把请求体读完。编排流程在装配完消息后立即释放请求对象，实现不能持有请求引用、也不能返回后再读体；
-- 产出的内容对象只在本次请求内使用。持有直接内存或磁盘临时文件的实现应实现 `AutoCloseContent`，由编排器在请求结束后调用 `close()`；
+- 产出的内容对象只在本次请求内使用。持有直接内存或磁盘临时文件的实现应实现 `AutoCloseable`，由编排器在请求结束后调用 `close()`；
 - 类型匹配不区分大小写，`charset` 等参数段不参与匹配。
 
 `HttpContentParserManager` 的查找规则：
@@ -440,7 +440,7 @@ curl -X POST http://localhost:8080/checkout \
 - 绑定结果为 `null` 时形参就是 `null`；原始类型形参随后拆箱失败，按 500 处理。需要必填时在绑定器里自行判断并抛异常。
 - 参数错误用 `RouteHandlerException` 的 `ParamDecodeError` 或 `MissingParamError`，对应 400；`RequestParseException` 与类型转换异常按 500 处理。要换状态码，注册异常处理器。
 - 新标量类型不要试图改 `ParameterHandleHelper`，它是静态表，没有注册入口，在自定义绑定器里转换即可。
-- 内容解析器必须在 `parse` 内读完请求体，不能缓存 `FullHttpRequest`；持有资源的 `HttpContent` 实现 `AutoCloseContent`。
+- 内容解析器必须在 `parse` 内读完请求体，不能缓存 `FullHttpRequest`；持有资源的 `HttpContent` 实现 `AutoCloseable`。
 - 参数解析器在应用构建前注册。构建完成后再改登记表会抛 `IllegalStateException`。
 - 内容解析器同样在构建前经 `HttpRequestApplication.Builder#contentParsers` 注册；类型冲突在构建时抛出，不会静默替换。
 

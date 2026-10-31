@@ -28,7 +28,6 @@ import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.VoidRequestMessage;
 import top.turboweb.http.request.FormRequestMessage;
-import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.server.runtime.ResourceManager;
 
@@ -694,9 +693,8 @@ class RequestOrchestratorTest {
         assertNotNull(context, "链进入时上下文已装配");
         assertEquals(HttpRequestMethod.POST, context.message().method(), "请求方式来自请求行");
         assertEquals("/submit", context.message().requestLine().target().path(), "地址由请求转化为消息");
-        assertInstanceOf(JsonRequestMessage.JsonData.class, context.message().content(), "JSON 请求体分派给内置 JSON 解析器");
-        assertEquals("{\"name\":\"alice\"}", ((JsonRequestMessage.JsonData) context.message().content()).jsonString(),
-                "请求体在装配上下文时已解码为字符串");
+        assertEquals("{\"name\":\"alice\"}", assertInstanceOf(String.class, context.message().content()),
+                "JSON 请求体分派给内置 JSON 解析器，装配上下文时已解码为字符串");
         request.release();
         channel.finishAndReleaseAll();
     }
@@ -837,7 +835,7 @@ class RequestOrchestratorTest {
 
     @Test
     void closeableContentIsClosedByOrchestratorAtFinish() {
-        // 释放收口归属的钉：持有资源的内容（AutoCloseContent）由编排器在请求收尾统一关闭，上下文不承载释放入口
+        // 释放收口归属的钉：持有资源的内容（实现 AutoCloseable）由编排器在请求收尾统一关闭，上下文不承载释放入口
         EmbeddedChannel channel = new EmbeddedChannel();
         ContextCapturingMiddleware chain = new ContextCapturingMiddleware();
         ClosableProbeContent probe = new ClosableProbeContent();
@@ -952,8 +950,8 @@ class RequestOrchestratorTest {
         }
     }
 
-    /** 关闭通道探针内容：实现 AutoCloseContent，记录 close 是否被触发。 */
-    private static final class ClosableProbeContent implements AutoCloseContent {
+    /** 关闭通道探针内容：实现 AutoCloseable，记录 close 是否被触发。 */
+    private static final class ClosableProbeContent implements AutoCloseable {
         private boolean closed;
 
         @Override

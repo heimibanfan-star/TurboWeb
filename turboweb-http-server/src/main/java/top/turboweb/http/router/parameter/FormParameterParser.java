@@ -46,7 +46,11 @@ public class FormParameterParser extends AbstractParameterParser {
                         "contentType is not application/x-www-form-urlencoded or multipart/form-data");
             }
             if (simpleTypeHandler == null) {
-                Map<String, List<MultipartFile>> files = formMessage.content().formFiles();
+                // 文件归档只在多部分表单内容上存在，普通表单按空归档处理
+                Map<String, List<MultipartFile>> files =
+                        formMessage.content() instanceof FormRequestMessage.MultipartFormData multipartContent
+                                ? multipartContent.formFiles()
+                                : Map.of();
                 List<MultipartFile> uploads = files.get(name);
                 List<MultipartFile> normalized = uploads == null ? List.of() : uploads;
                 if (collectionType == 0) {

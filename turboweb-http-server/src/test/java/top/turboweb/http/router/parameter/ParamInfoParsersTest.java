@@ -11,6 +11,8 @@ import top.turboweb.http.core.RequestTarget;
 import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.core.RequestLine;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.orchestrator.parser.FormContentParser;
+import top.turboweb.http.orchestrator.parser.JsonContentParser;
 import top.turboweb.http.request.FormRequestMessage;
 import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.http.testkit.Requests;
@@ -200,7 +202,7 @@ class ParamInfoParsersTest {
         Stub returning(String method, Object value) {
             if ("content".equals(method)) {
                 returns.put("message", switch (value) {
-                    case JsonRequestMessage.JsonData jsonData -> new JsonRequestMessage(FEEDING_LINE, jsonData);
+                    case String jsonString -> new JsonRequestMessage(FEEDING_LINE, jsonString);
                     case FormRequestMessage.FormData formData -> new FormRequestMessage(FEEDING_LINE, formData);
                     default -> new ContentFeedingMessage(value);
                 });
@@ -329,18 +331,18 @@ class ParamInfoParsersTest {
     /** 空承载夹具:路径与查询都无参数的装配结果,表达"缺名"入料 */
     private static final RequestParameter NO_PARAMS = new RequestParameter(Map.of(), Map.of());
 
-    /** 内置表单内容工厂：以 urlencoded 请求构造 {@link FormRequestMessage.FormData}，向绑定器投喂真实字段归档。 */
+    /** 内置表单内容工厂：以 urlencoded 请求经表单解析器产出 {@link FormRequestMessage.FormData}，向绑定器投喂真实字段归档。 */
     private static FormRequestMessage.FormData formContentOf(String urlencoded) {
         FullHttpRequest request = Requests.postForm("/fixture", urlencoded);
         try {
-            return new FormRequestMessage.FormData(request, StandardCharsets.UTF_8);
+            return (FormRequestMessage.FormData) new FormContentParser().parse(request, StandardCharsets.UTF_8);
         } finally {
             Requests.release(request);
         }
     }
 
     /** 内置 multipart 表单内容工厂：每个三元组（字段名、文件名、内容）编码为一个文件段，归档进 formFiles。 */
-    private static FormRequestMessage.FormData multipartContentOf(String[]... files) {
+    private static FormRequestMessage.MultipartFormData multipartContentOf(String[]... files) {
         StringBuilder body = new StringBuilder();
         for (String[] entry : files) {
             body.append("--B\r\nContent-Disposition: form-data; name=\"").append(entry[0])
@@ -351,17 +353,17 @@ class ParamInfoParsersTest {
         FullHttpRequest request = Requests.raw(HttpMethod.POST, "/fixture",
                 "multipart/form-data; boundary=B", body.toString(), StandardCharsets.UTF_8);
         try {
-            return new FormRequestMessage.FormData(request, StandardCharsets.UTF_8);
+            return (FormRequestMessage.MultipartFormData) new FormContentParser().parse(request, StandardCharsets.UTF_8);
         } finally {
             Requests.release(request);
         }
     }
 
-    /** 内置 JSON 内容工厂：以 JSON 请求构造 {@link JsonRequestMessage.JsonData}，向绑定器投喂真实体字符串。 */
-    private static JsonRequestMessage.JsonData jsonContentOf(String jsonBody) {
+    /** 内置 JSON 内容工厂：以 JSON 请求经 JSON 解析器产出体字符串，向绑定器投喂。 */
+    private static String jsonContentOf(String jsonBody) {
         FullHttpRequest request = Requests.postJson("/fixture", jsonBody);
         try {
-            return new JsonRequestMessage.JsonData(request, StandardCharsets.UTF_8);
+            return (String) new JsonContentParser().parse(request, StandardCharsets.UTF_8);
         } finally {
             Requests.release(request);
         }
@@ -696,7 +698,7 @@ class ParamInfoParsersTest {
 
     @Test
     void uploadFileBindsSingleFile() throws Exception {
-        FormRequestMessage.FormData form = multipartContentOf(
+        FormRequestMessage.MultipartFormData form = multipartContentOf(
                 new String[]{"f", "a.txt", "first"}, new String[]{"other", "o.txt", "second"});
         Stub stub = new Stub().returning("content", form);
         ParameterParser.Binder b = new FormParameterParser().parse(parameter("uploadFile"));
@@ -730,7 +732,7 @@ class ParamInfoParsersTest {
     @DisplayName("HS-16 回归：@FormParam 集合参数经内置表单内容的文件归档绑定，集合分支可达")
     void uploadCollectionTypesBindFileCollections() throws Exception {
         // 集合形参经 @FormParam 标注且元素类型为 MultipartFile 才认领，collectionType 1/2 与归档取数/HashSet 分支可达
-        FormRequestMessage.FormData form = multipartContentOf(
+        FormRequestMessage.MultipartFormData form = multipartContentOf(
                 new String[]{"f", "a.txt", "1"}, new String[]{"f", "b.txt", "2"},
                 new String[]{"other", "c.txt", "3"});
         Stub stub = new Stub().returning("content", form);

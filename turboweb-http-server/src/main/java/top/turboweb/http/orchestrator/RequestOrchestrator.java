@@ -270,7 +270,7 @@ public class RequestOrchestrator {
                 new RequestTarget(request.uri(), queryCharset));
         HttpRequestMessage<?> message;
         switch (content) {
-            case JsonRequestMessage.JsonData jsonData -> message = new JsonRequestMessage(requestLine, jsonData);
+            case String jsonString -> message = new JsonRequestMessage(requestLine, jsonString);
             case FormRequestMessage.FormData formData -> message = new FormRequestMessage(requestLine, formData);
             case null -> message = new VoidRequestMessage(requestLine);
             default -> message = new HttpRequestMessage<>(requestLine, content);
@@ -400,7 +400,7 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 静默关闭内容对象持有的资源：内容为 {@link AutoCloseContent}（持有解码器、直接内存或
+     * 静默关闭内容对象持有的资源：内容实现 {@link AutoCloseable}（持有解码器、直接内存或
      * 磁盘临时文件等需归还资源）时调用其 {@link AutoCloseable#close()}；关闭抛出的异常
      * 只记录不外抛，不影响请求其余环节的收尾。内容不持有资源时为空操作，重复调用无副作用。
      *
@@ -408,9 +408,9 @@ public class RequestOrchestrator {
      *                为 null 时为空操作
      */
     private void closeContentQuietly(Object content) {
-        if (content instanceof AutoCloseContent autoCloseContent) {
+        if (content instanceof AutoCloseable autoCloseable) {
             try {
-                autoCloseContent.close();
+                autoCloseable.close();
             } catch (Exception e) {
                 log.error("Failed to close http content", e);
             }

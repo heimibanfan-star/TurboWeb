@@ -31,7 +31,7 @@ public class BeanJsonParameterParser extends AbstractParameterParser{
             if (!(ctx.message() instanceof JsonRequestMessage jsonMessage)) {
                 throw new RequestParseException("contentType is not application/json");
             }
-            Object bean = jsonSerializer.jsonToBean(jsonMessage.content().jsonString(), type);
+            Object bean = jsonSerializer.jsonToBean(jsonMessage.content(), type);
             if (validate) {
                 if (groups == null || groups.length == 0) {
                     beanValidator.validate(bean);
