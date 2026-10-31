@@ -83,6 +83,33 @@ public class ExceptionMessageHelper {
     }
 
     /**
+     * 生成无受支持写出处理器的 500 错误页面文本：响应消息声明了写出职责，
+     * 但内置与自定义两级策略组均未登记对应处理器，服务器无法写出该响应时以此页面兜底。
+     *
+     * @return 完整的 HTML 页面文本
+     */
+    public static String unsupportedWriteHandlerMessage() {
+        return """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="utf-8">
+                    <title>TurboWeb Error</title>
+                    <style>
+                        body { font-family: Consolas, "Courier New", monospace; margin: 2em; }
+                        h1 { color: #c0392b; }
+                        .error-type { font-size: 1.1em; }
+                    </style>
+                </head>
+                <body>
+                    <h1>500 Internal Server Error</h1>
+                    <p class="error-type">No supported message write handler</p>
+                </body>
+                </html>
+                """;
+    }
+
+    /**
      * 对文本做 HTML 实体转义，使异常栈等外来文本可安全嵌入页面正文。
      *
      * @param text 待转义文本
