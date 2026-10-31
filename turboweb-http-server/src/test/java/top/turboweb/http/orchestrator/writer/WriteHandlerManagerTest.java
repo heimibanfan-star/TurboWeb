@@ -31,7 +31,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 其余消息一律等同找不到处理器而降级写出 500 报错页）、
  * 字节写出方法的三步写出与回调契约（Content-Length 补齐口径、失败链经回调上报且不再写结束标记）、
  * 构造期自定义登记规则（同类重复拒登、null 列表与 null 元素拒登、
- * 构造即经 init 注入资源提供者）。
+ * 构造即经 init 注入资源提供者）、
+ * 降级报错页的消息头继承（原响应非实体头按序继承，实体头剔除且头名匹配大小写不敏感）。
  */
 class WriteHandlerManagerTest {
 
@@ -293,6 +294,47 @@ class WriteHandlerManagerTest {
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
                 "字节消息同样受 Content-Type 门禁约束");
+    }
+
+    @Test
+    void fallbackCarriesNonEntityHeadersFromOriginalMessage() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        HttpResponseMessage<String> message = new HttpResponseMessage<>(StatusLine.OK, "text");
+        message.setHeader("Access-Control-Allow-Origin", "https://example.com");
+        message.addHeader("Set-Cookie", "a=1");
+        message.addHeader("Set-Cookie", "b=2");
+        CallbackTrap callback = new CallbackTrap();
+
+        new WriteHandlerManager(resourceManagerOf(), List.of())
+                .write(connection, message, callback);
+
+        assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
+                "未携带 Content-Type 的响应降级写出报错页");
+        assertEquals("https://example.com", connection.writtenHeaders().get("Access-Control-Allow-Origin").getFirst(),
+                "原响应的非实体头（如 CORS 声明）继承到降级报错页");
+        assertEquals(List.of("a=1", "b=2"), connection.writtenHeaders().get("Set-Cookie"),
+                "同名多值的非实体头按出现顺序完整继承");
+    }
+
+    @Test
+    void fallbackClearsEntityHeadersFromOriginalMessage() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        HttpResponseMessage<String> message = new HttpResponseMessage<>(StatusLine.OK, "text");
+        message.setHeader("Content-Type", "application/json");
+        message.setHeader("Content-Length", "999");
+        message.setHeader("CONTENT-ENCODING", "gzip");
+        message.setHeader("transfer-encoding", "chunked");
+        CallbackTrap callback = new CallbackTrap();
+
+        new WriteHandlerManager(resourceManagerOf(), List.of())
+                .write(connection, message, callback);
+
+        assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
+                "降级写出报错页");
+        assertFalse(connection.writtenHeaders().containsKey("Content-Encoding"),
+                "描述原消息体的实体头不得继承，头名匹配大小写不敏感");
+        assertFalse(connection.writtenHeaders().containsKey("Transfer-Encoding"),
+                "描述原消息体的实体头不得继承，头名匹配大小写不敏感");
     }
 
     @Test

@@ -26,7 +26,8 @@ import java.util.stream.Stream;
  * 区间三为降级写出——其余消息（未实现订阅声明、未声明订阅者类型，
  * 或声明了写出职责但两级策略组均未登记对应处理器）一律等同找不到处理器，
  * 生成一条携带 500 HTML 报错页的 {@link ByteResponseMessage} 交字节写出方法写出，
- * 保证响应链不会中断。
+ * 保证响应链不会中断；降级消息继承原响应的非实体消息头（如 CORS 声明），
+ * 描述原消息体的实体头（内容类型、长度、编码与传输编码）不继承。
  * </p>
  * <p>
  * 构造期把传入的自定义处理器按具体类收集为不可变登记表：
@@ -41,6 +42,9 @@ public class WriteHandlerManager {
     private static final String CONTENT_LENGTH = "Content-Length";
     /** Content-Type 头名 */
     private static final String CONTENT_TYPE = "Content-Type";
+    /** 实体头名集合：描述原消息体的头，降级报错页更换消息体后不再成立，不继承，头名匹配大小写不敏感 */
+    private static final List<String> ENTITY_HEADERS =
+            List.of("Content-Type", "Content-Length", "Content-Encoding", "Transfer-Encoding");
 
     /**
      * 内置策略组：订阅者类型到处理器实例，构造期一次登记、不可变。
@@ -120,7 +124,7 @@ public class WriteHandlerManager {
     public void write(HttpConnection connection, HttpResponseMessage<?> message, MessageWriteHandler.Callback callback) {
         if (!message.containsHeader(CONTENT_TYPE)) {
             // 响应未携带 Content-Type：等同找不到处理器，降级写出报错页
-            writeByteMessage(connection, errorPageFallback(ExceptionMessageHelper.missingContentTypeMessage()), callback);
+            writeByteMessage(connection, errorPageFallback(message, ExceptionMessageHelper.missingContentTypeMessage()), callback);
             return;
         }
         if (message instanceof ByteResponseMessage byteMessage) {
@@ -138,7 +142,7 @@ public class WriteHandlerManager {
         }
         if (handler == null) {
             // 其余消息一律等同找不到处理器：降级写出报错页
-            writeByteMessage(connection, errorPageFallback(ExceptionMessageHelper.unsupportedWriteHandlerMessage()), callback);
+            writeByteMessage(connection, errorPageFallback(message, ExceptionMessageHelper.unsupportedWriteHandlerMessage()), callback);
             return;
         }
         handler.write(connection, message, callback);
@@ -178,14 +182,38 @@ public class WriteHandlerManager {
 
     /**
      * 生成区间三降级用的字节响应消息：携带给定 500 HTML 报错页文本与配套响应头。
+     * <p>
+     * 原响应的消息头继承到降级消息（如 CORS 声明、Set-Cookie 需对报错页继续生效），
+     * 描述原消息体的实体头除外——内容类型、长度、编码与传输编码不再描述报错页，
+     * 内容类型与长度由降级消息按自身正文重设。
+     * </p>
      *
-     * @param page 报错页文本，由异常信息 Helper 统一承载
+     * @param original 触发降级的原响应消息
+     * @param page     报错页文本，由异常信息 Helper 统一承载
      * @return 降级报错页字节响应消息
      */
-    private ByteResponseMessage errorPageFallback(String page) {
+    private ByteResponseMessage errorPageFallback(HttpResponseMessage<?> original, String page) {
         ByteResponseMessage fallback = new ByteResponseMessage(
                 StatusLine.INTERNAL_SERVER_ERROR, page.getBytes(StandardCharsets.UTF_8));
+        for (Map.Entry<String, List<String>> entry : original.headers().entrySet()) {
+            if (isEntityHeader(entry.getKey())) {
+                continue;
+            }
+            for (String value : entry.getValue()) {
+                fallback.addHeader(entry.getKey(), value);
+            }
+        }
         fallback.setHeader(CONTENT_TYPE, "text/html;charset=utf-8");
         return fallback;
+    }
+
+    /**
+     * 判断头名是否为实体头：实体头只对原消息体成立，降级报错页更换了消息体，此类头不继承。
+     *
+     * @param name 头名，大小写不敏感
+     * @return 是实体头返回 true
+     */
+    private static boolean isEntityHeader(String name) {
+        return ENTITY_HEADERS.stream().anyMatch(entity -> entity.equalsIgnoreCase(name));
     }
 }
