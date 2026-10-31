@@ -17,7 +17,8 @@ import java.util.stream.Stream;
  * 响应写出处理器管理器：按消息类型与订阅声明选择写出方，
  * 把一条响应消息异步写出到一条连接上，写出结果经 {@link MessageWriteHandler.Callback} 上报。
  * <p>
- * 选择按三个区间次序路由：
+ * 选择按 Content-Type 门禁与三个区间次序路由：
+ * 门禁为消息头完备性——响应消息未携带 {@code Content-Type} 时等同找不到处理器，降级写出报错页；
  * 区间一为字节消息直认——{@link ByteResponseMessage} 为 final 类，类型按字面判定，
  * 命中即由本管理器的字节写出方法写出；
  * 区间二为订阅声明匹配——消息实现 {@link WriteHandlerSubscribe} 且声明了订阅者类型时，
@@ -38,6 +39,8 @@ public class WriteHandlerManager {
 
     /** Content-Length 头名 */
     private static final String CONTENT_LENGTH = "Content-Length";
+    /** Content-Type 头名 */
+    private static final String CONTENT_TYPE = "Content-Type";
 
     /**
      * 内置策略组：订阅者类型到处理器实例，构造期一次登记、不可变。
@@ -115,6 +118,11 @@ public class WriteHandlerManager {
      * @param callback   写出回调，报告本轮写出的唯一结果，不能为 {@code null}
      */
     public void write(HttpConnection connection, HttpResponseMessage<?> message, MessageWriteHandler.Callback callback) {
+        if (!message.containsHeader(CONTENT_TYPE)) {
+            // 响应未携带 Content-Type：等同找不到处理器，降级写出报错页
+            writeByteMessage(connection, errorPageFallback(ExceptionMessageHelper.missingContentTypeMessage()), callback);
+            return;
+        }
         if (message instanceof ByteResponseMessage byteMessage) {
             writeByteMessage(connection, byteMessage, callback);
             return;
@@ -130,7 +138,7 @@ public class WriteHandlerManager {
         }
         if (handler == null) {
             // 其余消息一律等同找不到处理器：降级写出报错页
-            writeByteMessage(connection, unsupportedFallback(), callback);
+            writeByteMessage(connection, errorPageFallback(ExceptionMessageHelper.unsupportedWriteHandlerMessage()), callback);
             return;
         }
         handler.write(connection, message, callback);
@@ -169,15 +177,15 @@ public class WriteHandlerManager {
     }
 
     /**
-     * 生成区间三降级用的字节响应消息：携带无受支持写出处理器的 500 HTML 报错页与配套响应头。
+     * 生成区间三降级用的字节响应消息：携带给定 500 HTML 报错页文本与配套响应头。
      *
+     * @param page 报错页文本，由异常信息 Helper 统一承载
      * @return 降级报错页字节响应消息
      */
-    private ByteResponseMessage unsupportedFallback() {
-        String page = ExceptionMessageHelper.unsupportedWriteHandlerMessage();
+    private ByteResponseMessage errorPageFallback(String page) {
         ByteResponseMessage fallback = new ByteResponseMessage(
                 StatusLine.INTERNAL_SERVER_ERROR, page.getBytes(StandardCharsets.UTF_8));
-        fallback.setHeader("Content-Type", "text/html;charset=utf-8");
+        fallback.setHeader(CONTENT_TYPE, "text/html;charset=utf-8");
         return fallback;
     }
 }

@@ -25,8 +25,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * {@link WriteHandlerManager} 的行为锚：三区间路由次序
- * （字节消息直认管理器内建字节写出方法、订阅声明先查内置策略组再查自定义策略组、
+ * {@link WriteHandlerManager} 的行为锚：Content-Type 门禁与三区间路由次序
+ * （未携带 Content-Type 的响应等同找不到处理器直接降级、字节消息直认管理器内建字节写出方法、
+ * 订阅声明先查内置策略组再查自定义策略组、
  * 其余消息一律等同找不到处理器而降级写出 500 报错页）、
  * 字节写出方法的三步写出与回调契约（Content-Length 补齐口径、失败链经回调上报且不再写结束标记）、
  * 构造期自定义登记规则（同类重复拒登、null 列表与 null 元素拒登、
@@ -41,6 +42,8 @@ class WriteHandlerManagerTest {
 
         SubscribedMessage(Class<? extends MessageWriteHandler> subscriberType, Object content) {
             super(StatusLine.OK, content);
+            // 携带 Content-Type 通过写出处理器的消息头门禁，使路由聚焦于订阅声明本身
+            setHeader("Content-Type", "application/json");
             this.subscriberType = subscriberType;
         }
 
@@ -160,10 +163,17 @@ class WriteHandlerManagerTest {
         }
     }
 
+    /** 构造携带 Content-Type 的字节消息夹具：写出处理器要求响应自带内容类型 */
+    private static ByteResponseMessage byteMessage(byte[] content) {
+        ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, content);
+        message.setHeader("Content-Type", "application/octet-stream");
+        return message;
+    }
+
     @Test
     void byteMessageIsWrittenByInternalByteWrite() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
-        ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
         new WriteHandlerManager(resourceManagerOf(), List.of())
@@ -180,7 +190,7 @@ class WriteHandlerManagerTest {
     @Test
     void byteMessageKeepsExistingContentLength() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
-        ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         message.setHeader("Content-Length", "99");
         CallbackTrap callback = new CallbackTrap();
 
@@ -193,7 +203,7 @@ class WriteHandlerManagerTest {
     @Test
     void byteMessageWithEmptyContentSkipsBodyWriteButStillFinishes() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
-        ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, new byte[0]);
+        ByteResponseMessage message = byteMessage(new byte[0]);
         CallbackTrap callback = new CallbackTrap();
 
         new WriteHandlerManager(resourceManagerOf(), List.of())
@@ -230,19 +240,22 @@ class WriteHandlerManagerTest {
         new WriteHandlerManager(resourceManagerOf(), List.of())
                 .write(connection, new SubscribedMessage(MarkingHandler.class, new Object()), callback);
 
-        assertErrorPageWritten(connection, callback, "声明了写出职责但两级策略组均未登记，降级写出报错页");
+        assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
+                "声明了写出职责但两级策略组均未登记，降级写出报错页");
     }
 
     @Test
     void messageWithoutDeclaredTypeFallsBackToErrorPage() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         HttpResponseMessage<String> message = new HttpResponseMessage<>(StatusLine.OK, "text");
+        message.setHeader("Content-Type", "text/plain");
         CallbackTrap callback = new CallbackTrap();
 
         new WriteHandlerManager(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
-        assertErrorPageWritten(connection, callback, "未实现订阅声明的消息等同找不到处理器");
+        assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
+                "未实现订阅声明的消息等同找不到处理器");
     }
 
     @Test
@@ -254,13 +267,38 @@ class WriteHandlerManagerTest {
         new WriteHandlerManager(resourceManagerOf(), List.of())
                 .write(connection, message, callback);
 
-        assertErrorPageWritten(connection, callback, "未声明订阅者类型等同找不到处理器");
+        assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
+                "未声明订阅者类型等同找不到处理器");
+    }
+
+    @Test
+    void messageWithoutContentTypeFallsBackToErrorPage() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        CallbackTrap callback = new CallbackTrap();
+
+        new WriteHandlerManager(resourceManagerOf(), List.of())
+                .write(connection, new HttpResponseMessage<>(StatusLine.OK, "text"), callback);
+
+        assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
+                "未携带 Content-Type 的响应等同找不到处理器，降级写出报错页");
+    }
+
+    @Test
+    void byteMessageWithoutContentTypeFallsBackToErrorPage() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        CallbackTrap callback = new CallbackTrap();
+
+        new WriteHandlerManager(resourceManagerOf(), List.of())
+                .write(connection, new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8)), callback);
+
+        assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
+                "字节消息同样受 Content-Type 门禁约束");
     }
 
     @Test
     void bodyWriteFailureReportsErrorAndSkipsFinish() {
         FailingWriteConnection connection = new FailingWriteConnection();
-        ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
         new WriteHandlerManager(resourceManagerOf(), List.of())
@@ -276,7 +314,7 @@ class WriteHandlerManagerTest {
     @Test
     void syncHeadersThrowReportsViaCallback() {
         ThrowingHeadersConnection connection = new ThrowingHeadersConnection();
-        ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
         new WriteHandlerManager(resourceManagerOf(), List.of())
@@ -291,7 +329,7 @@ class WriteHandlerManagerTest {
     @Test
     void bodyWriteWaitsForHeadersCompletion() {
         OrderedConnection connection = new OrderedConnection();
-        ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
         new WriteHandlerManager(resourceManagerOf(), List.of())
@@ -313,7 +351,7 @@ class WriteHandlerManagerTest {
     @Test
     void failedHeadersSkipBodyWrite() {
         OrderedConnection connection = new OrderedConnection();
-        ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         CallbackTrap callback = new CallbackTrap();
 
         new WriteHandlerManager(resourceManagerOf(), List.of())
@@ -368,9 +406,9 @@ class WriteHandlerManagerTest {
         assertEquals("The resource provider must not be null", thrown.getMessage());
     }
 
-    /** 断言降级写出：500 状态行、报错页文本与配套响应头、回调以成功 FINISHED 上报 */
-    private static void assertErrorPageWritten(RecordingHttpConnection connection, CallbackTrap callback, String reason) {
-        String page = ExceptionMessageHelper.unsupportedWriteHandlerMessage();
+    /** 断言降级写出：500 状态行、给定报错页文本与配套响应头、回调以成功 FINISHED 上报 */
+    private static void assertErrorPageWritten(RecordingHttpConnection connection, CallbackTrap callback,
+                                               String page, String reason) {
         assertEquals(1, callback.count(), reason + "：回调恰好一次");
         assertNull(callback.error(), reason + "：报错页写出成功无错误");
         assertEquals(MessageWriteHandler.CallbackType.FINISHED, callback.type());
@@ -378,8 +416,9 @@ class WriteHandlerManagerTest {
         assertEquals(page, connection.sentMessages().getFirst(),
                 reason + "：报错页文本由异常信息 Helper 统一承载");
         assertEquals("text/html;charset=utf-8", connection.writtenHeaders().get("Content-Type").getFirst());
-        assertEquals(String.valueOf(page.length()), connection.writtenHeaders().get("Content-Length").getFirst(),
-                reason + "：报错页同样补齐 Content-Length");
+        assertEquals(String.valueOf(page.getBytes(java.nio.charset.StandardCharsets.UTF_8).length),
+                connection.writtenHeaders().get("Content-Length").getFirst(),
+                reason + "：报错页同样按 UTF-8 字节数补齐 Content-Length");
         assertEquals(1, connection.finishCount(), reason + "：报错页写结束标记");
     }
 
