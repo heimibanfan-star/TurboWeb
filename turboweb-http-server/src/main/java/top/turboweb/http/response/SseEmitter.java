@@ -1,104 +1,101 @@
 package top.turboweb.http.response;
 
-import io.netty.handler.codec.http.*;
-import top.turboweb.http.connection.HttpConnection;
+import reactor.core.publisher.Sinks;
+import top.turboweb.http.core.HttpResponseMessage;
+import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.exception.SseBufferException;
-import top.turboweb.http.orchestrator.writer.ResponseWriter;
-import top.turboweb.http.orchestrator.writer.SseResponseWriter;
+import top.turboweb.http.orchestrator.writer.MessageWriteHandler;
+import top.turboweb.http.orchestrator.writer.SseMessageWriteHandler;
+import top.turboweb.http.orchestrator.writer.WriteHandlerSubscribe;
 
-import java.nio.charset.StandardCharsets;
-import java.util.LinkedList;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Consumer;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * SSE (Server-Sent Events) 发射器抽象类。
+ * SSE（Server-Sent Events）发射器：以响应消息形态持有事件流源，
+ * 事件经内部的 {@link Sinks.Many} 异步投递，由内置 SSE 写出处理器
+ * {@link SseMessageWriteHandler} 在写出阶段订阅并逐块推送到客户端。
  * <p>
- * 用于向客户端推送事件流，支持消息缓存、异步发送和连接管理。
- * 实现了 {@link ResponseCall} 接口，声明由 {@link SseResponseWriter} 负责写出。
+ * 发射器不持有连接：写出处理器订阅流后，结束信号（{@link #complete()}）与流错误
+ * 都由写出处理器以关闭通道收尾，通道关闭事件再触发 {@link #addCloseListener(Runnable)}
+ * 登记的关闭监听器，因此连接的关闭与断开均经监听器对外通知。
+ * </p>
  * <p>
- * 特点：
- * <ul>
- *     <li>支持消息缓存，当连接未初始化时存储消息</li>
- *     <li>支持异步发送消息到客户端</li>
- *     <li>支持连接关闭及回调处理</li>
- * </ul>
+ * 默认响应头携带 {@code Content-Type: text/event-stream}、{@code Cache-Control: no-cache}
+ * 与 {@code Connection: keep-alive}；事件字节编码由写出处理器按 Content-Type 的
+ * charset 参数确定，未携带或非法时降级 UTF-8。
+ * </p>
  */
-public abstract class SseEmitter extends DefaultHttpResponse implements ResponseCall {
+public final class SseEmitter extends HttpResponseMessage<Sinks.Many<String>> implements WriteHandlerSubscribe {
+
+	/** 默认事件缓冲容量 */
+	public static final int DEFAULT_BUFFER_CAPACITY = 32;
 
 	/**
-	 * 关联的连接会话
+	 * 关闭监听器表：由写出处理器注册到通道关闭事件上，通道关闭时任一时刻登记的监听器都逐个触发
 	 */
-	protected final HttpConnection session;
+	private final List<Runnable> closeListeners = new CopyOnWriteArrayList<>();
 
 	/**
-	 * 是否已初始化
+	 * 以默认缓冲容量建立 SSE 发射器。
 	 */
-	protected volatile boolean isInit = false;
-
-	/**
-	 * 消息缓存队列
-	 */
-	protected LinkedList<String> messageCache = new LinkedList<>();
-
-	/**
-	 * 消息缓存最大数量
-	 */
-	private final int maxMessageCache;
-
-	/**
-	 * 缓存操作锁
-	 */
-	protected ReentrantLock cacheLock = new ReentrantLock();
-
-	/**
-	 * SSE 读写锁，保证发送和初始化的线程安全
-	 */
-	protected final ReentrantReadWriteLock sseLock = new ReentrantReadWriteLock(true);
-
-	/**
-	 * 构造 SSE 发射器。
-	 *
-	 * @param session         关联的连接会话
-	 * @param maxMessageCache 消息缓存最大数量
-	 */
-	public SseEmitter(HttpConnection session, int maxMessageCache) {
-		super(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-		this.session = session;
-		this.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream");
-		this.headers().set(HttpHeaderNames.CACHE_CONTROL, "no-cache");
-		this.headers().set(HttpHeaderNames.CONNECTION, "keep-alive");
-		this.headers().set(HttpHeaderNames.TRANSFER_ENCODING, "chunked");
-		HttpUtil.setTransferEncodingChunked(this, true); // 开启 Chunked 传输
-		this.maxMessageCache = maxMessageCache;
+	public SseEmitter() {
+		this(DEFAULT_BUFFER_CAPACITY);
 	}
 
 	/**
-	 * 发送消息到客户端。
+	 * 以指定缓冲容量建立 SSE 发射器。
 	 * <p>
-	 * 如果 SSE 未初始化，则将消息保存到缓存；初始化后直接发送。
+	 * 缓冲容量限制写出处理器订阅前可暂存的事件数，写出开始后随消费推进循环复用。
+	 * </p>
 	 *
-	 * @param message 消息内容
+	 * @param bufferCapacity 事件缓冲容量
+	 * @throws IllegalArgumentException 当容量非正数时抛出
+	 */
+	public SseEmitter(int bufferCapacity) {
+		super(StatusLine.OK, newSink(bufferCapacity));
+		setHeader("Content-Type", "text/event-stream");
+		setHeader("Cache-Control", "no-cache");
+		setHeader("Connection", "keep-alive");
+	}
+
+	/**
+	 * 建立容量受限的单播事件源：写出前的事件在容量受限的队列中缓冲，队列满时投递失败。
+	 *
+	 * @param bufferCapacity 事件缓冲容量，须为正数
+	 * @return 单播事件源
+	 * @throws IllegalArgumentException 当容量非正数时抛出
+	 */
+	private static Sinks.Many<String> newSink(int bufferCapacity) {
+		if (bufferCapacity <= 0) {
+			throw new IllegalArgumentException("bufferCapacity must be positive: " + bufferCapacity);
+		}
+		return Sinks.many().unicast().onBackpressureBuffer(new ArrayBlockingQueue<>(bufferCapacity));
+	}
+
+	/**
+	 * 投递一条事件到流上。
+	 * <p>
+	 * 写出处理器订阅前事件进入缓冲；缓冲已满时以 {@link SseBufferException} 报告，
+	 * 发射器结束后投递以 {@link IllegalStateException} 报告。可多线程并发投递。
+	 * </p>
+	 *
+	 * @param message 事件原文，按原样投递
+	 * @throws SseBufferException    当缓冲已满时抛出
+	 * @throws IllegalStateException 当发射器已结束后投递时抛出
 	 */
 	public void send(String message) {
-		ReentrantReadWriteLock.ReadLock readLock = sseLock.readLock();
-		try {
-			readLock.lock();
-			if (!isInit) {
-				saveMessageToCache(message);
-			} else {
-				session.write(message.getBytes(StandardCharsets.UTF_8));
-			}
-		} finally {
-			readLock.unlock();
-		}
+		Objects.requireNonNull(message, "message must not be null");
+		content().emitNext(message, (signalType, result) -> {
+			throw toException(result);
+		});
 	}
 
 	/**
-	 * 发送数据到客户端。
-	 * <p>
-	 * 等同于调用 {@link #send(String)} 方法，将数据封装成 "data:" + data + "\n\n" 格式发送。
+	 * 投递一条 data 字段事件，等同投递 {@code "data:" + data + "\n\n"}。
 	 *
 	 * @param data 数据内容
 	 */
@@ -107,9 +104,7 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 	}
 
 	/**
-	 * 发送事件到客户端。
-	 * <p>
-	 * 等同于调用 {@link #send(String)} 方法，将事件封装成 "event:" + event + "\n\n" 格式发送。
+	 * 投递一条 event 字段事件，等同投递 {@code "event:" + event + "\n\n"}。
 	 *
 	 * @param event 事件内容
 	 */
@@ -118,9 +113,7 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 	}
 
 	/**
-	 * 发送 ID 到客户端。
-	 * <p>
-	 * 等同于调用 {@link #send(String)} 方法，将 ID 封装成 "id:" + id + "\n\n" 格式发送。
+	 * 投递一条 id 字段事件，等同投递 {@code "id:" + id + "\n\n"}。
 	 *
 	 * @param id ID 内容
 	 */
@@ -129,9 +122,7 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 	}
 
 	/**
-	 * 发送重试间隔到客户端。
-	 * <p>
-	 * 等同于调用 {@link #send(String)} 方法，将重试间隔封装成 "retry:" + retry + "\n\n" 格式发送。
+	 * 投递一条 retry 字段事件，等同投递 {@code "retry:" + retry + "\n\n"}。
 	 *
 	 * @param retry 重试间隔（毫秒）
 	 */
@@ -140,9 +131,7 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 	}
 
 	/**
-	 * 发送注释到客户端。
-	 * <p>
-	 * 等同于调用 {@link #send(String)} 方法，将注释封装成 ":" + comment + "\n\n" 格式发送。
+	 * 投递一条注释事件，等同投递 {@code ":" + comment + "\n\n"}。
 	 *
 	 * @param comment 注释内容
 	 */
@@ -151,49 +140,60 @@ public abstract class SseEmitter extends DefaultHttpResponse implements Response
 	}
 
 	/**
-	 * 保存消息到缓存。
+	 * 发出结束信号：流正常终止，写出处理器随后关闭通道。
 	 *
-	 * @param message 消息内容
-	 * @throws SseBufferException 当缓存已满时抛出异常
+	 * @throws IllegalStateException 当发射器已结束后再次结束时抛出
 	 */
-	private void saveMessageToCache(String message) {
-		cacheLock.lock();
-		try {
-			if (messageCache.size() >= maxMessageCache) {
-				throw new SseBufferException("The message cache is full");
-			}
-			// 放入消息
-			messageCache.add(message);
-		} finally {
-			cacheLock.unlock();
-		}
-	}
-
-	/**
-	 * 关闭连接
-	 */
-	public void close() {
-		session.close();
-	}
-
-	/**
-	 * 设置 SSE 连接关闭回调。
-	 *
-	 * @param consumer 关闭时的回调函数
-	 */
-	public void onClose(Consumer<SseEmitter> consumer) {
-		session.closeListener(() -> {
-			consumer.accept(this);
+	public void complete() {
+		content().emitComplete((signalType, result) -> {
+			throw toException(result);
 		});
 	}
 
+
 	/**
-	 * 获取负责写出本响应的写出器类型。
+	 * 登记关闭监听器：通道关闭（写出处理器收到结束信号后主动关闭，或客户端断开）时触发。
+	 * <p>监听器在通道关闭的触发线程上运行，宜保持轻量。</p>
 	 *
-	 * @return {@link SseResponseWriter} 的 Class 对象
+	 * @param listener 监听器
+	 */
+	public void addCloseListener(Runnable listener) {
+		closeListeners.add(Objects.requireNonNull(listener, "listener must not be null"));
+	}
+
+	/**
+	 * 获取已登记的关闭监听器，供写出处理器注册到通道关闭事件上。
+	 *
+	 * @return 监听器只读视图，登记后立即可见
+	 */
+	public List<Runnable> closeListeners() {
+		return Collections.unmodifiableList(closeListeners);
+	}
+
+	/**
+	 * 把投递失败结果转为对应异常：缓冲满（写出版未订阅亦计入缓冲满）转缓冲异常，
+	 * 已结束转状态异常。
+	 *
+	 * @param result 投递失败结果
+	 * @return 待抛出的异常
+	 */
+	private static RuntimeException toException(Sinks.EmitResult result) {
+		if (result == Sinks.EmitResult.FAIL_OVERFLOW || result == Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER) {
+			return new SseBufferException("The message cache is full");
+		}
+		if (result == Sinks.EmitResult.FAIL_TERMINATED) {
+			return new IllegalStateException("The sse emitter has already completed");
+		}
+		return new IllegalStateException("Failed to emit sse message: " + result);
+	}
+
+	/**
+	 * 声明本消息由内置 SSE 写出处理器写出。
+	 *
+	 * @return 内置 SSE 写出处理器的类型
 	 */
 	@Override
-	public Class<? extends ResponseWriter> getWriterType() {
-		return SseResponseWriter.class;
+	public Class<? extends MessageWriteHandler> subscriber() {
+		return SseMessageWriteHandler.class;
 	}
 }

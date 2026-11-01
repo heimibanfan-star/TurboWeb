@@ -1,129 +1,119 @@
 package top.turboweb.http.response;
 
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpUtil;
 import org.junit.jupiter.api.Test;
+import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.exception.SseBufferException;
-import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.http.orchestrator.writer.SseResponseWriter;
-import top.turboweb.http.testkit.RecordingHttpConnection;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link SseEmitter} 的缓存/直发状态机与头部设置（纯逻辑，无通道）。
- *
- * <p>{@code isInit}/{@code messageCache}/{@code cacheLock}/{@code sseLock} 是 protected，
- * 测试与被测类同包，直接读字段即为断言对象。
+ * {@link SseEmitter} 的行为锚：默认缓冲容量 32 且可选构造指定容量、
+ * 非正容量拒收、各发送方法的字段包裹格式、结束信号终止流且拒绝后续投递、
+ * 关闭监听器登记可读出、默认响应头与状态行口径。
  */
 class SseEmitterTest {
 
-    /** SseEmitter 无抽象方法，探针子类只为拿到一个可实例化的具体类型。 */
-    private static final class ProbeEmitter extends SseEmitter {
-        ProbeEmitter(HttpConnection session, int maxMessageCache) {
-            super(session, maxMessageCache);
+    @Test
+    void defaultBufferCapacityIs32() {
+        SseEmitter emitter = new SseEmitter();
+
+        for (int i = 0; i < 32; i++) {
+            emitter.send("m" + i);
         }
 
-        int cachedCount() {
-            return messageCache.size();
+        assertThrows(SseBufferException.class, () -> emitter.send("overflow"),
+                "默认容量 32，第 33 条事件投递时缓冲已满");
+    }
+
+    @Test
+    void customBufferCapacityIsHonored() {
+        SseEmitter emitter = new SseEmitter(5);
+
+        for (int i = 0; i < 5; i++) {
+            emitter.send("m" + i);
         }
 
-        String cachedAt(int index) {
-            return messageCache.get(index);
-        }
+        assertThrows(SseBufferException.class, () -> emitter.send("overflow"),
+                "可选构造指定容量 5，第 6 条事件投递时缓冲已满");
     }
 
     @Test
-    void constructorSetsSseHeaders() {
-        ProbeEmitter emitter = new ProbeEmitter(new RecordingHttpConnection(), 10);
-
-        assertEquals("text/event-stream", emitter.headers().get(HttpHeaderNames.CONTENT_TYPE));
-        assertEquals("no-cache", emitter.headers().get(HttpHeaderNames.CACHE_CONTROL));
-        assertEquals("keep-alive", emitter.headers().get(HttpHeaderNames.CONNECTION));
-        assertEquals("chunked", emitter.headers().get(HttpHeaderNames.TRANSFER_ENCODING));
-        assertTrue(HttpUtil.isTransferEncodingChunked(emitter));
-        assertFalse(emitter.isInit, "刚构造的发射器尚未初始化");
-        assertEquals(0, emitter.cachedCount());
+    void nonPositiveBufferCapacityRejected() {
+        assertThrows(IllegalArgumentException.class, () -> new SseEmitter(0));
+        assertThrows(IllegalArgumentException.class, () -> new SseEmitter(-1));
     }
 
     @Test
-    void messagesBeforeInitAreCachedAndFormatted() {
-        RecordingHttpConnection session = new RecordingHttpConnection();
-        ProbeEmitter emitter = new ProbeEmitter(session, 10);
+    void sendDataWrapsAsDataField() {
+        SseEmitter emitter = new SseEmitter();
 
-        emitter.send("plain");
-        emitter.sendData("d");
-        emitter.sendEvent("e");
-        emitter.sendId("i");
-        emitter.sendRetry(5);
-        emitter.sendComment("c");
+        emitter.sendData("hello");
+        emitter.complete();
 
-        assertEquals(List.of("plain", "data:d\n\n", "event:e\n\n", "id:i\n\n", "retry:5\n\n", ":c\n\n"),
-                List.of(emitter.cachedAt(0), emitter.cachedAt(1), emitter.cachedAt(2),
-                        emitter.cachedAt(3), emitter.cachedAt(4), emitter.cachedAt(5)));
-        assertTrue(session.sentMessages().isEmpty(), "未初始化不得向会话写出，只能进缓存");
+        List<String> received = emitter.content().asFlux().collectList().block(Duration.ofSeconds(5));
+        assertEquals(List.of("data:hello\n\n"), received);
     }
 
     @Test
-    void messagesAfterInitAreSentDirectly() {
-        RecordingHttpConnection session = new RecordingHttpConnection();
-        ProbeEmitter emitter = new ProbeEmitter(session, 10);
-        emitter.isInit = true;
+    void sendHelpersWrapTheirField() {
+        SseEmitter emitter = new SseEmitter();
 
-        emitter.sendData("x");
+        emitter.send("raw");
+        emitter.sendEvent("evt");
+        emitter.sendId("42");
+        emitter.sendRetry(3000);
+        emitter.sendComment("ping");
+        emitter.complete();
 
-        assertEquals(List.of("data:x\n\n"), session.sentMessages());
-        assertEquals(0, emitter.cachedCount(), "已初始化时消息不得再进缓存");
+        List<String> received = emitter.content().asFlux().collectList().block(Duration.ofSeconds(5));
+        assertEquals(List.of("raw", "event:evt\n\n", "id:42\n\n", "retry:3000\n\n", ":ping\n\n"), received);
     }
 
     @Test
-    void cacheOverflowAtCapacityThrows() {
-        ProbeEmitter emitter = new ProbeEmitter(new RecordingHttpConnection(), 2);
-        emitter.send("a");
-        emitter.send("b");
+    void completeEndsStreamAndRejectsFurtherEmission() {
+        SseEmitter emitter = new SseEmitter();
 
-        SseBufferException ex = assertThrows(SseBufferException.class, () -> emitter.send("c"));
-        assertEquals("The message cache is full", ex.getMessage());
-        assertEquals(2, emitter.cachedCount(), "被拒绝的消息不得进入缓存");
+        emitter.sendData("a");
+        emitter.complete();
+
+        List<String> received = emitter.content().asFlux().collectList().block(Duration.ofSeconds(5));
+        assertEquals(List.of("data:a\n\n"), received);
+        assertThrows(IllegalStateException.class, () -> emitter.send("late"),
+                "结束后再投递事件拒收");
+        assertThrows(IllegalStateException.class, () -> emitter.complete(),
+                "结束后再次结束信号拒收");
     }
 
     @Test
-    void zeroCapacityRejectsFirstMessage() {
-        ProbeEmitter emitter = new ProbeEmitter(new RecordingHttpConnection(), 0);
-        assertThrows(SseBufferException.class, () -> emitter.send("a"));
+    void closeListenersAreExposedForWriter() {
+        SseEmitter emitter = new SseEmitter();
+        AtomicBoolean fired = new AtomicBoolean(false);
+
+        emitter.addCloseListener(() -> fired.set(true));
+
+        assertEquals(1, emitter.closeListeners().size(), "登记的关闭监听器可被写出器读出");
+        emitter.closeListeners().forEach(Runnable::run);
+        assertTrue(fired.get());
     }
 
     @Test
-    void closeDelegatesToSession() {
-        RecordingHttpConnection session = new RecordingHttpConnection();
-        ProbeEmitter emitter = new ProbeEmitter(session, 10);
+    void defaultHeadersCarryEventStreamContract() {
+        SseEmitter emitter = new SseEmitter();
 
-        emitter.close();
-
-        assertEquals(1, session.closeCount());
+        assertEquals("text/event-stream", emitter.header("Content-Type"),
+                "默认内容类型为事件流，charset 由结果转化器后续补齐");
+        assertEquals("no-cache", emitter.header("Cache-Control"));
+        assertEquals("keep-alive", emitter.header("Connection"));
     }
 
     @Test
-    void onCloseCallbackFiresOnSessionClose() {
-        RecordingHttpConnection session = new RecordingHttpConnection();
-        ProbeEmitter emitter = new ProbeEmitter(session, 10);
-        SseEmitter[] captured = new SseEmitter[1];
-
-        emitter.onClose(e -> captured[0] = e);
-        session.fireCloseListeners();
-
-        assertSame(emitter, captured[0], "连接关闭时回调必须收到 emitter 自身");
-    }
-
-    @Test
-    void writerTypeIsSseResponseWriter() {
-        ProbeEmitter emitter = new ProbeEmitter(new RecordingHttpConnection(), 10);
-        assertEquals(SseResponseWriter.class, emitter.getWriterType());
+    void statusLineIsOk() {
+        assertEquals(StatusLine.OK, new SseEmitter().statusLine());
     }
 }

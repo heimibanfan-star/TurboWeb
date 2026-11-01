@@ -171,7 +171,6 @@ class ResponseWriterManagerTest {
     @Test
     void constructorRejectsBuiltinWriterInList() {
         List<ResponseWriter> builtins = List.of(
-                new SseResponseWriter(),
                 new FileStreamResponseWriter(),
                 new DefaultResponseWriter(),
                 new ReactorResponseWriter(),

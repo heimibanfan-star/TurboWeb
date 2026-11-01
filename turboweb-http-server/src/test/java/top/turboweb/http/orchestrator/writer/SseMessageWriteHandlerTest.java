@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.core.ByteResponseMessage;
 import top.turboweb.http.core.StatusLine;
-import top.turboweb.http.response.SseEmitterPlus;
+import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.testkit.RecordingHttpConnection;
 import top.turboweb.server.runtime.ChannelAttributeKeys;
 
@@ -124,7 +124,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void chunksFlowWithInFlightWindowOneAndEndSignalClosesChannel() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.sendData("a");
         emitter.sendData("b");
         emitter.sendData("c");
@@ -161,7 +161,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void lateEndSignalAfterSubscriptionStillClosesChannel() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         GatedConnection connection = new GatedConnection();
         CallbackTrap callback = new CallbackTrap();
 
@@ -183,7 +183,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void callbackReportsIgnoreImmediatelyOnce() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         RecordingHttpConnection connection = new RecordingHttpConnection();
         CallbackTrap callback = new CallbackTrap();
 
@@ -196,7 +196,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void charsetFromContentTypeIsApplied() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.setHeader("Content-Type", "text/event-stream;charset=GBK");
         emitter.sendData("中文");
         emitter.complete();
@@ -215,7 +215,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void charsetParamWithSpacesAroundEqualsIsApplied() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.setHeader("Content-Type", "text/event-stream; charset = GBK");
         emitter.sendData("中文");
         emitter.complete();
@@ -234,7 +234,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void charsetResolvedFromFirstHeaderElement() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.setHeader("Content-Type", "text/plain;charset=GBK, text/html;charset=UTF-16");
         emitter.sendData("中文");
         emitter.complete();
@@ -253,7 +253,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void charsetFallsBackToUtf8WhenMissing() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.sendData("中文");
         emitter.complete();
         GatedConnection connection = new GatedConnection();
@@ -271,7 +271,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void charsetFallsBackToUtf8WhenUnknown() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.setHeader("Content-Type", "text/event-stream;charset=NOT-A-CHARSET");
         emitter.sendData("中文");
         emitter.complete();
@@ -290,7 +290,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void transferEncodingChunkedSetWhenAbsentAndContentLengthRemoved() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.setHeader("Content-Length", "99");
         RecordingHttpConnection connection = new RecordingHttpConnection();
         CallbackTrap callback = new CallbackTrap();
@@ -305,7 +305,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void transferEncodingKeptWhenPresent() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.setHeader("Transfer-Encoding", "identity");
         RecordingHttpConnection connection = new RecordingHttpConnection();
         CallbackTrap callback = new CallbackTrap();
@@ -318,7 +318,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void channelCloseFiresEmitterCloseListeners() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         AtomicBoolean first = new AtomicBoolean(false);
         AtomicBoolean second = new AtomicBoolean(false);
         emitter.addCloseListener(() -> first.set(true));
@@ -334,7 +334,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void writeFailureClosesChannelWithoutSecondReport() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.sendData("a");
         emitter.sendData("b");
         emitter.complete();
@@ -356,7 +356,7 @@ class SseMessageWriteHandlerTest {
 
     @Test
     void streamErrorClosesChannel() {
-        SseEmitterPlus emitter = new SseEmitterPlus();
+        SseEmitter emitter = new SseEmitter();
         emitter.sendData("a");
         emitter.content().tryEmitError(new IllegalStateException("stream error"));
         GatedConnection connection = new GatedConnection();
@@ -377,7 +377,7 @@ class SseMessageWriteHandlerTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
             InternalHttpConnection connection = new InternalHttpConnection(channel);
-            SseEmitterPlus emitter = new SseEmitterPlus();
+            SseEmitter emitter = new SseEmitter();
             AtomicBoolean closed = new AtomicBoolean(false);
             emitter.addCloseListener(() -> closed.set(true));
             emitter.sendData("a");

@@ -1,7 +1,6 @@
 package top.turboweb.http.router.parameter;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,7 +19,6 @@ import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.cookie.HttpCookies;
-import top.turboweb.http.response.InternalSseEmitter;
 import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.exception.RequestParseException;
@@ -666,11 +664,10 @@ class ParamInfoParsersTest {
         assertSame(cookies, p.parse(parameter("internCookies"))
                 .bindParameter(stub.returning("cookies", cookies).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
 
-        HttpConnection sseSession = proxy(HttpConnection.class);
-        SseEmitter boundSseEmitter = assertInstanceOf(InternalSseEmitter.class, p.parse(parameter("internSseEmitter"))
-                .bindParameter(stub.returning("getConnectSession", sseSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
-        assertEquals("text/event-stream", boundSseEmitter.headers().get(HttpHeaderNames.CONTENT_TYPE));
-        // 消息缓存容量统一 32:未初始化时 32 条入缓存无异常,第 33 条溢出抛错
+        SseEmitter boundSseEmitter = assertInstanceOf(SseEmitter.class, p.parse(parameter("internSseEmitter"))
+                .bindParameter(stub.returning("httpSession", proxy(HttpSession.class)).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
+        assertEquals("text/event-stream", boundSseEmitter.header("Content-Type"));
+        // 事件缓冲容量统一 32:写出器订阅前 32 条入缓冲无异常,第 33 条溢出抛错
         for (int i = 0; i < 32; i++) {
             boundSseEmitter.send("m" + i);
         }

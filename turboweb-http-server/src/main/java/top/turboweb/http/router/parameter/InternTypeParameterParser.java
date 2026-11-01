@@ -4,7 +4,6 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
-import top.turboweb.http.response.InternalSseEmitter;
 import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.session.HttpSession;
 
@@ -16,7 +15,7 @@ import java.nio.channels.Channel;
  */
 public class InternTypeParameterParser extends AbstractParameterParser{
 
-    /** SSE 消息缓存容量，绑定器就地构造发射器的统一取值 */
+    /** SSE 事件缓冲容量，绑定器就地构造发射器的统一取值 */
     private static final int SSE_MAX_MESSAGE_CACHE = 32;
 
     // HttpContext自动绑定
@@ -25,9 +24,9 @@ public class InternTypeParameterParser extends AbstractParameterParser{
     private static final ParameterParser.Binder HTTP_SESSION_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ctx.httpSession();
     // HttpCookies自动绑定
     private static final ParameterParser.Binder HTTP_COOKIES_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ctx.cookies();
-    // SseEmitter自动绑定:绑定点经连接会话就地构造,缓存容量取统一值32
+    // SseEmitter自动绑定:发射器不持有连接,就地构造,缓冲容量取统一值32
     private static final ParameterParser.Binder SSE_EMITTER_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) ->
-            new InternalSseEmitter(ctx.getConnectSession(), SSE_MAX_MESSAGE_CACHE);
+            new SseEmitter(SSE_MAX_MESSAGE_CACHE);
     // 连接会话绑定
     private static final ParameterParser.Binder CONNECT_SESSION_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ctx.getConnectSession();
     // 连接通道自动绑定

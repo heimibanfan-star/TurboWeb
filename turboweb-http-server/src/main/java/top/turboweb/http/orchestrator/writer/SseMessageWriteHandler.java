@@ -6,7 +6,7 @@ import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.HttpResponseMessage;
-import top.turboweb.http.response.SseEmitterPlus;
+import top.turboweb.http.response.SseEmitter;
 import top.turboweb.server.runtime.ChannelAttributeKeys;
 
 import java.nio.charset.Charset;
@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 
 /**
- * SSE 响应消息写出处理器：把 {@link SseEmitterPlus} 持有的事件流逐块写出到连接上，
+ * SSE 响应消息写出处理器：把 {@link SseEmitter} 持有的事件流逐块写出到连接上，
  * 并在收到结束信号或流错误后关闭通道，通道关闭事件再触发发射器上登记的关闭监听器。
  * <p>
  * 写出按响应首部、逐块事件的次序推进：首部写出完成后才订阅流并发出首块，
@@ -44,7 +44,7 @@ public final class SseMessageWriteHandler implements MessageWriteHandler {
 
 	@Override
 	public void write(HttpConnection connection, HttpResponseMessage<?> message, Callback callback) {
-		if (!(message instanceof SseEmitterPlus sseEmitter)) {
+		if (!(message instanceof SseEmitter sseEmitter)) {
 			throw new IllegalArgumentException("Invalid message type: " + message.getClass().getName());
 		}
 		// 关闭监听以聚合钩子注册：通道关闭时任一时刻登记的监听器都逐个触发

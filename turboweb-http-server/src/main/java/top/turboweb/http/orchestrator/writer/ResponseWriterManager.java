@@ -72,7 +72,6 @@ public class ResponseWriterManager {
         Objects.requireNonNull(customerWriters, "The custom writer list must not be null");
         // 全部初始化（建表、校验、注入资源提供者）先在局部变量上完成，后赋值 final 字段
         Map<Class<? extends ResponseWriter>, ResponseWriter> internalTable = Map.of(
-                SseResponseWriter.class, new SseResponseWriter(),
                 FileStreamResponseWriter.class, new FileStreamResponseWriter(),
                 DefaultResponseWriter.class, new DefaultResponseWriter(),
                 ReactorResponseWriter.class, new ReactorResponseWriter(),
