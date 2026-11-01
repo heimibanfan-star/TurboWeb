@@ -13,10 +13,10 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
+import top.turboweb.http.orchestrator.ConvertHandlerManager;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
-import top.turboweb.http.orchestrator.ResultConverterManager;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
-import top.turboweb.http.orchestrator.writer.ResponseWriterManager;
+import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.http.session.BackHoleSessionManager;
 import top.turboweb.http.testkit.Stubs;
@@ -65,8 +65,8 @@ class HttpRequestSchedulerChannelHandlerTest {
         return RequestOrchestrator.builder()
                 .middleware(new ContextCapturingMiddleware(contexts))
                 .resourceManager(testResourceManager(Stubs.directExecutor()))
-                .responseWriterManager(new ResponseWriterManager(writerResourceManager(), List.of()))
-                .resultConverterManager(new ResultConverterManager(new JacksonJsonSerializer(), List.of()))
+                .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
+                .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> new BackHoleSessionManager())
@@ -83,7 +83,7 @@ class HttpRequestSchedulerChannelHandlerTest {
         return new ResourceManager.Builder().build(builtins);
     }
 
-    /** 测试资源管理器：内置空间只登记桩磁盘IO执行器，供响应写出器管理器按名获取 */
+    /** 测试资源管理器：内置空间只登记桩磁盘IO执行器，供响应消息写出器按名获取 */
     private static ResourceManager writerResourceManager() {
         Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
         builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.noopExecutor());
@@ -92,6 +92,23 @@ class HttpRequestSchedulerChannelHandlerTest {
 
     private static FullHttpRequest getRequest(String uri) {
         return new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
+    }
+
+    /**
+     * 读尽并清理出站：编排走新写出线后，结束标记为共享单例，
+     * 不得经 finishAndReleaseAll 整体释放，只释放内容块。
+     */
+    private static void drainOutbound(EmbeddedChannel channel) {
+        Object out;
+        while ((out = channel.readOutbound()) != null) {
+            if (out instanceof io.netty.handler.codec.http.LastHttpContent) {
+                // 结束标记为共享单例，不释放
+                continue;
+            }
+            if (out instanceof io.netty.handler.codec.http.HttpContent content) {
+                content.release();
+            }
+        }
     }
 
     @Test
@@ -110,7 +127,7 @@ class HttpRequestSchedulerChannelHandlerTest {
         assertEquals(5, connection.sequence(), "连接携带封装分配的序列号");
         assertSame(channel, connection.getChannel());
         assertEquals(0, request.refCnt(), "调度器返回后归还收到的请求引用");
-        channel.finishAndReleaseAll();
+        drainOutbound(channel);
     }
 
     @Test
@@ -132,7 +149,7 @@ class HttpRequestSchedulerChannelHandlerTest {
         assertTrue(firstConnection != secondConnection, "一请求一连接");
         assertEquals(1, firstConnection.sequence());
         assertEquals(2, secondConnection.sequence());
-        channel.finishAndReleaseAll();
+        drainOutbound(channel);
     }
 
     @Test

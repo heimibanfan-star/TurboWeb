@@ -1,158 +1,131 @@
 package top.turboweb.http.response;
 
-import io.netty.handler.codec.http.*;
-import top.turboweb.serializer.JsonSerializer;
+import top.turboweb.http.core.Headers;
+import top.turboweb.http.core.StatusLine;
 
-import java.nio.charset.Charset;
 import java.util.Objects;
 
 /**
- * HTTP 响应封装对象。
+ * HTTP 响应值对象：承载状态行、响应头与原始业务数据，供结果转化环节装配为响应消息。
  * <p>
- * 根据响应内容类型自动设置 Content-Type，charset 取生成响应时传入的字符集：
- * <ul>
- *     <li>如果 data 为 {@link String}，则返回 "text/html;charset=传入字符集名"</li>
- *     <li>如果 data 为其他对象类型，则使用 {@link JsonSerializer} 序列化为 JSON，并返回 "application/json;charset=传入字符集名"</li>
- * </ul>
- * <p>
- * 提供构造方法和静态工厂方法快速创建不同状态码的响应对象。
- *
- * @param <T> 响应内容类型
+ * 本类只做持有，不承载内容编码与实体头的装配：数据按入参原样持有，
+ * 序列化与 Content-Type、Content-Length 的补齐由结果转化环节按实际内容完成。
+ * 头部为消息自有的 {@link Headers} 实体，读写直接作用于本对象。
+ * 提供构造方法和静态工厂方法快速创建不同状态码的响应值对象。
+ * </p>
  */
-public class HttpResult <T> {
+public final class HttpResult {
 
-    private final HttpResponseStatus status;
-    private final HttpHeaders headers;
-    private final T data;
+    /** 响应状态行，取自框架状态行注册表 */
+    private final StatusLine statusLine;
+    /** 响应头实体，构造期一次建立或按入参原样持有 */
+    private final Headers headers;
+    /** 原始业务数据，可为 null */
+    private final Object data;
 
     public HttpResult(int status) {
         this(status, null, null);
     }
 
-    public HttpResult(T data) {
+    public HttpResult(Object data) {
         this(200, data);
     }
 
-    public HttpResult(int status, T data) {
+    public HttpResult(int status, Object data) {
         this(status, null, data);
     }
 
-    public HttpResult(int status, HttpHeaders headers, T data) {
-        this.status = HttpResponseStatus.valueOf(status);
-        this.headers = Objects.requireNonNullElseGet(headers, DefaultHttpHeaders::new);
+    public HttpResult(int status, Headers headers, Object data) {
+        this.statusLine = StatusLine.of(status);
+        this.headers = Objects.requireNonNullElseGet(headers, Headers::new);
         this.data = data;
     }
 
     /**
-     * 生成 HTTP 响应：正文按给定字符集编码，Content-Type 的 charset 段与正文编码一致。
+     * 获取响应状态行。
      *
-     * @param jsonSerializer JSON 序列化器，非字符串 data 经其序列化为 JSON
-     * @param charset        响应正文与 Content-Type 使用的字符集（装配期判定的缺省字符集），不能为null
-     * @return 响应对象
-     * @throws NullPointerException charset 为 null
+     * @return 状态行，已收录状态码为注册表共享实例
      */
-    public HttpResponse createResponse(JsonSerializer jsonSerializer, Charset charset) {
-        Objects.requireNonNull(charset, "charset can not be null");
-        // 创建响应对象
-        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
-        // 设置响应头（先整体写入调用方头，后写的 Content-Type / Content-Length 以框架按实际响应体算出的值为准）
-        response.headers().set(headers);
-        // 处理响应内容
-        String content;
-        if (data instanceof String s) {
-            content = s;
-            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html;charset=" + charset.name());
-        } else {
-            // 序列化对象
-            content = jsonSerializer.beanToJson(data);
-            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json;charset=" + charset.name());
-        }
-        // 设置响应内容
-        setContent(response, content, charset);
-        return response;
+    public StatusLine statusLine() {
+        return statusLine;
     }
 
     /**
-     * 设置响应体内容
+     * 获取响应头实体。
      *
-     * @param response 响应对象
-     * @param content 响应体内容
-     * @param charset 正文编码字符集
+     * @return 响应头实体，重复访问返回同一实例
      */
-    private void setContent(FullHttpResponse response, String content, Charset charset) {
-        response.content().clear();
-        if (content != null) {
-            response.content().writeBytes(content.getBytes(charset));
-            response.headers().set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
-        } else {
-            response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-        }
+    public Headers headers() {
+        return headers;
     }
 
     /**
-     * 创建响应对象
+     * 获取原始业务数据。
+     *
+     * @return 业务数据，未携带时为 null
+     */
+    public Object data() {
+        return data;
+    }
+
+    /**
+     * 创建响应值对象
+     *
+     * @param status  响应状态码
+     * @param headers 响应头，为 null 时自建空头部实体
+     * @param data    响应内容，可为 null
+     * @return 响应值对象
+     */
+    public static HttpResult create(int status, Headers headers, Object data) {
+        return new HttpResult(status, headers, data);
+    }
+
+    /**
+     * 创建响应值对象
      *
      * @param status 响应状态码
-     * @param headers 响应头
-     * @param data 响应内容
-     * @param <T> 响应内容类型
-     * @return 响应对象
+     * @param data   响应内容，可为 null
+     * @return 响应值对象
      */
-    public static <T> HttpResult<T> create(int status, HttpHeaders headers, T data) {
-        return new HttpResult<>(status, headers, data);
+    public static HttpResult create(int status, Object data) {
+        return new HttpResult(status, data);
     }
 
     /**
-     * 创建响应对象
+     * 创建响应状态码为200的响应值对象
      *
-     * @param status 响应状态码
-     * @param data 响应内容
-     * @param <T> 响应内容类型
-     * @return 响应对象
+     * @param data 响应内容，可为 null
+     * @return 响应值对象
      */
-    public static <T> HttpResult<T> create(int status, T data) {
-        return new HttpResult<>(status, data);
+    public static HttpResult ok(Object data) {
+        return new HttpResult(200, data);
     }
 
     /**
-     * 创建响应状态码为200的响应对象
+     * 创建响应状态码为200的响应值对象
      *
-     * @param data 响应内容
-     * @param <T> 响应内容类型
-     * @return 响应对象
+     * @return 响应值对象
      */
-    public static <T> HttpResult<T> ok(T data) {
-        return new HttpResult<>(200, data);
+    public static HttpResult ok() {
+        return new HttpResult(200);
     }
 
     /**
-     * 创建响应状态码为200的响应对象
+     * 创建响应状态码为500的响应值对象
      *
-     * @param <T> 响应内容类型
-     * @return 响应对象
+     * @param data 响应内容，可为 null
+     * @return 响应值对象
      */
-    public static <T> HttpResult<T> ok() {
-        return new HttpResult<>(200);
+    public static HttpResult err(Object data) {
+        return new HttpResult(500, data);
     }
 
     /**
-     * 创建响应状态码为500的响应对象
+     * 创建响应状态码为500的响应值对象
      *
-     * @param data 响应内容
-     * @param <T> 响应内容类型
-     * @return 响应对象
+     * @return 响应值对象
      */
-    public static <T> HttpResult<T> err(T data) {
-        return new HttpResult<>(500, data);
-    }
-
-    /**
-     * 创建响应状态码为500的响应对象
-     *
-     * @param <T> 响应内容类型
-     * @return 响应对象
-     */
-    public static <T> HttpResult<T> err() {
-        return new HttpResult<>(500);
+    public static HttpResult err() {
+        return new HttpResult(500);
     }
 }

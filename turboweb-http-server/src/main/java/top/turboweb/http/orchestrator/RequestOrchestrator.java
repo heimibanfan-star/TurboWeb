@@ -14,8 +14,11 @@ import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
-import top.turboweb.http.orchestrator.writer.ResponseWriter;
-import top.turboweb.http.orchestrator.writer.ResponseWriterManager;
+import top.turboweb.http.core.ByteResponseMessage;
+import top.turboweb.http.core.HttpResponseMessage;
+import top.turboweb.http.core.StatusLine;
+import top.turboweb.http.orchestrator.writer.MessageWriteHandler;
+import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
 import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
@@ -24,6 +27,7 @@ import top.turboweb.http.core.RequestTarget;
 import top.turboweb.http.core.VoidRequestMessage;
 import top.turboweb.http.request.FormRequestMessage;
 import top.turboweb.http.request.JsonRequestMessage;
+import top.turboweb.http.response.HttpResult;
 import top.turboweb.server.runtime.ResourceManager;
 
 import java.nio.charset.Charset;
@@ -34,13 +38,13 @@ import java.util.Objects;
 
 /**
  * 请求编排器：以建造者装配九个协作组件——中间件链、微任务执行器、
- * 响应消息写出器、结果转化器管理器、cors 配置、异常处理器管理器、
+ * 响应消息写出器、结果转化处理器管理器、cors 配置、异常处理器管理器、
  * 会话管理器持有者、缺省字符集与请求体内容解析器管理器
  * （{@link HttpContentParserManager}，由装配方按缺省字符集与自定义解析器建立后传入）。
  * <p>
  * 组件全部 final、构造后不可变更；非空契约两级拒收：
  * 建造者配置方法对 null 入参即时拒绝，{@link Builder#build()} 对缺配组件拒绝并指名。
- * 磁盘IO线程池已在写出器管理器构造期装配，本类不直接持有；
+ * 写出侧资源由响应消息写出器的写出处理器经装配期注入的资源提供者自取，本类不承载其生命周期；
  * 微任务执行器、中间件链与会话管理器持有者仅持有、不负责其生命周期。
  * </p>
  * <p>
@@ -48,16 +52,16 @@ import java.util.Objects;
  * 任务未受理（资源耗尽、排队放弃或线程未能启动）时直接写出 HTTP 429 响应；
  * {@link #doOrchestrate} 在任务线程内执行完整编排——OPTIONS 预检不进中间件链、
  * 直接以空正文 200 携带 CORS 响应头应答；其余请求先转化为上下文的消息、
- * 按内容类型解析请求体得到内容对象，随后执行中间件链并经结果转化链产出响应，
- * 过程中抛出的异常交由异常处理器管理器产出处理结果后转化，响应统一经 CORS
+ * 按内容类型解析请求体得到内容对象，随后执行中间件链并经结果转化链产出响应消息，
+ * 过程中抛出的异常交由异常处理器管理器产出处理结果后转化，响应消息统一经 CORS
  * 来源处理后写出。两个入口都在使用前自行持有请求引用、用完归还自己持有的那一份，
  * 不触碰调用方的引用：经 {@link #orchestrate} 提交时先 retain 自持，再由微任务执行器的
  * 收尾回调在每次提交的收尾处统一归还——任务执行完毕与任务未受理两种收尾
  * 必然触发且仅触发一次，未受理路径在回调内先写出 429 再归还；直接调用
  * {@link #doOrchestrate} 时同理，在响应写出后的收尾处归还自持引用。
  * 请求方法、URI 与来源头在流程入口快照，链执行后写 CORS 头与请求日志只读快照。
- * 写出可监听时挂接完成回调以 DEBUG 级打印请求日志（方法、URI、耗时、写出成败），
- * 展示与否由日志级别控制，不可监听写出不记录。
+ * 写出回调在写出正常结束时以 DEBUG 级打印请求日志（方法、URI、耗时、写出成败），
+ * 展示与否由日志级别控制，响应被忽略的长生命周期写出不记录。
  * {@link #handleCorsHeaders} 亦可独立调用。
  * </p>
  * <p><b>线程安全性：</b>实例设计为单例共享，可在任意线程调用。</p>
@@ -70,10 +74,10 @@ public class RequestOrchestrator {
     private final Middleware middleware;
     /** 微任务执行器，承载请求任务的调度与限流。 */
     private final MicroTaskExecutor microTaskExecutor;
-    /** 响应写出器管理器，按响应声明的写出器类型路由写出。 */
-    private final ResponseWriterManager responseWriterManager;
-    /** 结果转化器管理器，把业务返回值转化为 HTTP 响应。 */
-    private final ResultConverterManager resultConverterManager;
+    /** 响应消息写出器，按消息类型与消息声明的写出处理器路由写出。 */
+    private final ResponseMessageWriter responseMessageWriter;
+    /** 结果转化处理器管理器，把业务返回值转化为响应消息。 */
+    private final ConvertHandlerManager convertHandlerManager;
     /** CORS 不可变配置，来源处理流程的判定依据。 */
     private final HttpCorsConfig corsConfig;
     /** 异常处理器管理器，按异常类型匹配处理器产出处理结果。 */
@@ -95,8 +99,8 @@ public class RequestOrchestrator {
         this.middleware = builder.middleware;
         // 微任务执行器作为内置资源按名从资源管理器获取，获取即保存到本类final字段
         this.microTaskExecutor = builder.resourceManager.getBuiltinResource(ResourceNames.MICRO_TASK_EXECUTOR, MicroTaskExecutor.class);
-        this.responseWriterManager = builder.responseWriterManager;
-        this.resultConverterManager = builder.resultConverterManager;
+        this.responseMessageWriter = builder.responseMessageWriter;
+        this.convertHandlerManager = builder.convertHandlerManager;
         this.corsConfig = builder.corsConfig;
         this.exceptionHandlerManager = builder.exceptionHandlerManager;
         this.sessionManagerHolder = builder.sessionManagerHolder;
@@ -143,8 +147,8 @@ public class RequestOrchestrator {
                 signal -> {
                     try {
                         if (signal.finallyType() == MicroTaskExecutor.FinallyType.NOT_ACCEPT) {
-                            attachRequestLog(request.method().name(), request.uri(), startTime,
-                                    responseWriterManager.write(toManyRequestsResponse(), connectSession));
+                            writeMessage(request.method().name(), request.uri(), startTime,
+                                    connectSession, toManyRequestsResponse());
                         }
                     } finally {
                         // 执行完毕与未受理两路收尾统一归还本入口自持的引用
@@ -154,28 +158,26 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 在当前线程执行完整编排流程并返回写出凭据：OPTIONS 请求以空正文 200
+     * 在当前线程执行完整编排流程：OPTIONS 请求以空正文 200
      * 携带 CORS 响应头直接应答、不进中间件链；其余请求先装配请求消息与内容，
-     * 再执行中间件链并把结果经结果转化链转化为响应，
+     * 再执行中间件链并把结果经结果转化链转化为响应消息，
      * 链执行或转化过程中抛出的异常交由 {@link ExceptionHandlerManager#handle(Throwable)}
-     * 产出处理结果后再转化；正常与异常响应统一经 CORS 来源处理写出 CORS 头后交
-     * {@link ResponseWriterManager#write} 写出。请求引用由本入口使用前 retain 自持、
+     * 产出处理结果后再转化；正常与异常响应消息统一经 CORS 来源处理写出 CORS 头后交
+     * {@link ResponseMessageWriter#write} 写出。请求引用由本入口使用前 retain 自持、
      * 链执行期间保持有效，在响应写出后的收尾处统一归还这一份，预检、正常与异常路径
      * 共用同一归还点；调用方的引用不受影响，由调用方自行归还。请求方法、URI 与来源头
      * 在流程入口快照，链执行后写 CORS 头与请求日志只读快照。
-     * 写出可监听时挂接完成回调，
-     * 以 DEBUG 级打印请求日志（方法、URI、自起点耗时、写出成败），展示与否由日志级别控制，
-     * 不可监听写出不记录。
+     * 写出回调在写出正常结束时以 DEBUG 级打印请求日志（方法、URI、自起点耗时、写出成败），
+     * 展示与否由日志级别控制，响应被忽略的长生命周期写出不记录。
      *
      * @param request        完整的 HTTP 请求
      * @param connectSession 当前连接会话，响应经其通道写出
-     * @return 写出结果，永不为 null
      */
-    public ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, HttpConnection connectSession) {
+    public void doOrchestrate(FullHttpRequest request, HttpConnection connectSession) {
         // 使用前自行持有引用，收尾只归还这一份，调用方的引用不受影响
         request.retain();
         try {
-            return doOrchestrate(request, connectSession, System.nanoTime());
+            doOrchestrate(request, connectSession, System.nanoTime());
         } finally {
             request.release();
         }
@@ -191,59 +193,59 @@ public class RequestOrchestrator {
      * @param request        完整的 HTTP 请求
      * @param connectSession 当前连接会话
      * @param startTime      请求起始时刻（纳秒），请求日志耗时起算点
-     * @return 写出结果，永不为 null
      */
-    private ResponseWriter.WriteResult doOrchestrate(FullHttpRequest request, HttpConnection connectSession,
-                                                     long startTime) {
+    private void doOrchestrate(FullHttpRequest request, HttpConnection connectSession, long startTime) {
         // 请求行与来源头在流程入口快照：链执行后写 CORS 头与请求日志只读快照
         String method = request.method().name();
         String uri = request.uri();
         String origin = request.headers().get("Origin");
-        HttpResponse response;
+        HttpResponseMessage<?> message;
         if ("OPTIONS".equalsIgnoreCase(method)) {
-            response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            message = optionsResponse();
         } else {
             try {
-                response = startMiddleware(request, connectSession);
+                message = startMiddleware(request, connectSession);
             } catch (Throwable throwable) {
-                Object handled = exceptionHandlerManager.handle(throwable);
-                response = resultConverterManager.convert(handled, defaultCharset);
+                HttpResult handled = exceptionHandlerManager.handle(throwable);
+                message = convertHandlerManager.convert(handled, defaultCharset);
             }
         }
-        handleCorsHeaders(origin, response);
-        return attachRequestLog(method, uri, startTime, responseWriterManager.write(response, connectSession));
+        handleCorsHeaders(origin, message);
+        writeMessage(method, uri, startTime, connectSession, message);
     }
 
     /**
-     * 写出后挂接请求日志：写出可监听时在完成凭据上注册回调，回调内以 DEBUG 级输出
-     * 方法、URI、耗时（回调时刻减起点）与写出成败；方法与地址为释放前取得的快照，
-     * 回调触发时请求已释放，故回调不触碰请求对象。不可监听写出无完成凭据，
-     * 不挂接、不记录。
+     * 写出响应消息并挂接请求日志：消息经响应消息写出器写出到连接上，写出回调以
+     * {@link MessageWriteHandler.CallbackType#FINISHED} 结束时（写出正常结束，成功或失败）
+     * 以 DEBUG 级输出方法、URI、耗时（回调时刻减起点）与写出成败；方法与地址为
+     * 释放前取得的快照，回调触发时请求可能已释放，故回调不触碰请求对象。
+     * 响应以 {@link MessageWriteHandler.CallbackType#IGNORE} 忽略的长生命周期写出
+     * （如 SSE）无有限写出终态，不记录请求日志。
      *
-     * @param method      请求方法名快照
-     * @param uri         请求 URI 快照
-     * @param startTime   请求起始时刻（纳秒）
-     * @param writeResult 写出结果
-     * @return 原样返回写出结果，便于流程内联
+     * @param method         请求方法名快照
+     * @param uri            请求 URI 快照
+     * @param startTime      请求起始时刻（纳秒）
+     * @param connectSession 当前连接会话，响应经其通道写出
+     * @param message        待写出的响应消息
      */
-    private ResponseWriter.WriteResult attachRequestLog(String method, String uri, long startTime,
-                                                        ResponseWriter.WriteResult writeResult) {
-        if (writeResult.writeType() == ResponseWriter.WriteType.LISTENABLE) {
-            writeResult.channelFuture().addListener(future -> log.debug(
-                    buildRequestLogMessage(method, uri, System.nanoTime() - startTime, future.isSuccess())));
-        }
-        return writeResult;
+    private void writeMessage(String method, String uri, long startTime,
+                              HttpConnection connectSession, HttpResponseMessage<?> message) {
+        responseMessageWriter.write(connectSession, message, (error, type) -> {
+            if (type == MessageWriteHandler.CallbackType.FINISHED) {
+                log.debug(buildRequestLogMessage(method, uri, System.nanoTime() - startTime, error == null));
+            }
+        });
     }
 
     /**
      * CORS 来源处理：从请求的来源头读取来源后，按
-     * {@link #handleCorsHeaders(String, HttpResponse)} 的口径写出 CORS 响应头。
+     * {@link #handleCorsHeaders(String, HttpResponseMessage)} 的口径写出 CORS 响应头。
      *
-     * @param request  请求对象，仅用于读取 Origin 头
-     * @param response 响应对象，CORS 头直接写入其头域
+     * @param request 请求对象，仅用于读取 Origin 头
+     * @param message 响应消息，CORS 头直接写入其消息头实体
      */
-    public void handleCorsHeaders(FullHttpRequest request, HttpResponse response) {
-        handleCorsHeaders(request.headers().get("Origin"), response);
+    public void handleCorsHeaders(FullHttpRequest request, HttpResponseMessage<?> message) {
+        handleCorsHeaders(request.headers().get("Origin"), message);
     }
 
     /**
@@ -281,8 +283,44 @@ public class RequestOrchestrator {
         return message;
     }
 
+    // ---------- 旧响应体系环节：随响应体系消息化迁移停用，待新线补齐对应能力后处置 ----------
+
+    ///**
+    // * CORS 来源处理：按来源头快照与持有的 {@link HttpCorsConfig} 为 Netty 响应写出 CORS 响应头。
+    // * <p>
+    // * 处理次序与 {@link #handleCorsHeaders(String, HttpResponseMessage)} 一致，载体为
+    // * Netty 响应头域；随响应体系消息化迁移停用，待旧线处置后删除。
+    // * </p>
+    // *
+    // * @param origin   请求来源头快照，可为 null
+    // * @param response Netty 响应对象，CORS 头直接写入其头域
+    // */
+    //private void handleCorsHeaders(String origin, HttpResponse response) {
+    //    if (origin == null || origin.isEmpty()) {
+    //        origin = "null";
+    //    }
+    //    if (corsConfig.isAllowCredentials()) {
+    //        if ("*".equals(origin)) {
+    //            // CORS 标准禁止 Access-Control-Allow-Credentials 与 * 一起出现
+    //            return;
+    //        }
+    //        response.headers().set("Access-Control-Allow-Credentials", "true");
+    //    }
+    //    if (corsConfig.isAllowedOrigin(origin)) {
+    //        response.headers().set("Access-Control-Allow-Origin", origin);
+    //        response.headers().set("Access-Control-Allow-Methods",
+    //                corsConfig.isAnyMethod() ? "*" : String.join(",", corsConfig.getAllowedMethods()));
+    //        response.headers().set("Access-Control-Allow-Headers",
+    //                corsConfig.isAnyHeader() ? "*" : String.join(",", corsConfig.getAllowedHeaders()));
+    //        List<String> exposedHeaders = corsConfig.getExposedHeaders();
+    //        response.headers().set("Access-Control-Expose-Headers",
+    //                exposedHeaders.contains("*") ? "*" : String.join(",", exposedHeaders));
+    //        response.headers().set("Access-Control-Max-Age", String.valueOf(corsConfig.getMaxAge()));
+    //    }
+    //}
+
     /**
-     * CORS 来源处理：按来源头快照与持有的 {@link HttpCorsConfig} 为响应写出 CORS 响应头。
+     * CORS 来源处理：按来源头快照与持有的 {@link HttpCorsConfig} 为响应消息写出 CORS 响应头。
      * <p>
      * 处理次序：来源头缺失或为空回落字面量 null；允许凭证时，来源为字面星号属
      * 标准禁止的组合、整体跳过不写任何头，否则先写出凭证许可头；来源通过放行门
@@ -291,10 +329,10 @@ public class RequestOrchestrator {
      * 来源未通过放行门时除凭证许可头外不写任何 CORS 头。
      * </p>
      *
-     * @param origin   请求来源头快照，可为 null
-     * @param response 响应对象，CORS 头直接写入其头域
+     * @param origin  请求来源头快照，可为 null
+     * @param message 响应消息，CORS 头直接写入其消息头实体
      */
-    private void handleCorsHeaders(String origin, HttpResponse response) {
+    private void handleCorsHeaders(String origin, HttpResponseMessage<?> message) {
         if (origin == null || origin.isEmpty()) {
             origin = "null";
         }
@@ -303,18 +341,18 @@ public class RequestOrchestrator {
                 // CORS 标准禁止 Access-Control-Allow-Credentials 与 * 一起出现
                 return;
             }
-            response.headers().set("Access-Control-Allow-Credentials", "true");
+            message.headers().set("Access-Control-Allow-Credentials", "true");
         }
         if (corsConfig.isAllowedOrigin(origin)) {
-            response.headers().set("Access-Control-Allow-Origin", origin);
-            response.headers().set("Access-Control-Allow-Methods",
+            message.headers().set("Access-Control-Allow-Origin", origin);
+            message.headers().set("Access-Control-Allow-Methods",
                     corsConfig.isAnyMethod() ? "*" : String.join(",", corsConfig.getAllowedMethods()));
-            response.headers().set("Access-Control-Allow-Headers",
+            message.headers().set("Access-Control-Allow-Headers",
                     corsConfig.isAnyHeader() ? "*" : String.join(",", corsConfig.getAllowedHeaders()));
             List<String> exposedHeaders = corsConfig.getExposedHeaders();
-            response.headers().set("Access-Control-Expose-Headers",
+            message.headers().set("Access-Control-Expose-Headers",
                     exposedHeaders.contains("*") ? "*" : String.join(",", exposedHeaders));
-            response.headers().set("Access-Control-Max-Age", String.valueOf(corsConfig.getMaxAge()));
+            message.headers().set("Access-Control-Max-Age", String.valueOf(corsConfig.getMaxAge()));
         }
     }
 
@@ -326,9 +364,9 @@ public class RequestOrchestrator {
      *
      * @param request        请求对象，由提交入口统一释放，本方法内不归还
      * @param connectSession 当前连接会话
-     * @return 链结果经转化与善后产出的响应，不为 null
+     * @return 链结果经转化与善后产出的响应消息，不为 null
      */
-    private HttpResponse startMiddleware(FullHttpRequest request, HttpConnection connectSession) {
+    private HttpResponseMessage<?> startMiddleware(FullHttpRequest request, HttpConnection connectSession) {
         SessionManager sessionManager = sessionManagerHolder.getSessionManager();
         return sessionManager.sessionSafeScope(manager ->
                 executeMiddleware(request, connectSession, manager));
@@ -338,7 +376,7 @@ public class RequestOrchestrator {
      * 装配请求并在会话安全作用域内执行中间件链：初始化 Cookie 集合并读取会话标识，
      * 按内容类型解析请求体得到内容对象，再连同请求装配为请求消息（请求方式、请求头、
      * 请求地址与请求体内容）；以装配产物初始化会话与请求上下文，调用链头，链结果经
-     * 结果转化链转化为响应；随后回写 Cookie，会话新建或路径变更时设置 JSESSIONID
+     * 结果转化链转化为响应消息；随后回写 Cookie，会话新建或路径变更时设置 JSESSIONID
      * 的 Set-Cookie 头。请求对象在链执行期间保持有效，由提交入口统一释放，
      * 本方法不归还请求。
      * <p>内容资源的关闭在方法退出时无条件执行，与装配、会话初始化、链执行同处一个
@@ -351,10 +389,10 @@ public class RequestOrchestrator {
      * @param request        请求对象，不能为 null；其释放归提交入口，本方法不归还
      * @param connectSession 当前连接会话
      * @param sessionManager 会话管理器
-     * @return 链结果经转化与善后产出的响应，不为 null
+     * @return 链结果经转化与善后产出的响应消息，不为 null
      */
-    private HttpResponse executeMiddleware(FullHttpRequest request, HttpConnection connectSession,
-                                           SessionManager sessionManager) {
+    private HttpResponseMessage<?> executeMiddleware(FullHttpRequest request, HttpConnection connectSession,
+                                                     SessionManager sessionManager) {
         Object content = null;
         HttpSession httpSession = null;
         try {
@@ -377,19 +415,19 @@ public class RequestOrchestrator {
                     connectSession, defaultCharset);
             // 执行中间件
             Object result = middleware.invoke(context);
-            HttpResponse response = resultConverterManager.convert(result, defaultCharset);
+            HttpResponseMessage<?> responseMessage = convertHandlerManager.convert(result, defaultCharset);
             // 处理Cookie
             for (String setCookie : cookies.toSetCookies(defaultCharset)) {
-                response.headers().add(HttpHeaderNames.SET_COOKIE, setCookie);
+                responseMessage.headers().add("Set-Cookie", setCookie);
             }
             // 处理session
             if (httpSession.sessionId() != null
                     && (!Objects.equals(httpSession.sessionId(), originSessionId)
                     || httpSession.pathIsUpdate())) {
-                response.headers().add("Set-Cookie",
+                responseMessage.headers().add("Set-Cookie",
                         "JSESSIONID=" + httpSession.sessionId() + "; Path=" + httpSession.getPath() + "; HttpOnly");
             }
-            return response;
+            return responseMessage;
         } finally {
             // 内容自产出起即由本方法负责关闭，装配成功后的异常位置全部落在此边界内
             closeContentQuietly(content);
@@ -418,18 +456,28 @@ public class RequestOrchestrator {
     }
 
     /**
-     * 构建 HTTP 429（Too Many Requests）响应：任务提交未受理时写出。
+     * 构建 OPTIONS 预检响应：空正文 200 字节消息，携带 text/html 内容类型
+     * 以满足写出门禁，CORS 响应头由流程统一写入。
      *
-     * @return 响应对象，正文为 "too many request"
+     * @return 空正文的 200 字节响应消息
      */
-    private HttpResponse toManyRequestsResponse() {
-        DefaultFullHttpResponse response =
-                new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.TOO_MANY_REQUESTS);
-        response.headers().add("Content-Type", "text/plain;charset=utf-8");
-        String msg = "too many request";
-        response.content().writeCharSequence(msg, StandardCharsets.UTF_8);
-        response.headers().add("Content-Length", msg.length());
-        return response;
+    private ByteResponseMessage optionsResponse() {
+        ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, new byte[0]);
+        message.headers().set("Content-Type", "text/html;charset=utf-8");
+        return message;
+    }
+
+    /**
+     * 构建 HTTP 429（Too Many Requests）响应消息：任务提交未受理时写出，
+     * 正文为 "too many request"，内容类型 text/plain，内容长度由写出环节按实际响应体补齐。
+     *
+     * @return 429 字节响应消息
+     */
+    private ByteResponseMessage toManyRequestsResponse() {
+        ByteResponseMessage message = new ByteResponseMessage(
+                StatusLine.TOO_MANY_REQUESTS, "too many request".getBytes(StandardCharsets.UTF_8));
+        message.headers().set("Content-Type", "text/plain;charset=utf-8");
+        return message;
     }
 
     /**
@@ -461,8 +509,8 @@ public class RequestOrchestrator {
 
         private Middleware middleware;
         private ResourceManager resourceManager;
-        private ResponseWriterManager responseWriterManager;
-        private ResultConverterManager resultConverterManager;
+        private ResponseMessageWriter responseMessageWriter;
+        private ConvertHandlerManager convertHandlerManager;
         private HttpCorsConfig corsConfig;
         private ExceptionHandlerManager exceptionHandlerManager;
         private SessionManagerHolder sessionManagerHolder;
@@ -481,15 +529,15 @@ public class RequestOrchestrator {
             return this;
         }
 
-        /** 设置响应写出器管理器。 */
-        public Builder responseWriterManager(ResponseWriterManager responseWriterManager) {
-            this.responseWriterManager = Objects.requireNonNull(responseWriterManager, "response writer manager must not be null");
+        /** 设置响应消息写出器。 */
+        public Builder responseMessageWriter(ResponseMessageWriter responseMessageWriter) {
+            this.responseMessageWriter = Objects.requireNonNull(responseMessageWriter, "response message writer must not be null");
             return this;
         }
 
-        /** 设置结果转化器管理器。 */
-        public Builder resultConverterManager(ResultConverterManager resultConverterManager) {
-            this.resultConverterManager = Objects.requireNonNull(resultConverterManager, "result converter manager must not be null");
+        /** 设置结果转化处理器管理器。 */
+        public Builder convertHandlerManager(ConvertHandlerManager convertHandlerManager) {
+            this.convertHandlerManager = Objects.requireNonNull(convertHandlerManager, "convert handler manager must not be null");
             return this;
         }
 
@@ -539,8 +587,8 @@ public class RequestOrchestrator {
         public RequestOrchestrator build() {
             Objects.requireNonNull(middleware, "middleware must not be null");
             Objects.requireNonNull(resourceManager, "resource manager must not be null");
-            Objects.requireNonNull(responseWriterManager, "response writer manager must not be null");
-            Objects.requireNonNull(resultConverterManager, "result converter manager must not be null");
+            Objects.requireNonNull(responseMessageWriter, "response message writer must not be null");
+            Objects.requireNonNull(convertHandlerManager, "convert handler manager must not be null");
             Objects.requireNonNull(corsConfig, "cors config must not be null");
             Objects.requireNonNull(exceptionHandlerManager, "exception handler manager must not be null");
             Objects.requireNonNull(sessionManagerHolder, "session manager holder must not be null");

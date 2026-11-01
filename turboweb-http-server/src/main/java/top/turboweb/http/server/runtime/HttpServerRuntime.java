@@ -17,15 +17,14 @@ import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
+import top.turboweb.http.orchestrator.ConvertHandler;
+import top.turboweb.http.orchestrator.ConvertHandlerManager;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.parser.HttpContentParser;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
-import top.turboweb.http.orchestrator.writer.ResponseWriter;
-import top.turboweb.http.orchestrator.writer.ResponseWriterManager;
-import top.turboweb.http.orchestrator.ResultConverter;
-import top.turboweb.http.orchestrator.ResultConverterManager;
+import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
@@ -208,7 +207,7 @@ public class HttpServerRuntime implements ServerRuntime {
         private SessionManager sessionManager = new MemorySessionManager();
         /**
          * json序列化器，默认Jackson实现，用于响应体序列化与session数据转换；
-         * 构建期以它装配结果转化器管理器，并交给路由登记表生产路由处理器管理器，
+         * 构建期以它装配结果转化处理器管理器，并交给路由登记表生产路由处理器管理器，
          * 使序列化侧与路由侧持有同一实例
          */
         private JsonSerializer jsonSerializer = new JacksonJsonSerializer();
@@ -217,15 +216,17 @@ public class HttpServerRuntime implements ServerRuntime {
          */
         private HttpCorsConfig corsConfig = null;
         /**
-         * 自定义结果转化器集合，按注册顺序登记为自定义环节，构建期与json序列化器一起
-         * 装配成 {@link ResultConverterManager}；默认为空集合
+         * 自定义结果转化处理器集合，按注册顺序登记为自定义环节，构建期与json序列化器一起
+         * 装配成 {@link ConvertHandlerManager}；默认为空集合
          */
-        private final List<ResultConverter> resultConverters = new ArrayList<>();
-        /**
-         * 自定义响应写出器集合，按注册顺序登记为自定义表，构建期与磁盘IO线程池一起
-         * 装配成 {@link ResponseWriterManager}；默认为空集合
-         */
-        private final List<ResponseWriter> responseWriters = new ArrayList<>();
+        private final List<ConvertHandler> resultConvertHandlers = new ArrayList<>();
+        // ---------- 旧响应体系环节：随响应体系消息化迁移停用，待新线补齐对应能力后处置 ----------
+
+        ///**
+        // * 自定义响应写出器集合，按注册顺序登记为自定义表，构建期与磁盘IO线程池一起
+        // * 装配成 {@link ResponseWriterManager}；默认为空集合
+        // */
+        //private final List<ResponseWriter> responseWriters = new ArrayList<>();
         /**
          * 自定义内容解析器集合，构建期与缺省字符集一起装配成 {@link HttpContentParserManager}；
          * 默认为空集合，此时只有内置的表单与JSON解析器生效
@@ -276,7 +277,7 @@ public class HttpServerRuntime implements ServerRuntime {
         }
 
         /**
-         * 替换json序列化器；构建期以它装配结果转化器管理器，并交给路由登记表生产路由处理器管理器，
+         * 替换json序列化器；构建期以它装配结果转化处理器管理器，并交给路由登记表生产路由处理器管理器，
          * 因此入口的调用顺序不影响路由侧拿到的实例（生产发生在构建期）
          */
         public Builder jsonSerializer(JsonSerializer jsonSerializer) {
@@ -308,32 +309,34 @@ public class HttpServerRuntime implements ServerRuntime {
         }
 
         /**
-         * 按顺序注册自定义结果转化器（业务返回值到http响应的转化链的自定义环节，
-         * 构建期与json序列化器装配成结果转化器管理器）；元素为null立即抛出
-         * {@link NullPointerException}；内置类型拒登、同一转化器类重复注册在构建时抛出
+         * 按顺序注册自定义结果转化处理器（业务返回值到响应消息的转化链的自定义环节，
+         * 构建期与json序列化器装配成结果转化处理器管理器）；元素为null立即抛出
+         * {@link NullPointerException}；内置类型拒登、同一处理器类重复注册在构建时抛出
          */
-        public Builder resultConverters(ResultConverter... resultConverters) {
-            this.resultConverters.addAll(
-                    Stream.of(resultConverters)
-                            .peek(converter -> Objects.requireNonNull(converter, "The result converter must not be null"))
+        public Builder resultConvertHandlers(ConvertHandler... resultConvertHandlers) {
+            this.resultConvertHandlers.addAll(
+                    Stream.of(resultConvertHandlers)
+                            .peek(converter -> Objects.requireNonNull(converter, "The convert handler must not be null"))
                             .toList()
             );
             return this;
         }
 
-        /**
-         * 按顺序注册自定义响应写出器（http响应写出的自定义表环节，构建期与磁盘IO线程池
-         * 装配成响应写出器管理器）；元素为null立即抛出 {@link NullPointerException}；
-         * 内置类型拒登、同一写出器类重复注册在构建时抛出
-         */
-        public Builder responseWriters(ResponseWriter... responseWriters) {
-            this.responseWriters.addAll(
-                    Stream.of(responseWriters)
-                            .peek(writer -> Objects.requireNonNull(writer, "The response writer must not be null"))
-                            .toList()
-            );
-            return this;
-        }
+        // ---------- 旧响应体系环节：随响应体系消息化迁移停用，待新线补齐对应能力后处置 ----------
+
+        ///**
+        // * 按顺序注册自定义响应写出器（http响应写出的自定义表环节，构建期与磁盘IO线程池
+        // * 装配成响应写出器管理器）；元素为null立即抛出 {@link NullPointerException}；
+        // * 内置类型拒登、同一写出器类重复注册在构建时抛出
+        // */
+        //public Builder responseWriters(ResponseWriter... responseWriters) {
+        //    this.responseWriters.addAll(
+        //            Stream.of(responseWriters)
+        //                    .peek(writer -> Objects.requireNonNull(writer, "The response writer must not be null"))
+        //                    .toList()
+        //    );
+        //    return this;
+        //}
 
         /**
          * 按顺序注册自定义内容解析器（构建期与缺省字符集一起装配成内容解析器管理器，
@@ -367,8 +370,9 @@ public class HttpServerRuntime implements ServerRuntime {
          * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
          * 装配出的中间件链销毁适配器经托管通道登记、创建的磁盘IO微任务执行器与请求微任务执行器
-         * 作为内置资源随构建传入资源管理器交给应用持有，编排器与响应写出器管理器按资源名
-         * 从管理器的内置空间获取所需资源，由 {@link #close()} 按登记顺序释放。
+         * 作为内置资源随构建传入资源管理器交给应用持有，编排器按资源名从管理器的内置空间
+         * 获取所需资源，响应消息写出器的写出处理器经装配期注入的资源提供者自取所需资源，
+         * 由 {@link #close()} 按登记顺序释放。
          * <p>
          * 同一 Builder 仅允许构建一次，重复调用在装配开始前抛出 {@link IllegalStateException}
          *
@@ -391,7 +395,8 @@ public class HttpServerRuntime implements ServerRuntime {
             Middleware middlewareChain = initMiddlewareChain(routeHandlerManager);
             // 中间件链销毁适配器以托管资源登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
             resourceBuilder.addManaged(() -> destroyMiddlewareChain(middlewareChain));
-            // 创建磁盘IO微任务执行器，构建期注入响应写出器管理器供文件流写出器调度分块读取；应用只是使用者，关闭责任留在应用
+            // 创建磁盘IO微任务执行器并登记为内置资源；其消费方为旧响应体系的文件流写出环节，
+            // 该环节已随响应体系消息化迁移停用接线，资源登记保留待旧线处置；应用只是使用者，关闭责任留在应用
             MicroTaskExecutor diskIoExecutor = ElasticMicroTaskExecutor.of(
                     "disk-io-micro-task",
                     httpConfig.getDiskOpeThreadCacheQueue(),
@@ -414,8 +419,8 @@ public class HttpServerRuntime implements ServerRuntime {
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
                     .resourceManager(resourceManager)
-                    .responseWriterManager(new ResponseWriterManager(resourceManager, this.responseWriters))
-                    .resultConverterManager(new ResultConverterManager(this.jsonSerializer, this.resultConverters))
+                    .responseMessageWriter(new ResponseMessageWriter(resourceManager, List.of()))
+                    .convertHandlerManager(new ConvertHandlerManager(this.jsonSerializer, this.resultConvertHandlers))
                     .corsConfig(this.corsConfig != null
                             ? this.corsConfig
                             : HttpCorsConfig.builder().build())

@@ -30,7 +30,8 @@ import java.util.Set;
  * </p>
  * <p>
  * 异常发生时经 {@link #handle(Throwable)} 处理：自异常自身的类型起沿继承链逐级向上，
- * 优先命中绑定最近异常类型的处理器并透传其返回值；
+ * 优先命中绑定最近异常类型的处理器，返回值归一化为 {@link HttpResult}（已是 HttpResult 原样透传，
+ * 否则包装为携带该值的 200 结果）；
  * 整条继承链均无匹配时，路由异常按错误码携带的 HTTP 状态码兜底——
  * 客户端状态码（4xx）返回对应状态码、展示异常消息的 {@link HttpResult}，服务器状态码（5xx）走 500 兜底；
  * 其余异常与处理器自身执行失败时，
@@ -63,10 +64,11 @@ public class ExceptionHandlerManager {
     }
 
     /**
-     * 匹配异常处理器处理异常。
+     * 匹配异常处理器处理异常并归一化返回值。
      * <p>
      * 自异常自身的类型起沿继承链逐级向上查找，优先命中绑定最近父类异常的处理器，
-     * 命中后执行并返回处理方法的返回值。
+     * 命中后执行并把处理方法的返回值归一化为 {@link HttpResult}：
+     * 返回值已是 HttpResult 时原样透传，否则包装为携带该返回值的 200 结果。
      * 若整条继承链都没有注册处理器则兜底：路由异常按错误码携带的 HTTP 状态码分流，
      * 客户端状态码（4xx）返回对应状态码、展示异常消息的 {@link HttpResult} 且不记录错误日志，
      * 服务器状态码（5xx）走 500 兜底；
@@ -75,15 +77,16 @@ public class ExceptionHandlerManager {
      * </p>
      *
      * @param throwable 待处理的异常
-     * @return 命中的处理方法的返回值；兜底时为客户端错误码或 500 状态码的 {@link HttpResult}
+     * @return 归一化的处理结果；兜底时为客户端错误码或 500 状态码的 {@link HttpResult}
      */
-    public Object handle(Throwable throwable) {
+    public HttpResult handle(Throwable throwable) {
         ExceptionHandlerInvoker invoker = findInvoker(throwable);
         if (invoker == null) {
             return fallbackHandleResult(throwable);
         }
         try {
-            return invoker.invoke(throwable);
+            Object result = invoker.invoke(throwable);
+            return result instanceof HttpResult httpResult ? httpResult : HttpResult.ok(result);
         } catch (Throwable handlerFailure) {
             log.error("Failed to execute exception handler", handlerFailure);
             return errorHandleResult(throwable);
@@ -116,9 +119,9 @@ public class ExceptionHandlerManager {
      * 服务器状态码（500 及以上）的路由异常与其余全部异常走 500 异常栈兜底页并记录错误日志。
      *
      * @param throwable 触发兜底的原始异常
-     * @return 对应状态码的 {@link HttpResult}，其数据为字符串，生成响应时按 text/html 输出
+     * @return 对应状态码的 {@link HttpResult}，其数据为字符串错误页文本
      */
-    private Object fallbackHandleResult(Throwable throwable) {
+    private HttpResult fallbackHandleResult(Throwable throwable) {
         if (throwable instanceof RouteHandlerException routeHandlerException) {
             HttpResponseStatus status = routeHandlerException.getCode().getHttpStatus();
             if (status.code() < 500) {
@@ -134,9 +137,9 @@ public class ExceptionHandlerManager {
      * 消息中的标记字符不会作为原始标签透传给浏览器。
      *
      * @param throwable 触发兜底的原始异常
-     * @return 500 状态码的 {@link HttpResult}，其数据为字符串，生成响应时按 text/html 输出
+     * @return 500 状态码的 {@link HttpResult}，其数据为字符串错误页文本
      */
-    private Object errorHandleResult(Throwable throwable) {
+    private HttpResult errorHandleResult(Throwable throwable) {
         log.error("Server error", throwable);
         return HttpResult.err(ExceptionMessageHelper.errorMessage(throwable));
     }

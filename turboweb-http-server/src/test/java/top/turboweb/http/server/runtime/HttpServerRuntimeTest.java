@@ -4,7 +4,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,19 +12,16 @@ import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
+import top.turboweb.http.orchestrator.ConvertHandler;
+import top.turboweb.http.orchestrator.ConvertHandlerManager;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.parser.HttpContentParser;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
-import top.turboweb.http.orchestrator.writer.ResponseWriter;
-import top.turboweb.http.orchestrator.writer.ResponseWriterManager;
-import top.turboweb.http.orchestrator.ResultConverter;
-import top.turboweb.http.orchestrator.ResultConverterManager;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
@@ -34,7 +30,6 @@ import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
 import top.turboweb.http.core.ContentType;
-import top.turboweb.server.runtime.ResourceProvider;
 
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
@@ -42,6 +37,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
@@ -93,8 +90,7 @@ class HttpServerRuntimeTest {
         assertThrows(NullPointerException.class, () -> builder.jsonSerializer(null));
         assertThrows(NullPointerException.class, () -> builder.corsConfig(null));
         assertThrows(NullPointerException.class, () -> builder.exceptionHandlers((Object) null));
-        assertThrows(NullPointerException.class, () -> builder.resultConverters((ResultConverter) null));
-        assertThrows(NullPointerException.class, () -> builder.responseWriters((ResponseWriter) null));
+        assertThrows(NullPointerException.class, () -> builder.resultConvertHandlers((ConvertHandler) null));
         assertThrows(NullPointerException.class, () -> builder.contentParsers((HttpContentParser) null));
         assertThrows(NullPointerException.class, () -> builder.config(null));
         assertThrows(NullPointerException.class, () -> builder.middleware((Middleware) null));
@@ -177,9 +173,9 @@ class HttpServerRuntimeTest {
                 .build();
 
         assertInstanceOf(JacksonJsonSerializer.class, register.producedWith, "未指定序列化器时生产用应用的默认实例");
-        ResultConverterManager resultConverterManager =
-                (ResultConverterManager) componentOf(orchestratorOf(runtime), "resultConverterManager");
-        ResultConverter defaultConverter = (ResultConverter) fieldOf(resultConverterManager, "defaultConverter");
+        ConvertHandlerManager convertHandlerManager =
+                (ConvertHandlerManager) componentOf(orchestratorOf(runtime), "convertHandlerManager");
+        ConvertHandler defaultConverter = (ConvertHandler) fieldOf(convertHandlerManager, "defaultConverter");
         assertSame(fieldOf(defaultConverter, "jsonSerializer"), register.producedWith,
                 "登记表拿到的默认序列化器与结果转化链持有的是同一实例");
         runtime.close();
@@ -243,15 +239,33 @@ class HttpServerRuntimeTest {
     // ---------- 装配管道（configure） ----------
 
     @Test
-    void configureAppliesInFlightLimitFromConfig() {
+    void configureAppliesInFlightLimitFromConfig() throws Exception {
+        // 链内挂起钉住在途状态：前两个请求停在中间件链内不写出响应，写出游标停在 1，
+        // 第三个请求的派发判定必然按在途 2 超限断连，不受异步响应完成时序干扰
+        CountDownLatch hold = new CountDownLatch(1);
+        CountDownLatch entered = new CountDownLatch(1);
+        Middleware holdingChain = new Middleware() {
+            @Override
+            public Object invoke(HttpContext ctx) {
+                entered.countDown();
+                try {
+                    hold.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return "held";
+            }
+        };
         HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
+                .middleware(holdingChain)
                 .config(HttpConfig.builder().maxInFlightResponses(2).build())
                 .build();
         try {
             EmbeddedChannel channel = new EmbeddedChannel();
             runtime.configure(channel.pipeline());
             channel.writeInbound(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/1"));
+            assertTrue(entered.await(2, TimeUnit.SECONDS), "首个请求已进入中间件链并在链内挂起");
             channel.writeInbound(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/2"));
             channel.writeInbound(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/3"));
 
@@ -259,6 +273,7 @@ class HttpServerRuntimeTest {
             assertFalse(channel.isOpen(), "在途请求数超过配置的上限即断开连接");
             channel.finishAndReleaseAll();
         } finally {
+            hold.countDown();
             runtime.close();
         }
     }
@@ -273,15 +288,13 @@ class HttpServerRuntimeTest {
         JsonSerializer serializer = new JacksonJsonSerializer();
         HttpCorsConfig corsConfig = HttpCorsConfig.builder().build();
         MarkerExceptionHandler customHandler = new MarkerExceptionHandler();
-        ResultConverter customConverter = (result, charset) -> ResultConverter.Result.shouldContinue();
-        MarkerResponseWriter customWriter = new MarkerResponseWriter();
+        ConvertHandler customConverter = (result, charset) -> ConvertHandler.Result.shouldContinue();
         HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .exceptionHandlers(customHandler)
                 .sessionManager(new NoopSessionManager())
                 .routeRegister(new TestRouteRegister(router))
                 .jsonSerializer(serializer)
-                .resultConverters(customConverter)
-                .responseWriters(customWriter)
+                .resultConvertHandlers(customConverter)
                 .corsConfig(corsConfig)
                 .config(HttpConfig.builder().maxInFlightResponses(16).build())
                 .middleware(mw)
@@ -296,18 +309,12 @@ class HttpServerRuntimeTest {
         Map<?, ?> handlerTable = (Map<?, ?>) fieldOf(exceptionHandlerManager, "handlers");
         assertTrue(handlerTable.containsKey(IllegalArgumentException.class),
                 "用户传入的异常处理器经构建期装配登记进管理器的异常类型表");
-        ResultConverterManager resultConverterManager =
-                (ResultConverterManager) componentOf(orchestrator, "resultConverterManager");
-        assertNotNull(resultConverterManager, "结果转化器管理器由构建期装配进入编排器");
-        List<?> customConverters = (List<?>) fieldOf(resultConverterManager, "customConverters");
+        ConvertHandlerManager convertHandlerManager =
+                (ConvertHandlerManager) componentOf(orchestrator, "convertHandlerManager");
+        assertNotNull(convertHandlerManager, "结果转化处理器管理器由构建期装配进入编排器");
+        List<?> customConverters = (List<?>) fieldOf(convertHandlerManager, "customConverters");
         assertSame(customConverter, customConverters.get(0),
-                "用户传入的自定义结果转化器经构建期装配进入管理器的自定义环节");
-        ResponseWriterManager responseWriterManager =
-                (ResponseWriterManager) componentOf(orchestrator, "responseWriterManager");
-        assertNotNull(responseWriterManager, "响应写出器管理器由构建期装配进入编排器");
-        Map<?, ?> customWriters = (Map<?, ?>) fieldOf(responseWriterManager, "customerResponseWriter");
-        assertSame(customWriter, customWriters.get(customWriter.getClass()),
-                "用户传入的自定义响应写出器经构建期装配进入管理器的自定义表");
+                "用户传入的自定义结果转化处理器经构建期装配进入管理器的自定义环节");
         Middleware head = (Middleware) componentOf(orchestrator, "middleware");
         assertInstanceOf(SentinelMiddleware.class, head, "编排器的中间件组件是链头哨兵");
         assertSame(mw, head.getNext(), "业务中间件紧随哨兵");
@@ -339,8 +346,8 @@ class HttpServerRuntimeTest {
                 .sessionManager(new NoopSessionManager())
                 .build();
         RequestOrchestrator orchestrator = orchestratorOf(runtime);
-        for (String component : List.of("middleware", "microTaskExecutor", "responseWriterManager",
-                "resultConverterManager", "corsConfig", "exceptionHandlerManager",
+        for (String component : List.of("middleware", "microTaskExecutor", "responseMessageWriter",
+                "convertHandlerManager", "corsConfig", "exceptionHandlerManager",
                 "sessionManagerHolder", "defaultCharset", "contentParserManager")) {
             assertNotNull(componentOf(orchestrator, component), "九组件之 " + component + " 装配后不可为null");
         }
@@ -550,22 +557,6 @@ class HttpServerRuntimeTest {
         @Override
         protected String getBranchKey(HttpContext ctx) {
             return "b";
-        }
-    }
-
-    /**
-     * 自定义写出器夹具：初始化为空操作、写出恒不被调用（用例只核查构建期登记结果），
-     * 用于钉住用户传入的自定义写出器经构建期装配进入响应写出器管理器的自定义表。
-     */
-    private static final class MarkerResponseWriter implements ResponseWriter {
-
-        @Override
-        public void initWriter(ResourceProvider resourceProvider) {
-        }
-
-        @Override
-        public WriteResult write(HttpResponse httpResponse, InternalHttpConnection session) {
-            return WriteResult.notListenable();
         }
     }
 
