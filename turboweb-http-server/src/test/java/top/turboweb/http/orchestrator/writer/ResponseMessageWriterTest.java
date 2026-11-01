@@ -119,6 +119,15 @@ class ResponseMessageWriterTest {
         }
     }
 
+    /** 结束标记写出必失败的连接替身 */
+    private static final class FailingFinishConnection extends RecordingHttpConnection {
+
+        @Override
+        public CompletableFuture<Void> finishWrite() {
+            return CompletableFuture.failedFuture(new IllegalStateException("finish failed"));
+        }
+    }
+
     /** 写出响应头即同步抛错的连接替身 */
     private static final class ThrowingHeadersConnection extends RecordingHttpConnection {
 
@@ -406,6 +415,59 @@ class ResponseMessageWriterTest {
         assertEquals("write failed", callback.error().getMessage());
         assertEquals(MessageWriteHandler.CallbackType.FINISHED, callback.type());
         assertEquals(0, connection.finishCount(), "失败链不再写结束标记");
+    }
+
+    @Test
+    void bodyWriteFailureClosesChannel() {
+        FailingWriteConnection connection = new FailingWriteConnection();
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback);
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertEquals(1, connection.closeCount(), "消息体写出失败后帧序已残缺，通道以关闭收尾");
+    }
+
+    @Test
+    void finishWriteFailureClosesChannel() {
+        FailingFinishConnection connection = new FailingFinishConnection();
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback);
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertEquals(1, connection.closeCount(), "结束标记写出失败后通道以关闭收尾");
+    }
+
+    @Test
+    void failedHeadersCloseChannel() {
+        OrderedConnection connection = new OrderedConnection();
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback);
+        connection.failHeaders(new IllegalStateException("headers failed"));
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertEquals(1, connection.closeCount(), "响应头写出失败后通道以关闭收尾");
+    }
+
+    @Test
+    void syncHeadersThrowClosesChannel() {
+        ThrowingHeadersConnection connection = new ThrowingHeadersConnection();
+        ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback);
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertEquals(1, connection.closeCount(), "写出通道同步抛错同样以关闭通道收尾");
     }
 
     @Test

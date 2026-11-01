@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 上一块写出凭据完成后才发出下一块（在途窗口为 1）、
  * 首部未携带传输编码头时补齐 chunked 且已携带时不覆写、
  * 首部失败、块写出失败、流出错与同步抛错经回调恰好上报一次且不再写结束标记并取消流、
+ * 任一失败路径均以关闭通道收尾、
  * 空流仍写结束标记、非流式消息拒收。
  */
 class StreamMessageWriteHandlerTest {
@@ -260,6 +261,72 @@ class StreamMessageWriteHandlerTest {
         assertInstanceOf(IllegalStateException.class, callback.error());
         assertEquals("write failed", callback.error().getMessage());
         assertEquals(MessageWriteHandler.CallbackType.FINISHED, callback.type());
+    }
+
+    @Test
+    void writeFailureClosesChannel() {
+        GatedConnection connection = new GatedConnection();
+        CallbackTrap callback = new CallbackTrap();
+
+        new StreamMessageWriteHandler().write(connection,
+                streamMessage(Flux.fromIterable(List.of("a", "b"))
+                        .map(chunk -> chunk.getBytes(StandardCharsets.UTF_8))), callback);
+        connection.completeHeaders();
+        connection.completeOldestWrite();
+        connection.failOldestWrite(new IllegalStateException("write failed"));
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertEquals(1, connection.closeCount(), "块写出失败后帧序已残缺，通道以关闭收尾");
+    }
+
+    @Test
+    void headerFailureClosesChannel() {
+        GatedConnection connection = new GatedConnection();
+        CallbackTrap callback = new CallbackTrap();
+
+        new StreamMessageWriteHandler().write(connection, streamMessage(Flux.empty()), callback);
+        connection.failHeaders(new IllegalStateException("headers failed"));
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertEquals(1, connection.closeCount(), "首部写出失败后通道以关闭收尾");
+    }
+
+    @Test
+    void finishFailureClosesChannel() {
+        GatedConnection connection = new GatedConnection();
+        CallbackTrap callback = new CallbackTrap();
+
+        new StreamMessageWriteHandler().write(connection, streamMessage(Flux.just("a".getBytes(StandardCharsets.UTF_8))), callback);
+        connection.completeHeaders();
+        connection.completeOldestWrite();
+        connection.failFinish(new IllegalStateException("finish failed"));
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertEquals(1, connection.closeCount(), "结束标记写出失败后通道以关闭收尾");
+    }
+
+    @Test
+    void streamErrorClosesChannel() {
+        GatedConnection connection = new GatedConnection();
+        CallbackTrap callback = new CallbackTrap();
+
+        new StreamMessageWriteHandler().write(connection,
+                streamMessage(Flux.error(new IllegalStateException("stream error"))), callback);
+        connection.completeHeaders();
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertEquals(1, connection.closeCount(), "流出错后响应帧序已残缺，通道以关闭收尾");
+    }
+
+    @Test
+    void syncHeadersThrowClosesChannel() {
+        ThrowingHeadersConnection connection = new ThrowingHeadersConnection();
+        CallbackTrap callback = new CallbackTrap();
+
+        new StreamMessageWriteHandler().write(connection, streamMessage(Flux.empty()), callback);
+
+        assertEquals(1, callback.count(), "回调恰好一次");
+        assertEquals(1, connection.closeCount(), "写出通道同步抛错同样以关闭通道收尾");
     }
 
     @Test

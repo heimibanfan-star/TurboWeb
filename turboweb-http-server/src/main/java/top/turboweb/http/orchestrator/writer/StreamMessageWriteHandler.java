@@ -18,8 +18,10 @@ import java.util.Optional;
  * 已携带时不覆写；消息体长度由终止块划定，已携带的 Content-Length 头在写出前剔除。
  * </p>
  * <p>
- * 首部写出失败、某块写出失败或流出错时立即上报失败并取消流，
- * 不再写出后续块与结束标记。写出结果经回调恰好上报一次，以 FINISHED 报告正常结束（成功或失败）。
+ * 首部写出失败、某块写出失败、结束标记写出失败或流出错时先关闭通道再上报失败：
+ * 失败后响应帧序已残缺，关闭通道防止半截响应与后续响应在连接复用时交错；
+ * 上报失败并取消流，不再写出后续块与结束标记。
+ * 写出结果经回调恰好上报一次，以 FINISHED 报告正常结束（成功或失败）。
  * </p>
  */
 public final class StreamMessageWriteHandler implements MessageWriteHandler {
@@ -47,7 +49,11 @@ public final class StreamMessageWriteHandler implements MessageWriteHandler {
                         .then())
                 .then(Mono.fromFuture(connection::finishWrite))
                 .subscribe(null,
-                        error -> callback.onFinally(error, CallbackType.FINISHED),
+                        // 失败帧序已残缺，先关闭通道防连接复用时半截响应与后续响应交错，再上报失败
+                        error -> {
+                            connection.close();
+                            callback.onFinally(error, CallbackType.FINISHED);
+                        },
                         () -> callback.onFinally(null, CallbackType.FINISHED));
     }
 }

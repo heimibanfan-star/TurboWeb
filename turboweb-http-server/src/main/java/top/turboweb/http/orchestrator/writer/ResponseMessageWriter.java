@@ -159,7 +159,8 @@ public class ResponseMessageWriter {
      * 消息头中未携带 {@code Content-Length} 时按消息体长度补齐，已携带时不覆写；
      * 分块传输声明与定长写出互斥，已携带的 {@code Transfer-Encoding} 头在写出前剔除；
      * 消息体为空数组时跳过消息体写出，仍写出结束标记；
-     * 异步写出失败与写出通道同步抛错经回调以 FINISHED 上报，失败链不再写结束标记。
+     * 异步写出失败与写出通道同步抛错先关闭通道再经回调以 FINISHED 上报：
+     * 失败后响应帧序已残缺，关闭通道防止半截响应与后续响应在连接复用时交错，失败链不再写结束标记。
      * </p>
      *
      * @param connection 目标连接，提供写出通道
@@ -178,10 +179,17 @@ public class ResponseMessageWriter {
                             ? CompletableFuture.<Void>completedFuture(null)
                             : connection.write(content))
                     .thenCompose(v -> connection.finishWrite())
-                    .whenComplete((v, e) -> callback.onFinally(
-                            e instanceof CompletionException completion ? completion.getCause() : e,
-                            MessageWriteHandler.CallbackType.FINISHED));
+                    .whenComplete((v, e) -> {
+                        if (e != null) {
+                            // 写出失败帧序已残缺，先关闭通道防连接复用时半截响应与后续响应交错，再上报失败
+                            connection.close();
+                        }
+                        callback.onFinally(
+                                e instanceof CompletionException completion ? completion.getCause() : e,
+                                MessageWriteHandler.CallbackType.FINISHED);
+                    });
         } catch (Throwable e) {
+            connection.close();
             callback.onFinally(e, MessageWriteHandler.CallbackType.FINISHED);
         }
     }
