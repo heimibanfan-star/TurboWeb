@@ -76,7 +76,8 @@ public class ResponseMessageWriter {
         Objects.requireNonNull(customerHandlers, "The custom handler list must not be null");
         // 全部初始化（建表、校验、注入资源提供者）先在局部变量上完成，后赋值 final 字段
         Map<Class<? extends MessageWriteHandler>, MessageWriteHandler> builtinTable =
-                Map.of(StreamMessageWriteHandler.class, new StreamMessageWriteHandler());
+                Map.of(StreamMessageWriteHandler.class, new StreamMessageWriteHandler(),
+                        SseMessageWriteHandler.class, new SseMessageWriteHandler());
         Map<Class<? extends MessageWriteHandler>, MessageWriteHandler> customerTable =
                 collectCustomerTable(customerHandlers, builtinTable.keySet());
         Stream.concat(builtinTable.values().stream(), customerTable.values().stream())
