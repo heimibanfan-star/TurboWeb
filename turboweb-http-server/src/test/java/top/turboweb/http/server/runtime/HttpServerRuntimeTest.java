@@ -66,6 +66,20 @@ class HttpServerRuntimeTest {
     // ---------- 构造与链式参数校验 ----------
 
     @Test
+    void staticBuilderFactoryProducesWorkingBuilder() {
+        List<String> events = new ArrayList<>();
+        RecordingMiddleware mw = new RecordingMiddleware("mw", events);
+        HttpServerRuntime runtime = HttpServerRuntime.builder()
+                .sessionManager(new NoopSessionManager())
+                .middleware(mw)
+                .build();
+
+        assertTrue(events.contains("init:mw"), "静态工厂产出的建造者走同一装配流程，中间件在构建期完成 init");
+        runtime.close();
+        assertTrue(events.contains("destroy:mw"), "经静态工厂构建的应用关闭时正常销毁中间件");
+    }
+
+    @Test
     void npeWhenResourceManagerIsNull() {
         NullPointerException ex = assertThrows(NullPointerException.class,
                 () -> new HttpServerRuntime(8, null, null));

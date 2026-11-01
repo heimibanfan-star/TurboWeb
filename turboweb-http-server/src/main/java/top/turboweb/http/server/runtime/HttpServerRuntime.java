@@ -101,6 +101,13 @@ public class HttpServerRuntime implements ServerRuntime {
         this.resourceManager = Objects.requireNonNull(resourceManager, "The resource manager must not be null");
     }
 
+    /**
+     * 创建应用建造者，各组件初始为默认值
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
 
     /**
      * 每条新连接建立时被调用一次，向pipeline尾部追加应用级处理器。
