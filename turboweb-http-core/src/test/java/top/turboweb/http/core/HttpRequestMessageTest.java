@@ -38,24 +38,24 @@ class HttpRequestMessageTest {
     @Test
     void headerChannelInheritedFromAbstractHttpMessage() {
         HttpRequestMessage<byte[]> message = message();
-        message.setHeader("Content-Type", "application/json");
-        message.addHeader("X-Multi", "a");
-        message.addHeader("X-Multi", "b");
+        message.headers().set("Content-Type", "application/json");
+        message.headers().add("X-Multi", "a");
+        message.headers().add("X-Multi", "b");
 
-        assertEquals("application/json", message.header("content-type"),
-                "头读写在消息上直接可用，头名查询大小写不敏感");
-        assertEquals(List.of("a", "b"), message.headerValues("X-Multi"));
+        assertEquals("application/json", message.headers().get("content-type"),
+                "头读写在消息头实体上直接可用，头名查询大小写不敏感");
+        assertEquals(List.of("a", "b"), message.headers().values("X-Multi"));
     }
 
     @Test
     void headerChannelIsReachableThroughHttpMessageView() {
         HttpRequestMessage<byte[]> message = message();
-        message.setHeader("Content-Length", " 42 ");
+        message.headers().set("Content-Length", " 42 ");
 
         HttpMessage<RequestLine, byte[]> view = message;
 
-        assertEquals(" 42 ", view.header("Content-Length"), "头读取经 HttpMessage 视图可达");
-        assertEquals(42L, view.contentLength(), "Content-Length 兜底口径经 HttpMessage 视图继承");
+        assertEquals(" 42 ", view.headers().get("Content-Length"), "头读取经 HttpMessage 视图可达");
+        assertEquals(42L, view.headers().contentLength(), "Content-Length 兜底口径由 Headers 承载");
     }
 
     @Test

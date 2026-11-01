@@ -197,7 +197,7 @@ class SseMessageWriteHandlerTest {
     @Test
     void charsetFromContentTypeIsApplied() {
         SseEmitter emitter = new SseEmitter();
-        emitter.setHeader("Content-Type", "text/event-stream;charset=GBK");
+        emitter.headers().set("Content-Type", "text/event-stream;charset=GBK");
         emitter.sendData("中文");
         emitter.complete();
         GatedConnection connection = new GatedConnection();
@@ -216,7 +216,7 @@ class SseMessageWriteHandlerTest {
     @Test
     void charsetParamWithSpacesAroundEqualsIsApplied() {
         SseEmitter emitter = new SseEmitter();
-        emitter.setHeader("Content-Type", "text/event-stream; charset = GBK");
+        emitter.headers().set("Content-Type", "text/event-stream; charset = GBK");
         emitter.sendData("中文");
         emitter.complete();
         GatedConnection connection = new GatedConnection();
@@ -235,7 +235,7 @@ class SseMessageWriteHandlerTest {
     @Test
     void charsetResolvedFromFirstHeaderElement() {
         SseEmitter emitter = new SseEmitter();
-        emitter.setHeader("Content-Type", "text/plain;charset=GBK, text/html;charset=UTF-16");
+        emitter.headers().set("Content-Type", "text/plain;charset=GBK, text/html;charset=UTF-16");
         emitter.sendData("中文");
         emitter.complete();
         GatedConnection connection = new GatedConnection();
@@ -272,7 +272,7 @@ class SseMessageWriteHandlerTest {
     @Test
     void charsetFallsBackToUtf8WhenUnknown() {
         SseEmitter emitter = new SseEmitter();
-        emitter.setHeader("Content-Type", "text/event-stream;charset=NOT-A-CHARSET");
+        emitter.headers().set("Content-Type", "text/event-stream;charset=NOT-A-CHARSET");
         emitter.sendData("中文");
         emitter.complete();
         GatedConnection connection = new GatedConnection();
@@ -291,7 +291,7 @@ class SseMessageWriteHandlerTest {
     @Test
     void transferEncodingChunkedSetWhenAbsentAndContentLengthRemoved() {
         SseEmitter emitter = new SseEmitter();
-        emitter.setHeader("Content-Length", "99");
+        emitter.headers().set("Content-Length", "99");
         RecordingHttpConnection connection = new RecordingHttpConnection();
         CallbackTrap callback = new CallbackTrap();
 
@@ -306,7 +306,7 @@ class SseMessageWriteHandlerTest {
     @Test
     void transferEncodingKeptWhenPresent() {
         SseEmitter emitter = new SseEmitter();
-        emitter.setHeader("Transfer-Encoding", "identity");
+        emitter.headers().set("Transfer-Encoding", "identity");
         RecordingHttpConnection connection = new RecordingHttpConnection();
         CallbackTrap callback = new CallbackTrap();
 
@@ -401,7 +401,7 @@ class SseMessageWriteHandlerTest {
     void nonSseMessageIsRejected() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, "ok".getBytes(StandardCharsets.UTF_8));
-        message.setHeader("Content-Type", "text/event-stream");
+        message.headers().set("Content-Type", "text/event-stream");
         CallbackTrap callback = new CallbackTrap();
 
         IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,

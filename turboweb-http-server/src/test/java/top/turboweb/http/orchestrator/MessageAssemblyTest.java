@@ -98,17 +98,17 @@ class MessageAssemblyTest {
             req.headers().add("X-Multi", "a");
             req.headers().add("X-Multi", "b");
             HttpRequestMessage<?> message = assemble(req, StandardCharsets.UTF_8);
-            assertTrue(message.containsHeader("host"), "装配时请求头拷入消息自有存储");
-            assertEquals(List.of("a", "b"), message.headerValues("X-Multi"));
+            assertTrue(message.headers().contains("host"), "装配时请求头拷入消息自有存储");
+            assertEquals(List.of("a", "b"), message.headers().values("X-Multi"));
 
             req.headers().set("X-Late", "v");
-            assertFalse(message.containsHeader("X-Late"), "装配后请求头集合变动不再联动消息");
+            assertFalse(message.headers().contains("X-Late"), "装配后请求头集合变动不再联动消息");
 
-            message.setHeader("X-Added", "w");
-            message.removeHeader("Host");
+            message.headers().set("X-Added", "w");
+            message.headers().remove("Host");
             assertNull(req.headers().get("X-Added"), "消息写通道落在自有存储，不回写请求头集合");
             assertNotNull(req.headers().get("Host"), "消息头删除不回写请求头集合");
-            assertFalse(message.containsHeader("Host"), "消息头删除只作用于自有存储");
+            assertFalse(message.headers().contains("Host"), "消息头删除只作用于自有存储");
         } finally {
             Requests.release(req);
         }

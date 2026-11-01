@@ -276,7 +276,7 @@ public class RequestOrchestrator {
             default -> message = new HttpRequestMessage<>(requestLine, content);
         }
         for (Map.Entry<String, String> entry : request.headers()) {
-            message.addHeader(entry.getKey(), entry.getValue());
+            message.headers().add(entry.getKey(), entry.getValue());
         }
         return message;
     }

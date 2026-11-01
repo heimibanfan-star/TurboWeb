@@ -57,9 +57,9 @@ public final class SseEmitter extends HttpResponseMessage<Sinks.Many<String>> im
 	 */
 	public SseEmitter(int bufferCapacity) {
 		super(StatusLine.OK, newSink(bufferCapacity));
-		setHeader("Content-Type", "text/event-stream");
-		setHeader("Cache-Control", "no-cache");
-		setHeader("Connection", "keep-alive");
+		headers().set("Content-Type", "text/event-stream");
+		headers().set("Cache-Control", "no-cache");
+		headers().set("Connection", "keep-alive");
 	}
 
 	/**

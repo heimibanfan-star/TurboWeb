@@ -53,18 +53,18 @@ public final class SseMessageWriteHandler implements MessageWriteHandler {
 				listener.run();
 			}
 		});
-		if (!sseEmitter.containsHeader(TRANSFER_ENCODING)) {
-			sseEmitter.setHeader(TRANSFER_ENCODING, CHUNKED);
+		if (!sseEmitter.headers().contains(TRANSFER_ENCODING)) {
+			sseEmitter.headers().set(TRANSFER_ENCODING, CHUNKED);
 		}
-		sseEmitter.removeHeader(CONTENT_LENGTH);
-		Charset charset = resolveCharset(sseEmitter.header(CONTENT_TYPE));
+		sseEmitter.headers().remove(CONTENT_LENGTH);
+		Charset charset = resolveCharset(sseEmitter.headers().get(CONTENT_TYPE));
 		// SSE 启动即移交长生命周期协议：先落空闲豁免标记，再注册关闭监听与订阅流出
 		if (connection instanceof InternalHttpConnection internalConnection) {
 			internalConnection.getChannel().attr(ChannelAttributeKeys.IDLE_EXEMPT).set(Boolean.TRUE);
 		}
 		Flux<byte[]> events = sseEmitter.content().asFlux().map(event -> event.getBytes(charset));
 		try {
-			Mono.fromFuture(() -> connection.writeHeaders(sseEmitter.statusLine(), sseEmitter.headers()))
+			Mono.fromFuture(() -> connection.writeHeaders(sseEmitter.statusLine(), sseEmitter.headers().asMap()))
 					.then(events
 							.concatMap(chunk -> Mono.fromFuture(connection.write(chunk)), 1)
 							.then())

@@ -38,12 +38,12 @@ public final class StreamMessageWriteHandler implements MessageWriteHandler {
         if (!(message instanceof StreamResponseMessage streamMessage)) {
             throw new IllegalArgumentException("Invalid message type: " + message.getClass().getName());
         }
-        if (!streamMessage.containsHeader(TRANSFER_ENCODING)) {
-            streamMessage.setHeader(TRANSFER_ENCODING, CHUNKED);
+        if (!streamMessage.headers().contains(TRANSFER_ENCODING)) {
+            streamMessage.headers().set(TRANSFER_ENCODING, CHUNKED);
         }
-        streamMessage.removeHeader(CONTENT_LENGTH);
+        streamMessage.headers().remove(CONTENT_LENGTH);
         Flux<byte[]> content = Optional.ofNullable(streamMessage.content()).orElse(Flux.empty());
-        Mono.fromFuture(() -> connection.writeHeaders(streamMessage.statusLine(), streamMessage.headers()))
+        Mono.fromFuture(() -> connection.writeHeaders(streamMessage.statusLine(), streamMessage.headers().asMap()))
                 .then(content
                         .concatMap(chunk -> Mono.fromFuture(connection.write(chunk)), 1)
                         .then())

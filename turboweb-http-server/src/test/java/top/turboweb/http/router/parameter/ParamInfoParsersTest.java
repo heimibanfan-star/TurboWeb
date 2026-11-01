@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import top.turboweb.http.core.Headers;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.core.RequestTarget;
@@ -430,11 +431,13 @@ class ParamInfoParsersTest {
         /** 内容替身：标记对象无读取通道，内容通道经 {@link #content()} 覆写拒答 */
         private static final Object OFF_CHANNEL_CONTENT = new Object();
 
-        private final Map<String, String> headers;
+        private final Headers headers;
 
-        MessageFixture(Map<String, String> headers) {
+        MessageFixture(Map<String, String> headerMap) {
             super(new RequestLine(HttpRequestMethod.GET, new RequestTarget("/")), OFF_CHANNEL_CONTENT);
-            this.headers = headers;
+            Headers snapshot = new Headers();
+            headerMap.forEach(snapshot::set);
+            this.headers = snapshot;
         }
 
         @Override
@@ -453,34 +456,8 @@ class ParamInfoParsersTest {
         }
 
         @Override
-        public String header(String name) {
-            return headers.get(name);
-        }
-
-        @Override
-        public List<String> headerValues(String name) {
-            String value = headers.get(name);
-            return value == null ? List.of() : List.of(value);
-        }
-
-        @Override
-        public boolean containsHeader(String name) {
-            return headers.containsKey(name);
-        }
-
-        @Override
-        public Set<String> headerNames() {
-            return headers.keySet();
-        }
-
-        @Override
-        public int headerSize() {
-            return headers.size();
-        }
-
-        @Override
-        public boolean headerIsEmpty() {
-            return headers.isEmpty();
+        public Headers headers() {
+            return headers;
         }
 
         private static UnsupportedOperationException offChannel(String name) {
@@ -506,33 +483,8 @@ class ParamInfoParsersTest {
         }
 
         @Override
-        public String header(String name) {
-            throw offChannel("header");
-        }
-
-        @Override
-        public List<String> headerValues(String name) {
-            throw offChannel("headerValues");
-        }
-
-        @Override
-        public boolean containsHeader(String name) {
-            throw offChannel("containsHeader");
-        }
-
-        @Override
-        public Set<String> headerNames() {
-            throw offChannel("headerNames");
-        }
-
-        @Override
-        public int headerSize() {
-            throw offChannel("headerSize");
-        }
-
-        @Override
-        public boolean headerIsEmpty() {
-            throw offChannel("headerIsEmpty");
+        public Headers headers() {
+            throw offChannel("headers");
         }
 
         private static UnsupportedOperationException offChannel(String name) {
@@ -666,7 +618,7 @@ class ParamInfoParsersTest {
 
         SseEmitter boundSseEmitter = assertInstanceOf(SseEmitter.class, p.parse(parameter("internSseEmitter"))
                 .bindParameter(stub.returning("httpSession", proxy(HttpSession.class)).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
-        assertEquals("text/event-stream", boundSseEmitter.header("Content-Type"));
+        assertEquals("text/event-stream", boundSseEmitter.headers().get("Content-Type"));
         // 事件缓冲容量统一 32:写出器订阅前 32 条入缓冲无异常,第 33 条溢出抛错
         for (int i = 0; i < 32; i++) {
             boundSseEmitter.send("m" + i);

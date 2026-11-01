@@ -47,7 +47,7 @@ class ResponseMessageWriterTest {
         SubscribedMessage(Class<? extends MessageWriteHandler> subscriberType, Object content) {
             super(StatusLine.OK, content);
             // 携带 Content-Type 通过写出处理器的消息头门禁，使路由聚焦于订阅声明本身
-            setHeader("Content-Type", "application/json");
+            headers().set("Content-Type", "application/json");
             this.subscriberType = subscriberType;
         }
 
@@ -179,7 +179,7 @@ class ResponseMessageWriterTest {
     /** 构造携带 Content-Type 的字节消息夹具：写出处理器要求响应自带内容类型 */
     private static ByteResponseMessage byteMessage(byte[] content) {
         ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, content);
-        message.setHeader("Content-Type", "application/octet-stream");
+        message.headers().set("Content-Type", "application/octet-stream");
         return message;
     }
 
@@ -204,7 +204,7 @@ class ResponseMessageWriterTest {
     void byteMessageKeepsExistingContentLength() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        message.setHeader("Content-Length", "99");
+        message.headers().set("Content-Length", "99");
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
@@ -217,7 +217,7 @@ class ResponseMessageWriterTest {
     void byteMessageClearsStaleTransferEncoding() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         ByteResponseMessage message = byteMessage("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        message.setHeader("Transfer-Encoding", "chunked");
+        message.headers().set("Transfer-Encoding", "chunked");
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
@@ -278,7 +278,7 @@ class ResponseMessageWriterTest {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         StreamResponseMessage message = new StreamResponseMessage(StatusLine.OK,
                 Flux.just("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        message.setHeader("Content-Type", "text/event-stream");
+        message.headers().set("Content-Type", "text/event-stream");
         CallbackTrap callback = new CallbackTrap();
         assertSame(StreamMessageWriteHandler.class, message.subscriber(), "流式消息声明内置流式写出处理器");
 
@@ -313,7 +313,7 @@ class ResponseMessageWriterTest {
     void messageWithoutDeclaredTypeFallsBackToErrorPage() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         HttpResponseMessage<String> message = new HttpResponseMessage<>(StatusLine.OK, "text");
-        message.setHeader("Content-Type", "text/plain");
+        message.headers().set("Content-Type", "text/plain");
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
@@ -364,9 +364,9 @@ class ResponseMessageWriterTest {
     void fallbackCarriesNonEntityHeadersFromOriginalMessage() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         HttpResponseMessage<String> message = new HttpResponseMessage<>(StatusLine.OK, "text");
-        message.setHeader("Access-Control-Allow-Origin", "https://example.com");
-        message.addHeader("Set-Cookie", "a=1");
-        message.addHeader("Set-Cookie", "b=2");
+        message.headers().set("Access-Control-Allow-Origin", "https://example.com");
+        message.headers().add("Set-Cookie", "a=1");
+        message.headers().add("Set-Cookie", "b=2");
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
@@ -384,10 +384,10 @@ class ResponseMessageWriterTest {
     void fallbackClearsEntityHeadersFromOriginalMessage() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         HttpResponseMessage<String> message = new HttpResponseMessage<>(StatusLine.OK, "text");
-        message.setHeader("Content-Type", "application/json");
-        message.setHeader("Content-Length", "999");
-        message.setHeader("CONTENT-ENCODING", "gzip");
-        message.setHeader("transfer-encoding", "chunked");
+        message.headers().set("Content-Type", "application/json");
+        message.headers().set("Content-Length", "999");
+        message.headers().set("CONTENT-ENCODING", "gzip");
+        message.headers().set("transfer-encoding", "chunked");
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())

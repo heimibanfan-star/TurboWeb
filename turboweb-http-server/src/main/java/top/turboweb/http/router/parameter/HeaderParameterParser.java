@@ -23,7 +23,7 @@ public class HeaderParameterParser extends AbstractParameterParser {
         @Override
         public Object bindParameter(HttpContext ctx, RequestParameter requestParameter, BeanValidator beanValidator,
                                     JsonSerializer jsonSerializer) {
-            return simpleTypeHandler.handle(ctx.message().header(name));
+            return simpleTypeHandler.handle(ctx.message().headers().get(name));
         }
     }
 

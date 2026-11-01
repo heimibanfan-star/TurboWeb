@@ -145,7 +145,7 @@ class StreamMessageWriteHandlerTest {
     /** 构造携带 Content-Type 的流式消息夹具：写出处理器的消息头门禁要求响应自带内容类型 */
     private static StreamResponseMessage streamMessage(Flux<byte[]> content) {
         StreamResponseMessage message = new StreamResponseMessage(StatusLine.OK, content);
-        message.setHeader("Content-Type", "text/event-stream");
+        message.headers().set("Content-Type", "text/event-stream");
         return message;
     }
 
@@ -216,7 +216,7 @@ class StreamMessageWriteHandlerTest {
     void transferEncodingKeptWhenPresent() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         StreamResponseMessage message = streamMessage(Flux.empty());
-        message.setHeader("Transfer-Encoding", "identity");
+        message.headers().set("Transfer-Encoding", "identity");
         CallbackTrap callback = new CallbackTrap();
 
         new StreamMessageWriteHandler().write(connection, message, callback);
@@ -229,7 +229,7 @@ class StreamMessageWriteHandlerTest {
     void staleContentLengthRemovedBeforeHeadersWrite() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         StreamResponseMessage message = streamMessage(Flux.just("ok".getBytes(StandardCharsets.UTF_8)));
-        message.setHeader("Content-Length", "99");
+        message.headers().set("Content-Length", "99");
         CallbackTrap callback = new CallbackTrap();
 
         new StreamMessageWriteHandler().write(connection, message, callback);
@@ -375,7 +375,7 @@ class StreamMessageWriteHandlerTest {
     void nonStreamMessageIsRejected() {
         RecordingHttpConnection connection = new RecordingHttpConnection();
         ByteResponseMessage message = new ByteResponseMessage(StatusLine.OK, "ok".getBytes(StandardCharsets.UTF_8));
-        message.setHeader("Content-Type", "application/octet-stream");
+        message.headers().set("Content-Type", "application/octet-stream");
         CallbackTrap callback = new CallbackTrap();
 
         IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,

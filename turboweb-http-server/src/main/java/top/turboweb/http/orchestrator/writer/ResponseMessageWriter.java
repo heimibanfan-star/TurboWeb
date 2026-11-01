@@ -126,7 +126,7 @@ public class ResponseMessageWriter {
      * @param callback   写出回调，报告本轮写出的唯一结果，不能为 {@code null}
      */
     public void write(HttpConnection connection, HttpResponseMessage<?> message, MessageWriteHandler.Callback callback) {
-        if (!message.containsHeader(CONTENT_TYPE)) {
+        if (!message.headers().contains(CONTENT_TYPE)) {
             // 响应未携带 Content-Type：等同找不到处理器，降级写出报错页
             writeByteMessage(connection, errorPageFallback(message, ExceptionMessageHelper.missingContentTypeMessage()), callback);
             return;
@@ -169,12 +169,12 @@ public class ResponseMessageWriter {
      */
     private void writeByteMessage(HttpConnection connection, ByteResponseMessage message, MessageWriteHandler.Callback callback) {
         byte[] content = Optional.ofNullable(message.content()).orElse(new byte[0]);
-        if (!message.containsHeader(CONTENT_LENGTH)) {
-            message.setHeader(CONTENT_LENGTH, String.valueOf(content.length));
+        if (!message.headers().contains(CONTENT_LENGTH)) {
+            message.headers().set(CONTENT_LENGTH, String.valueOf(content.length));
         }
-        message.removeHeader(TRANSFER_ENCODING);
+        message.headers().remove(TRANSFER_ENCODING);
         try {
-            connection.writeHeaders(message.statusLine(), message.headers())
+            connection.writeHeaders(message.statusLine(), message.headers().asMap())
                     .thenCompose(v -> content.length == 0
                             ? CompletableFuture.<Void>completedFuture(null)
                             : connection.write(content))
@@ -209,15 +209,15 @@ public class ResponseMessageWriter {
     private ByteResponseMessage errorPageFallback(HttpResponseMessage<?> original, String page) {
         ByteResponseMessage fallback = new ByteResponseMessage(
                 StatusLine.INTERNAL_SERVER_ERROR, page.getBytes(StandardCharsets.UTF_8));
-        for (Map.Entry<String, List<String>> entry : original.headers().entrySet()) {
+        for (Map.Entry<String, List<String>> entry : original.headers().asMap().entrySet()) {
             if (isEntityHeader(entry.getKey())) {
                 continue;
             }
             for (String value : entry.getValue()) {
-                fallback.addHeader(entry.getKey(), value);
+                fallback.headers().add(entry.getKey(), value);
             }
         }
-        fallback.setHeader(CONTENT_TYPE, "text/html;charset=utf-8");
+        fallback.headers().set(CONTENT_TYPE, "text/html;charset=utf-8");
         return fallback;
     }
 

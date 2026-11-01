@@ -106,10 +106,10 @@ class SseEmitterTest {
     void defaultHeadersCarryEventStreamContract() {
         SseEmitter emitter = new SseEmitter();
 
-        assertEquals("text/event-stream", emitter.header("Content-Type"),
+        assertEquals("text/event-stream", emitter.headers().get("Content-Type"),
                 "默认内容类型为事件流，charset 由结果转化器后续补齐");
-        assertEquals("no-cache", emitter.header("Cache-Control"));
-        assertEquals("keep-alive", emitter.header("Connection"));
+        assertEquals("no-cache", emitter.headers().get("Cache-Control"));
+        assertEquals("keep-alive", emitter.headers().get("Connection"));
     }
 
     @Test
