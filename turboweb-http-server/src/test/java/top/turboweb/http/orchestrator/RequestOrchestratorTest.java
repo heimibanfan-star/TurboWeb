@@ -7,8 +7,6 @@ import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.*;
-import top.turboweb.http.context.respmeta.DefaultResponseMeta;
-import top.turboweb.http.context.respmeta.ResponseMeta;
 import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.session.BackHoleSessionManager;
 import top.turboweb.http.exception.RouteHandlerException;
@@ -533,25 +531,6 @@ class RequestOrchestratorTest {
         orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
 
         assertTrue(events.isEmpty(), "OPTIONS 预检不进 startMiddleware，不进入安全作用域");
-        request.release();
-        drainOutbound(channel);
-    }
-
-    @Test
-    void attachedResponseMetaIsNotAppliedToResponse() {
-        RequestOrchestrator orchestrator = flowOrchestrator(new MetaAttachingMiddleware(), new ExceptionHandlerManager(Set.of()));
-        EmbeddedChannel channel = new EmbeddedChannel();
-        FullHttpRequest request = requestWith(HttpMethod.GET, null);
-
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
-
-        HttpResponse head = readHead(channel);
-        assertEquals(HttpResponseStatus.OK, head.getStatus(), "挂载的响应元信息不再回填状态码");
-        String contentType = head.headers().get("Content-Type");
-        assertTrue(contentType.startsWith("text/html"), "挂载的响应元信息不再回填内容类型，按转化链字符串支产出");
-        assertFalse(contentType.contains("application/json"));
-        assertEquals("hello", new String(readBody(channel), StandardCharsets.UTF_8));
-        assertEquals(1, request.refCnt(), "写出后编排器归还自持引用，调用方引用仍在");
         request.release();
         drainOutbound(channel);
     }
@@ -1144,18 +1123,6 @@ class RequestOrchestratorTest {
         @Override
         public Object invoke(HttpContext ctx) {
             throw failure;
-        }
-    }
-
-    /** 链成员：挂载 204 与 application/json 的响应元信息后返回固定字符串。 */
-    private static class MetaAttachingMiddleware extends Middleware {
-        @Override
-        public Object invoke(HttpContext ctx) {
-            DefaultResponseMeta meta = new DefaultResponseMeta();
-            meta.status(HttpResponseStatus.NO_CONTENT);
-            meta.contentType(ContentType.create("application/json", StandardCharsets.UTF_8));
-            ctx.attachment().attach(ResponseMeta.ATTACH_KEY, meta);
-            return "hello";
         }
     }
 
