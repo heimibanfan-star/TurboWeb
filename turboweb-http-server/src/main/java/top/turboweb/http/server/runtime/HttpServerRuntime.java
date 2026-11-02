@@ -43,14 +43,14 @@ import java.util.stream.Stream;
  * 背压节流为服务器级处理器，由连接管道装配器装配，不经本类追加；
  * 对内通过 {@link Builder} 在构建期一次性完成请求编排器的装配：以应用自身的 json 序列化器生产
  * 路由处理器管理器、串联中间件链（业务中间件按注册顺序，在其后追加路由调用中间件为链尾）、
- * 按 {@link HttpConfig} 创建磁盘IO线程池与虚拟线程资源、未由调用方传入的组件补全默认实例，
+ * 按 {@link HttpConfig} 创建虚拟线程资源、未由调用方传入的组件补全默认实例，
  * 按九组件装定 {@link RequestOrchestrator} 后接入调度处理器。
  * <p>
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
  * <p>
  * 装配期创建的生命周期资源不在本类中逐个持有，而是统一登记进本应用持有的
  * {@link ResourceManager} 资源管理器：中间件链的销毁适配器（沿链头到链尾调用各中间件的destroy）
- * 先登记，磁盘IO线程池、微任务执行器随后登记，关闭时由本类 {@link #close()} 按登记顺序
+ * 先登记，线程池执行器随后登记，关闭时由本类 {@link #close()} 按登记顺序
  * 统一释放。服务器关闭时会统一触发，调用方也可对应用实例自行try-with-resources。
  *
  * <pre>{@code
@@ -85,7 +85,7 @@ public class HttpServerRuntime implements ServerRuntime {
     private final HttpRequestSchedulerChannelHandler httpRequestSchedulerHandler;
 
     /**
-     * 应用的资源管理器：装配期由 {@link Builder#build()} 创建的磁盘IO线程池、微任务执行器、
+     * 应用的资源管理器：装配期由 {@link Builder#build()} 创建的微任务执行器、
      * 中间件链销毁适配器等可关闭资源全部登记于此，关闭时由 {@link #close()} 统一释放，
      * 使用方按 {@link ResourceNames} 的资源名从其中获取资源
      */
@@ -142,7 +142,7 @@ public class HttpServerRuntime implements ServerRuntime {
      * 遍历顺序与装配期的init一致；单个中间件的销毁异常只记录日志，不中断后续中间件的销毁。
      * <p>
      * 装配期把本方法包成 {@link AutoCloseable} 登记进应用的资源作用域，
-     * 因此应用关闭时它会先于磁盘IO线程池的关闭被执行
+     * 因此应用关闭时它会先于各线程池执行器的关闭被执行
      *
      * @param middlewareChainHead 中间件链链头，为null时为空操作
      */
@@ -173,11 +173,10 @@ public class HttpServerRuntime implements ServerRuntime {
      * <p>
      * {@link #build()} 按以下顺序完成装配：
      * 以本建造者的 json 序列化器生产路由处理器管理器 -> 串联并初始化中间件链 ->
-     * 按 {@link HttpConfig} 的 diskOpeThread* 参数创建磁盘IO线程池 ->
      * 按限流参数创建虚拟线程资源（启用限流走 {@link VirtualThreadMicroTaskExecutor#ofLimited}，
      * 否则走 {@link VirtualThreadMicroTaskExecutor#ofUnlimited}）-> 补全未传入的组件默认值 ->
      * 按九组件装配 {@link RequestOrchestrator} -> 装配http请求调度处理器。
-     * 装配出的中间件链销毁适配器先登记、磁盘IO线程池与微任务执行器随后登记进应用的
+     * 装配出的中间件链销毁适配器先登记、线程池执行器随后登记进应用的
      * {@link ResourceManager} 资源管理器，编排器与写出器管理器按 {@link ResourceNames}
      * 的资源名从管理器获取所需资源，由应用在关闭时按登记顺序统一释放。
      * <p>
@@ -321,12 +320,11 @@ public class HttpServerRuntime implements ServerRuntime {
 
         /**
          * 构建应用：先以本建造者的 json 序列化器生产路由处理器管理器（未挂登记表则无路由），
-         * 再串联并初始化中间件链，按 {@link HttpConfig} 的 diskOpeThread* 参数创建
-         * 磁盘IO线程池，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按九组件装配
+         * 再串联并初始化中间件链，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按九组件装配
          * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}，内容解析器管理器
          * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器；
          * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
-         * 装配出的中间件链销毁适配器经托管通道登记、创建的磁盘IO微任务执行器与请求微任务执行器
+         * 装配出的中间件链销毁适配器经托管通道登记、创建的线程池执行器
          * 作为内置资源随构建传入资源管理器交给应用持有，编排器按资源名从管理器的内置空间
          * 获取所需资源，响应消息写出器的写出处理器经装配期注入的资源提供者自取所需资源，
          * 由 {@link #close()} 按登记顺序释放。
@@ -352,27 +350,18 @@ public class HttpServerRuntime implements ServerRuntime {
             Middleware middlewareChain = initMiddlewareChain(routeHandlerManager);
             // 中间件链销毁适配器以托管资源登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
             resourceBuilder.addManaged(() -> destroyMiddlewareChain(middlewareChain));
-            // 创建磁盘IO微任务执行器并登记为内置资源；其消费方为旧响应体系的文件流写出环节，
-            // 该环节已随响应体系消息化迁移停用接线，资源登记保留待旧线处置；应用只是使用者，关闭责任留在应用
-            MicroTaskExecutor diskIoExecutor = ElasticMicroTaskExecutor.of(
-                    "disk-io-micro-task",
-                    httpConfig.getDiskOpeThreadCacheQueue(),
-                    httpConfig.getDiskOpeThreadCoreQueue(),
-                    httpConfig.getDiskOpeThreadMaxThreadNum()
-            );
-            log.info("Disk IO micro task executor created: cache queue {}, core queue {}, max threads {}",
-                    httpConfig.getDiskOpeThreadCacheQueue(),
-                    httpConfig.getDiskOpeThreadCoreQueue(),
-                    httpConfig.getDiskOpeThreadMaxThreadNum());
-            // 磁盘IO微任务执行器与请求微任务执行器作为内置资源随构建一次性传入，
-            // 传入顺序即释放顺序，保持磁盘IO执行器在前、请求微任务执行器在后
+            // 线程池执行器作为内置资源随构建一次性传入，
+            // 传入顺序即释放顺序，请求微任务执行器在任务卸载执行器之前登记
             Map<String, AutoCloseable> builtinResources = new LinkedHashMap<>();
-            builtinResources.put(ResourceNames.DISK_IO_THREAD_POOL, diskIoExecutor);
             // 按配置限流参数创建虚拟线程资源
             VirtualThreadMicroTaskExecutor virtualThreadResource = createVirtualThreadResource();
             builtinResources.put(ResourceNames.MICRO_TASK_EXECUTOR, virtualThreadResource);
+            // 任务卸载线程池以弹性微任务执行器承载流式响应写出凭据的完成任务，使流式续流脱离写出落定线程；
+            // 应用只是使用者，关闭责任留在应用
+            ElasticMicroTaskExecutor taskOffloadExecutor = ElasticMicroTaskExecutor.of("task-offload-micro-task");
+            builtinResources.put(ResourceNames.TASK_OFFLOAD_THREAD_POOL, taskOffloadExecutor);
             ResourceManager resourceManager = resourceBuilder.build(builtinResources);
-            // 未传入的组件补全默认值后，按九组件装定请求编排器；微任务执行器与磁盘IO执行器按资源名从管理器获取
+            // 未传入的组件补全默认值后，按九组件装定请求编排器；线程池执行器按资源名从管理器获取
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
                     .resourceManager(resourceManager)

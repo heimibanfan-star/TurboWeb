@@ -3,7 +3,6 @@ package top.turboweb.http.testkit;
 import io.netty.handler.codec.http.FullHttpRequest;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.server.constant.ResourceNames;
 
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -14,10 +13,6 @@ import java.nio.charset.StandardCharsets;
  * {@link #httpContext} 用 {@link Proxy} 实现 {@link HttpContext}：只覆盖本任务被测中间件真正读取的
  * {@code message()} 入口（按编排器装配口径从请求建立），其余方法一律抛 {@link UnsupportedOperationException}——
  * 任何用例若意外走到未覆盖的入口会立刻暴露，而不是静默拿到 {@code null} 让断言失去意义。
- * <p>
- * {@link #noopExecutor()} 返回不启动任何线程的空实现，仅用于满足装配链对
- * 非 null 磁盘IO执行器（{@link ResourceNames#DISK_IO_THREAD_POOL}）的登记要求；
- * L1 用例不会真提交任务。
  * <p>
  * L2 用例可要求执行器同步执行：{@link #directExecutor()} 在调用线程直接跑完
  * 提交链，{@link #rejectingExecutor()} / {@link #firstRunRestRejectingExecutor()}
@@ -40,10 +35,6 @@ public final class Stubs {
                     default -> throw new UnsupportedOperationException(
                             "StubHttpContext 未覆盖: " + method.getName());
                 });
-    }
-
-    public static MicroTaskExecutor noopExecutor() {
-        return NoopMicroTaskExecutor.INSTANCE;
     }
 
     /** 直接在调用线程跑任务并以已执行收尾：让策略的提交链变成同步可断言。 */
@@ -102,16 +93,6 @@ public final class Stubs {
             }
             finallyHandler.onFinally(new FinallySignal(
                     FinallySignal.CallbackThread.SUBMITTER, FinallyType.NOT_ACCEPT));
-        }
-    }
-
-    /** 不启动线程、不受理任务的空执行器，仅用于构造需要非 null 执行器的策略对象。 */
-    private enum NoopMicroTaskExecutor implements MicroTaskExecutor {
-        INSTANCE;
-
-        @Override
-        public void submit(Runnable task, FinallyHandler finallyHandler) {
-            throw new UnsupportedOperationException("L1 用例不应向磁盘IO执行器提交任务");
         }
     }
 }

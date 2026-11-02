@@ -1,5 +1,6 @@
 package top.turboweb.http.connection;
 
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.core.StatusLine;
 
 import java.net.SocketAddress;
@@ -30,6 +31,23 @@ public interface HttpConnection {
     CompletableFuture<Void> writeHeaders(StatusLine statusLine, Map<String, List<String>> headers);
 
     /**
+     * 写出响应首部的卸载变体：凭据的完成（含异常完成与执行器未受理的拒绝完成）
+     * 经给定微任务执行器调度，在执行器线程触发，使等待凭据的续流脱离写出落定线程。
+     * <p>执行器未受理任务时凭据以 {@link java.util.concurrent.RejectedExecutionException}
+     * 异常完成；执行器为 {@code null} 时与 {@link #writeHeaders(StatusLine, Map)} 一致，
+     * 凭据在写出落定线程直接完成。默认实现不卸载，忽略执行器退化为基础方法。</p>
+     *
+     * @param statusLine      状态行，承载状态码与原因短语
+     * @param headers         消息头键值集合：键为头名，值为该头名的取值序列
+     * @param offloadExecutor 承载凭据完成任务的微任务执行器，可为 {@code null}
+     * @return 写出结果的异步凭据，语义同基础方法，完成线程见上
+     */
+    default CompletableFuture<Void> writeHeaders(StatusLine statusLine, Map<String, List<String>> headers,
+                                                 MicroTaskExecutor offloadExecutor) {
+        return writeHeaders(statusLine, headers);
+    }
+
+    /**
      * 写出一条响应消息体的结束标记（终止块），宣告本轮响应消息体已完整写出。
      * <p>与响应首部、响应体共同构成一条完整响应消息，写出终止块后不主动关闭连接。</p>
      *
@@ -50,6 +68,21 @@ public interface HttpConnection {
      * @return 写出结果的异步凭据，本块完整写至对端时正常完成，写出失败时以异常结束
      */
     CompletableFuture<Void> write(byte[] bytes);
+
+    /**
+     * 写出一块数据的卸载变体：凭据的完成（含异常完成与执行器未受理的拒绝完成）
+     * 经给定微任务执行器调度，在执行器线程触发，使等待凭据的续流脱离写出落定线程。
+     * <p>执行器未受理任务时凭据以 {@link java.util.concurrent.RejectedExecutionException}
+     * 异常完成；执行器为 {@code null} 时与 {@link #write(byte[])} 一致，
+     * 凭据在写出落定线程直接完成。默认实现不卸载，忽略执行器退化为基础方法。</p>
+     *
+     * @param bytes           数据
+     * @param offloadExecutor 承载凭据完成任务的微任务执行器，可为 {@code null}
+     * @return 写出结果的异步凭据，语义同基础方法，完成线程见上
+     */
+    default CompletableFuture<Void> write(byte[] bytes, MicroTaskExecutor offloadExecutor) {
+        return write(bytes);
+    }
 
     /**
      * 注册连接关闭时触发的回调。

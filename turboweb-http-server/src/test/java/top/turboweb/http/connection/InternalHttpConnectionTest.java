@@ -1,22 +1,33 @@
 package top.turboweb.http.connection;
 
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import org.junit.jupiter.api.Test;
+import top.turboweb.concurrent.thread.ElasticMicroTaskExecutor;
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.core.StatusLine;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -85,6 +96,84 @@ class InternalHttpConnectionTest {
 
         assertInstanceOf(LastHttpContent.class, channel.readOutbound(), "结束标记以终止块写出");
         channel.finishAndReleaseAll();
+    }
+
+    // ---------- 卸载完成 ----------
+
+    @Test
+    void offloadedCredentialsCompleteOnOffloadExecutorThreads() throws Exception {
+        // 出站闸门：暂扣消息使凭据不得先于观察者落定，观察者挂上后再放行，消除内联落定与挂观察者的竞态
+        List<ChannelPromise> held = new ArrayList<>();
+        EmbeddedChannel channel = new EmbeddedChannel(new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+                io.netty.util.ReferenceCountUtil.release(msg);
+                held.add(promise);
+            }
+        });
+        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        String prefix = "offload-probe";
+        ElasticMicroTaskExecutor executor = ElasticMicroTaskExecutor.of(prefix);
+        try {
+            AtomicReference<String> headersThread = new AtomicReference<>();
+            AtomicReference<String> bodyThread = new AtomicReference<>();
+            CompletableFuture<Void> headersObserver = connection
+                    .writeHeaders(StatusLine.OK, new LinkedHashMap<>(), executor)
+                    .thenRun(() -> headersThread.set(Thread.currentThread().getName()));
+            CompletableFuture<Void> bodyObserver = connection
+                    .write("body".getBytes(), executor)
+                    .thenRun(() -> bodyThread.set(Thread.currentThread().getName()));
+            // 观察者已挂上：放行出站，凭据经卸载执行器完成
+            for (ChannelPromise promise : held) {
+                promise.trySuccess();
+            }
+
+            headersObserver.get(5, TimeUnit.SECONDS);
+            bodyObserver.get(5, TimeUnit.SECONDS);
+
+            assertTrue(headersThread.get().startsWith(prefix),
+                    "首部凭据在卸载执行器线程完成，实际在 " + headersThread.get());
+            assertTrue(bodyThread.get().startsWith(prefix),
+                    "块写出凭据在卸载执行器线程完成，实际在 " + bodyThread.get());
+        } finally {
+            executor.close();
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void offloadedCredentialFailsWithRejectionWhenExecutorRefuses() throws Exception {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        ElasticMicroTaskExecutor executor = ElasticMicroTaskExecutor.of("offload-probe-reject");
+        executor.close();
+        try {
+            ExecutionException failure = assertThrows(ExecutionException.class,
+                    () -> connection.write("body".getBytes(), executor).get(5, TimeUnit.SECONDS));
+
+            assertInstanceOf(RejectedExecutionException.class, failure.getCause(),
+                    "执行器未受理映射为凭据以拒绝异常异常完成");
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void nullOffloadExecutorKeepsDirectCompletion() throws Exception {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        try {
+            AtomicReference<Thread> completer = new AtomicReference<>();
+
+            connection.write("body".getBytes(), (MicroTaskExecutor) null)
+                    .thenRun(() -> completer.set(Thread.currentThread()))
+                    .get(5, TimeUnit.SECONDS);
+
+            assertSame(Thread.currentThread(), completer.get(),
+                    "未传执行器时凭据在写出落定线程直通完成");
+        } finally {
+            channel.finishAndReleaseAll();
+        }
     }
 
     // ---------- 序列封章 ----------

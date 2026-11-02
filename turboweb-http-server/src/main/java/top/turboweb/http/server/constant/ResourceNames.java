@@ -7,14 +7,14 @@ package top.turboweb.http.server.constant;
 public final class ResourceNames {
 
     /**
-     * 磁盘IO线程池：承载文件流写出等磁盘读取任务的调度
-     */
-    public static final String DISK_IO_THREAD_POOL = "diskIoThreadPool";
-
-    /**
      * 请求微任务执行器：承载请求任务的调度与限流
      */
     public static final String MICRO_TASK_EXECUTOR = "microTaskExecutor";
+
+    /**
+     * 任务卸载线程池：承载流式响应写出凭据的完成任务，使流式续流脱离写出落定线程
+     */
+    public static final String TASK_OFFLOAD_THREAD_POOL = "taskOffloadThreadPool";
 
     private ResourceNames() {
     }

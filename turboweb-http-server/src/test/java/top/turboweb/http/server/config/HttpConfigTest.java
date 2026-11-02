@@ -21,7 +21,6 @@ class HttpConfigTest {
     @Test
     @DisplayName("默认值符合约定")
     void defaults() {
-        int cpu = Runtime.getRuntime().availableProcessors();
         HttpConfig config = HttpConfig.builder().build();
 
         assertEquals(8, config.getMaxInFlightResponses(), "单连接在途请求数上限默认8");
@@ -33,10 +32,6 @@ class HttpConfigTest {
         assertEquals(10000, config.getHttpSchedulerLimitCount());
         assertEquals(2000, config.getHttpSchedulerLimitCacheThread());
         assertEquals(500L, config.getHttpSchedulerLimitTimeout());
-        assertEquals(4096, config.getDiskOpeThreadCacheQueue());
-        assertEquals(6, config.getDiskOpeThreadCoreQueue());
-        // 与 CPU 核数绑定的默认值必须现算，写死 2/4/8 会在别的机器上假红
-        assertEquals(cpu * 2, config.getDiskOpeThreadMaxThreadNum());
         assertEquals(java.nio.charset.StandardCharsets.UTF_8, config.getDefaultCharset(), "缺省字符集默认UTF-8");
     }
 
@@ -111,33 +106,6 @@ class HttpConfigTest {
     }
 
     @Test
-    @DisplayName("diskOpeThreadCacheQueue 必须大于0")
-    void diskOpeThreadCacheQueueFloor() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> HttpConfig.builder().diskOpeThreadCacheQueue(0));
-        assertEquals("diskOpeThreadCacheQueue must be > 0", ex.getMessage());
-        assertDoesNotThrow(() -> HttpConfig.builder().diskOpeThreadCacheQueue(1));
-    }
-
-    @Test
-    @DisplayName("diskOpeThreadCoreQueue 必须大于0")
-    void diskOpeThreadCoreQueueFloor() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> HttpConfig.builder().diskOpeThreadCoreQueue(0));
-        assertEquals("diskOpeThreadCoreQueue must be > 0", ex.getMessage());
-        assertDoesNotThrow(() -> HttpConfig.builder().diskOpeThreadCoreQueue(1));
-    }
-
-    @Test
-    @DisplayName("diskOpeThreadMaxThreadNum 必须大于0")
-    void diskOpeThreadMaxThreadNumFloor() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> HttpConfig.builder().diskOpeThreadMaxThreadNum(0));
-        assertEquals("diskOpeThreadMaxThreadNum must be > 0", ex.getMessage());
-        assertDoesNotThrow(() -> HttpConfig.builder().diskOpeThreadMaxThreadNum(1));
-    }
-
-    @Test
     @DisplayName("合法参数被原样承载（每个 setter 都不得吞掉入参）")
     void validValuesAreCarried() {
         HttpConfig config = HttpConfig.builder()
@@ -150,9 +118,6 @@ class HttpConfigTest {
                 .httpSchedulerLimitCount(11)
                 .httpSchedulerLimitCacheThread(22)
                 .httpSchedulerLimitTimeout(33L)
-                .diskOpeThreadCacheQueue(44)
-                .diskOpeThreadCoreQueue(55)
-                .diskOpeThreadMaxThreadNum(66)
                 .build();
 
         assertEquals(12, config.getMaxInFlightResponses());
@@ -164,8 +129,5 @@ class HttpConfigTest {
         assertEquals(11, config.getHttpSchedulerLimitCount());
         assertEquals(22, config.getHttpSchedulerLimitCacheThread());
         assertEquals(33L, config.getHttpSchedulerLimitTimeout());
-        assertEquals(44, config.getDiskOpeThreadCacheQueue());
-        assertEquals(55, config.getDiskOpeThreadCoreQueue());
-        assertEquals(66, config.getDiskOpeThreadMaxThreadNum());
     }
 }

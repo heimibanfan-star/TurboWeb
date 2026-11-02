@@ -7,6 +7,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
+import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.connection.SequencedRequest;
 import top.turboweb.http.context.HttpContext;
@@ -75,18 +76,19 @@ class HttpRequestSchedulerChannelHandlerTest {
                 .build();
     }
 
-    /** 测试资源管理器：内置空间登记同步微任务执行器与桩磁盘IO执行器 */
+    /** 测试资源管理器：内置空间登记给定微任务执行器与独立虚拟线程卸载执行器（实例判重禁同实例双登记） */
     private static ResourceManager testResourceManager(MicroTaskExecutor executor) {
         Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
         builtins.put(ResourceNames.MICRO_TASK_EXECUTOR, executor);
-        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.noopExecutor());
+        builtins.put(ResourceNames.TASK_OFFLOAD_THREAD_POOL,
+                VirtualThreadMicroTaskExecutor.ofUnlimited("test-task-offload"));
         return new ResourceManager.Builder().build(builtins);
     }
 
-    /** 测试资源管理器：内置空间只登记桩磁盘IO执行器，供响应消息写出器按名获取 */
+    /** 测试资源管理器：内置空间只登记同步卸载执行器，供响应消息写出器按名获取 */
     private static ResourceManager writerResourceManager() {
         Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
-        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.noopExecutor());
+        builtins.put(ResourceNames.TASK_OFFLOAD_THREAD_POOL, Stubs.directExecutor());
         return new ResourceManager.Builder().build(builtins);
     }
 

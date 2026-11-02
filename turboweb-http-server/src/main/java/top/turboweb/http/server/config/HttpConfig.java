@@ -6,7 +6,7 @@ import java.util.Objects;
 
 /**
  * http请求应用配置类（不可变），只包含与http请求应用相关的纯参数配置：
- * 请求串行化开关、请求日志开关、缺省字符集、session回收参数、http调度器限流参数与磁盘IO线程池参数。
+ * 请求串行化开关、请求日志开关、缺省字符集、session回收参数与http调度器限流参数。
  * <p>
  * 协议编解码、线程、连接数等服务器层配置见 {@link ServerConfig}；
  * 中间件、session管理器等组件对象不属于配置，由 HttpServerRuntime 的建造者持有。
@@ -70,21 +70,6 @@ public final class HttpConfig {
     private final long httpSchedulerLimitTimeout;
 
     /**
-     * 磁盘IO线程池缓冲队列大小
-     */
-    private final int diskOpeThreadCacheQueue;
-
-    /**
-     * 磁盘IO线程池核心队列大小
-     */
-    private final int diskOpeThreadCoreQueue;
-
-    /**
-     * 磁盘IO线程池最大线程数
-     */
-    private final int diskOpeThreadMaxThreadNum;
-
-    /**
      * 缺省字符集：请求体解码在请求头未声明 charset 时回落到它；
      * URL 路径参数解码与响应文本、文件名、Cookie 值的编码恒取它，不受请求头声明影响
      */
@@ -100,9 +85,6 @@ public final class HttpConfig {
         this.httpSchedulerLimitCount = builder.httpSchedulerLimitCount;
         this.httpSchedulerLimitCacheThread = builder.httpSchedulerLimitCacheThread;
         this.httpSchedulerLimitTimeout = builder.httpSchedulerLimitTimeout;
-        this.diskOpeThreadCacheQueue = builder.diskOpeThreadCacheQueue;
-        this.diskOpeThreadCoreQueue = builder.diskOpeThreadCoreQueue;
-        this.diskOpeThreadMaxThreadNum = builder.diskOpeThreadMaxThreadNum;
         this.defaultCharset = builder.defaultCharset;
     }
 
@@ -149,18 +131,6 @@ public final class HttpConfig {
         return httpSchedulerLimitTimeout;
     }
 
-    public int getDiskOpeThreadCacheQueue() {
-        return diskOpeThreadCacheQueue;
-    }
-
-    public int getDiskOpeThreadCoreQueue() {
-        return diskOpeThreadCoreQueue;
-    }
-
-    public int getDiskOpeThreadMaxThreadNum() {
-        return diskOpeThreadMaxThreadNum;
-    }
-
     public Charset getDefaultCharset() {
         return defaultCharset;
     }
@@ -188,12 +158,6 @@ public final class HttpConfig {
         private int httpSchedulerLimitCacheThread = 2000;
 
         private long httpSchedulerLimitTimeout = 500;
-
-        private int diskOpeThreadCacheQueue = 4096;
-
-        private int diskOpeThreadCoreQueue = 6;
-
-        private int diskOpeThreadMaxThreadNum = Runtime.getRuntime().availableProcessors() * 2;
 
         private Charset defaultCharset = StandardCharsets.UTF_8;
 
@@ -305,45 +269,6 @@ public final class HttpConfig {
                 throw new IllegalArgumentException("httpSchedulerLimitTimeout must be >= 0");
             }
             this.httpSchedulerLimitTimeout = httpSchedulerLimitTimeout;
-            return this;
-        }
-
-        /**
-         * 磁盘IO线程池缓冲队列大小，装配http调度器时用于创建弹性线程池
-         *
-         * @param diskOpeThreadCacheQueue 缓冲队列容量，必须大于0
-         */
-        public Builder diskOpeThreadCacheQueue(int diskOpeThreadCacheQueue) {
-            if (diskOpeThreadCacheQueue < 1) {
-                throw new IllegalArgumentException("diskOpeThreadCacheQueue must be > 0");
-            }
-            this.diskOpeThreadCacheQueue = diskOpeThreadCacheQueue;
-            return this;
-        }
-
-        /**
-         * 磁盘IO线程池核心队列大小，装配http调度器时用于创建弹性线程池
-         *
-         * @param diskOpeThreadCoreQueue 核心队列容量，必须大于0
-         */
-        public Builder diskOpeThreadCoreQueue(int diskOpeThreadCoreQueue) {
-            if (diskOpeThreadCoreQueue < 1) {
-                throw new IllegalArgumentException("diskOpeThreadCoreQueue must be > 0");
-            }
-            this.diskOpeThreadCoreQueue = diskOpeThreadCoreQueue;
-            return this;
-        }
-
-        /**
-         * 磁盘IO线程池最大线程数，装配http调度器时用于创建弹性线程池
-         *
-         * @param diskOpeThreadMaxThreadNum 最大线程数，必须大于0
-         */
-        public Builder diskOpeThreadMaxThreadNum(int diskOpeThreadMaxThreadNum) {
-            if (diskOpeThreadMaxThreadNum < 1) {
-                throw new IllegalArgumentException("diskOpeThreadMaxThreadNum must be > 0");
-            }
-            this.diskOpeThreadMaxThreadNum = diskOpeThreadMaxThreadNum;
             return this;
         }
 

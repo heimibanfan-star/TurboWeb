@@ -7,12 +7,15 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.*;
 
+import top.turboweb.concurrent.thread.MicroTaskExecutor;
+import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 import top.turboweb.http.core.StatusLine;
 
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -122,6 +125,26 @@ public class InternalHttpConnection implements HttpConnection {
 
     /**
      * {@inheritDoc}
+     * <p>状态行与消息头的装配异常不经执行器调度，凭据直接异常完成。</p>
+     */
+    @Override
+    public CompletableFuture<Void> writeHeaders(StatusLine statusLine, Map<String, List<String>> headers,
+                                                MicroTaskExecutor offloadExecutor) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            HttpResponseStatus status = new HttpResponseStatus(statusLine.code(), statusLine.reason());
+            HttpResponse httpResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
+            HttpHeaders httpHeaders = httpResponse.headers();
+            headers.forEach(httpHeaders::set);
+            toCredentials(writeOut(httpResponse), future, offloadExecutor);
+        } catch (Throwable e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    /**
+     * {@inheritDoc}
      * <p>以 Netty 终止块 {@link LastHttpContent#EMPTY_LAST_CONTENT} 作为结束标记写出。</p>
      */
     @Override
@@ -136,6 +159,17 @@ public class InternalHttpConnection implements HttpConnection {
         DefaultHttpContent content = new DefaultHttpContent(Unpooled.wrappedBuffer(bytes));
         CompletableFuture<Void> future = new CompletableFuture<>();
         toCredentials(writeOut(content), future);
+        return future;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<Void> write(byte[] bytes, MicroTaskExecutor offloadExecutor) {
+        DefaultHttpContent content = new DefaultHttpContent(Unpooled.wrappedBuffer(bytes));
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        toCredentials(writeOut(content), future, offloadExecutor);
         return future;
     }
 
@@ -187,6 +221,41 @@ public class InternalHttpConnection implements HttpConnection {
                 credentials.completeExceptionally(f.cause());
             } else {
                 credentials.complete(null);
+            }
+        });
+    }
+
+    /**
+     * 将写出凭据桥接为异步凭据：给出卸载执行器时，凭据的完成经执行器调度在执行器线程触发，
+     * 执行器未受理任务时凭据以拒绝异常异常完成；执行器为 null 时与直通桥接一致。
+     */
+    private static void toCredentials(ChannelFuture writeFuture, CompletableFuture<Void> credentials,
+                                      MicroTaskExecutor offloadExecutor) {
+        if (offloadExecutor == null) {
+            toCredentials(writeFuture, credentials);
+            return;
+        }
+        writeFuture.addListener(f -> {
+            try {
+                offloadExecutor.submit(
+                        () -> {
+                            if (f.cause() != null) {
+                                credentials.completeExceptionally(f.cause());
+                            } else {
+                                credentials.complete(null);
+                            }
+                        },
+                        // 未受理不走异常而走收尾回调：统一映射为凭据以拒绝异常完成
+                        signal -> {
+                            if (signal.finallyType() == FinallyType.NOT_ACCEPT) {
+                                credentials.completeExceptionally(
+                                        new RejectedExecutionException("Task offload executor refused the completion"));
+                            }
+                        });
+            } catch (Throwable e) {
+                // 未受理的收尾回调已先行以拒绝异常完成凭据，此处消费契约规定的后续抛出，
+                // 拒绝错误经凭据恰好上报一次，不逃逸进写出落定线程重复记账
+                credentials.completeExceptionally(e);
             }
         });
     }

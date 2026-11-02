@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
+import top.turboweb.concurrent.thread.ElasticMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
@@ -29,6 +30,7 @@ import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
 import top.turboweb.http.core.ContentType;
+import top.turboweb.server.runtime.ResourceException;
 
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
@@ -53,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * {@link HttpServerRuntime.Builder} 的编排器装配契约与资源管理器（spec §5 server/runtime 行）。
  *
- * <p>build() 会创建磁盘IO弹性线程池并按限流参数创建虚拟线程资源，但本类每条用例都显式注入
+ * <p>build() 会创建任务卸载弹性线程池并按限流参数创建虚拟线程资源，但本类每条用例都显式注入
  * 不启动 session GC 线程的 {@link NoopSessionManager}，并在断言后关闭应用；不断言任何线程终止。
  * 装配完成的编排器藏在应用持有的调度处理器里，组件身份断言经反射取证。
  */
@@ -181,25 +183,51 @@ class HttpServerRuntimeTest {
     // ---------- 资源作用域：登记顺序即释放顺序 ----------
 
     @Test
-    void closeDestroysMiddlewareChainBeforeDiskPoolShutdown() throws Exception {
+    void closeDestroysMiddlewareChainBeforePoolShutdown() throws Exception {
         List<String> events = new ArrayList<>();
         RecordingMiddleware mw = new RecordingMiddleware("mw", events);
-        DiskPoolProbeMiddleware probe = new DiskPoolProbeMiddleware(events);
+        PoolProbeMiddleware probe = new PoolProbeMiddleware(events);
         HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .sessionManager(new NoopSessionManager())
                 .middleware(mw, probe)
                 .build();
 
-        MicroTaskExecutor diskPool = runtime.getResourceManager().getBuiltinResource(ResourceNames.DISK_IO_THREAD_POOL, MicroTaskExecutor.class);
-        probe.attachDiskPool(diskPool);
+        MicroTaskExecutor pool = runtime.getResourceManager().getBuiltinResource(ResourceNames.TASK_OFFLOAD_THREAD_POOL, MicroTaskExecutor.class);
+        probe.attachPool(pool);
         events.clear();
 
         runtime.close();
 
-        // 中间件链销毁适配器先于磁盘池登记，因此 probe 在自己的 destroy 里应看到池还未关闭
+        // 中间件链销毁适配器先于线程池登记，因此 probe 在自己的 destroy 里应看到池还未关闭
         assertEquals(List.of("destroy:mw", "destroy:probe:poolShutdown=false"), events,
-                "销毁顺序必须是：中间件链先销毁，磁盘池后关闭");
-        assertTrue(probe.submitRejectedAfterClose(), "应用关闭后磁盘池必须不再受理提交");
+                "销毁顺序必须是：中间件链先销毁，线程池后关闭");
+        assertTrue(probe.submitRejectedAfterClose(), "应用关闭后线程池必须不再受理提交");
+    }
+
+    @Test
+    void taskOffloadPoolRegisteredAsElasticMicroTaskExecutor() throws Exception {
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
+                .sessionManager(new NoopSessionManager())
+                .build();
+
+        MicroTaskExecutor offloadPool = runtime.getResourceManager()
+                .getBuiltinResource(ResourceNames.TASK_OFFLOAD_THREAD_POOL, MicroTaskExecutor.class);
+
+        assertInstanceOf(ElasticMicroTaskExecutor.class, offloadPool,
+                "任务卸载线程池以弹性微任务执行器装配");
+        runtime.close();
+    }
+
+    @Test
+    void diskIoThreadPoolIsNoLongerRegistered() {
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
+                .sessionManager(new NoopSessionManager())
+                .build();
+
+        assertThrows(ResourceException.class,
+                () -> runtime.getResourceManager().getBuiltinResource("diskIoThreadPool"),
+                "磁盘IO线程池的消费方已随旧响应体系下架，装配不再登记");
+        runtime.close();
     }
 
     // ---------- 装配后中间件链被锁定 ----------
@@ -465,18 +493,18 @@ class HttpServerRuntimeTest {
         return field.get(target);
     }
 
-    /** 链尾探测中间件：在 destroy 时以一次空提交探测磁盘执行器的受理状态，用于断言释放顺序。 */
-    private static final class DiskPoolProbeMiddleware extends Middleware {
+    /** 链尾探测中间件：在 destroy 时以一次空提交探测内置线程池执行器的受理状态，用于断言释放顺序。 */
+    private static final class PoolProbeMiddleware extends Middleware {
 
         private final List<String> events;
-        private MicroTaskExecutor diskPool;
+        private MicroTaskExecutor pool;
 
-        DiskPoolProbeMiddleware(List<String> events) {
+        PoolProbeMiddleware(List<String> events) {
             this.events = events;
         }
 
-        void attachDiskPool(MicroTaskExecutor diskPool) {
-            this.diskPool = diskPool;
+        void attachPool(MicroTaskExecutor pool) {
+            this.pool = pool;
         }
 
         /** 应用关闭后再次提交必须未受理：返回 true 表示提交被拒（执行器已关闭）。 */
@@ -487,7 +515,7 @@ class HttpServerRuntimeTest {
         /** 以一次空提交探测执行器受理状态：受理返回 true，未受理（已关闭）返回 false。 */
         private boolean submitProbe() {
             AtomicBoolean accepted = new AtomicBoolean(true);
-            diskPool.submit(() -> { }, signal -> {
+            pool.submit(() -> { }, signal -> {
                 if (signal.finallyType() == MicroTaskExecutor.FinallyType.NOT_ACCEPT) {
                     accepted.set(false);
                 }

@@ -1,12 +1,17 @@
 package top.turboweb.http.orchestrator.writer;
 
+import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
+import top.turboweb.concurrent.thread.ElasticMicroTaskExecutor;
+import top.turboweb.http.connection.InternalHttpConnection;
 import top.turboweb.http.core.ByteResponseMessage;
 import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.response.StreamResponseMessage;
+import top.turboweb.http.server.constant.ResourceNames;
 import top.turboweb.http.testkit.RecordingHttpConnection;
+import top.turboweb.server.runtime.ResourceManager;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
@@ -16,6 +21,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -382,5 +389,49 @@ class StreamMessageWriteHandlerTest {
                 () -> new StreamMessageWriteHandler().write(connection, message, callback));
 
         assertTrue(thrown.getMessage().contains(ByteResponseMessage.class.getName()), "非流式消息拒收并报出实际类型");
+    }
+
+    @Test
+    void steadyStateGenerationRunsOnOffloadExecutorThread() throws Exception {
+        String prefix = "stream-offload-probe";
+        ElasticMicroTaskExecutor executor = ElasticMicroTaskExecutor.of(prefix);
+        EmbeddedChannel channel = new EmbeddedChannel();
+        try {
+            // 资源名与登记侧共用常量
+            ResourceManager resources = new ResourceManager.Builder()
+                    .build(Map.of(ResourceNames.TASK_OFFLOAD_THREAD_POOL, executor));
+            StreamMessageWriteHandler handler = new StreamMessageWriteHandler();
+            handler.init(resources);
+            InternalHttpConnection connection = new InternalHttpConnection(channel);
+            List<String> produceThreads = new CopyOnWriteArrayList<>();
+            AtomicInteger counter = new AtomicInteger();
+            CallbackTrap callback = new CallbackTrap();
+            // 拉式源逐块记下产出线程：断言范围是全量产出，覆盖订阅首块与稳态需求驱动段
+            Flux<byte[]> content = Flux.generate(sink -> {
+                produceThreads.add(Thread.currentThread().getName());
+                if (counter.incrementAndGet() > 16) {
+                    sink.complete();
+                } else {
+                    sink.next(("chunk-" + counter.get()).getBytes(StandardCharsets.UTF_8));
+                }
+            });
+
+            handler.write(connection, streamMessage(content), callback);
+
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (callback.count() == 0 && System.nanoTime() < deadline) {
+                Thread.sleep(10);
+            }
+            assertEquals(1, callback.count(), "回调恰好一次");
+            assertNull(callback.error());
+            assertFalse(produceThreads.isEmpty(), "流已实际产出");
+            for (String threadName : produceThreads) {
+                assertTrue(threadName.startsWith(prefix),
+                        "产出应落在卸载执行器线程，实际产出线程 " + produceThreads);
+            }
+        } finally {
+            executor.close();
+            channel.finishAndReleaseAll();
+        }
     }
 }

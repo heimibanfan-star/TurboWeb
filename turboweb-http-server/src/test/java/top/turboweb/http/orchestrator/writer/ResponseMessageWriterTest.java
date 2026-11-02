@@ -653,12 +653,12 @@ class ResponseMessageWriterTest {
     }
 
     /**
-     * 构造测试用资源管理器：以内置空间登记磁盘IO执行器资源，
-     * 供写出器按 {@link ResourceNames#DISK_IO_THREAD_POOL} 从其中获取
+     * 构造测试用资源管理器：以内置空间登记同步卸载执行器资源，
+     * 供写出器按 {@link ResourceNames#TASK_OFFLOAD_THREAD_POOL} 从其中获取
      */
     private static ResourceProvider resourceManagerOf() {
         Map<String, AutoCloseable> builtins = new LinkedHashMap<>();
-        builtins.put(ResourceNames.DISK_IO_THREAD_POOL, Stubs.noopExecutor());
+        builtins.put(ResourceNames.TASK_OFFLOAD_THREAD_POOL, Stubs.directExecutor());
         return new ResourceManager.Builder().build(builtins);
     }
 }
