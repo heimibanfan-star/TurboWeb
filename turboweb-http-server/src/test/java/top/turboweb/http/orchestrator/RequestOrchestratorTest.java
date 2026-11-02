@@ -6,7 +6,8 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
-import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.connection.SequencedDataChunk;
+import top.turboweb.http.connection.SequencedHttpConnection;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.*;
 import top.turboweb.http.exception.RouteHandlerException;
@@ -128,16 +129,20 @@ class RequestOrchestratorTest {
         return message;
     }
 
-    /** 读出写出的响应首部：出站首块为状态行与头域。 */
+    /** 读出写出的响应首部：出站首块为封章信使，内层承载状态行与头域。 */
     private static HttpResponse readHead(EmbeddedChannel channel) {
-        return assertInstanceOf(HttpResponse.class, channel.readOutbound(), "出站首块为响应首部");
+        SequencedDataChunk chunk = assertInstanceOf(SequencedDataChunk.class, channel.readOutbound(), "出站首块为封章信使");
+        return assertInstanceOf(HttpResponse.class, chunk.message(), "封章信使内层为响应首部");
     }
 
-    /** 读出写出的响应体字节：内容块依次拼接，空正文时返回空数组；结束标记为共享单例不释放。 */
+    /** 读出写出的响应体字节：解开封章后内容块依次拼接，空正文时返回空数组；结束标记为共享单例不释放。 */
     private static byte[] readBody(EmbeddedChannel channel) {
         ByteArrayOutputStream body = new ByteArrayOutputStream();
         Object out;
         while ((out = channel.readOutbound()) != null) {
+            if (out instanceof SequencedDataChunk chunk) {
+                out = chunk.message();
+            }
             if (out instanceof LastHttpContent) {
                 // 结束标记为共享单例，不释放
                 break;
@@ -152,10 +157,13 @@ class RequestOrchestratorTest {
         return body.toByteArray();
     }
 
-    /** 读尽并清理出站：内容块释放，响应首部与结束标记不释放（结束标记为共享单例）。 */
+    /** 读尽并清理出站：解开封章后内容块释放，响应首部与结束标记不释放（结束标记为共享单例）。 */
     private static void drainOutbound(EmbeddedChannel channel) {
         Object out;
         while ((out = channel.readOutbound()) != null) {
+            if (out instanceof SequencedDataChunk chunk) {
+                out = chunk.message();
+            }
             if (out instanceof LastHttpContent) {
                 // 结束标记为共享单例，不释放
                 continue;
@@ -402,7 +410,7 @@ class RequestOrchestratorTest {
     void nullArgumentsRejectedAtFlowEntry() {
         RequestOrchestrator orchestrator = orchestratorWith(HttpCorsConfig.builder().build());
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection session = new InternalHttpConnection(channel);
+        SequencedHttpConnection session = new SequencedHttpConnection(channel, 1);
 
         NullPointerException e1 = assertThrows(NullPointerException.class, () -> orchestrator.orchestrate(null, session));
         assertEquals("request must not be null", e1.getMessage());
@@ -423,7 +431,7 @@ class RequestOrchestratorTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.GET, "https://a.com");
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertTrue(chain.invoked().get(), "普通请求进入中间件链");
         HttpResponse head = readHead(channel);
@@ -453,7 +461,7 @@ class RequestOrchestratorTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         HttpResponse head = readHead(channel);
         assertEquals("text/html;charset=GBK", head.headers().get("Content-Type"),
@@ -486,7 +494,7 @@ class RequestOrchestratorTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertEquals(List.of("enter", "chain", "exit"), events,
                 "编排器把链执行整体放入会话管理器的安全作用域，链结果产出后作用域退出");
@@ -503,7 +511,7 @@ class RequestOrchestratorTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertEquals(List.of("enter", "exit"), events,
                 "链抛出异常时作用域同样先退出再进入异常处理路径，兜底页不泄漏读锁");
@@ -521,7 +529,7 @@ class RequestOrchestratorTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.OPTIONS, "https://a.com");
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertTrue(events.isEmpty(), "OPTIONS 预检不进 startMiddleware，不进入安全作用域");
         request.release();
@@ -535,7 +543,7 @@ class RequestOrchestratorTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.OPTIONS, "https://a.com");
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertFalse(chain.invoked().get(), "OPTIONS 预检不进中间件链");
         HttpResponse head = readHead(channel);
@@ -556,7 +564,7 @@ class RequestOrchestratorTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.GET, "https://a.com");
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         HttpResponse head = readHead(channel);
         assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, head.getStatus(), "无注册处理器的异常落 500 兜底");
@@ -577,7 +585,7 @@ class RequestOrchestratorTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertEquals(HttpResponseStatus.NOT_FOUND, readHead(channel).getStatus(), "路由未匹配异常落 404 页");
         String body = new String(readBody(channel), StandardCharsets.UTF_8);
@@ -596,7 +604,7 @@ class RequestOrchestratorTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertEquals(HttpResponseStatus.OK, readHead(channel).getStatus(), "处理器返回值经结果转化链正常产出");
         assertEquals("handled:boom", new String(readBody(channel), StandardCharsets.UTF_8), "透传处理器返回值");
@@ -629,7 +637,7 @@ class RequestOrchestratorTest {
             EmbeddedChannel channel = new EmbeddedChannel();
             FullHttpRequest request = requestWith(HttpMethod.GET, "https://a.com");
 
-            orchestrator.orchestrate(request, new InternalHttpConnection(channel));
+            orchestrator.orchestrate(request, new SequencedHttpConnection(channel, 1));
 
             assertFalse(chain.invoked().get(), "拒绝分支不进中间件链");
             HttpResponse head = readHead(channel);
@@ -698,7 +706,7 @@ class RequestOrchestratorTest {
         RequestOrchestrator orchestrator = builderWith(chain).build();
         FullHttpRequest request = Requests.postJson("/submit", "{\"name\":\"alice\"}");
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         HttpContext context = chain.captured();
         assertNotNull(context, "链进入时上下文已装配");
@@ -717,7 +725,7 @@ class RequestOrchestratorTest {
         RequestOrchestrator orchestrator = builderWith(chain).build();
         FullHttpRequest request = Requests.head("/x");
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         HttpRequestMessage<?> message = chain.captured().message();
         assertInstanceOf(VoidRequestMessage.class, message, "HEAD 不进内容解析器，无请求体装配为无体消息");
@@ -733,7 +741,7 @@ class RequestOrchestratorTest {
         RequestOrchestrator orchestrator = builderWith(chain).build();
         FullHttpRequest request = Requests.postJson("/submit", "not a json");
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertNull(chain.captured(), "请求体解析失败发生在装配上下文时，链不进入");
         assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, readHead(channel).getStatus(),
@@ -751,7 +759,7 @@ class RequestOrchestratorTest {
         RequestOrchestrator orchestrator = builderWith(chain, parserManager).build();
         FullHttpRequest request = Requests.raw(HttpMethod.GET, "/x", "text/csv", "a,b", StandardCharsets.UTF_8);
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertSame(MarkedContentParser.MARKER, chain.captured().message().content(),
                 "注入的管理器所持有的自定义解析器按类型分派，其产出进上下文");
@@ -778,7 +786,7 @@ class RequestOrchestratorTest {
         };
         RequestOrchestrator orchestrator = builderWith(chain).build();
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertEquals(2, refCntAtChain.get(), "链执行期间调用方引用与编排器自持引用均未被归还");
         assertEquals("alice", nameAtChain.get(), "请求体内容经消息可读");
@@ -803,7 +811,7 @@ class RequestOrchestratorTest {
         RequestOrchestrator orchestrator = builderWith(chain).build();
         FullHttpRequest request = requestWith(HttpMethod.GET, "/direct");
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         HttpResponse head = readHead(channel);
         assertEquals(HttpResponseStatus.CREATED, head.getStatus(), "消息的状态行原样写出");
@@ -821,7 +829,7 @@ class RequestOrchestratorTest {
                 new ThrowingMiddleware(new IllegalStateException("boom")), new ExceptionHandlerManager(Set.of()));
         ReleaseAwareRequest request = new ReleaseAwareRequest(HttpMethod.GET, "/guard", "https://a.com");
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertEquals(1, request.refCnt(), "响应写出后编排器归还自持引用，调用方引用仍在");
         request.release();
@@ -856,7 +864,7 @@ class RequestOrchestratorTest {
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
         IllegalStateException failure = assertThrows(IllegalStateException.class,
-                () -> orchestrator.orchestrate(request, new InternalHttpConnection(channel)));
+                () -> orchestrator.orchestrate(request, new SequencedHttpConnection(channel, 1)));
 
         assertEquals("thread start failed", failure.getMessage(), "提交失败原样抛出");
         assertEquals(HttpResponseStatus.TOO_MANY_REQUESTS, readHead(channel).getStatus(),
@@ -877,7 +885,7 @@ class RequestOrchestratorTest {
         RequestOrchestrator orchestrator = builderWith(chain, parserManager).build();
         FullHttpRequest request = Requests.raw(HttpMethod.GET, "/x", "x-test/probe", "body", StandardCharsets.UTF_8);
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertTrue(probe.closed, "持有资源的内容由编排器在请求收尾关闭");
         request.release();
@@ -895,7 +903,7 @@ class RequestOrchestratorTest {
                 new ThrowingMiddleware(new IllegalStateException("boom")), parserManager).build();
         FullHttpRequest request = Requests.raw(HttpMethod.GET, "/x", "x-test/probe", "body", StandardCharsets.UTF_8);
 
-        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+        orchestrator.doOrchestrate(request, new SequencedHttpConnection(channel, 1));
 
         assertTrue(probe.closed, "链内异常时内容仍在编排器异常边界内关闭");
         assertEquals(1, request.refCnt(), "请求的调用方引用仍在");

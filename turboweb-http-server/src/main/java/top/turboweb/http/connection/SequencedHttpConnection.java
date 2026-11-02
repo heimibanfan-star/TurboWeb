@@ -24,13 +24,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * 调度期为每个请求分配自增序列号并建立携带该序列号的连接实例（一请求一连接）：
  * 经本连接契约方法与内部直通写出（{@link #writeOut}）的每条出站消息都以
  * {@link SequencedDataChunk} 封章携带序列号，由管道中的定序处理器裁决
- * 直写或缓冲定序。未携带序列号的连接（单参构造）写出不封章，不参与定序，
- * 仅供无定序管道的场景使用。
+ * 直写或缓冲定序。
  */
-public class InternalHttpConnection implements HttpConnection {
-
-    /** 未携带序列号的标记：写出不封章、不参与定序 */
-    private static final long UNSEQUENCED = -1;
+public class SequencedHttpConnection implements HttpConnection {
 
     protected final Channel channel;
 
@@ -42,17 +38,13 @@ public class InternalHttpConnection implements HttpConnection {
      */
     public final ReentrantLock channelLock = new ReentrantLock();
 
-    public InternalHttpConnection(Channel channel) {
-        this(channel, UNSEQUENCED);
-    }
-
     /**
      * 建立携带序列号的连接：写出的每条消息都以该序列号封章。
      *
      * @param channel  底层通道
      * @param sequence 调度期为本请求分配的响应序列号
      */
-    public InternalHttpConnection(Channel channel, long sequence) {
+    public SequencedHttpConnection(Channel channel, long sequence) {
         this.channel = channel;
         this.sequence = sequence;
     }
@@ -68,7 +60,7 @@ public class InternalHttpConnection implements HttpConnection {
     /**
      * 获取本连接所属响应的序列号。
      *
-     * @return 调度期分配的序列号，未携带序列号的连接返回负值
+     * @return 调度期为本请求分配的序列号
      */
     public long sequence() {
         return sequence;
@@ -95,11 +87,7 @@ public class InternalHttpConnection implements HttpConnection {
      * @return 传入的凭据
      */
     public ChannelFuture writeOut(Object message, ChannelPromise promise) {
-        if (sequence == UNSEQUENCED) {
-            channel.writeAndFlush(message, promise);
-        } else {
-            channel.writeAndFlush(new SequencedDataChunk(sequence, message), promise);
-        }
+        channel.writeAndFlush(new SequencedDataChunk(sequence, message), promise);
         return promise;
     }
 

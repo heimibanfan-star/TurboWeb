@@ -4,7 +4,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import top.turboweb.concurrent.thread.ElasticMicroTaskExecutor;
-import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.connection.SequencedHttpConnection;
 import top.turboweb.http.core.ByteResponseMessage;
 import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.core.StatusLine;
@@ -402,7 +402,7 @@ class StreamMessageWriteHandlerTest {
                     .build(Map.of(ResourceNames.TASK_OFFLOAD_THREAD_POOL, executor));
             StreamMessageWriteHandler handler = new StreamMessageWriteHandler();
             handler.init(resources);
-            InternalHttpConnection connection = new InternalHttpConnection(channel);
+            SequencedHttpConnection connection = new SequencedHttpConnection(channel, 1);
             List<String> produceThreads = new CopyOnWriteArrayList<>();
             AtomicInteger counter = new AtomicInteger();
             CallbackTrap callback = new CallbackTrap();

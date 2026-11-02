@@ -3,7 +3,7 @@ package top.turboweb.http.orchestrator.writer;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.connection.SequencedHttpConnection;
 import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.response.SseEmitter;
@@ -59,7 +59,7 @@ public final class SseMessageWriteHandler implements MessageWriteHandler {
 		sseEmitter.headers().remove(CONTENT_LENGTH);
 		Charset charset = resolveCharset(sseEmitter.headers().get(CONTENT_TYPE));
 		// SSE 启动即移交长生命周期协议：先落空闲豁免标记，再注册关闭监听与订阅流出
-		if (connection instanceof InternalHttpConnection internalConnection) {
+		if (connection instanceof SequencedHttpConnection internalConnection) {
 			internalConnection.getChannel().attr(ChannelAttributeKeys.IDLE_EXEMPT).set(Boolean.TRUE);
 		}
 		Flux<byte[]> events = sseEmitter.content().asFlux().map(event -> event.getBytes(charset));

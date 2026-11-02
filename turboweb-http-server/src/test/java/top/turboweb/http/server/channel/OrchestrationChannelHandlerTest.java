@@ -8,7 +8,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
-import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.connection.SequencedHttpConnection;
 import top.turboweb.http.connection.SequencedRequest;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
@@ -117,7 +117,7 @@ class OrchestrationChannelHandlerTest {
         channel.writeInbound(new SequencedRequest(5, request));
 
         assertEquals(1, contexts.size(), "封章请求进入编排");
-        InternalHttpConnection connection = assertInstanceOf(InternalHttpConnection.class,
+        SequencedHttpConnection connection = assertInstanceOf(SequencedHttpConnection.class,
                 contexts.get(0).getConnectSession());
         assertEquals(5, connection.sequence(), "连接携带封装分配的序列号");
         assertSame(channel, connection.getChannel());
@@ -137,9 +137,9 @@ class OrchestrationChannelHandlerTest {
         channel.writeInbound(new SequencedRequest(2, second));
 
         assertEquals(2, contexts.size(), "两个请求各自编排");
-        InternalHttpConnection firstConnection = assertInstanceOf(InternalHttpConnection.class,
+        SequencedHttpConnection firstConnection = assertInstanceOf(SequencedHttpConnection.class,
                 contexts.get(0).getConnectSession());
-        InternalHttpConnection secondConnection = assertInstanceOf(InternalHttpConnection.class,
+        SequencedHttpConnection secondConnection = assertInstanceOf(SequencedHttpConnection.class,
                 contexts.get(1).getConnectSession());
         assertTrue(firstConnection != secondConnection, "一请求一连接");
         assertEquals(1, firstConnection.sequence());

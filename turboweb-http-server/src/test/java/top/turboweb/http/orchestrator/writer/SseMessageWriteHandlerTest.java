@@ -2,7 +2,7 @@ package top.turboweb.http.orchestrator.writer;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
-import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.connection.SequencedHttpConnection;
 import top.turboweb.http.core.ByteResponseMessage;
 import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.response.SseEmitter;
@@ -373,10 +373,10 @@ class SseMessageWriteHandlerTest {
     }
 
     @Test
-    void internalConnectionGetsIdleExemptAndCloseListenersWired() {
+    void sequencedConnectionGetsIdleExemptAndCloseListenersWired() {
         EmbeddedChannel channel = new EmbeddedChannel();
         try {
-            InternalHttpConnection connection = new InternalHttpConnection(channel);
+            SequencedHttpConnection connection = new SequencedHttpConnection(channel, 1);
             SseEmitter emitter = new SseEmitter();
             AtomicBoolean closed = new AtomicBoolean(false);
             emitter.addCloseListener(() -> closed.set(true));

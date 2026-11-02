@@ -4,7 +4,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.connection.SequencedHttpConnection;
 import top.turboweb.http.connection.SequencedRequest;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 
@@ -49,7 +49,7 @@ public class OrchestrationChannelHandler extends SimpleChannelInboundHandler<Seq
     protected void channelRead0(ChannelHandlerContext ctx, SequencedRequest sequencedRequest) throws Exception {
         FullHttpRequest fullHttpRequest = sequencedRequest.request();
         // 以封装携带的序列号建立一请求一连接
-        InternalHttpConnection connectSession = new InternalHttpConnection(ctx.channel(), sequencedRequest.sequence());
+        SequencedHttpConnection connectSession = new SequencedHttpConnection(ctx.channel(), sequencedRequest.sequence());
         try {
             // 请求引用由编排器在提交前自行持有，本处理器返回后归还收到的引用
             requestOrchestrator.orchestrate(fullHttpRequest, connectSession);

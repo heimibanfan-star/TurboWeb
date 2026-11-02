@@ -31,23 +31,25 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link InternalHttpConnection} 的写出通道行为锚：
- * 首部、响应体与终止块分别以 Netty 响应消息、内容块与终止块对应写出，
- * 异步凭据在写出结果落定后正常完成。
+ * {@link SequencedHttpConnection} 的写出通道行为锚：
+ * 出站消息恒以序列号封章，内层为首部、响应体与终止块对应的
+ * Netty 响应消息、内容块与终止块，异步凭据在写出结果落定后正常完成。
  */
-class InternalHttpConnectionTest {
+class SequencedHttpConnectionTest {
 
     @Test
     void writeHeadersEmitsResponseWithStatusAndHeaders() throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        SequencedHttpConnection connection = new SequencedHttpConnection(channel, 1);
         Map<String, List<String>> headers = new LinkedHashMap<>();
         headers.put("Content-Type", List.of("text/html;charset=utf-8"));
         headers.put("X-Multi", List.of("a", "b"));
 
         connection.writeHeaders(StatusLine.OK, headers).get(5, TimeUnit.SECONDS);
 
-        HttpResponse response = channel.readOutbound();
+        SequencedDataChunk headChunk = assertInstanceOf(SequencedDataChunk.class, channel.readOutbound(),
+                "首部写出以序列号封章");
+        HttpResponse response = assertInstanceOf(HttpResponse.class, headChunk.message());
         assertEquals(HttpVersion.HTTP_1_1, response.protocolVersion());
         assertEquals(200, response.status().code());
         assertEquals("OK", response.status().reasonPhrase());
@@ -59,12 +61,14 @@ class InternalHttpConnectionTest {
     @Test
     void writeEmitsBodyContentBytes() throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        SequencedHttpConnection connection = new SequencedHttpConnection(channel, 1);
         byte[] body = "hello".getBytes();
 
         connection.write(body).get(5, TimeUnit.SECONDS);
 
-        DefaultHttpContent content = channel.readOutbound();
+        SequencedDataChunk chunk = assertInstanceOf(SequencedDataChunk.class, channel.readOutbound(),
+                "响应体写出以序列号封章");
+        DefaultHttpContent content = assertInstanceOf(DefaultHttpContent.class, chunk.message());
         byte[] written = new byte[content.content().readableBytes()];
         content.content().readBytes(written);
         assertArrayEquals(body, written, "响应体按入参字节原样写出");
@@ -75,12 +79,14 @@ class InternalHttpConnectionTest {
     @Test
     void writeCarriesCallerArrayWithoutCopy() throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        SequencedHttpConnection connection = new SequencedHttpConnection(channel, 1);
         byte[] body = "hello".getBytes();
 
         connection.write(body).get(5, TimeUnit.SECONDS);
 
-        DefaultHttpContent content = channel.readOutbound();
+        SequencedDataChunk chunk = assertInstanceOf(SequencedDataChunk.class, channel.readOutbound(),
+                "响应体写出以序列号封章");
+        DefaultHttpContent content = assertInstanceOf(DefaultHttpContent.class, chunk.message());
         assertTrue(content.content().hasArray(), "写出内容由堆数组承载");
         assertSame(body, content.content().array(), "写出零拷贝：直接承载入参数组，不做复制");
         content.release();
@@ -90,11 +96,13 @@ class InternalHttpConnectionTest {
     @Test
     void finishWriteEmitsTerminalLastContent() throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        SequencedHttpConnection connection = new SequencedHttpConnection(channel, 1);
 
         connection.finishWrite().get(5, TimeUnit.SECONDS);
 
-        assertInstanceOf(LastHttpContent.class, channel.readOutbound(), "结束标记以终止块写出");
+        SequencedDataChunk lastChunk = assertInstanceOf(SequencedDataChunk.class, channel.readOutbound(),
+                "结束标记写出以序列号封章");
+        assertInstanceOf(LastHttpContent.class, lastChunk.message(), "结束标记以终止块写出");
         channel.finishAndReleaseAll();
     }
 
@@ -111,7 +119,7 @@ class InternalHttpConnectionTest {
                 held.add(promise);
             }
         });
-        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        SequencedHttpConnection connection = new SequencedHttpConnection(channel, 1);
         String prefix = "offload-probe";
         ElasticMicroTaskExecutor executor = ElasticMicroTaskExecutor.of(prefix);
         try {
@@ -144,7 +152,7 @@ class InternalHttpConnectionTest {
     @Test
     void offloadedCredentialFailsWithRejectionWhenExecutorRefuses() throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        SequencedHttpConnection connection = new SequencedHttpConnection(channel, 1);
         ElasticMicroTaskExecutor executor = ElasticMicroTaskExecutor.of("offload-probe-reject");
         executor.close();
         try {
@@ -161,7 +169,7 @@ class InternalHttpConnectionTest {
     @Test
     void nullOffloadExecutorKeepsDirectCompletion() throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection connection = new InternalHttpConnection(channel);
+        SequencedHttpConnection connection = new SequencedHttpConnection(channel, 1);
         try {
             AtomicReference<Thread> completer = new AtomicReference<>();
 
@@ -181,7 +189,7 @@ class InternalHttpConnectionTest {
     @Test
     void sequencedConnectionSealsEveryContractWrite() throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection connection = new InternalHttpConnection(channel, 7);
+        SequencedHttpConnection connection = new SequencedHttpConnection(channel, 7);
 
         connection.writeHeaders(StatusLine.OK, new LinkedHashMap<>()).get(5, TimeUnit.SECONDS);
         connection.write("body".getBytes()).get(5, TimeUnit.SECONDS);
@@ -203,7 +211,7 @@ class InternalHttpConnectionTest {
     @Test
     void sequencedConnectionSealsTerminalWriteOfClose() throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection connection = new InternalHttpConnection(channel, 3);
+        SequencedHttpConnection connection = new SequencedHttpConnection(channel, 3);
 
         connection.close();
         channel.runPendingTasks();
@@ -213,17 +221,5 @@ class InternalHttpConnectionTest {
                 "close 的结束标记同样封章");
         assertEquals(3, last.sequence());
         assertInstanceOf(LastHttpContent.class, last.message());
-    }
-
-    @Test
-    void unsequencedConnectionWritesPassRaw() throws Exception {
-        EmbeddedChannel channel = new EmbeddedChannel();
-        InternalHttpConnection connection = new InternalHttpConnection(channel);
-
-        connection.write("body".getBytes()).get(5, TimeUnit.SECONDS);
-
-        // 未携带序列号的连接不参与响应定序，写出保持裸消息
-        assertInstanceOf(DefaultHttpContent.class, channel.readOutbound());
-        channel.finishAndReleaseAll();
     }
 }

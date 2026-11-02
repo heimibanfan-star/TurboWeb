@@ -17,7 +17,7 @@ import top.turboweb.http.request.FormRequestMessage;
 import top.turboweb.http.request.JsonRequestMessage;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.connection.SequencedHttpConnection;
 import top.turboweb.http.cookie.HttpCookie;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.response.SseEmitter;
@@ -631,11 +631,11 @@ class ParamInfoParsersTest {
                 .bindParameter(stub.returning("getConnectSession", connectSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
 
         // 夹具侧类型矫正（D1）：CHANNEL_BINDER 认领的声明类型是 java.nio.channels.Channel（Params.internChannel
-        // 不动），但 InternalHttpConnection 存取的是 io.netty.channel.Channel（InternalHttpConnection.java:19/:30），
+        // 不动），但 SequencedHttpConnection 存取的是 io.netty.channel.Channel（SequencedHttpConnection.java:19/:30），
         // 故被注入的那个对象必须是 Netty 通道的代理；断言语义（注入的就是配置进去的那个对象）逐字保留。
         io.netty.channel.Channel channel = proxy(io.netty.channel.Channel.class);
         assertSame(channel, p.parse(parameter("internChannel"))
-                .bindParameter(stub.returning("getConnectSession", new InternalHttpConnection(channel)).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
+                .bindParameter(stub.returning("getConnectSession", new SequencedHttpConnection(channel, 1)).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
     }
 
     @Test

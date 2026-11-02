@@ -2,7 +2,7 @@ package top.turboweb.http.router.parameter;
 
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.connection.HttpConnection;
-import top.turboweb.http.connection.InternalHttpConnection;
+import top.turboweb.http.connection.SequencedHttpConnection;
 import top.turboweb.http.cookie.HttpCookies;
 import top.turboweb.http.response.SseEmitter;
 import top.turboweb.http.session.HttpSession;
@@ -30,7 +30,7 @@ public class InternTypeParameterParser extends AbstractParameterParser{
     // 连接会话绑定
     private static final ParameterParser.Binder CONNECT_SESSION_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ctx.getConnectSession();
     // 连接通道自动绑定
-    private static final ParameterParser.Binder CHANNEL_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ((InternalHttpConnection) ctx.getConnectSession()).getChannel();
+    private static final ParameterParser.Binder CHANNEL_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ((SequencedHttpConnection) ctx.getConnectSession()).getChannel();
 
     @Override
     protected ParameterParser.Binder doParse(Parameter parameter) {
