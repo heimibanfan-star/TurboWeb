@@ -214,13 +214,6 @@ public class HttpServerRuntime implements ServerRuntime {
          * cors配置，未传入时默认 {@link HttpCorsConfig} 的通配配置
          */
         private HttpCorsConfig corsConfig = null;
-        // ---------- 旧响应体系环节：随响应体系消息化迁移停用，待新线补齐对应能力后处置 ----------
-
-        ///**
-        // * 自定义响应写出器集合，按注册顺序登记为自定义表，构建期与磁盘IO线程池一起
-        // * 装配成 {@link ResponseWriterManager}；默认为空集合
-        // */
-        //private final List<ResponseWriter> responseWriters = new ArrayList<>();
         /**
          * 自定义内容解析器集合，构建期与缺省字符集一起装配成 {@link HttpContentParserManager}；
          * 默认为空集合，此时只有内置的表单与JSON解析器生效
@@ -301,22 +294,6 @@ public class HttpServerRuntime implements ServerRuntime {
             this.corsConfig = corsConfig;
             return this;
         }
-
-        // ---------- 旧响应体系环节：随响应体系消息化迁移停用，待新线补齐对应能力后处置 ----------
-
-        ///**
-        // * 按顺序注册自定义响应写出器（http响应写出的自定义表环节，构建期与磁盘IO线程池
-        // * 装配成响应写出器管理器）；元素为null立即抛出 {@link NullPointerException}；
-        // * 内置类型拒登、同一写出器类重复注册在构建时抛出
-        // */
-        //public Builder responseWriters(ResponseWriter... responseWriters) {
-        //    this.responseWriters.addAll(
-        //            Stream.of(responseWriters)
-        //                    .peek(writer -> Objects.requireNonNull(writer, "The response writer must not be null"))
-        //                    .toList()
-        //    );
-        //    return this;
-        //}
 
         /**
          * 按顺序注册自定义内容解析器（构建期与缺省字符集一起装配成内容解析器管理器，
