@@ -1,7 +1,5 @@
 package top.turboweb.http.orchestrator;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -11,7 +9,6 @@ import top.turboweb.http.response.HttpResult;
 import top.turboweb.http.response.StreamResponseMessage;
 import top.turboweb.serializer.JsonSerializer;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
@@ -147,8 +144,8 @@ public final class ResultToMessageHandler {
     }
 
     /**
-     * 将异步流逐元素编码为字节数组：String 与 Number 按给定字符集取字节，byte[] 原样透传，
-     * ByteBuffer 与 ByteBuf 复制为字节数组，其余对象经 json序列化器编码为json后按该字符集取字节；
+     * 将异步流逐元素编码为字节数组：String 按给定字符集取字节，byte[] 原样透传，
+     * 其余对象经 json序列化器编码为json后按该字符集取字节；
      * 元素序列化失败转为流错误信号，不在订阅前的调用点抛出。
      *
      * @param publisher 异步流
@@ -163,14 +160,6 @@ public final class ResultToMessageHandler {
                         return Mono.just(s.getBytes(charset));
                     } else if (val instanceof byte[] bytes) {
                         return Mono.just(bytes);
-                    } else if (val instanceof ByteBuffer buffer) {
-                        byte[] bytes = new byte[buffer.remaining()];
-                        buffer.duplicate().get(bytes);
-                        return Mono.just(bytes);
-                    } else if (val instanceof ByteBuf byteBuf) {
-                        return Mono.just(ByteBufUtil.getBytes(byteBuf));
-                    } else if (val instanceof Number number) {
-                        return Mono.just(number.toString().getBytes(charset));
                     } else {
                         try {
                             String json = jsonSerializer.beanToJson(val);

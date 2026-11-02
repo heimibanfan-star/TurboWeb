@@ -1,6 +1,5 @@
 package top.turboweb.http.orchestrator;
 
-import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import top.turboweb.http.core.ByteResponseMessage;
@@ -13,7 +12,6 @@ import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.serializer.exception.SerializerException;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -28,8 +26,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * {@link ResultToMessageHandler} 的行为锚：任意返回值归一为 HttpResult 后按数据装配，
  * 非 HttpResult 的输入包为状态码200的 HttpResult（含 null 输入），已是 HttpResult 的
  * 状态行与头原样保留。每个数据类型只走对应装配分支：String 与 null 装配为 text/html
- * 字节消息（null 为空体）、Publisher 转 StreamResponseMessage 且流内元素逐类型编码为
- * 字节数组、其余对象经 JSON 序列化装配为 application/json 字节消息。
+ * 字节消息（null 为空体）、Publisher 转 StreamResponseMessage 且流内元素按
+ * String 取字节、byte[] 原样透传、其余经 JSON 序列化编码为字节数组，
+ * 非 Publisher 的其余对象经 JSON 序列化装配为 application/json 字节消息。
  * 字节消息的正文与 Content-Type 缺省声明均按传入字符集；HttpResult 调用方头先整体写入，
  * 调用方已声明 Content-Type 时保留其声明，未声明时按数据类型补缺省声明，
  * 内容长度以框架按实际响应体算出的值为准；流式消息的状态行与头取自 HttpResult，
@@ -145,8 +144,6 @@ class ResultToMessageHandlerTest {
         Flux<Object> source = Flux.just(
                 "a",
                 new byte[]{'b'},
-                ByteBuffer.wrap(new byte[]{'c'}),
-                Unpooled.wrappedBuffer(new byte[]{'d'}),
                 42,
                 Map.of("k", "v"));
 
@@ -162,8 +159,8 @@ class ResultToMessageHandlerTest {
                 .collectList()
                 .block();
 
-        assertEquals(List.of("a", "b", "c", "d", "42", SERIALIZER.beanToJson(Map.of("k", "v"))), bodies,
-                "String/byte[]/ByteBuffer/ByteBuf/Number/其他对象 六个分支都必须按序各自编码");
+        assertEquals(List.of("a", "b", "42", SERIALIZER.beanToJson(Map.of("k", "v"))), bodies,
+                "String 与 byte[] 按各自口径编码，数值与其余对象经 JSON 序列化兜底");
     }
 
     @Test
