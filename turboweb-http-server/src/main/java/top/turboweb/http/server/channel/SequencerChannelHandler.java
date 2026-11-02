@@ -1,4 +1,4 @@
-package top.turboweb.http.server.handler;
+package top.turboweb.http.server.channel;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;

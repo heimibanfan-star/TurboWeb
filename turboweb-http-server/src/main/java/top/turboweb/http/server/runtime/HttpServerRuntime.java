@@ -3,32 +3,32 @@ package top.turboweb.http.server.runtime;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import top.turboweb.serializer.JacksonJsonSerializer;
-import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.concurrent.thread.ElasticMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
-import top.turboweb.http.server.constant.ResourceNames;
-import top.turboweb.server.runtime.ResourceManager;
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.session.DefaultSessionManagerHolder;
-import top.turboweb.http.session.MemorySessionManager;
-import top.turboweb.http.session.SessionManager;
-import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
-import top.turboweb.http.orchestrator.parser.HttpContentParser;
-import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 import top.turboweb.http.orchestrator.ResultToMessageHandler;
+import top.turboweb.http.orchestrator.parser.HttpContentParser;
+import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
-import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
-import top.turboweb.http.server.handler.SequencerChannelHandler;
+import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.http.server.channel.OrchestrationChannelHandler;
+import top.turboweb.http.server.channel.SequencerChannelHandler;
+import top.turboweb.http.session.DefaultSessionManagerHolder;
+import top.turboweb.http.session.MemorySessionManager;
+import top.turboweb.http.session.SessionManager;
+import top.turboweb.http.session.SessionManagerHolder;
+import top.turboweb.serializer.JacksonJsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
+import top.turboweb.server.runtime.ResourceManager;
 import top.turboweb.server.runtime.ServerRuntime;
 
 import java.util.*;
@@ -83,7 +83,7 @@ public class HttpServerRuntime implements ServerRuntime {
      * http请求调度处理器，构建期装配好的无状态单例（{@code @Sharable}），
      * 负责把请求转交给内部 {@link RequestOrchestrator} 执行编排流程
      */
-    private final HttpRequestSchedulerChannelHandler httpRequestSchedulerHandler;
+    private final OrchestrationChannelHandler httpRequestSchedulerHandler;
 
     /**
      * 应用的资源管理器：装配期由 {@link Builder#build()} 创建的微任务执行器、
@@ -93,7 +93,7 @@ public class HttpServerRuntime implements ServerRuntime {
     private final ResourceManager resourceManager;
 
     public HttpServerRuntime(int maxInFlightResponses,
-                                  HttpRequestSchedulerChannelHandler httpRequestSchedulerHandler,
+                                  OrchestrationChannelHandler httpRequestSchedulerHandler,
                                   ResourceManager resourceManager) {
         this.maxInFlightResponses = maxInFlightResponses;
         this.httpRequestSchedulerHandler = httpRequestSchedulerHandler;
@@ -402,7 +402,7 @@ public class HttpServerRuntime implements ServerRuntime {
                     .defaultCharset(httpConfig.getDefaultCharset())
                     .contentParserManager(new HttpContentParserManager(httpConfig.getDefaultCharset(), this.contentParsers))
                     .build();
-            HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
+            OrchestrationChannelHandler schedulerHandler = OrchestrationChannelHandler.builder()
                     .orchestrator(orchestrator)
                     .build();
             log.info("Http request runtime assembled, max in-flight responses: {}", httpConfig.getMaxInFlightResponses());

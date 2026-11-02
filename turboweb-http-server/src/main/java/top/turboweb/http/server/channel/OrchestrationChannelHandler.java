@@ -1,4 +1,4 @@
-package top.turboweb.http.server.handler;
+package top.turboweb.http.server.channel;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -11,7 +11,7 @@ import top.turboweb.http.orchestrator.RequestOrchestrator;
 import java.util.Objects;
 
 /**
- * http请求调度处理器（纯http版本，不可变）。
+ * http请求编排接入处理器（纯http版本，不可变）。
  * <p>
  * 只接收上游定序处理器封章的 {@link SequencedRequest}：以封装携带的序列号建立
  * 一请求一连接（连接写出的每条消息以该序列号封章，供响应定序），原始请求交给
@@ -21,20 +21,20 @@ import java.util.Objects;
  * {@link top.turboweb.http.server.runtime.HttpServerRuntime} 装配并跨channel复用。
  *
  * <pre>{@code
- * HttpRequestSchedulerChannelHandler schedulerHandler = HttpRequestSchedulerChannelHandler.builder()
+ * OrchestrationChannelHandler orchestrationHandler = OrchestrationChannelHandler.builder()
  *         .orchestrator(requestOrchestrator)
  *         .build();
  * }</pre>
  */
 @ChannelHandler.Sharable
-public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHandler<SequencedRequest> {
+public class OrchestrationChannelHandler extends SimpleChannelInboundHandler<SequencedRequest> {
 
     /**
      * 请求编排器
      */
     private final RequestOrchestrator requestOrchestrator;
 
-    private HttpRequestSchedulerChannelHandler(Builder builder) {
+    private OrchestrationChannelHandler(Builder builder) {
         this.requestOrchestrator = builder.requestOrchestrator;
     }
 
@@ -59,7 +59,7 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
     }
 
     /**
-     * {@link HttpRequestSchedulerChannelHandler} 的建造者，链式方法校验参数为null立即抛出 {@link NullPointerException}。
+     * {@link OrchestrationChannelHandler} 的建造者，链式方法校验参数为null立即抛出 {@link NullPointerException}。
      */
     public static final class Builder {
 
@@ -81,9 +81,9 @@ public class HttpRequestSchedulerChannelHandler extends SimpleChannelInboundHand
         /**
          * 构建处理器对象，只处理http请求，默认没有websocket
          */
-        public HttpRequestSchedulerChannelHandler build() {
+        public OrchestrationChannelHandler build() {
             Objects.requireNonNull(requestOrchestrator, "requestOrchestrator can not be null");
-            return new HttpRequestSchedulerChannelHandler(this);
+            return new OrchestrationChannelHandler(this);
         }
     }
 }

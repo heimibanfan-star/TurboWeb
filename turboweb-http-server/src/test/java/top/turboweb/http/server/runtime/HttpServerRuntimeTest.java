@@ -7,29 +7,29 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import top.turboweb.serializer.JacksonJsonSerializer;
-import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.concurrent.thread.ElasticMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.core.ContentType;
 import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
-import top.turboweb.http.orchestrator.parser.HttpContentParser;
-import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
 import top.turboweb.http.orchestrator.ResultToMessageHandler;
+import top.turboweb.http.orchestrator.parser.HttpContentParser;
+import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.constant.ResourceNames;
-import top.turboweb.http.server.handler.HttpRequestSchedulerChannelHandler;
+import top.turboweb.http.server.channel.OrchestrationChannelHandler;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
-import top.turboweb.http.core.ContentType;
+import top.turboweb.serializer.JacksonJsonSerializer;
+import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.server.runtime.ResourceException;
 
 import java.lang.reflect.Field;
@@ -43,14 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * {@link HttpServerRuntime.Builder} 的编排器装配契约与资源管理器（spec §5 server/runtime 行）。
@@ -524,7 +517,7 @@ class HttpServerRuntimeTest {
         Field handlerField = HttpServerRuntime.class.getDeclaredField("httpRequestSchedulerHandler");
         handlerField.setAccessible(true);
         Object handler = handlerField.get(runtime);
-        Field orchestratorField = HttpRequestSchedulerChannelHandler.class.getDeclaredField("requestOrchestrator");
+        Field orchestratorField = OrchestrationChannelHandler.class.getDeclaredField("requestOrchestrator");
         orchestratorField.setAccessible(true);
         return (RequestOrchestrator) orchestratorField.get(handler);
     }

@@ -1,4 +1,4 @@
-package top.turboweb.http.server.handler;
+package top.turboweb.http.server.channel;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
@@ -25,25 +25,18 @@ import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.server.runtime.ResourceManager;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * {@link HttpRequestSchedulerChannelHandler} 的调度行为锚：
+ * {@link top.turboweb.http.server.channel.OrchestrationChannelHandler} 的调度行为锚：
  * 只接收封章后的 {@link SequencedRequest}，以封装携带的序列号建立一请求一连接，
  * 编排原始请求并在返回后归还收到的请求引用；未封章的裸请求不经编排原样透传，
  * 由下游处理器决定。
  * <p>编排器为九组件齐备的真实实例，微任务执行器同步直跑使编排可断言。
  */
-class HttpRequestSchedulerChannelHandlerTest {
+class OrchestrationChannelHandlerTest {
 
     /** 捕获编排上下文的中间件：编排是否发生与连接序列号都经上下文观察 */
     private static final class ContextCapturingMiddleware extends Middleware {
@@ -117,7 +110,7 @@ class HttpRequestSchedulerChannelHandlerTest {
     void sequencedRequestIsOrchestratedWithSequenceCarryingConnection() {
         List<HttpContext> contexts = new ArrayList<>();
         EmbeddedChannel channel = new EmbeddedChannel(
-                HttpRequestSchedulerChannelHandler.builder().orchestrator(orchestrator(contexts)).build());
+                top.turboweb.http.server.channel.OrchestrationChannelHandler.builder().orchestrator(orchestrator(contexts)).build());
         FullHttpRequest request = getRequest("/a");
         assertEquals(1, request.refCnt());
 
@@ -136,7 +129,7 @@ class HttpRequestSchedulerChannelHandlerTest {
     void eachSequencedRequestGetsItsOwnConnection() {
         List<HttpContext> contexts = new ArrayList<>();
         EmbeddedChannel channel = new EmbeddedChannel(
-                HttpRequestSchedulerChannelHandler.builder().orchestrator(orchestrator(contexts)).build());
+                top.turboweb.http.server.channel.OrchestrationChannelHandler.builder().orchestrator(orchestrator(contexts)).build());
         FullHttpRequest first = getRequest("/1");
         FullHttpRequest second = getRequest("/2");
 
@@ -158,7 +151,7 @@ class HttpRequestSchedulerChannelHandlerTest {
     void rawRequestPassesThroughUnorchestrated() {
         List<HttpContext> contexts = new ArrayList<>();
         EmbeddedChannel channel = new EmbeddedChannel(
-                HttpRequestSchedulerChannelHandler.builder().orchestrator(orchestrator(contexts)).build());
+                top.turboweb.http.server.channel.OrchestrationChannelHandler.builder().orchestrator(orchestrator(contexts)).build());
         FullHttpRequest upgrade = getRequest("/ws");
         upgrade.headers().set("Upgrade", "websocket");
         FullHttpRequest plain = getRequest("/a");

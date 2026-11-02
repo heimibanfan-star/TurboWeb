@@ -1,4 +1,4 @@
-package top.turboweb.http.server.handler;
+package top.turboweb.http.server.channel;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
