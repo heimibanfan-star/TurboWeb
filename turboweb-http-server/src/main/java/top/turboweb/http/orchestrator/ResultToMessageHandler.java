@@ -21,7 +21,7 @@ import java.util.Objects;
  * 业务侧需要自定义状态行与响应头时直接返回 HttpResult；
  * 已是响应消息的返回值由编排器直接透传写出，不经本类。
  * 数据按类型装配：Publisher 转为流式响应消息，状态行与响应头取自 HttpResult，
- * 调用方已声明 Content-Type 时保留其声明，未声明时补 application/octet-stream；
+ * 调用方已声明 Content-Type 时保留其声明，未声明时补 text/html 且 charset 段取缺省字符集；
  * String 与 null 数据按 text/html 装配为字节消息，null 为空体；
  * 其余数据经 json序列化器按 application/json 装配为字节消息。
  * 调用方头先整体写入，调用方已声明 Content-Type 的字节消息保留其声明不覆盖，
@@ -111,8 +111,8 @@ public final class ResultToMessageHandler {
 
     /**
      * 将 HttpResult 携带的异步流包装为流式响应消息：状态行与响应头取自 HttpResult，
-     * 调用方已声明 Content-Type 时保留其声明，未声明时补 application/octet-stream
-     * 以满足写出门禁；流内元素按 {@link #processPublisher(Publisher, Charset)} 逐个编码为字节块。
+     * 调用方已声明 Content-Type 时保留其声明，未声明时补 text/html 且 charset 段取
+     * 缺省字符集以满足写出门禁；流内元素按 {@link #processPublisher(Publisher, Charset)} 逐个编码为字节块。
      *
      * @param httpResult 响应值对象
      * @param publisher  异步流
@@ -124,7 +124,7 @@ public final class ResultToMessageHandler {
                 httpResult.statusLine(), processPublisher(publisher, charset));
         copyCallerHeaders(httpResult, message);
         if (!message.headers().contains(CONTENT_TYPE)) {
-            message.headers().set(CONTENT_TYPE, "application/octet-stream");
+            message.headers().set(CONTENT_TYPE, "text/html;charset=" + charset.name());
         }
         return message;
     }

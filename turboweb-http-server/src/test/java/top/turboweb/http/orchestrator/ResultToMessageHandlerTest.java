@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * 字节消息的正文与 Content-Type 缺省声明均按传入字符集；HttpResult 调用方头先整体写入，
  * 调用方已声明 Content-Type 时保留其声明，未声明时按数据类型补缺省声明，
  * 内容长度以框架按实际响应体算出的值为准；流式消息的状态行与头取自 HttpResult，
- * 未声明 Content-Type 时补 application/octet-stream。
+ * 未声明 Content-Type 时补 text/html 且 charset 段取传入字符集。
  * 序列化失败的行为奇偶：字节消息装配上抛、流内环节转为流错误信号。
  */
 class ResultToMessageHandlerTest {
@@ -152,8 +152,8 @@ class ResultToMessageHandlerTest {
         StreamResponseMessage streamMessage = assertInstanceOf(StreamResponseMessage.class, message,
                 "Publisher 必须转成流式响应消息");
         assertEquals(StatusLine.OK, message.statusLine(), "非 HttpResult 的输入包为状态码200的 HttpResult");
-        assertEquals("application/octet-stream", message.headers().get("Content-Type"),
-                "流式消息未声明内容类型时补缺省声明以满足写出门禁");
+        assertEquals("text/html;charset=UTF-8", message.headers().get("Content-Type"),
+                "流式消息未声明内容类型时按 String 数据口径补 text/html，charset 段取传入字符集");
         List<String> bodies = streamMessage.content()
                 .map(bytes -> new String(bytes, CHARSET))
                 .collectList()
