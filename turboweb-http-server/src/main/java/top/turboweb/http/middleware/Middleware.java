@@ -3,6 +3,7 @@ package top.turboweb.http.middleware;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.server.runtime.ResourceProvider;
 
 /**
  * 中间件抽象基类：链式结构（next 指针与锁定）、生命周期（init 与 destroy）与调用语义（invoke）在此统一定义。
@@ -35,13 +36,13 @@ public abstract class Middleware {
     /**
      * 初始化
      *
-     * @param chain 中间件链
+     * @param resourceProvider 资源提供者，只读查询视图，供初始化期按需取用系统内置或应用登记的资源
      */
-    public void init(Middleware chain) {
+    public void init(ResourceProvider resourceProvider) {
     }
 
     /**
-     * 销毁中间件，释放 {@link #init(Middleware)} 阶段创建的资源（线程池、定时任务、缓存等）。
+     * 销毁中间件，释放 {@link #init(ResourceProvider)} 阶段创建的资源（线程池、定时任务、缓存等）。
      * <p>
      * 默认空实现，只有持有生命周期资源的子类才需要覆写。调用由应用发起：
      * 应用关闭时沿中间件链按与装配期 {@code init} 相同的顺序（链头到链尾）

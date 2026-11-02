@@ -6,8 +6,11 @@ import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.testkit.RecordingMiddleware;
+import top.turboweb.server.runtime.ResourceManager;
+import top.turboweb.server.runtime.ResourceProvider;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,12 +39,12 @@ class MiddlewareTypesTest {
         }
     }
 
-    /** 记录 init 收到的 chain 参数、invoke/destroy 顺序的分支成员。 */
+    /** 记录 init 收到的资源提供者、invoke/destroy 顺序的分支成员。 */
     private static class ChainProbe extends Middleware {
         private final String name;
         private final List<String> events;
         private final String payload;
-        Middleware initChainArg;
+        ResourceProvider initResources;
         int initCalls;
 
         ChainProbe(String name, List<String> events, String payload) {
@@ -51,9 +54,9 @@ class MiddlewareTypesTest {
         }
 
         @Override
-        public void init(Middleware chain) {
+        public void init(ResourceProvider resourceProvider) {
             initCalls++;
-            initChainArg = chain;
+            initResources = resourceProvider;
             events.add("init:" + name);
         }
 
@@ -113,7 +116,7 @@ class MiddlewareTypesTest {
         FixedBranch branch = new FixedBranch("a");
         branch.addMiddleware("a", new ChainProbe("m1", events, null));
         branch.addMiddleware("a", new ChainProbe("m2", events, "A"));
-        branch.init(branch);
+        branch.init(null);
 
         assertEquals("A", branch.invoke(null), "m1 无载荷继续向后，m2 携带载荷终止分支链");
         assertEquals(List.of("init:m1", "init:m2", "invoke:m1", "invoke:m2"), events);
@@ -128,32 +131,15 @@ class MiddlewareTypesTest {
         RecordingMiddleware mainTail = new RecordingMiddleware("main", events, "MAIN");
         branch.setNext(mainTail);
         branch.addMiddleware("a", m1);
-        branch.init(branch);
+        branch.init(null);
 
         assertEquals("MAIN", branch.invoke(null), "MergeMiddleware 继续执行主链的下一个中间件");
         assertEquals(List.of("init:m1", "invoke:m1", "invoke:main"), events);
     }
 
     @Test
-    @DisplayName("MergeMiddleware 接的是 getNext()，init 传入的 chain 参数被忽略")
-    void initIgnoresChainArgumentAndMergesToGetNext() {
-        List<String> events = new ArrayList<>();
-        FixedBranch branch = new FixedBranch("a");
-        ChainProbe m1 = new ChainProbe("m1", events, null);
-        RecordingMiddleware mainTail = new RecordingMiddleware("main", events, "MAIN");
-        RecordingMiddleware decoy = new RecordingMiddleware("decoy", events, "DECOY");
-        branch.setNext(mainTail);
-        branch.addMiddleware("a", m1);
-
-        branch.init(decoy);
-
-        assertEquals("MAIN", branch.invoke(null), "chain 参数与 getNext() 不同也不影响合并目标");
-        assertFalse(events.contains("invoke:decoy"), "被传入的 chain 参数不得被调用");
-    }
-
-    @Test
-    @DisplayName("分支内每个中间件的 init 收到的 chain 参数是分支链头")
-    void initPassesBranchHeadAsChainArgumentToBranchMembers() {
+    @DisplayName("分支内每个中间件的 init 收到与分支中间件相同的资源提供者")
+    void initPassesResourceProviderToBranchMembers() {
         List<String> events = new ArrayList<>();
         FixedBranch branch = new FixedBranch("a");
         ChainProbe m1 = new ChainProbe("m1", events, null);
@@ -161,12 +147,13 @@ class MiddlewareTypesTest {
         branch.addMiddleware("a", m1);
         branch.addMiddleware("a", m2);
 
-        branch.init(branch);
+        ResourceProvider provider = new ResourceManager.Builder().build(new LinkedHashMap<>());
+        branch.init(provider);
 
         assertEquals(1, m1.initCalls);
         assertEquals(1, m2.initCalls);
-        assertSame(m1, m1.initChainArg, "分支首件收到自己（分支链头）作为 chain");
-        assertSame(m1, m2.initChainArg, "分支后续件同样收到分支链头，而不是 init 传入的主链参数");
+        assertSame(provider, m1.initResources, "分支首件收到 init 注入的资源提供者");
+        assertSame(provider, m2.initResources, "分支后续件收到同一个资源提供者，原样下传");
     }
 
     @Test
@@ -177,7 +164,7 @@ class MiddlewareTypesTest {
         ChainProbe m1 = new ChainProbe("m1", events, null);
         branch.addMiddleware("a", m1);
         branch.addMiddleware("a", new ChainProbe("m2", events, "A"));
-        branch.init(branch);
+        branch.init(null);
 
         m1.setNext(new ChainProbe("intruder", events, "X"));
 
@@ -192,7 +179,7 @@ class MiddlewareTypesTest {
         FixedBranch branch = new FixedBranch("b");
         branch.addMiddleware("a", new ChainProbe("a1", events, "A"));
         branch.addMiddleware("b", new ChainProbe("b1", events, "B"));
-        branch.init(branch);
+        branch.init(null);
 
         assertEquals("B", branch.invoke(null));
         assertFalse(events.contains("invoke:a1"), "未命中的分支链不得执行");
@@ -204,7 +191,7 @@ class MiddlewareTypesTest {
         List<String> events = new ArrayList<>();
         FixedBranch branch = new FixedBranch("missing");
         branch.addMiddleware("a", new ChainProbe("a1", events, "A"));
-        branch.init(branch);
+        branch.init(null);
 
         RouteHandlerException ex =
                 assertThrows(RouteHandlerException.class, () -> branch.invoke(null));
@@ -231,7 +218,7 @@ class MiddlewareTypesTest {
         List<String> events = new ArrayList<>();
         FixedBranch branch = new FixedBranch("a");
         branch.addMiddleware("a", new ChainProbe("m1", events, null));
-        branch.init(branch);
+        branch.init(null);
 
         branch.destroy();
 
@@ -249,7 +236,7 @@ class MiddlewareTypesTest {
         branch.setNext(mainTail);
         branch.addMiddleware("a", m1);
 
-        branch.init(branch);
+        branch.init(null);
         mainTail.setNext(new RecordingMiddleware("intruder", events, "X"));
 
         assertNull(mainTail.getNext(),

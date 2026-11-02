@@ -5,6 +5,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.context.HttpContext;
+import top.turboweb.server.runtime.ResourceProvider;
 
 import java.util.*;
 
@@ -29,7 +30,7 @@ import java.util.*;
  * <p>
  * 生命周期说明：
  * <ul>
- *     <li>在服务器初始化阶段，所有分支中间件应调用 {@link #init(Middleware)} 组装中间件链。</li>
+ *     <li>在服务器初始化阶段，所有分支中间件应调用 {@link #init(ResourceProvider)} 组装中间件链。</li>
  *     <li>在运行时，根据 {@link #getBranchKey(HttpContext)} 获取对应链路执行。</li>
  *     <li>在销毁阶段，覆写的 {@link #destroy()} 随主链销毁回调触达，按注册顺序补销毁各分支内的中间件。</li>
  * </ul>
@@ -109,12 +110,13 @@ public abstract class BranchMiddleware extends Middleware {
      * <p>
      * 每个分支链的最后一个中间件都会连接到哑元中间件，
      * 以便透传回主链后续的中间件。
+     * 分支内各中间件的初始化收到与本分支相同的资源提供者。
      * </p>
      *
-     * @param chain 主链的下一个中间件
+     * @param resourceProvider 资源提供者，只读查询视图，原样下传给分支内各中间件的初始化
      */
     @Override
-    public void init(Middleware chain) {
+    public void init(ResourceProvider resourceProvider) {
         // 分支链末尾的哑元中间件：分支链执行完后透传回主链的下一个中间件
         NoopMiddleware mergeMiddleware = new NoopMiddleware();
         mergeMiddleware.setNext(getNext());
@@ -136,10 +138,10 @@ public abstract class BranchMiddleware extends Middleware {
                 }
                 // 对中间件链初始化
                 last = sentinelMiddleware;
-                last.init(sentinelMiddleware);
+                last.init(resourceProvider);
                 while (last.getNext() != null) {
                     last = last.getNext();
-                    last.init(sentinelMiddleware);
+                    last.init(resourceProvider);
                 }
                 // 拼接合并中间件
                 last.setNext(mergeMiddleware);
@@ -161,7 +163,7 @@ public abstract class BranchMiddleware extends Middleware {
      * 销毁分支内的全部中间件。
      * <p>
      * 分支成员挂在 {@link #middlewareMap} 上、不在主链 {@code getNext()} 指针上，
-     * 应用关闭时沿主链的销毁遍历触达不到它们；本覆写按与 {@link #init(Middleware)}
+     * 应用关闭时沿主链的销毁遍历触达不到它们；本覆写按与 {@link #init(ResourceProvider)}
      * 相同的逐分支、逐成员顺序调用各成员的 {@link Middleware#destroy()}。
      * 单个成员的销毁异常只记录日志，不中断其余成员的销毁。
      */

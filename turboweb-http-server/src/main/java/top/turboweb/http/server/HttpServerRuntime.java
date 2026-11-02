@@ -28,6 +28,7 @@ import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.server.runtime.ResourceManager;
+import top.turboweb.server.runtime.ResourceProvider;
 import top.turboweb.server.runtime.ServerRuntime;
 
 import java.util.*;
@@ -344,7 +345,8 @@ public class HttpServerRuntime implements ServerRuntime {
 
         /**
          * 构建应用：先以本建造者的 json 序列化器生产路由处理器管理器（未挂登记表则无路由），
-         * 再串联并初始化中间件链，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按九组件装配
+         * 再串联中间件链，按限流参数创建虚拟线程资源并以资源管理器托管，资源管理器就绪后
+         * 按链序初始化并锁定中间件链，未传入的组件补全默认值后按九组件装配
          * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}，内容解析器管理器
          * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器。
          * 装配出的中间件链销毁适配器经托管通道登记、创建的线程池执行器与传入的任务卸载执行器
@@ -369,8 +371,8 @@ public class HttpServerRuntime implements ServerRuntime {
             RouteHandlerManager routeHandlerManager = this.routeRegister != null
                     ? this.routeRegister.newRouteHandlerManager(this.jsonSerializer)
                     : null;
-            // 串联并初始化中间件链：链头为哨兵，存在路由处理器管理器时路由调用中间件追加链尾
-            Middleware middlewareChain = initMiddlewareChain(routeHandlerManager);
+            // 串联中间件链：链头为哑元中间件，存在路由处理器管理器时路由调用中间件追加链尾
+            Middleware middlewareChain = linkMiddlewareChain(routeHandlerManager);
             // 中间件链销毁适配器以托管资源登记，保证应用关闭时中间件的destroy先于线程池的关闭执行
             resourceBuilder.addManaged(() -> destroyMiddlewareChain(middlewareChain));
             // 线程池执行器作为内置资源随构建一次性传入，
@@ -387,6 +389,8 @@ public class HttpServerRuntime implements ServerRuntime {
                     : ElasticMicroTaskExecutor.of("task-offload-micro-task");
             builtinResources.put(ResourceNames.TASK_OFFLOAD_THREAD_POOL, taskOffload);
             ResourceManager resourceManager = resourceBuilder.build(builtinResources);
+            // 资源管理器就绪后初始化中间件链并锁定：init 只注入资源提供者，链结构不外泄
+            initAndLockMiddlewareChain(middlewareChain, resourceManager);
             // 未传入的组件补全默认值后，按九组件装定请求编排器；线程池执行器按资源名从管理器获取
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()
                     .middleware(middlewareChain)
@@ -415,12 +419,13 @@ public class HttpServerRuntime implements ServerRuntime {
         /**
          * 装配中间件链：以哑元中间件为链头按注册顺序串联业务中间件（同一中间件类重复注册抛
          * {@link IllegalStateException}），存在路由处理器管理器时创建路由调用中间件追加在链尾，
-         * 不存在则不创建；随后按链序依次执行各中间件的init与锁定
+         * 不存在则不创建；本方法只做串联，初始化与锁定由
+         * {@link #initAndLockMiddlewareChain(Middleware, ResourceProvider)} 在资源管理器就绪后执行
          *
          * @param routeHandlerManager 构建期由路由登记表生产出的路由处理器管理器，为null时链尾不挂路由节点
          * @return 中间件链链头（哑元中间件）
          */
-        private Middleware initMiddlewareChain(RouteHandlerManager routeHandlerManager) {
+        private Middleware linkMiddlewareChain(RouteHandlerManager routeHandlerManager) {
             final Middleware head = new NoopMiddleware();
             Middleware tail = head;
             // 用Set集合，防止middleware重复
@@ -437,10 +442,24 @@ public class HttpServerRuntime implements ServerRuntime {
             if (routeHandlerManager != null) {
                 tail.setNext(new RouteInvokeMiddleware(routeHandlerManager));
             }
+            log.info("Middleware chain linked: {} business middleware(s){}",
+                    middlewares.size(), routeHandlerManager != null ? ", with route handler invoke middleware appended at the tail" : ", without a route handler manager");
+            return head;
+        }
+
+        /**
+         * 按链序执行各中间件的初始化并锁定：初始化只注入资源提供者（内置资源按
+         * {@link ResourceNames} 取用，应用登记的自定义资源按名或按类型取用），不暴露链结构；
+         * 随后锁定全部中间件，链不可再改
+         *
+         * @param head             中间件链链头
+         * @param resourceProvider 资源提供者，只读查询视图
+         */
+        private void initAndLockMiddlewareChain(Middleware head, ResourceProvider resourceProvider) {
             // 执行所有中间件的初始化操作
             Middleware next = head;
             while (next != null) {
-                next.init(head);
+                next.init(resourceProvider);
                 next = next.getNext();
             }
             // 锁定所有的中间件
@@ -449,9 +468,7 @@ public class HttpServerRuntime implements ServerRuntime {
                 next.lockMiddleware();
                 next = next.getNext();
             }
-            log.info("Middleware chain assembled: {} business middleware(s){}, all initialized and locked",
-                    middlewares.size(), routeHandlerManager != null ? ", with route handler invoke middleware appended at the tail" : ", without a route handler manager");
-            return head;
+            log.info("Middleware chain initialized and locked: {} business middleware(s)", middlewares.size());
         }
 
         /**

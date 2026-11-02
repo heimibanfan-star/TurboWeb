@@ -23,10 +23,10 @@ class RecordingMiddlewareTest {
         RecordingMiddleware head = new RecordingMiddleware("head", events);
         RecordingMiddleware tail = new RecordingMiddleware("tail", events, "body");
 
-        // 与装配期一致：先串链，再逐个 init(链头)
+        // 与装配期一致：先串链，再逐个 init（资源提供者对记录件不可见，传 null）
         head.setNext(tail);
-        head.init(head);
-        tail.init(head);
+        head.init(null);
+        tail.init(null);
 
         assertEquals("body", head.invoke(null), "head 无载荷应向后走到 tail 取其载荷");
         assertEquals(List.of("init:head", "init:tail", "invoke:head", "invoke:tail"), events);
@@ -52,8 +52,8 @@ class RecordingMiddlewareTest {
 
         sentinel.setNext(first);
         first.setNext(second);
-        first.init(sentinel);
-        second.init(sentinel);
+        first.init(null);
+        second.init(null);
 
         assertEquals(List.of("init:first", "init:second"), events);
         first.destroy();

@@ -2,6 +2,7 @@ package top.turboweb.http.testkit;
 
 import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
+import top.turboweb.server.runtime.ResourceProvider;
 
 import java.util.List;
 
@@ -35,7 +36,7 @@ public class RecordingMiddleware extends Middleware {
     }
 
     @Override
-    public void init(Middleware chain) {
+    public void init(ResourceProvider resourceProvider) {
         events.add("init:" + name);
     }
 
