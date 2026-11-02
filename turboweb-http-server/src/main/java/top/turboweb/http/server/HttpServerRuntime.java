@@ -6,9 +6,9 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import top.turboweb.concurrent.thread.ElasticMicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
-import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.middleware.SentinelMiddleware;
+import top.turboweb.http.middleware.NoopMiddleware;
+import top.turboweb.http.middleware.RouteInvokeMiddleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
@@ -18,9 +18,9 @@ import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
-import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.channel.OrchestrationChannelHandler;
 import top.turboweb.http.server.channel.SequencerChannelHandler;
+import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.session.DefaultSessionManagerHolder;
 import top.turboweb.http.session.MemorySessionManager;
 import top.turboweb.http.session.SessionManager;
@@ -413,16 +413,16 @@ public class HttpServerRuntime implements ServerRuntime {
         }
 
         /**
-         * 装配中间件链：以哨兵中间件为链头按注册顺序串联业务中间件（同一中间件类重复注册抛
+         * 装配中间件链：以哑元中间件为链头按注册顺序串联业务中间件（同一中间件类重复注册抛
          * {@link IllegalStateException}），存在路由处理器管理器时创建路由调用中间件追加在链尾，
          * 不存在则不创建；随后按链序依次执行各中间件的init与锁定
          *
          * @param routeHandlerManager 构建期由路由登记表生产出的路由处理器管理器，为null时链尾不挂路由节点
-         * @return 中间件链链头（哨兵中间件）
+         * @return 中间件链链头（哑元中间件）
          */
         private Middleware initMiddlewareChain(RouteHandlerManager routeHandlerManager) {
-            final Middleware sentinel = new SentinelMiddleware();
-            Middleware tail = sentinel;
+            final Middleware head = new NoopMiddleware();
+            Middleware tail = head;
             // 用Set集合，防止middleware重复
             Set<Class<? extends Middleware>> registeredMiddlewares = new HashSet<>();
             for (Middleware middleware : middlewares) {
@@ -433,25 +433,25 @@ public class HttpServerRuntime implements ServerRuntime {
                 tail = middleware;
                 registeredMiddlewares.add(middleware.getClass());
             }
-            // 存在路由处理器管理器时，包装成路由调用中间件添加到最后
+            // 存在路由处理器管理器时，链尾追加路由调用中间件
             if (routeHandlerManager != null) {
-                tail.setNext(new RouteHandlerInvokeMiddleware(routeHandlerManager));
+                tail.setNext(new RouteInvokeMiddleware(routeHandlerManager));
             }
             // 执行所有中间件的初始化操作
-            Middleware next = sentinel;
+            Middleware next = head;
             while (next != null) {
-                next.init(sentinel);
+                next.init(head);
                 next = next.getNext();
             }
             // 锁定所有的中间件
-            next = sentinel;
+            next = head;
             while (next != null) {
                 next.lockMiddleware();
                 next = next.getNext();
             }
             log.info("Middleware chain assembled: {} business middleware(s){}, all initialized and locked",
                     middlewares.size(), routeHandlerManager != null ? ", with route handler invoke middleware appended at the tail" : ", without a route handler manager");
-            return sentinel;
+            return head;
         }
 
         /**
@@ -499,21 +499,4 @@ public class HttpServerRuntime implements ServerRuntime {
 
     }
 
-    /**
-     * 路由处理器调用中间件：装配期追加在中间件链的末端，把当前请求上下文交给
-     * {@link RouteHandlerManager} 处理，其返回结果作为链结果交后续结果转化与写出。
-     */
-    private static final class RouteHandlerInvokeMiddleware extends Middleware {
-
-        private final RouteHandlerManager routeHandlerManager;
-
-        private RouteHandlerInvokeMiddleware(RouteHandlerManager routeHandlerManager) {
-            this.routeHandlerManager = routeHandlerManager;
-        }
-
-        @Override
-        public Object invoke(HttpContext ctx) {
-            return routeHandlerManager.handle(ctx);
-        }
-    }
 }

@@ -54,20 +54,6 @@ public abstract class BranchMiddleware extends Middleware {
     private final Map<String, Middleware> middlewareChains = new HashMap<>();
 
     /**
-     * <p>
-     * 聚合（终止）中间件，用于在每个分支链末尾拼接。
-     * 其作用是继续执行主链的下一个中间件。
-     * </p>
-     */
-    private static class MergeMiddleware extends Middleware {
-
-        @Override
-        public Object invoke(HttpContext ctx) {
-            return next(ctx);
-        }
-    }
-
-    /**
      * 执行中间件逻辑。
      * <p>根据上下文计算分支键，执行对应分支的中间件链。</p>
      *
@@ -121,16 +107,16 @@ public abstract class BranchMiddleware extends Middleware {
     /**
      * 初始化阶段调用，用于组装每个分支的中间件链。
      * <p>
-     * 每个分支链的最后一个中间件都会连接到 {@link MergeMiddleware}，
-     * 以便执行主链后续的中间件。
+     * 每个分支链的最后一个中间件都会连接到哑元中间件，
+     * 以便透传回主链后续的中间件。
      * </p>
      *
      * @param chain 主链的下一个中间件
      */
     @Override
     public void init(Middleware chain) {
-        // 创建聚合中间件
-        MergeMiddleware mergeMiddleware = new MergeMiddleware();
+        // 分支链末尾的哑元中间件：分支链执行完后透传回主链的下一个中间件
+        NoopMiddleware mergeMiddleware = new NoopMiddleware();
         mergeMiddleware.setNext(getNext());
         // 依次组装中间件
         for (Map.Entry<String, LinkedHashSet<Middleware>> entry : middlewareMap.entrySet()) {

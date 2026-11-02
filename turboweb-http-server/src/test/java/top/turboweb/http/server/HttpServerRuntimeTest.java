@@ -14,7 +14,7 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.core.ContentType;
 import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.middleware.SentinelMiddleware;
+import top.turboweb.http.middleware.NoopMiddleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
@@ -23,8 +23,8 @@ import top.turboweb.http.orchestrator.parser.HttpContentParser;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
-import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.server.channel.OrchestrationChannelHandler;
+import top.turboweb.http.server.config.HttpConfig;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.RecordingMiddleware;
 import top.turboweb.serializer.JacksonJsonSerializer;
@@ -131,7 +131,7 @@ class HttpServerRuntimeTest {
 
         Middleware routeMiddleware = mw.getNext();
         assertNotNull(routeMiddleware, "存在路由处理器管理器时必须创建路由调用中间件追加在链尾");
-        assertEquals("RouteHandlerInvokeMiddleware", routeMiddleware.getClass().getSimpleName());
+        assertEquals("RouteInvokeMiddleware", routeMiddleware.getClass().getSimpleName());
         assertNull(routeMiddleware.getNext(), "路由调用中间件位于链尾，其后不得再有节点");
         assertSame("route-result", routeMiddleware.invoke(null),
                 "路由调用中间件把上下文交给管理器handle，其返回结果原样作为链结果");
@@ -358,9 +358,9 @@ class HttpServerRuntimeTest {
                 (ResultToMessageHandler) componentOf(orchestrator, "resultToMessageHandler");
         assertNotNull(resultToMessageHandler, "结果转化处理器由构建期装配进入编排器");
         Middleware head = (Middleware) componentOf(orchestrator, "middleware");
-        assertInstanceOf(SentinelMiddleware.class, head, "编排器的中间件组件是链头哨兵");
-        assertSame(mw, head.getNext(), "业务中间件紧随哨兵");
-        assertEquals("RouteHandlerInvokeMiddleware", mw.getNext().getClass().getSimpleName(),
+        assertInstanceOf(NoopMiddleware.class, head, "编排器的中间件组件是链头哑元中间件");
+        assertSame(mw, head.getNext(), "业务中间件紧随哑元中间件");
+        assertEquals("RouteInvokeMiddleware", mw.getNext().getClass().getSimpleName(),
                 "路由调用中间件追加在链尾");
         assertNull(mw.getNext().getNext(), "路由调用中间件之后无节点");
         runtime.close();

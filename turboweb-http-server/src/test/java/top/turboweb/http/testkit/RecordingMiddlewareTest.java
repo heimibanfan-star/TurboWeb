@@ -3,12 +3,13 @@ package top.turboweb.http.testkit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.middleware.SentinelMiddleware;
+import top.turboweb.http.middleware.NoopMiddleware;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * 夹具自证：记录件的链式行为与事件顺序。
@@ -45,7 +46,7 @@ class RecordingMiddlewareTest {
     @DisplayName("哨兵与记录件混排时事件顺序仍为链头到链尾")
     void sentinelAndRecordingChainOrder() {
         List<String> events = new ArrayList<>();
-        Middleware sentinel = new SentinelMiddleware();
+        Middleware sentinel = new NoopMiddleware();
         RecordingMiddleware first = new RecordingMiddleware("first", events);
         RecordingMiddleware second = new RecordingMiddleware("second", events);
 

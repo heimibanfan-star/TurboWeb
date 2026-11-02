@@ -6,29 +6,22 @@ import org.junit.jupiter.api.Test;
 import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.concurrent.thread.MicroTaskExecutor.FinallyType;
 import top.turboweb.concurrent.thread.VirtualThreadMicroTaskExecutor;
-import top.turboweb.http.context.*;
 import top.turboweb.http.connection.InternalHttpConnection;
-import top.turboweb.http.session.BackHoleSessionManager;
+import top.turboweb.http.context.HttpContext;
+import top.turboweb.http.core.*;
 import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.middleware.SentinelMiddleware;
+import top.turboweb.http.middleware.NoopMiddleware;
 import top.turboweb.http.orchestrator.parser.HttpContentParser;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
-import top.turboweb.http.orchestrator.ResultToMessageHandler;
-import top.turboweb.http.core.ByteResponseMessage;
-import top.turboweb.http.core.HttpResponseMessage;
-import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
+import top.turboweb.http.request.FormRequestMessage;
 import top.turboweb.http.server.ResourceNames;
+import top.turboweb.http.session.BackHoleSessionManager;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.testkit.Stubs;
-import top.turboweb.http.core.ContentType;
-import top.turboweb.http.core.HttpRequestMethod;
-import top.turboweb.http.core.HttpRequestMessage;
-import top.turboweb.http.core.VoidRequestMessage;
-import top.turboweb.http.request.FormRequestMessage;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.server.runtime.ResourceManager;
 
@@ -83,7 +76,7 @@ class RequestOrchestratorTest {
     /** 按指定 cors 配置装配九组件齐备的编排器（空链头、空异常处理器表）。 */
     private static RequestOrchestrator orchestratorWith(HttpCorsConfig corsConfig) {
         return RequestOrchestrator.builder()
-                .middleware(new SentinelMiddleware())
+                .middleware(new NoopMiddleware())
                 .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("test-orchestrator")))
                 .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
                 .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
@@ -212,7 +205,7 @@ class RequestOrchestratorTest {
 
         NullPointerException e2 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
-                        .middleware(new SentinelMiddleware())
+                        .middleware(new NoopMiddleware())
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
                         .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .corsConfig(HttpCorsConfig.builder().build())
@@ -222,7 +215,7 @@ class RequestOrchestratorTest {
 
         NullPointerException e3 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
-                        .middleware(new SentinelMiddleware())
+                        .middleware(new NoopMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .corsConfig(HttpCorsConfig.builder().build())
@@ -232,7 +225,7 @@ class RequestOrchestratorTest {
 
         NullPointerException e4 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
-                        .middleware(new SentinelMiddleware())
+                        .middleware(new NoopMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
                         .corsConfig(HttpCorsConfig.builder().build())
@@ -242,7 +235,7 @@ class RequestOrchestratorTest {
 
         NullPointerException e5 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
-                        .middleware(new SentinelMiddleware())
+                        .middleware(new NoopMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
                         .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
@@ -251,7 +244,7 @@ class RequestOrchestratorTest {
 
         NullPointerException e6 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
-                        .middleware(new SentinelMiddleware())
+                        .middleware(new NoopMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
                         .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
@@ -261,7 +254,7 @@ class RequestOrchestratorTest {
 
         NullPointerException e7 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
-                        .middleware(new SentinelMiddleware())
+                        .middleware(new NoopMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
                         .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
@@ -271,7 +264,7 @@ class RequestOrchestratorTest {
 
         NullPointerException e8 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
-                        .middleware(new SentinelMiddleware())
+                        .middleware(new NoopMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
                         .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
@@ -282,7 +275,7 @@ class RequestOrchestratorTest {
 
         NullPointerException e9 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
-                        .middleware(new SentinelMiddleware())
+                        .middleware(new NoopMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
                         .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
@@ -297,7 +290,7 @@ class RequestOrchestratorTest {
     @Test
     void fullComponentsBuildAndRepeatedBuildIndependent() {
         RequestOrchestrator.Builder builder = RequestOrchestrator.builder()
-                .middleware(new SentinelMiddleware())
+                .middleware(new NoopMiddleware())
                 .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                 .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
                 .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
@@ -842,7 +835,7 @@ class RequestOrchestratorTest {
     @Test
     void missingConnectSessionReleasesOwnReferenceBeforeThrowing() {
         // 入口校验的钉：会话缺失在提交前拒收，不进入虚拟线程；编排入口先归还自持引用再抛出
-        RequestOrchestrator orchestrator = flowOrchestrator(new SentinelMiddleware(),
+        RequestOrchestrator orchestrator = flowOrchestrator(new NoopMiddleware(),
                 new ExceptionHandlerManager(Set.of()), new ThrowingVirtualThreadMicroTaskExecutor());
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
@@ -858,7 +851,7 @@ class RequestOrchestratorTest {
     void submissionFailureReleasesOwnReferenceBeforeThrowing() {
         // 提交失败的钉：线程创建失败时任务不执行，未受理收尾先于异常抛出统一回写 429，并归还编排入口自持的引用
         EmbeddedChannel channel = new EmbeddedChannel();
-        RequestOrchestrator orchestrator = flowOrchestrator(new SentinelMiddleware(),
+        RequestOrchestrator orchestrator = flowOrchestrator(new NoopMiddleware(),
                 new ExceptionHandlerManager(Set.of()), new ThrowingVirtualThreadMicroTaskExecutor());
         FullHttpRequest request = requestWith(HttpMethod.GET, null);
 
