@@ -240,9 +240,9 @@ class ConvertHandlerManagerTest {
     void builtinConvertHandlerClassRejectedFromCustomRegistration() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new ConvertHandlerManager(SERIALIZER,
-                        List.of(new ConvertHandlerManager.StringConvertHandler())));
+                        List.of(new StringConvertHandler())));
         assertEquals("Can not register a built-in convert handler: "
-                + ConvertHandlerManager.StringConvertHandler.class.getName(), ex.getMessage());
+                + StringConvertHandler.class.getName(), ex.getMessage());
     }
 
     @Test
