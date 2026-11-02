@@ -15,13 +15,12 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.BranchMiddleware;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
-import top.turboweb.http.orchestrator.convert.ConvertHandler;
-import top.turboweb.http.orchestrator.convert.ConvertHandlerManager;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.parser.HttpContentParser;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
+import top.turboweb.http.orchestrator.ResultToMessageHandler;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
 import top.turboweb.http.server.config.HttpConfig;
@@ -90,7 +89,6 @@ class HttpServerRuntimeTest {
         assertThrows(NullPointerException.class, () -> builder.jsonSerializer(null));
         assertThrows(NullPointerException.class, () -> builder.corsConfig(null));
         assertThrows(NullPointerException.class, () -> builder.exceptionHandlers((Object) null));
-        assertThrows(NullPointerException.class, () -> builder.resultConvertHandlers((ConvertHandler) null));
         assertThrows(NullPointerException.class, () -> builder.contentParsers((HttpContentParser) null));
         assertThrows(NullPointerException.class, () -> builder.config(null));
         assertThrows(NullPointerException.class, () -> builder.middleware((Middleware) null));
@@ -173,10 +171,10 @@ class HttpServerRuntimeTest {
                 .build();
 
         assertInstanceOf(JacksonJsonSerializer.class, register.producedWith, "未指定序列化器时生产用应用的默认实例");
-        ConvertHandlerManager convertHandlerManager =
-                (ConvertHandlerManager) componentOf(orchestratorOf(runtime), "convertHandlerManager");
-        assertSame(fieldOf(convertHandlerManager, "jsonSerializer"), register.producedWith,
-                "登记表拿到的默认序列化器与结果转化链持有的是同一实例");
+        ResultToMessageHandler resultToMessageHandler =
+                (ResultToMessageHandler) componentOf(orchestratorOf(runtime), "resultToMessageHandler");
+        assertSame(fieldOf(resultToMessageHandler, "jsonSerializer"), register.producedWith,
+                "登记表拿到的默认序列化器与结果转化处理器持有的是同一实例");
         runtime.close();
     }
 
@@ -287,13 +285,11 @@ class HttpServerRuntimeTest {
         JsonSerializer serializer = new JacksonJsonSerializer();
         HttpCorsConfig corsConfig = HttpCorsConfig.builder().build();
         MarkerExceptionHandler customHandler = new MarkerExceptionHandler();
-        ConvertHandler customConverter = (result, charset) -> ConvertHandler.Result.shouldContinue();
         HttpServerRuntime runtime = new HttpServerRuntime.Builder()
                 .exceptionHandlers(customHandler)
                 .sessionManager(new NoopSessionManager())
                 .routeRegister(new TestRouteRegister(router))
                 .jsonSerializer(serializer)
-                .resultConvertHandlers(customConverter)
                 .corsConfig(corsConfig)
                 .config(HttpConfig.builder().maxInFlightResponses(16).build())
                 .middleware(mw)
@@ -308,12 +304,9 @@ class HttpServerRuntimeTest {
         Map<?, ?> handlerTable = (Map<?, ?>) fieldOf(exceptionHandlerManager, "handlers");
         assertTrue(handlerTable.containsKey(IllegalArgumentException.class),
                 "用户传入的异常处理器经构建期装配登记进管理器的异常类型表");
-        ConvertHandlerManager convertHandlerManager =
-                (ConvertHandlerManager) componentOf(orchestrator, "convertHandlerManager");
-        assertNotNull(convertHandlerManager, "结果转化处理器管理器由构建期装配进入编排器");
-        List<?> customConverters = (List<?>) fieldOf(convertHandlerManager, "customConverters");
-        assertSame(customConverter, customConverters.get(0),
-                "用户传入的自定义结果转化处理器经构建期装配进入管理器的自定义环节");
+        ResultToMessageHandler resultToMessageHandler =
+                (ResultToMessageHandler) componentOf(orchestrator, "resultToMessageHandler");
+        assertNotNull(resultToMessageHandler, "结果转化处理器由构建期装配进入编排器");
         Middleware head = (Middleware) componentOf(orchestrator, "middleware");
         assertInstanceOf(SentinelMiddleware.class, head, "编排器的中间件组件是链头哨兵");
         assertSame(mw, head.getNext(), "业务中间件紧随哨兵");
@@ -346,7 +339,7 @@ class HttpServerRuntimeTest {
                 .build();
         RequestOrchestrator orchestrator = orchestratorOf(runtime);
         for (String component : List.of("middleware", "microTaskExecutor", "responseMessageWriter",
-                "convertHandlerManager", "corsConfig", "exceptionHandlerManager",
+                "resultToMessageHandler", "corsConfig", "exceptionHandlerManager",
                 "sessionManagerHolder", "defaultCharset", "contentParserManager")) {
             assertNotNull(componentOf(orchestrator, component), "九组件之 " + component + " 装配后不可为null");
         }

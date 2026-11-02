@@ -15,9 +15,9 @@ import top.turboweb.http.exception.RouteHandlerException;
 import top.turboweb.http.exception.RouteHandlerException.ErrorCode;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
-import top.turboweb.http.orchestrator.convert.ConvertHandlerManager;
 import top.turboweb.http.orchestrator.parser.HttpContentParser;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
+import top.turboweb.http.orchestrator.ResultToMessageHandler;
 import top.turboweb.http.core.ByteResponseMessage;
 import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.core.StatusLine;
@@ -88,7 +88,7 @@ class RequestOrchestratorTest {
                 .middleware(new SentinelMiddleware())
                 .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("test-orchestrator")))
                 .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                 .corsConfig(corsConfig)
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(StandardCharsets.UTF_8)
@@ -108,7 +108,7 @@ class RequestOrchestratorTest {
                 .middleware(chain)
                 .resourceManager(testResourceManager(resource))
                 .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(handlers)
                 .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(StandardCharsets.UTF_8)
@@ -185,8 +185,8 @@ class RequestOrchestratorTest {
         assertEquals("resource manager must not be null", e2.getMessage());
         NullPointerException e3 = assertThrows(NullPointerException.class, () -> builder.responseMessageWriter(null));
         assertEquals("response message writer must not be null", e3.getMessage());
-        NullPointerException e4 = assertThrows(NullPointerException.class, () -> builder.convertHandlerManager(null));
-        assertEquals("convert handler manager must not be null", e4.getMessage());
+        NullPointerException e4 = assertThrows(NullPointerException.class, () -> builder.resultToMessageHandler(null));
+        assertEquals("result to message handler must not be null", e4.getMessage());
         NullPointerException e5 = assertThrows(NullPointerException.class, () -> builder.corsConfig(null));
         assertEquals("cors config must not be null", e5.getMessage());
         NullPointerException e6 = assertThrows(NullPointerException.class, () -> builder.exceptionHandlerManager(null));
@@ -206,7 +206,7 @@ class RequestOrchestratorTest {
                 () -> RequestOrchestrator.builder()
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                        .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                        .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .corsConfig(HttpCorsConfig.builder().build())
                         .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                         .build());
@@ -216,7 +216,7 @@ class RequestOrchestratorTest {
                 () -> RequestOrchestrator.builder()
                         .middleware(new SentinelMiddleware())
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                        .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                        .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .corsConfig(HttpCorsConfig.builder().build())
                         .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                         .build());
@@ -226,7 +226,7 @@ class RequestOrchestratorTest {
                 () -> RequestOrchestrator.builder()
                         .middleware(new SentinelMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
-                        .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                        .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .corsConfig(HttpCorsConfig.builder().build())
                         .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                         .build());
@@ -240,14 +240,14 @@ class RequestOrchestratorTest {
                         .corsConfig(HttpCorsConfig.builder().build())
                         .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                         .build());
-        assertEquals("convert handler manager must not be null", e4.getMessage());
+        assertEquals("result to message handler must not be null", e4.getMessage());
 
         NullPointerException e5 = assertThrows(NullPointerException.class,
                 () -> RequestOrchestrator.builder()
                         .middleware(new SentinelMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                        .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                        .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .build());
         assertEquals("cors config must not be null", e5.getMessage());
 
@@ -256,7 +256,7 @@ class RequestOrchestratorTest {
                         .middleware(new SentinelMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                        .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                        .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .corsConfig(HttpCorsConfig.builder().build())
                         .build());
         assertEquals("exception handler manager must not be null", e6.getMessage());
@@ -266,7 +266,7 @@ class RequestOrchestratorTest {
                         .middleware(new SentinelMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                        .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                        .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .corsConfig(HttpCorsConfig.builder().build())
                         .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))                        .build());
         assertEquals("session manager holder must not be null", e7.getMessage());
@@ -276,7 +276,7 @@ class RequestOrchestratorTest {
                         .middleware(new SentinelMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                        .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                        .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .corsConfig(HttpCorsConfig.builder().build())
                         .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                         .sessionManagerHolder(() -> new BackHoleSessionManager())                        .build());
@@ -287,7 +287,7 @@ class RequestOrchestratorTest {
                         .middleware(new SentinelMiddleware())
                         .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                         .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                        .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                        .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                         .corsConfig(HttpCorsConfig.builder().build())
                         .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                         .sessionManagerHolder(() -> new BackHoleSessionManager())                        .defaultCharset(StandardCharsets.UTF_8)
@@ -302,7 +302,7 @@ class RequestOrchestratorTest {
                 .middleware(new SentinelMiddleware())
                 .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                 .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(StandardCharsets.UTF_8)
@@ -453,7 +453,7 @@ class RequestOrchestratorTest {
                 .middleware(chain)
                 .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("t")))
                 .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(gbk)
@@ -479,7 +479,7 @@ class RequestOrchestratorTest {
                 .middleware(chain)
                 .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("test-token-flow")))
                 .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> manager)                .defaultCharset(StandardCharsets.UTF_8)
@@ -712,7 +712,7 @@ class RequestOrchestratorTest {
                 .middleware(chain)
                 .resourceManager(testResourceManager(VirtualThreadMicroTaskExecutor.ofUnlimited("test-orchestrator")))
                 .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> new BackHoleSessionManager())                .defaultCharset(StandardCharsets.UTF_8)
@@ -811,6 +811,31 @@ class RequestOrchestratorTest {
         assertEquals(2, refCntAtChain.get(), "链执行期间调用方引用与编排器自持引用均未被归还");
         assertEquals("alice", nameAtChain.get(), "请求体内容经消息可读");
         assertEquals(1, request.refCnt(), "响应写出后编排器归还自持引用，调用方引用仍在");
+        request.release();
+        drainOutbound(channel);
+    }
+
+    @Test
+    void httpResponseMessageReturnedByChainIsWrittenAsIs() {
+        // 透传的钉：链内直接返回响应消息时不再经结果转化处理器装配，状态行与正文按消息原样写出
+        EmbeddedChannel channel = new EmbeddedChannel();
+        ByteResponseMessage returned = new ByteResponseMessage(
+                StatusLine.CREATED, "raw".getBytes(StandardCharsets.UTF_8));
+        returned.headers().set("Content-Type", "text/plain");
+        Middleware chain = new Middleware() {
+            @Override
+            public Object invoke(HttpContext ctx) {
+                return returned;
+            }
+        };
+        RequestOrchestrator orchestrator = builderWith(chain).build();
+        FullHttpRequest request = requestWith(HttpMethod.GET, "/direct");
+
+        orchestrator.doOrchestrate(request, new InternalHttpConnection(channel));
+
+        HttpResponse head = readHead(channel);
+        assertEquals(HttpResponseStatus.CREATED, head.getStatus(), "消息的状态行原样写出");
+        assertEquals("raw", new String(readBody(channel), StandardCharsets.UTF_8), "消息的正文原样写出");
         request.release();
         drainOutbound(channel);
     }

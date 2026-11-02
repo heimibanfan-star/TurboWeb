@@ -17,13 +17,12 @@ import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.middleware.SentinelMiddleware;
-import top.turboweb.http.orchestrator.convert.ConvertHandler;
-import top.turboweb.http.orchestrator.convert.ConvertHandlerManager;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.parser.HttpContentParser;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
+import top.turboweb.http.orchestrator.ResultToMessageHandler;
 import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
 import top.turboweb.http.router.RouteHandlerManager;
 import top.turboweb.http.router.RouteRegister;
@@ -215,11 +214,6 @@ public class HttpServerRuntime implements ServerRuntime {
          * cors配置，未传入时默认 {@link HttpCorsConfig} 的通配配置
          */
         private HttpCorsConfig corsConfig = null;
-        /**
-         * 自定义结果转化处理器集合，按注册顺序登记为自定义环节，构建期与json序列化器一起
-         * 装配成 {@link ConvertHandlerManager}；默认为空集合
-         */
-        private final List<ConvertHandler> resultConvertHandlers = new ArrayList<>();
         // ---------- 旧响应体系环节：随响应体系消息化迁移停用，待新线补齐对应能力后处置 ----------
 
         ///**
@@ -305,20 +299,6 @@ public class HttpServerRuntime implements ServerRuntime {
         public Builder corsConfig(HttpCorsConfig corsConfig) {
             Objects.requireNonNull(corsConfig, "The cors config must not be null");
             this.corsConfig = corsConfig;
-            return this;
-        }
-
-        /**
-         * 按顺序注册自定义结果转化处理器（业务返回值到响应消息的转化链的自定义环节，
-         * 构建期与json序列化器装配成结果转化处理器管理器）；元素为null立即抛出
-         * {@link NullPointerException}；内置类型拒登、同一处理器类重复注册在构建时抛出
-         */
-        public Builder resultConvertHandlers(ConvertHandler... resultConvertHandlers) {
-            this.resultConvertHandlers.addAll(
-                    Stream.of(resultConvertHandlers)
-                            .peek(converter -> Objects.requireNonNull(converter, "The convert handler must not be null"))
-                            .toList()
-            );
             return this;
         }
 
@@ -420,7 +400,7 @@ public class HttpServerRuntime implements ServerRuntime {
                     .middleware(middlewareChain)
                     .resourceManager(resourceManager)
                     .responseMessageWriter(new ResponseMessageWriter(resourceManager, List.of()))
-                    .convertHandlerManager(new ConvertHandlerManager(this.jsonSerializer, this.resultConvertHandlers))
+                    .resultToMessageHandler(new ResultToMessageHandler(this.jsonSerializer))
                     .corsConfig(this.corsConfig != null
                             ? this.corsConfig
                             : HttpCorsConfig.builder().build())

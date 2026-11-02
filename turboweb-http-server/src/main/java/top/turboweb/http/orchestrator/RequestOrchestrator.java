@@ -13,7 +13,6 @@ import top.turboweb.http.session.HttpSession;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.session.SessionManagerHolder;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.orchestrator.convert.ConvertHandlerManager;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.core.ByteResponseMessage;
 import top.turboweb.http.core.HttpResponseMessage;
@@ -77,8 +76,8 @@ public class RequestOrchestrator {
     private final MicroTaskExecutor microTaskExecutor;
     /** 响应消息写出器，按消息类型与消息声明的写出处理器路由写出。 */
     private final ResponseMessageWriter responseMessageWriter;
-    /** 结果转化处理器管理器，把业务返回值转化为响应消息。 */
-    private final ConvertHandlerManager convertHandlerManager;
+    /** 结果转化处理器，把业务返回值装配为响应消息。 */
+    private final ResultToMessageHandler resultToMessageHandler;
     /** CORS 不可变配置，来源处理流程的判定依据。 */
     private final HttpCorsConfig corsConfig;
     /** 异常处理器管理器，按异常类型匹配处理器产出处理结果。 */
@@ -101,7 +100,7 @@ public class RequestOrchestrator {
         // 微任务执行器作为内置资源按名从资源管理器获取，获取即保存到本类final字段
         this.microTaskExecutor = builder.resourceManager.getBuiltinResource(ResourceNames.MICRO_TASK_EXECUTOR, MicroTaskExecutor.class);
         this.responseMessageWriter = builder.responseMessageWriter;
-        this.convertHandlerManager = builder.convertHandlerManager;
+        this.resultToMessageHandler = builder.resultToMessageHandler;
         this.corsConfig = builder.corsConfig;
         this.exceptionHandlerManager = builder.exceptionHandlerManager;
         this.sessionManagerHolder = builder.sessionManagerHolder;
@@ -208,7 +207,7 @@ public class RequestOrchestrator {
                 message = startMiddleware(request, connectSession);
             } catch (Throwable throwable) {
                 HttpResult handled = exceptionHandlerManager.handle(throwable);
-                message = convertHandlerManager.convert(handled, defaultCharset);
+                message = resultToMessageHandler.convert(handled, defaultCharset);
             }
         }
         handleCorsHeaders(origin, message);
@@ -416,7 +415,10 @@ public class RequestOrchestrator {
                     connectSession, defaultCharset);
             // 执行中间件
             Object result = middleware.invoke(context);
-            HttpResponseMessage<?> responseMessage = convertHandlerManager.convert(result, defaultCharset);
+            // 已是响应消息的返回值直接透传写出，其余交由结果转化处理器装配
+            HttpResponseMessage<?> responseMessage = result instanceof HttpResponseMessage<?> directMessage
+                    ? directMessage
+                    : resultToMessageHandler.convert(result, defaultCharset);
             // 处理Cookie
             for (String setCookie : cookies.toSetCookies(defaultCharset)) {
                 responseMessage.headers().add("Set-Cookie", setCookie);
@@ -511,7 +513,7 @@ public class RequestOrchestrator {
         private Middleware middleware;
         private ResourceManager resourceManager;
         private ResponseMessageWriter responseMessageWriter;
-        private ConvertHandlerManager convertHandlerManager;
+        private ResultToMessageHandler resultToMessageHandler;
         private HttpCorsConfig corsConfig;
         private ExceptionHandlerManager exceptionHandlerManager;
         private SessionManagerHolder sessionManagerHolder;
@@ -536,9 +538,9 @@ public class RequestOrchestrator {
             return this;
         }
 
-        /** 设置结果转化处理器管理器。 */
-        public Builder convertHandlerManager(ConvertHandlerManager convertHandlerManager) {
-            this.convertHandlerManager = Objects.requireNonNull(convertHandlerManager, "convert handler manager must not be null");
+        /** 设置结果转化处理器。 */
+        public Builder resultToMessageHandler(ResultToMessageHandler resultToMessageHandler) {
+            this.resultToMessageHandler = Objects.requireNonNull(resultToMessageHandler, "result to message handler must not be null");
             return this;
         }
 
@@ -589,7 +591,7 @@ public class RequestOrchestrator {
             Objects.requireNonNull(middleware, "middleware must not be null");
             Objects.requireNonNull(resourceManager, "resource manager must not be null");
             Objects.requireNonNull(responseMessageWriter, "response message writer must not be null");
-            Objects.requireNonNull(convertHandlerManager, "convert handler manager must not be null");
+            Objects.requireNonNull(resultToMessageHandler, "result to message handler must not be null");
             Objects.requireNonNull(corsConfig, "cors config must not be null");
             Objects.requireNonNull(exceptionHandlerManager, "exception handler manager must not be null");
             Objects.requireNonNull(sessionManagerHolder, "session manager holder must not be null");

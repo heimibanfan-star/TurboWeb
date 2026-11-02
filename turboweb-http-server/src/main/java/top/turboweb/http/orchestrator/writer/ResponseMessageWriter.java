@@ -207,18 +207,6 @@ public class ResponseMessageWriter {
     }
 
     /**
-     * 生成区间三降级用的字节响应消息：携带给定 500 HTML 报错页文本与配套响应头。
-     * <p>
-     * 原响应的消息头继承到降级消息（如 CORS 声明、Set-Cookie 需对报错页继续生效），
-     * 描述原消息体的实体头除外——内容类型、长度、编码与传输编码不再描述报错页，
-     * 内容类型与长度由降级消息按自身正文重设。
-     * </p>
-     *
-     * @param original 触发降级的原响应消息
-     * @param page     报错页文本，由异常信息 Helper 统一承载
-     * @return 降级报错页字节响应消息
-     */
-    /**
      * 文本类 Content-Type 声明缺 charset 段时补写兜底字符集：
      * 媒体类型为 text 前缀或 application/json 且未声明 charset 时，在原取值后追加
      * charset 参数，取值为调用方传入的兜底字符集；已声明 charset（含取值非法或字符集
@@ -256,6 +244,18 @@ public class ResponseMessageWriter {
                 || "application/json".equalsIgnoreCase(mimeType);
     }
 
+    /**
+     * 生成区间三降级用的字节响应消息：携带给定 500 HTML 报错页文本与配套响应头。
+     * <p>
+     * 原响应的消息头继承到降级消息（如 CORS 声明、Set-Cookie 需对报错页继续生效），
+     * 描述原消息体的实体头除外——内容类型、长度、编码与传输编码不再描述报错页，
+     * 内容类型与长度由降级消息按自身正文重设。
+     * </p>
+     *
+     * @param original 触发降级的原响应消息
+     * @param page     报错页文本，由异常信息 Helper 统一承载
+     * @return 降级报错页字节响应消息
+     */
     private ByteResponseMessage errorPageFallback(HttpResponseMessage<?> original, String page) {
         ByteResponseMessage fallback = new ByteResponseMessage(
                 StatusLine.INTERNAL_SERVER_ERROR, page.getBytes(StandardCharsets.UTF_8));

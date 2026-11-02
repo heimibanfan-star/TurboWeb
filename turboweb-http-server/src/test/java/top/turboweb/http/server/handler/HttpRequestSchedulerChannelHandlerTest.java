@@ -13,8 +13,8 @@ import top.turboweb.http.context.HttpContext;
 import top.turboweb.http.middleware.Middleware;
 import top.turboweb.http.orchestrator.ExceptionHandlerManager;
 import top.turboweb.http.orchestrator.HttpCorsConfig;
-import top.turboweb.http.orchestrator.convert.ConvertHandlerManager;
 import top.turboweb.http.orchestrator.RequestOrchestrator;
+import top.turboweb.http.orchestrator.ResultToMessageHandler;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
 import top.turboweb.http.server.constant.ResourceNames;
@@ -66,7 +66,7 @@ class HttpRequestSchedulerChannelHandlerTest {
                 .middleware(new ContextCapturingMiddleware(contexts))
                 .resourceManager(testResourceManager(Stubs.directExecutor()))
                 .responseMessageWriter(new ResponseMessageWriter(writerResourceManager(), List.of()))
-                .convertHandlerManager(new ConvertHandlerManager(new JacksonJsonSerializer(), List.of()))
+                .resultToMessageHandler(new ResultToMessageHandler(new JacksonJsonSerializer()))
                 .corsConfig(HttpCorsConfig.builder().build())
                 .exceptionHandlerManager(new ExceptionHandlerManager(Set.of()))
                 .sessionManagerHolder(() -> new BackHoleSessionManager())
