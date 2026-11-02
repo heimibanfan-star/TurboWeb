@@ -20,15 +20,17 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 结果转化处理器管理器：按内置、自定义、JSON 默认三级次序，将业务返回值转化为待写出的响应消息。
+ * 结果转化处理器管理器：按内置、自定义两级转化链将业务返回值转化为待写出的响应消息，收尾由管理器降级方法兜底。
  * <p>
  * 内置环节按固定次序认领各自支持的返回值类型：HttpResult（装配为字节消息）、
- * String（text/html）、null（空 text/html）、Publisher（转 StreamResponseMessage 流式消息）；
- * 自定义环节经构造器列表传入，按处理器具体类登记到单独容器，内置环节之后按登记次序认领；
- * 两级都不认领的输入由 JSON 默认环节（application/json，恒认领）兜底，保证任意输入都有确定走向。
+ * String（text/html）、Publisher（转 StreamResponseMessage 流式消息）；
+ * 自定义环节经构造器列表传入，按处理器具体类登记到单独容器，内置环节之后按登记次序认领，
+ * null 返回值内置环节均放行，自定义环节可见并有机会认领；
+ * 两级都不认领的输入由管理器降级收尾：已是响应消息的直接透传，
+ * null 产出空 text/html，其余按 application/json 输出，保证任意输入都有确定走向。
  * </p>
  * <p>
- * <b>注册约束：</b>自定义处理器为内置类型（含 JSON 默认环节）时构造期抛出
+ * <b>注册约束：</b>自定义处理器为内置类型时构造期抛出
  * {@link IllegalArgumentException}，同一处理器类出现多次抛出 {@link IllegalStateException}，
  * 列表或元素为 null 抛出 {@link NullPointerException}。
  * </p>
@@ -37,19 +39,17 @@ import java.util.Set;
  * （响应编码不受请求头声明影响，恒取缺省配置），入参 result 允许为 null：
  * 环节自建消息的正文编码与 Content-Type 声明一律取该字符集，
  * 内容长度由写出环节按实际响应体补齐。
- * 序列化失败按环节各自契约传导：默认环节在调用点原样上抛，
+ * 序列化失败按环节各自契约传导：降级收尾在调用点原样上抛，
  * 流内元素转为流错误信号，管理器不吞异常。
  * </p>
  */
 public class ConvertHandlerManager {
 
-    /** 内置处理器类集合（含 JSON 默认环节），自定义注册按具体类拒登内置类型。 */
+    /** 内置处理器类集合，自定义注册按具体类拒登内置类型。 */
     private static final Set<Class<? extends ConvertHandler>> BUILTIN_CONVERTER_TYPES = Set.of(
             HttpResultConvertHandler.class,
             StringConvertHandler.class,
-            NullConvertHandler.class,
-            PublisherConvertHandler.class,
-            JsonResultConvertHandler.class);
+            PublisherConvertHandler.class);
 
     /**
      * 内置结果转化处理器：构造期一次建定、不可变；环节按声明次序逐个认领，先于自定义环节咨询。
@@ -60,33 +60,32 @@ public class ConvertHandlerManager {
      */
     private final List<ConvertHandler> customConverters;
     /**
-     * JSON 默认环节：恒认领，兜底内置与自定义环节都未认领的输入。
+     * json序列化器：降级收尾的非消息输入与流内其他类型元素编码经其序列化。
      */
-    private final ConvertHandler defaultConverter;
+    private final JsonSerializer jsonSerializer;
 
     /**
      * 构造结果转化处理器管理器。
      *
-     * @param jsonSerializer  json序列化器，兜底环节与流内对象元素编码经其序列化，不能为null
+     * @param jsonSerializer  json序列化器，降级收尾与流内对象元素编码经其序列化，不能为null
      * @param customConverters 自定义结果转化处理器列表，不能为null、元素不能为null
      * @throws NullPointerException     json序列化器或自定义列表为null、列表元素为null
-     * @throws IllegalArgumentException 自定义处理器为内置类型（含 JSON 默认环节）
+     * @throws IllegalArgumentException 自定义处理器为内置类型
      * @throws IllegalStateException    同一处理器类在列表中出现多次
      */
     public ConvertHandlerManager(JsonSerializer jsonSerializer, List<ConvertHandler> customConverters) {
         Objects.requireNonNull(jsonSerializer, "The json serializer must not be null");
         Objects.requireNonNull(customConverters, "The custom convert handler list must not be null");
+        this.jsonSerializer = jsonSerializer;
         this.builtinConverters = List.of(
                 new HttpResultConvertHandler(jsonSerializer),
                 new StringConvertHandler(),
-                new NullConvertHandler(),
                 new PublisherConvertHandler(jsonSerializer));
         this.customConverters = registerCustomConverters(customConverters);
-        this.defaultConverter = new JsonResultConvertHandler(jsonSerializer);
     }
 
     /**
-     * 将业务返回值经内置、自定义两级转化链转化为响应消息，两级都不认领时由 JSON 默认转化器认领；
+     * 将业务返回值经内置、自定义两级转化链转化为响应消息，两级都不认领时由管理器降级收尾兜底；
      * 恒产出一条响应消息，永不为null。
      *
      * @param result  业务返回值，可能为null
@@ -108,8 +107,29 @@ public class ConvertHandlerManager {
                 return converted.message();
             }
         }
-        // 执行到默认环节即内置与自定义两级全部放行，默认环节恒认领并收尾
-        return this.defaultConverter.convert(result, charset).message();
+        // 执行到降级收尾即内置与自定义两级全部放行，由管理器兜底保证任意输入都有确定走向
+        return fallbackConvert(result, charset);
+    }
+
+    /**
+     * 降级收尾：兜底内置与自定义环节全部放行的输入。
+     * 已是响应消息的直接透传，交由写出环节的门禁与路由接管；
+     * null 产出空 text/html 字节消息；其余输入经 json 序列化器按 application/json 装配，
+     * 序列化失败原样上抛，管理器不吞异常。
+     *
+     * @param result  业务返回值，可能为null
+     * @param charset 装配期判定的缺省字符集
+     * @return 转化出的响应消息，永不为null
+     */
+    private HttpResponseMessage<?> fallbackConvert(Object result, Charset charset) {
+        if (result instanceof HttpResponseMessage<?> message) {
+            return message;
+        }
+        if (result == null) {
+            return buildByteResponse("", "text/html;charset=" + charset.name(), charset);
+        }
+        return buildByteResponse(jsonSerializer.beanToJson(result),
+                "application/json;charset=" + charset.name(), charset);
     }
 
     /**
@@ -236,17 +256,6 @@ public class ConvertHandlerManager {
     //    return fullHttpResponse;
     //}
 
-    /** 内置环节：认领 null 返回值，产出空 text/html 字节消息。 */
-    public static final class NullConvertHandler implements ConvertHandler {
-
-        @Override
-        public ConvertHandler.Result convert(Object result, Charset charset) {
-            return result == null
-                    ? ConvertHandler.Result.finished(buildByteResponse("", "text/html;charset=" + charset.name(), charset))
-                    : ConvertHandler.Result.shouldContinue();
-        }
-    }
-
     /** 内置环节：认领 Publisher，转为流式响应消息。 */
     public static final class PublisherConvertHandler implements ConvertHandler {
 
@@ -320,34 +329,6 @@ public class ConvertHandlerManager {
                         }
                     });
         }
-
-        /**
-         * 单元素编码：非 JSON 分支的确定性编码，与流内编码共用口径。
-         *
-         * @param val     元素
-         * @param charset 编码字符集
-         * @return 字节数组
-         */
-        private byte[] encodeElement(Object val, Charset charset) {
-            if (val instanceof String s) {
-                return s.getBytes(charset);
-            }
-            if (val instanceof byte[] bytes) {
-                return bytes;
-            }
-            if (val instanceof ByteBuffer buffer) {
-                byte[] bytes = new byte[buffer.remaining()];
-                buffer.duplicate().get(bytes);
-                return bytes;
-            }
-            if (val instanceof ByteBuf byteBuf) {
-                return ByteBufUtil.getBytes(byteBuf);
-            }
-            if (val instanceof Number number) {
-                return number.toString().getBytes(charset);
-            }
-            return jsonSerializer.beanToJson(val).getBytes(charset);
-        }
     }
 
     /**
@@ -367,26 +348,4 @@ public class ConvertHandlerManager {
 
     /** Content-Type 头名 */
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
-
-    /** 默认环节：按照 application/json 构建，恒认领，兜底内置与自定义都未认领的输入。 */
-    public static final class JsonResultConvertHandler implements ConvertHandler {
-
-        private final JsonSerializer jsonSerializer;
-
-        /**
-         * 构造 JSON 默认转化处理器。
-         *
-         * @param jsonSerializer json序列化器，正文经其序列化，不能为null
-         */
-        public JsonResultConvertHandler(JsonSerializer jsonSerializer) {
-            this.jsonSerializer = Objects.requireNonNull(jsonSerializer, "The json serializer must not be null");
-        }
-
-        @Override
-        public ConvertHandler.Result convert(Object result, Charset charset) {
-            return ConvertHandler.Result.finished(buildByteResponse(
-                    jsonSerializer.beanToJson(result),
-                    "application/json;charset=" + charset.name(), charset));
-        }
-    }
 }

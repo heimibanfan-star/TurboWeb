@@ -10,7 +10,7 @@ import java.nio.charset.Charset;
  * 多个处理器按序组成转化链，每个环节只认领自己支持的返回值类型：
  * 认领时以 {@link Status#FINISHED} 携带转化出的响应消息并终止链的传递，
  * 不认领时以 {@link Status#CONTINUE} 放行给下一环节；
- * 链尾兜底环节恒认领，保证任意输入都有确定走向。
+ * 链条宿主在全部环节放行后降级收尾，保证任意输入都有确定走向。
  * </p>
  */
 @FunctionalInterface

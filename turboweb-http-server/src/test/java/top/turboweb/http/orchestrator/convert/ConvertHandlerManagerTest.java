@@ -23,20 +23,23 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link ConvertHandlerManager} 的行为锚：转化链按原类型分派次序逐环节认领，
  * 每个返回值类型只被其对应环节转化为响应消息（HttpResult 装配为字节消息、String 走
- * text/html、null 落空 text/html、Publisher 转 StreamResponseMessage 且流内元素逐类型
- * 编码为字节数组、其余对象兜底 application/json）。各环节自建消息的正文与 Content-Type
- * 均按传入字符集；HttpResult 调用方头先整体写入，调用方已声明 Content-Type 时保留其声明，
- * 未声明时按数据类型补缺省声明，内容长度以框架按实际响应体算出的值为准。
- * 序列化失败的行为奇偶：兜底环节上抛、流内环节转为流错误信号。
- * 自定义环节契约：构造期以处理器具体类登记，内置类型（含 JSON 默认环节）拒登、
+ * text/html、Publisher 转 StreamResponseMessage 且流内元素逐类型编码为字节数组）。
+ * 各环节自建消息的正文与 Content-Type 均按传入字符集；HttpResult 调用方头先整体写入，
+ * 调用方已声明 Content-Type 时保留其声明，未声明时按数据类型补缺省声明，
+ * 内容长度以框架按实际响应体算出的值为准。
+ * 序列化失败的行为奇偶：降级收尾上抛、流内环节转为流错误信号。
+ * 降级收尾契约：内置与自定义两级都不认领时由管理器兜底，已是响应消息的输入原样透传、
+ * null 落空 text/html、其余对象兜底 application/json。
+ * 自定义环节契约：构造期以处理器具体类登记，内置类型拒登、
  * 同类重复拒登、列表与元素为 null 拒登；分派时内置在前、自定义按登记次序在后，
- * 两级都不认领时由 JSON 默认环节认领。
+ * null 返回值内置环节均放行，自定义环节可见并可认领，两级都不认领时落到管理器降级收尾。
  */
 class ConvertHandlerManagerTest {
 
@@ -109,7 +112,7 @@ class ConvertHandlerManagerTest {
         assertEquals("application/json;charset=UTF-8", message.headers().get("Content-Type"));
     }
 
-    // ---------- String 与 null 环节 ----------
+    // ---------- String 环节 ----------
 
     @Test
     void stringBecomesTextHtmlByteMessageWithGivenCharset() {
@@ -129,15 +132,6 @@ class ConvertHandlerManagerTest {
         assertEquals("你好", new String(message.content(), gbk), "正文按传入字符集编码");
         assertEquals("text/html;charset=GBK", message.headers().get("Content-Type"),
                 "Content-Type 的 charset 段与正文编码同源");
-    }
-
-    @Test
-    void nullBecomesEmptyTextHtmlByteMessage() {
-        ByteResponseMessage message = (ByteResponseMessage) manager().convert(null, CHARSET);
-
-        assertEquals(StatusLine.OK, message.statusLine());
-        assertEquals(0, message.content().length);
-        assertEquals("text/html;charset=UTF-8", message.headers().get("Content-Type"));
     }
 
     // ---------- Publisher 环节 ----------
@@ -179,7 +173,25 @@ class ConvertHandlerManagerTest {
                 "流内元素序列化失败必须转为流错误信号");
     }
 
-    // ---------- JSON 默认环节 ----------
+    // ---------- 降级收尾：透传、null、JSON ----------
+
+    @Test
+    void httpResponseMessageInputIsPassedThroughAsIs() {
+        HttpResponseMessage<?> message = new HttpResponseMessage<>(StatusLine.CREATED, "raw");
+
+        HttpResponseMessage<?> converted = manager().convert(message, CHARSET);
+
+        assertSame(message, converted, "已是响应消息的输入由降级收尾原样透传，不得重新包装");
+    }
+
+    @Test
+    void nullBecomesEmptyTextHtmlByteMessage() {
+        ByteResponseMessage message = (ByteResponseMessage) manager().convert(null, CHARSET);
+
+        assertEquals(StatusLine.OK, message.statusLine());
+        assertEquals(0, message.content().length);
+        assertEquals("text/html;charset=UTF-8", message.headers().get("Content-Type"));
+    }
 
     @Test
     void arbitraryObjectFallsThroughToJsonMessage() {
@@ -231,11 +243,6 @@ class ConvertHandlerManagerTest {
                         List.of(new ConvertHandlerManager.StringConvertHandler())));
         assertEquals("Can not register a built-in convert handler: "
                 + ConvertHandlerManager.StringConvertHandler.class.getName(), ex.getMessage());
-
-        assertThrows(IllegalArgumentException.class,
-                () -> new ConvertHandlerManager(SERIALIZER,
-                        List.of(new ConvertHandlerManager.JsonResultConvertHandler(SERIALIZER))),
-                "JSON 默认环节同为内置处理器，注册照样拒登");
     }
 
     @Test
@@ -290,8 +297,19 @@ class ConvertHandlerManagerTest {
         HttpResponseMessage<?> message = manager.convert(payload, CHARSET);
 
         assertEquals(SERIALIZER.beanToJson(payload), text(message),
-                "自定义环节不认领时落到 JSON 默认处理器");
+                "自定义环节不认领时落到管理器降级收尾的 JSON 分支");
         assertEquals("application/json;charset=UTF-8", message.headers().get("Content-Type"));
+    }
+
+    @Test
+    void customConvertHandlerMayClaimNullBeforeFallback() {
+        ConvertHandlerManager manager = new ConvertHandlerManager(
+                SERIALIZER, List.of(new NullClaimingConvertHandler()));
+
+        HttpResponseMessage<?> message = manager.convert(null, CHARSET);
+
+        assertEquals("null-claimed", text(message),
+                "null 返回值内置环节均放行，自定义环节先于降级收尾认领");
     }
 
     // ---------- 夹具 ----------
@@ -322,6 +340,18 @@ class ConvertHandlerManagerTest {
         @Override
         public ConvertHandler.Result convert(Object result, Charset charset) {
             return ConvertHandler.Result.shouldContinue();
+        }
+    }
+
+    /** 自定义环节夹具：认领 null 返回值，产出正文为 null-claimed 的字节消息。 */
+    private static final class NullClaimingConvertHandler implements ConvertHandler {
+
+        @Override
+        public ConvertHandler.Result convert(Object result, Charset charset) {
+            return result == null
+                    ? ConvertHandler.Result.finished(new ByteResponseMessage(
+                            StatusLine.OK, "null-claimed".getBytes(charset)))
+                    : ConvertHandler.Result.shouldContinue();
         }
     }
 }

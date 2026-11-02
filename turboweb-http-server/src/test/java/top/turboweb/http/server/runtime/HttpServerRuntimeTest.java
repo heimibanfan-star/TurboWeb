@@ -175,8 +175,7 @@ class HttpServerRuntimeTest {
         assertInstanceOf(JacksonJsonSerializer.class, register.producedWith, "未指定序列化器时生产用应用的默认实例");
         ConvertHandlerManager convertHandlerManager =
                 (ConvertHandlerManager) componentOf(orchestratorOf(runtime), "convertHandlerManager");
-        ConvertHandler defaultConverter = (ConvertHandler) fieldOf(convertHandlerManager, "defaultConverter");
-        assertSame(fieldOf(defaultConverter, "jsonSerializer"), register.producedWith,
+        assertSame(fieldOf(convertHandlerManager, "jsonSerializer"), register.producedWith,
                 "登记表拿到的默认序列化器与结果转化链持有的是同一实例");
         runtime.close();
     }
