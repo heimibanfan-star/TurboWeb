@@ -48,7 +48,8 @@ import java.util.stream.Stream;
  * <p>
  * 本实例装配完成后不再持有可变状态，可被多个worker线程并发调用。
  * <p>
- * 装配期创建的生命周期资源不在本类中逐个持有，而是统一登记进本应用持有的
+ * 装配期登记的生命周期资源（装配创建的线程池执行器与传入的任务卸载执行器）不在本类中逐个持有，
+ * 而是统一登记进本应用持有的
  * {@link ResourceManager} 资源管理器：中间件链的销毁适配器（沿链头到链尾调用各中间件的destroy）
  * 先登记，线程池执行器随后登记，关闭时由本类 {@link #close()} 按登记顺序
  * 统一释放。服务器关闭时会统一触发，调用方也可对应用实例自行try-with-resources。
@@ -167,7 +168,7 @@ public class HttpServerRuntime implements ServerRuntime {
     /**
      * {@link HttpServerRuntime} 的建造者：持有应用装配所需的全部组件对象
      * （业务中间件、路由登记表、异常处理器集合、session管理器、json序列化器、
-     * cors配置、自定义结果转化器集合、自定义响应写出器集合、自定义内容解析器集合），纯参数配置（串行化开关、session回收参数、
+     * cors配置、自定义结果转化器集合、自定义响应写出器集合、自定义内容解析器集合、任务卸载执行器），纯参数配置（串行化开关、session回收参数、
      * 虚拟线程限流参数）全部由 {@link HttpConfig} 承载；组件均带默认值，按需覆盖即可，
      * 未传入者构建时补全默认实例，装配完成的编排器组件均不可为null。
      * <p>
@@ -176,7 +177,8 @@ public class HttpServerRuntime implements ServerRuntime {
      * 按限流参数创建虚拟线程资源（启用限流走 {@link VirtualThreadMicroTaskExecutor#ofLimited}，
      * 否则走 {@link VirtualThreadMicroTaskExecutor#ofUnlimited}）-> 补全未传入的组件默认值 ->
      * 按九组件装配 {@link RequestOrchestrator} -> 装配http请求调度处理器。
-     * 装配出的中间件链销毁适配器先登记、线程池执行器随后登记进应用的
+     * 装配出的中间件链销毁适配器先登记、线程池执行器（虚拟线程资源与任务卸载执行器，
+     * 卸载执行器为传入实例时亦同）随后登记进应用的
      * {@link ResourceManager} 资源管理器，编排器与写出器管理器按 {@link ResourceNames}
      * 的资源名从管理器获取所需资源，由应用在关闭时按登记顺序统一释放。
      * <p>
@@ -223,6 +225,10 @@ public class HttpServerRuntime implements ServerRuntime {
          * 默认为 {@link HttpConfig} 的默认值
          */
         private HttpConfig httpConfig = HttpConfig.builder().build();
+        /**
+         * 任务卸载执行器，未传入时装配创建弹性微任务执行器承载流式续流
+         */
+        private MicroTaskExecutor taskOffloadExecutor = null;
         /**
          * 一次性构建门：装配会消费注册参数并对全部中间件执行 init 与锁定，
          * 同一 Builder 只允许进入一次 {@link #build()}；重复调用在装配开始前抛出
@@ -319,13 +325,31 @@ public class HttpServerRuntime implements ServerRuntime {
         }
 
         /**
+         * 替换任务卸载执行器：承载流式响应写出凭据的完成任务，使流式续流脱离写出落定线程。
+         * 任务体可能长时间阻塞（用户的流式产出源在续流中执行），须选用能容忍阻塞的执行器形态：
+         * 阻塞集中在网络IO等待可传虚拟线程实现，磁盘IO或CPU密集宜用弹性线程池；
+         * 传入的执行器须保证已受理任务不丢失，拒收经凭据以 {@link java.util.concurrent.RejectedExecutionException}
+         * 异常完成上报。
+         * <p>
+         * 传入的执行器按 {@link ResourceNames#TASK_OFFLOAD_THREAD_POOL} 登记进资源空间供写出处理器
+         * 按名取用，由框架随应用关闭统一释放，应用无须自行关闭；
+         * 不传入时装配创建弹性微任务执行器，同样随应用关闭释放
+         *
+         * @param taskOffloadExecutor 任务卸载执行器，不能为null
+         */
+        public Builder taskOffloadExecutor(MicroTaskExecutor taskOffloadExecutor) {
+            Objects.requireNonNull(taskOffloadExecutor, "The task offload executor must not be null");
+            this.taskOffloadExecutor = taskOffloadExecutor;
+            return this;
+        }
+
+        /**
          * 构建应用：先以本建造者的 json 序列化器生产路由处理器管理器（未挂登记表则无路由），
          * 再串联并初始化中间件链，按限流参数创建虚拟线程资源，未传入的组件补全默认值后按九组件装配
          * 请求编排器（缺省字符集取自 {@link HttpConfig#getDefaultCharset()}，内容解析器管理器
-         * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器；
-         * 连接级请求串行化开关同样取自 {@link HttpConfig#isSerializePerConnection()}。
-         * 装配出的中间件链销毁适配器经托管通道登记、创建的线程池执行器
-         * 作为内置资源随构建传入资源管理器交给应用持有，编排器按资源名从管理器的内置空间
+         * 以同一字符集与本建造者登记的自定义解析器建立），最后装配http请求调度处理器。
+         * 装配出的中间件链销毁适配器经托管通道登记、创建的线程池执行器与传入的任务卸载执行器
+         * 作为内置资源随构建传入资源管理器交给应用持有（由框架随应用关闭统一释放），编排器按资源名从管理器的内置空间
          * 获取所需资源，响应消息写出器的写出处理器经装配期注入的资源提供者自取所需资源，
          * 由 {@link #close()} 按登记顺序释放。
          * <p>
@@ -356,10 +380,13 @@ public class HttpServerRuntime implements ServerRuntime {
             // 按配置限流参数创建虚拟线程资源
             VirtualThreadMicroTaskExecutor virtualThreadResource = createVirtualThreadResource();
             builtinResources.put(ResourceNames.MICRO_TASK_EXECUTOR, virtualThreadResource);
-            // 任务卸载线程池以弹性微任务执行器承载流式响应写出凭据的完成任务，使流式续流脱离写出落定线程；
-            // 应用只是使用者，关闭责任留在应用
-            ElasticMicroTaskExecutor taskOffloadExecutor = ElasticMicroTaskExecutor.of("task-offload-micro-task");
-            builtinResources.put(ResourceNames.TASK_OFFLOAD_THREAD_POOL, taskOffloadExecutor);
+            // 任务卸载执行器承载流式响应写出凭据的完成任务，使流式续流脱离写出落定线程：
+            // 未传入时以弹性微任务执行器装配，传入的执行器原样登记；
+            // 二者同为系统内置资源，由框架随应用关闭统一释放
+            MicroTaskExecutor taskOffload = this.taskOffloadExecutor != null
+                    ? this.taskOffloadExecutor
+                    : ElasticMicroTaskExecutor.of("task-offload-micro-task");
+            builtinResources.put(ResourceNames.TASK_OFFLOAD_THREAD_POOL, taskOffload);
             ResourceManager resourceManager = resourceBuilder.build(builtinResources);
             // 未传入的组件补全默认值后，按九组件装定请求编排器；线程池执行器按资源名从管理器获取
             RequestOrchestrator orchestrator = RequestOrchestrator.builder()

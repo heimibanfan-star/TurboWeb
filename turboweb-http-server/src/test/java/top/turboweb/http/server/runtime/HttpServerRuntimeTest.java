@@ -93,6 +93,7 @@ class HttpServerRuntimeTest {
         assertThrows(NullPointerException.class, () -> builder.exceptionHandlers((Object) null));
         assertThrows(NullPointerException.class, () -> builder.contentParsers((HttpContentParser) null));
         assertThrows(NullPointerException.class, () -> builder.config(null));
+        assertThrows(NullPointerException.class, () -> builder.taskOffloadExecutor(null));
         assertThrows(NullPointerException.class, () -> builder.middleware((Middleware) null));
         // 路由登记表传null合法：表示无路由，不创建路由调用中间件
         builder.routeRegister(null);
@@ -228,6 +229,35 @@ class HttpServerRuntimeTest {
                 () -> runtime.getResourceManager().getBuiltinResource("diskIoThreadPool"),
                 "磁盘IO线程池的消费方已随旧响应体系下架，装配不再登记");
         runtime.close();
+    }
+
+    // ---------- 任务卸载执行器可配置 ----------
+
+    @Test
+    void userOffloadExecutorIsRegisteredUnderResourceName() {
+        DirectOffloadExecutor executor = new DirectOffloadExecutor();
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
+                .sessionManager(new NoopSessionManager())
+                .taskOffloadExecutor(executor)
+                .build();
+
+        assertSame(executor, runtime.getResourceManager()
+                        .getBuiltinResource(ResourceNames.TASK_OFFLOAD_THREAD_POOL, MicroTaskExecutor.class),
+                "用户传入的执行器按资源名登记进内置空间，写出处理器按名取用的即是它");
+        runtime.close();
+    }
+
+    @Test
+    void runtimeCloseReleasesUserOffloadExecutor() {
+        DirectOffloadExecutor executor = new DirectOffloadExecutor();
+        HttpServerRuntime runtime = new HttpServerRuntime.Builder()
+                .sessionManager(new NoopSessionManager())
+                .taskOffloadExecutor(executor)
+                .build();
+
+        runtime.close();
+
+        assertTrue(executor.closed, "任务卸载执行器是系统内置资源，传入的实例由框架随应用关闭统一释放");
     }
 
     // ---------- 装配后中间件链被锁定 ----------
@@ -464,6 +494,26 @@ class HttpServerRuntimeTest {
     }
 
     // ---------- 夹具 ----------
+
+    /**
+     * 同步直执行的卸载执行器夹具：submit 在提交线程直接执行任务并以 EXECUTED 收尾，
+     * close 只记录调用不做任何动作。用于钉住传入执行器的登记与框架统一释放口径。
+     */
+    private static final class DirectOffloadExecutor implements MicroTaskExecutor {
+
+        private boolean closed = false;
+
+        @Override
+        public void submit(Runnable task, FinallyHandler finallyHandler) {
+            task.run();
+            finallyHandler.onFinally(new FinallySignal(FinallySignal.CallbackThread.SUBMITTER, FinallyType.EXECUTED));
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+        }
+    }
 
     /**
      * 取出应用装配完成的请求编排器：应用持有调度处理器、处理器持有编排器，两级均为私有字段，
