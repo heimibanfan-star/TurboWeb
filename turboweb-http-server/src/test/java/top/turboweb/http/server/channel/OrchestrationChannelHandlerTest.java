@@ -18,7 +18,7 @@ import top.turboweb.http.orchestrator.RequestOrchestrator;
 import top.turboweb.http.orchestrator.ResultToMessageHandler;
 import top.turboweb.http.orchestrator.parser.HttpContentParserManager;
 import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
-import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.http.server.ResourceNames;
 import top.turboweb.http.session.BackHoleSessionManager;
 import top.turboweb.http.testkit.Stubs;
 import top.turboweb.serializer.JacksonJsonSerializer;

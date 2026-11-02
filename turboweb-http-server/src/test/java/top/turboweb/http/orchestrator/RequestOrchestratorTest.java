@@ -20,7 +20,7 @@ import top.turboweb.http.core.ByteResponseMessage;
 import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
-import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.http.server.ResourceNames;
 import top.turboweb.http.session.SessionManager;
 import top.turboweb.http.testkit.Requests;
 import top.turboweb.http.testkit.Stubs;

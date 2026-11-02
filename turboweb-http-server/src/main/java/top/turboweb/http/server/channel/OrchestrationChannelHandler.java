@@ -18,7 +18,7 @@ import java.util.Objects;
  * {@link RequestOrchestrator} 编排执行，返回后归还收到的请求引用。
  * 未封章的裸请求（如升级协议握手）不经本处理器，自动透传由后续处理器决定。
  * 本处理器标注了 {@link ChannelHandler.Sharable}，无连接级状态，作为单例由
- * {@link top.turboweb.http.server.runtime.HttpServerRuntime} 装配并跨channel复用。
+ * {@link top.turboweb.http.server.HttpServerRuntime} 装配并跨channel复用。
  *
  * <pre>{@code
  * OrchestrationChannelHandler orchestrationHandler = OrchestrationChannelHandler.builder()

@@ -1,4 +1,4 @@
-package top.turboweb.http.server.manager;
+package top.turboweb.http.server;
 
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.internal.logging.InternalLogger;

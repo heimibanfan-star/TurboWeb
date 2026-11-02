@@ -38,7 +38,7 @@ import java.util.concurrent.RejectedExecutionException;
  * 不携带序列号的出站消息（如升级协议握手响应）不经定序，原样透传。
  * <p>
  * 处理器持有连接级状态（游标、堆与缓冲），不能跨channel复用，
- * 由 {@link top.turboweb.http.server.runtime.HttpServerRuntime} 在装配每条管道时新建独立实例。
+ * 由 {@link top.turboweb.http.server.HttpServerRuntime} 在装配每条管道时新建独立实例。
  * 本处理器不持锁：读入与连接失活由 Netty 管线分发保证在本channel的eventLoop线程调用，
  * 状态直接读写；写出可来自任意线程（虚拟线程直接写出），落在eventLoop线程时直接执行定序裁决，
  * 否则按 Netty 默认语义提交eventLoop执行。游标、缓冲与关闭标记仅由eventLoop线程访问。

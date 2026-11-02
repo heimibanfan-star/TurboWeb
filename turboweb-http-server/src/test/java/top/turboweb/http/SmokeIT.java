@@ -6,7 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import top.turboweb.http.middleware.Middleware;
-import top.turboweb.http.server.runtime.HttpServerRuntime;
+import top.turboweb.http.server.HttpServerRuntime;
 import top.turboweb.http.testkit.RecordingMiddleware;
 import top.turboweb.http.testkit.Servers;
 

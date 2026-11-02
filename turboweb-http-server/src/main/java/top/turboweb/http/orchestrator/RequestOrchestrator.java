@@ -19,7 +19,7 @@ import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.orchestrator.writer.MessageWriteHandler;
 import top.turboweb.http.orchestrator.writer.ResponseMessageWriter;
-import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.http.server.ResourceNames;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.HttpRequestMethod;
 import top.turboweb.http.core.RequestLine;

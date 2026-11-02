@@ -6,7 +6,7 @@ import top.turboweb.concurrent.thread.MicroTaskExecutor;
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.response.StreamResponseMessage;
-import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.http.server.ResourceNames;
 import top.turboweb.server.runtime.ResourceProvider;
 
 import java.util.Optional;

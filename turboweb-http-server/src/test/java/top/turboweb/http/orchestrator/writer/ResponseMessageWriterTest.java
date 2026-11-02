@@ -8,7 +8,7 @@ import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.orchestrator.ExceptionMessageHelper;
 import top.turboweb.http.response.StreamResponseMessage;
-import top.turboweb.http.server.constant.ResourceNames;
+import top.turboweb.http.server.ResourceNames;
 import top.turboweb.http.testkit.RecordingHttpConnection;
 import top.turboweb.http.testkit.Stubs;
 import top.turboweb.server.runtime.ResourceManager;

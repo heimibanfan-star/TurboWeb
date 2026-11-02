@@ -1,4 +1,4 @@
-package top.turboweb.http.server.constant;
+package top.turboweb.http.server;
 
 /**
  * 服务器装配期登记进 {@link top.turboweb.server.runtime.ResourceManager} 的资源名常量：
