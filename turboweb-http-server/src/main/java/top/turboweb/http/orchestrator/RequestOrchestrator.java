@@ -235,7 +235,7 @@ public class RequestOrchestrator {
             if (type == MessageWriteHandler.CallbackType.FINISHED) {
                 log.debug(buildRequestLogMessage(method, uri, System.nanoTime() - startTime, error == null));
             }
-        });
+        }, defaultCharset);
     }
 
     /**

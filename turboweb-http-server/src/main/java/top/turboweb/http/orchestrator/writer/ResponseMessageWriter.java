@@ -2,12 +2,16 @@ package top.turboweb.http.orchestrator.writer;
 
 import top.turboweb.http.connection.HttpConnection;
 import top.turboweb.http.core.ByteResponseMessage;
+import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.HttpResponseMessage;
 import top.turboweb.http.core.StatusLine;
 import top.turboweb.http.orchestrator.ExceptionMessageHelper;
 import top.turboweb.server.runtime.ResourceProvider;
 
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -19,6 +23,8 @@ import java.util.stream.Stream;
  * <p>
  * 选择按 Content-Type 门禁与三个区间次序路由：
  * 门禁为消息头完备性——响应消息未携带 {@code Content-Type} 时等同找不到处理器，降级写出报错页；
+ * 已携带但为文本类声明（text 前缀或 application/json）且缺 charset 段时，
+ * 以装配期判定的兜底字符集补写 charset 参数，保证下游按声明即可取得正文编码；
  * 区间一为字节消息直认——{@link ByteResponseMessage} 为 final 类，类型按字面判定，
  * 命中即由本写出器的字节写出方法写出；
  * 区间二为订阅声明匹配——消息实现 {@link WriteHandlerSubscribe} 且声明了订阅者类型时，
@@ -115,22 +121,28 @@ public class ResponseMessageWriter {
     /**
      * 选择写出方并写出响应消息。
      * <p>
-     * 路由次序：字节消息直认落区间一，由字节写出方法写出；
+     * 路由次序：消息未携带 Content-Type 时等同找不到处理器，降级写出报错页；
+     * 文本类 Content-Type 声明缺 charset 段时先以兜底字符集补写 charset 参数，再按
+     * 字节消息直认落区间一，由字节写出方法写出；
      * 实现 {@link WriteHandlerSubscribe} 且声明了订阅者类型的消息按声明类型
      * 先查内置策略组、未命中查自定义策略组，落区间二；
      * 其余消息一律等同找不到处理器，落区间三降级写出报错页。
      * </p>
      *
-     * @param connection 目标连接，提供写出通道
-     * @param message    待写出的响应消息
-     * @param callback   写出回调，报告本轮写出的唯一结果，不能为 {@code null}
+     * @param connection     目标连接，提供写出通道
+     * @param message        待写出的响应消息
+     * @param callback       写出回调，报告本轮写出的唯一结果，不能为 {@code null}
+     * @param defaultCharset 兜底字符集，文本类 Content-Type 声明缺 charset 段时补写用，不能为 {@code null}
      */
-    public void write(HttpConnection connection, HttpResponseMessage<?> message, MessageWriteHandler.Callback callback) {
+    public void write(HttpConnection connection, HttpResponseMessage<?> message, MessageWriteHandler.Callback callback,
+                      Charset defaultCharset) {
+        Objects.requireNonNull(defaultCharset, "The default charset must not be null");
         if (!message.headers().contains(CONTENT_TYPE)) {
             // 响应未携带 Content-Type：等同找不到处理器，降级写出报错页
             writeByteMessage(connection, errorPageFallback(message, ExceptionMessageHelper.missingContentTypeMessage()), callback);
             return;
         }
+        supplementDefaultCharset(message, defaultCharset);
         if (message instanceof ByteResponseMessage byteMessage) {
             writeByteMessage(connection, byteMessage, callback);
             return;
@@ -206,6 +218,44 @@ public class ResponseMessageWriter {
      * @param page     报错页文本，由异常信息 Helper 统一承载
      * @return 降级报错页字节响应消息
      */
+    /**
+     * 文本类 Content-Type 声明缺 charset 段时补写兜底字符集：
+     * 媒体类型为 text 前缀或 application/json 且未声明 charset 时，在原取值后追加
+     * charset 参数，取值为调用方传入的兜底字符集；已声明 charset（含取值非法或字符集
+     * 不受支持）与非文本类的声明原样保留。
+     *
+     * @param message        待写出的响应消息
+     * @param defaultCharset 兜底字符集，不能为 {@code null}
+     */
+    private static void supplementDefaultCharset(HttpResponseMessage<?> message, Charset defaultCharset) {
+        String contentType = message.headers().get(CONTENT_TYPE);
+        if (contentType == null || contentType.isBlank()) {
+            return;
+        }
+        ContentType parsed;
+        try {
+            parsed = ContentType.parse(contentType);
+        } catch (IllegalCharsetNameException | UnsupportedCharsetException e) {
+            // charset 取值非法或当前 JVM 不支持：声明即责任，原样保留交由下游自行处理
+            return;
+        }
+        if (parsed == null || parsed.getCharset() != null || !isTextual(parsed.getMimeType())) {
+            return;
+        }
+        message.headers().set(CONTENT_TYPE, contentType + ";charset=" + defaultCharset.name());
+    }
+
+    /**
+     * 判断媒体类型是否为文本类：text 前缀或 application/json。
+     *
+     * @param mimeType 媒体类型
+     * @return 是文本类返回 true
+     */
+    private static boolean isTextual(String mimeType) {
+        return mimeType.regionMatches(true, 0, "text/", 0, 5)
+                || "application/json".equalsIgnoreCase(mimeType);
+    }
+
     private ByteResponseMessage errorPageFallback(HttpResponseMessage<?> original, String page) {
         ByteResponseMessage fallback = new ByteResponseMessage(
                 StatusLine.INTERNAL_SERVER_ERROR, page.getBytes(StandardCharsets.UTF_8));

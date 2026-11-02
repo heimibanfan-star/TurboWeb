@@ -14,6 +14,8 @@ import top.turboweb.http.testkit.Stubs;
 import top.turboweb.server.runtime.ResourceManager;
 import top.turboweb.server.runtime.ResourceProvider;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -28,7 +30,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * {@link ResponseMessageWriter} 的行为锚：Content-Type 门禁与三区间路由次序
- * （未携带 Content-Type 的响应等同找不到处理器直接降级、字节消息直认写出器内建字节写出方法、
+ * （未携带 Content-Type 的响应等同找不到处理器直接降级、
+ * 文本类声明缺 charset 段时以调用传入的兜底字符集补写且已声明与非文本类原样保留、
+ * 字节消息直认写出器内建字节写出方法、
  * 订阅声明先查内置策略组再查自定义策略组、
  * 流式消息命中内置流式写出处理器逐块写出、
  * 其余消息一律等同找不到处理器而降级写出 500 报错页）、
@@ -38,6 +42,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * 降级报错页的消息头继承（原响应非实体头按序继承，实体头剔除且头名匹配大小写不敏感）。
  */
 class ResponseMessageWriterTest {
+
+    /** write 调用统一传入的兜底字符集夹具 */
+    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
     /** 订阅声明消息夹具：实现 WriteHandlerSubscribe，把选择结果钉到指定处理器类 */
     private static final class SubscribedMessage extends HttpResponseMessage<Object> implements WriteHandlerSubscribe {
@@ -190,7 +197,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertEquals(1, callback.count(), "回调恰好一次");
         assertNull(callback.error(), "写出成功无错误");
@@ -208,7 +215,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertEquals("99", connection.writtenHeaders().get("Content-Length").getFirst(), "已携带 Content-Length 时不覆写");
     }
@@ -221,7 +228,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertFalse(connection.writtenHeaders().containsKey("Transfer-Encoding"),
                 "定长写出与分块传输互斥，携带的 Transfer-Encoding 头写出前剔除");
@@ -236,7 +243,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertTrue(connection.sentMessages().isEmpty(), "空消息体跳过消息体写出");
         assertEquals("0", connection.writtenHeaders().get("Content-Length").getFirst(), "空消息体补齐 Content-Length 为 0");
@@ -252,7 +259,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of(handler))
-                .write(connection, new SubscribedMessage(MarkingHandler.class, new Object()), callback);
+                .write(connection, new SubscribedMessage(MarkingHandler.class, new Object()), callback, DEFAULT_CHARSET);
 
         assertTrue(handler.wasWritten(), "订阅声明的处理器命中自定义策略组");
         assertEquals(1, callback.count());
@@ -267,7 +274,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, new SubscribedMessage(MarkingHandler.class, new Object()), callback);
+                .write(connection, new SubscribedMessage(MarkingHandler.class, new Object()), callback, DEFAULT_CHARSET);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
                 "声明了写出职责但两级策略组均未登记，降级写出报错页");
@@ -283,7 +290,7 @@ class ResponseMessageWriterTest {
         assertSame(StreamMessageWriteHandler.class, message.subscriber(), "流式消息声明内置流式写出处理器");
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertEquals(1, callback.count(), "回调恰好一次");
         assertNull(callback.error(), "写出成功无错误");
@@ -303,7 +310,7 @@ class ResponseMessageWriterTest {
         new ResponseMessageWriter(resourceManagerOf(), List.of())
                 .write(connection,
                         new StreamResponseMessage(StatusLine.OK, Flux.just("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8))),
-                        callback);
+                        callback, DEFAULT_CHARSET);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
                 "流式消息同样受 Content-Type 门禁约束");
@@ -317,7 +324,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
                 "未实现订阅声明的消息等同找不到处理器");
@@ -330,7 +337,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
                 "未声明订阅者类型等同找不到处理器");
@@ -342,7 +349,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, new HttpResponseMessage<>(StatusLine.OK, "text"), callback);
+                .write(connection, new HttpResponseMessage<>(StatusLine.OK, "text"), callback, DEFAULT_CHARSET);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
                 "未携带 Content-Type 的响应等同找不到处理器，降级写出报错页");
@@ -354,10 +361,66 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8)), callback);
+                .write(connection, new ByteResponseMessage(StatusLine.OK, "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8)), callback, DEFAULT_CHARSET);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
                 "字节消息同样受 Content-Type 门禁约束");
+    }
+
+    @Test
+    void textualContentTypeWithoutCharsetGetsDefaultCharsetAppended() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        ByteResponseMessage message = byteMessage("ok".getBytes(StandardCharsets.UTF_8));
+        message.headers().set("Content-Type", "text/plain");
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback, Charset.forName("GBK"));
+
+        assertEquals("text/plain;charset=GBK", connection.writtenHeaders().get("Content-Type").getFirst(),
+                "文本类声明缺 charset 段时以调用传入的兜底字符集补写");
+    }
+
+    @Test
+    void declaredCharsetIsKeptAsIs() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        ByteResponseMessage message = byteMessage("ok".getBytes(StandardCharsets.UTF_8));
+        message.headers().set("Content-Type", "text/html;charset=ISO-8859-1");
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback, Charset.forName("GBK"));
+
+        assertEquals("text/html;charset=ISO-8859-1", connection.writtenHeaders().get("Content-Type").getFirst(),
+                "已声明 charset 的文本类声明原样保留，不以兜底字符集覆盖");
+    }
+
+    @Test
+    void nonTextualContentTypeWithoutCharsetIsUntouched() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        ByteResponseMessage message = byteMessage("ok".getBytes(StandardCharsets.UTF_8));
+        message.headers().set("Content-Type", "application/octet-stream");
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback, Charset.forName("GBK"));
+
+        assertEquals("application/octet-stream", connection.writtenHeaders().get("Content-Type").getFirst(),
+                "非文本类声明不补写 charset 段");
+    }
+
+    @Test
+    void illegalCharsetDeclarationIsKeptAsIs() {
+        RecordingHttpConnection connection = new RecordingHttpConnection();
+        ByteResponseMessage message = byteMessage("ok".getBytes(StandardCharsets.UTF_8));
+        message.headers().set("Content-Type", "text/plain;charset=NOT-A-CHARSET");
+        CallbackTrap callback = new CallbackTrap();
+
+        new ResponseMessageWriter(resourceManagerOf(), List.of())
+                .write(connection, message, callback, Charset.forName("GBK"));
+
+        assertEquals("text/plain;charset=NOT-A-CHARSET", connection.writtenHeaders().get("Content-Type").getFirst(),
+                "charset 取值非法的声明即责任，原样保留不补写");
     }
 
     @Test
@@ -370,7 +433,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.missingContentTypeMessage(),
                 "未携带 Content-Type 的响应降级写出报错页");
@@ -391,7 +454,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertErrorPageWritten(connection, callback, ExceptionMessageHelper.unsupportedWriteHandlerMessage(),
                 "降级写出报错页");
@@ -408,7 +471,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertEquals(1, callback.count(), "回调恰好一次");
         assertInstanceOf(IllegalStateException.class, callback.error(), "异步写出失败以原异常上报");
@@ -424,7 +487,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertEquals(1, callback.count(), "回调恰好一次");
         assertEquals(1, connection.closeCount(), "消息体写出失败后帧序已残缺，通道以关闭收尾");
@@ -437,7 +500,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertEquals(1, callback.count(), "回调恰好一次");
         assertEquals(1, connection.closeCount(), "结束标记写出失败后通道以关闭收尾");
@@ -450,7 +513,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
         connection.failHeaders(new IllegalStateException("headers failed"));
 
         assertEquals(1, callback.count(), "回调恰好一次");
@@ -464,7 +527,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertEquals(1, callback.count(), "回调恰好一次");
         assertEquals(1, connection.closeCount(), "写出通道同步抛错同样以关闭通道收尾");
@@ -477,7 +540,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertEquals(1, callback.count(), "写出通道同步抛错也经回调恰好上报一次");
         assertEquals("sync failure on headers", callback.error().getMessage());
@@ -492,7 +555,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         assertEquals(List.of("headers"), connection.operations(), "响应头未完成前不得发出消息体");
         assertTrue(connection.sentMessages().isEmpty(), "响应头未完成前消息体写出不得被调用");
@@ -514,7 +577,7 @@ class ResponseMessageWriterTest {
         CallbackTrap callback = new CallbackTrap();
 
         new ResponseMessageWriter(resourceManagerOf(), List.of())
-                .write(connection, message, callback);
+                .write(connection, message, callback, DEFAULT_CHARSET);
 
         connection.failHeaders(new IllegalStateException("headers failed"));
 

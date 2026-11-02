@@ -31,7 +31,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 每个返回值类型只被其对应环节转化为响应消息（HttpResult 装配为字节消息、String 走
  * text/html、null 落空 text/html、Publisher 转 StreamResponseMessage 且流内元素逐类型
  * 编码为字节数组、其余对象兜底 application/json）。各环节自建消息的正文与 Content-Type
- * 均按传入字符集；HttpResult 调用方头先整体写入、实体头以框架按实际响应体算出的值为准。
+ * 均按传入字符集；HttpResult 调用方头先整体写入，调用方已声明 Content-Type 时保留其声明，
+ * 未声明时按数据类型补缺省声明，内容长度以框架按实际响应体算出的值为准。
  * 序列化失败的行为奇偶：兜底环节上抛、流内环节转为流错误信号。
  * 自定义环节契约：构造期以处理器具体类登记，内置类型（含 JSON 默认环节）拒登、
  * 同类重复拒登、列表与元素为 null 拒登；分派时内置在前、自定义按登记次序在后，
@@ -76,7 +77,7 @@ class ConvertHandlerManagerTest {
     }
 
     @Test
-    void httpResultCallerHeadersCarriedButEntityHeadersRecalculated() {
+    void httpResultCallerContentTypePreservedAndContentLengthRecalculated() {
         Headers callerHeaders = new Headers();
         callerHeaders.set("X-Trace-Id", "t-1");
         callerHeaders.set("Content-Type", "text/plain");
@@ -86,8 +87,8 @@ class ConvertHandlerManagerTest {
                 HttpResult.create(200, callerHeaders, "hi"), CHARSET);
 
         assertEquals("t-1", message.headers().get("X-Trace-Id"), "调用方非实体头原样保留");
-        assertEquals("text/html;charset=UTF-8", message.headers().get("Content-Type"),
-                "内容类型以框架按实际内容算出的值为准");
+        assertEquals("text/plain", message.headers().get("Content-Type"),
+                "调用方已声明内容类型时保留其声明，不补缺省声明");
         assertEquals(2, Integer.parseInt(message.headers().get("Content-Length")),
                 "内容长度以框架按实际响应体算出的值为准，调用方遗留值不生效");
     }
