@@ -16,4 +16,4 @@ dependencies {
     api(libs.reactor.netty)
 }
 
-description = "turboweb-client"
+description = "turboweb-http-client"
