@@ -33,8 +33,7 @@ dependencies {
 description = "turboweb-http-client"
 
 // PITest 按先例在各自构建脚本自启（根脚本只对 http-server 集中授予）：
-// PITest 的通配符会跨包匹配，单星写法会把 deprecated 参考包圈进变异分母，
-// 故显式列出新实现各类；变异门槛暂不钉线，先跑基线
+// targetClasses 显式列举变异对象，变异门槛暂不钉线，先跑基线
 configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
     pitestVersion.set("1.30.0")
     junit5PluginVersion.set("1.2.3")
