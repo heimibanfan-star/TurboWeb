@@ -1,4 +1,4 @@
-package top.turboweb.client.result;
+package top.turboweb.client.deprecated.result;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpHeaders;

@@ -1,4 +1,4 @@
-package top.turboweb.client.result;
+package top.turboweb.client.deprecated.result;
 
 /**
  * 内部使用的 Stream 扩展接口

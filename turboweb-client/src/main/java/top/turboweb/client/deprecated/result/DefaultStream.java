@@ -1,9 +1,9 @@
-package top.turboweb.client.result;
+package top.turboweb.client.deprecated.result;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import top.turboweb.client.exception.TurboHttpClientException;
+import top.turboweb.client.deprecated.exception.TurboHttpClientException;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;

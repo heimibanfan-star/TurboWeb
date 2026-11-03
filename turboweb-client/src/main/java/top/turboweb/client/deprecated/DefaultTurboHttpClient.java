@@ -1,16 +1,16 @@
-package top.turboweb.client;
+package top.turboweb.client.deprecated;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.*;
-import top.turboweb.client.converter.Converter;
-import top.turboweb.client.converter.JsonConverter;
-import top.turboweb.client.engine.HttpClientEngine;
-import top.turboweb.client.interceptor.RequestInterceptor;
-import top.turboweb.client.interceptor.ResponseInterceptor;
-import top.turboweb.client.result.ClientResult;
-import top.turboweb.client.result.Stream;
-import top.turboweb.client.exception.TurboHttpClientException;
+import top.turboweb.client.deprecated.converter.Converter;
+import top.turboweb.client.deprecated.converter.JsonConverter;
+import top.turboweb.client.deprecated.engine.HttpClientEngine;
+import top.turboweb.client.deprecated.interceptor.RequestInterceptor;
+import top.turboweb.client.deprecated.interceptor.ResponseInterceptor;
+import top.turboweb.client.deprecated.result.ClientResult;
+import top.turboweb.client.deprecated.result.Stream;
+import top.turboweb.client.deprecated.exception.TurboHttpClientException;
 import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.uri.URIBuilder;
 

@@ -1,4 +1,4 @@
-package top.turboweb.client.engine;
+package top.turboweb.client.deprecated.engine;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
@@ -13,10 +13,10 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.HttpClientResponse;
 import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.tcp.SslProvider;
-import top.turboweb.client.result.DefaultStream;
-import top.turboweb.client.result.InternStream;
-import top.turboweb.client.result.Stream;
-import top.turboweb.client.exception.TurboHttpClientException;
+import top.turboweb.client.deprecated.result.DefaultStream;
+import top.turboweb.client.deprecated.result.InternStream;
+import top.turboweb.client.deprecated.result.Stream;
+import top.turboweb.client.deprecated.exception.TurboHttpClientException;
 
 import java.io.Closeable;
 import java.time.Duration;
@@ -43,7 +43,7 @@ import java.util.function.Consumer;
  * <p>
  * 使用场景：
  * <ul>
- *     <li>作为 {@link top.turboweb.client.DefaultTurboHttpClient} 的底层请求引擎</li>
+ *     <li>作为 {@link top.turboweb.client.deprecated.DefaultTurboHttpClient} 的底层请求引擎</li>
  *     <li>需要高性能 HTTP 调用、连接复用和异步处理的场景</li>
  * </ul>
  */

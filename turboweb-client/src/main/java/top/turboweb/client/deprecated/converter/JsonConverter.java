@@ -1,11 +1,11 @@
-package top.turboweb.client.converter;
+package top.turboweb.client.deprecated.converter;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.client.exception.TurboHttpClientException;
+import top.turboweb.client.deprecated.exception.TurboHttpClientException;
 import top.turboweb.http.core.ContentType;
 import top.turboweb.serializer.JacksonJsonSerializer;
 import top.turboweb.serializer.JsonSerializer;

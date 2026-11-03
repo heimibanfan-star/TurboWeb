@@ -1,4 +1,4 @@
-package top.turboweb.client.exception;
+package top.turboweb.client.deprecated.exception;
 
 /**
  * http客户端相关异常

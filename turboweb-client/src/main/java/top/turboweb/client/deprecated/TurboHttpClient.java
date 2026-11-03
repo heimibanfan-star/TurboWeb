@@ -1,10 +1,10 @@
-package top.turboweb.client;
+package top.turboweb.client.deprecated;
 
 import io.netty.handler.codec.http.*;
-import top.turboweb.client.interceptor.RequestInterceptor;
-import top.turboweb.client.interceptor.ResponseInterceptor;
-import top.turboweb.client.result.ClientResult;
-import top.turboweb.client.result.Stream;
+import top.turboweb.client.deprecated.interceptor.RequestInterceptor;
+import top.turboweb.client.deprecated.interceptor.ResponseInterceptor;
+import top.turboweb.client.deprecated.result.ClientResult;
+import top.turboweb.client.deprecated.result.Stream;
 
 import java.util.LinkedList;
 import java.util.List;

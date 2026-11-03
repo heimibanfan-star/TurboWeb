@@ -1,4 +1,4 @@
-package top.turboweb.client.converter;
+package top.turboweb.client.deprecated.converter;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponse;
@@ -16,7 +16,7 @@ import java.nio.charset.Charset;
  * <p>
  * 使用场景：
  * <ul>
- *     <li>在 {@link top.turboweb.client.DefaultTurboHttpClient} 中自动序列化请求体和反序列化响应体</li>
+ *     <li>在 {@link top.turboweb.client.deprecated.DefaultTurboHttpClient} 中自动序列化请求体和反序列化响应体</li>
  *     <li>支持自定义数据格式，例如 JSON、XML 或二进制</li>
  * </ul>
  */

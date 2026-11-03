@@ -1,9 +1,9 @@
-package top.turboweb.client.result;
+package top.turboweb.client.deprecated.result;
 
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
-import top.turboweb.client.converter.Converter;
+import top.turboweb.client.deprecated.converter.Converter;
 
 import java.util.Map;
 
