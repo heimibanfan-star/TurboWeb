@@ -4,17 +4,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
-import top.turboweb.http.core.ContentType;
 import top.turboweb.http.core.HttpRequestMessage;
 import top.turboweb.http.core.MultipartFile;
 import top.turboweb.http.core.RequestLine;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -146,9 +143,6 @@ public class FormRequestMessage extends HttpRequestMessage<FormRequestMessage.Fo
         /** 被聚合的 Netty 上传段，数据体生命周期归其解码器所有 */
         private final FileUpload fileUpload;
 
-        /** 构造期解析并持有的内容类型，解析结果不再变化 */
-        private final ContentType contentType;
-
         /**
          * 包装 Netty 上传段。
          *
@@ -157,7 +151,6 @@ public class FormRequestMessage extends HttpRequestMessage<FormRequestMessage.Fo
          */
         public FormFile(FileUpload fileUpload) {
             this.fileUpload = Objects.requireNonNull(fileUpload, "fileUpload can not be null");
-            this.contentType = parseContentType(fileUpload.getContentType());
         }
 
         /**
@@ -199,16 +192,20 @@ public class FormRequestMessage extends HttpRequestMessage<FormRequestMessage.Fo
         }
 
         /**
-         * 获取上传段声明的内容类型。
+         * 获取上传段声明的 MIME 类型：取 Content-Type 取值首个分号之前的部分，
+         * charset 等参数段不参与。
          *
-         * <p>MIME 类型之外的 charset 参数在构造期一并解析：无法识别的 charset 视同未声明，
-         * 只保留 MIME 类型。</p>
-         *
-         * @return 内容类型；未声明或解析不出 MIME 类型时返回 {@code null}
+         * @return MIME 类型；未声明或 MIME 类型为空时返回 {@code null}
          */
         @Override
-        public ContentType contentType() {
-            return contentType;
+        public String contentType() {
+            String value = fileUpload.getContentType();
+            if (value == null || value.isBlank()) {
+                return null;
+            }
+            int paramStart = value.indexOf(';');
+            String mimeType = (paramStart < 0 ? value : value.substring(0, paramStart)).trim();
+            return mimeType.isEmpty() ? null : mimeType;
         }
 
         /**
@@ -219,50 +216,6 @@ public class FormRequestMessage extends HttpRequestMessage<FormRequestMessage.Fo
         @Override
         public long length() {
             return fileUpload.length();
-        }
-
-        /**
-         * 解析上传段声明的 Content-Type 取值。
-         *
-         * @param value 原始 Content-Type 取值，可为 {@code null}
-         * @return 解析出的内容类型；取值缺失、MIME 类型为空时返回 {@code null}，
-         *         charset 无法识别时只保留 MIME 类型
-         */
-        private static ContentType parseContentType(String value) {
-            if (value == null || value.isBlank()) {
-                return null;
-            }
-            String[] parts = value.split(";");
-            String mimeType = parts[0].trim();
-            if (mimeType.isEmpty()) {
-                return null;
-            }
-            Charset charset = null;
-            for (int i = 1; i < parts.length; i++) {
-                String part = parts[i].trim();
-                if (part.toLowerCase(Locale.ROOT).startsWith("charset=")) {
-                    String charsetName = stripQuotes(part.substring("charset=".length()).trim());
-                    if (charsetName.isEmpty()) {
-                        continue;
-                    }
-                    try {
-                        charset = Charset.forName(charsetName);
-                    } catch (IllegalArgumentException ignore) {
-                        // 无法识别的字符集视同未声明
-                    }
-                }
-            }
-            return ContentType.create(mimeType, charset);
-        }
-
-        /**
-         * 去掉参数值两侧成对的双引号（HTTP 参数允许以 quoted-string 形式取值）。
-         */
-        private static String stripQuotes(String value) {
-            if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
-                return value.substring(1, value.length() - 1).trim();
-            }
-            return value;
         }
     }
 }

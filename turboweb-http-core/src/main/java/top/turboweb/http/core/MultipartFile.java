@@ -46,11 +46,12 @@ public interface MultipartFile {
     String filename();
 
     /**
-     * 获取内容类型。
+     * 获取上传文件声明的 MIME 类型：取 Content-Type 取值首个分号之前的部分，
+     * charset 等参数段不参与。
      *
-     * @return 内容类型；未声明时返回 {@code null}
+     * @return MIME 类型；未声明或 MIME 类型为空时返回 {@code null}
      */
-    ContentType contentType();
+    String contentType();
 
     /**
      * 获取内容字节数。

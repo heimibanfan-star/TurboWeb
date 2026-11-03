@@ -7,7 +7,6 @@ import io.netty.handler.codec.http.multipart.MemoryFileUpload;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import top.turboweb.http.core.ContentType;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,13 +17,12 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * {@link FormRequestMessage.FormFile} 委托 Netty 上传段的读取面：内容通道每次自起始处读取，
- * 元信息按上传段声明透出，Content-Type 在构造期完成 MIME 与 charset 解析。
+ * 元信息按上传段声明透出，Content-Type 只透出 MIME 类型，charset 等参数段不参与。
  */
 class FormRequestMessageFormFileTest {
 
@@ -124,65 +122,22 @@ class FormRequestMessageFormFileTest {
     }
 
     @Test
-    void contentTypeParsesMimeTypeAndDeclaredCharset() {
-        ContentType type = new FormRequestMessage.FormFile(stagingUpload("text/plain; charset=UTF-8")).contentType();
-
-        assertNotNull(type);
-        assertEquals("text/plain", type.getMimeType());
-        assertEquals(StandardCharsets.UTF_8, type.getCharset());
+    void contentTypeReturnsDeclaredMimeType() {
+        assertEquals("image/png", new FormRequestMessage.FormFile(stagingUpload("image/png")).contentType());
     }
 
     @Test
-    void contentTypeLeavesCharsetUnsetWhenAbsent() {
-        ContentType type = new FormRequestMessage.FormFile(stagingUpload("image/png")).contentType();
+    void contentTypeDropsParametersAfterMimeType() {
+        String type = new FormRequestMessage.FormFile(stagingUpload("text/plain; charset=UTF-8")).contentType();
 
-        assertNotNull(type);
-        assertEquals("image/png", type.getMimeType());
-        assertNull(type.getCharset());
+        assertEquals("text/plain", type);
     }
 
     @Test
-    void contentTypeFindsCharsetAfterOtherParameters() {
-        ContentType type = new FormRequestMessage.FormFile(
-                stagingUpload("text/plain; format=flowed; charset=UTF-8")).contentType();
+    void contentTypeTrimsMimeType() {
+        String type = new FormRequestMessage.FormFile(stagingUpload(" text/plain ; charset=UTF-8")).contentType();
 
-        assertNotNull(type);
-        assertEquals("text/plain", type.getMimeType());
-        assertEquals(StandardCharsets.UTF_8, type.getCharset());
-    }
-
-    @Test
-    void contentTypeMatchesCharsetParameterCaseInsensitively() {
-        ContentType type = new FormRequestMessage.FormFile(stagingUpload("text/plain; Charset=UTF-8")).contentType();
-
-        assertEquals(StandardCharsets.UTF_8, type.getCharset());
-    }
-
-    @Test
-    void contentTypeStripsQuotesAroundCharsetName() {
-        ContentType type = new FormRequestMessage.FormFile(
-                stagingUpload("text/plain; charset=\"UTF-8\"")).contentType();
-
-        assertEquals(StandardCharsets.UTF_8, type.getCharset());
-    }
-
-    @Test
-    void contentTypeKeepsMimeTypeWhenCharsetUnknown() {
-        ContentType type = new FormRequestMessage.FormFile(
-                stagingUpload("text/plain; charset=no-such-charset")).contentType();
-
-        assertNotNull(type);
-        assertEquals("text/plain", type.getMimeType());
-        assertNull(type.getCharset());
-    }
-
-    @Test
-    void contentTypeIgnoresEmptyCharsetName() {
-        ContentType type = new FormRequestMessage.FormFile(stagingUpload("text/plain; charset= ")).contentType();
-
-        assertNotNull(type);
-        assertEquals("text/plain", type.getMimeType());
-        assertNull(type.getCharset());
+        assertEquals("text/plain", type);
     }
 
     @Test

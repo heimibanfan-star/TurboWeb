@@ -47,7 +47,7 @@ class MultipartFileTest {
             }
 
             @Override
-            public ContentType contentType() {
+            public String contentType() {
                 throw new UnsupportedOperationException();
             }
 
