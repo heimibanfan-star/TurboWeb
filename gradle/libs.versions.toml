@@ -15,6 +15,7 @@ reactor-netty = "1.3.7"
 netty = "4.2.19.Final"
 reactor-core = "3.8.7"
 jspecify = "1.0.1"
+byte-buddy = "1.18.17"
 
 [libraries]
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback-classic" }
@@ -36,3 +37,4 @@ netty-transport = { module = "io.netty:netty-transport", version.ref = "netty" }
 netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
 reactor-core = { module = "io.projectreactor:reactor-core", version.ref = "reactor-core" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }

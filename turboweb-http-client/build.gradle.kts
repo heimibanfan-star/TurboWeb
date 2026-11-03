@@ -20,6 +20,9 @@ dependencies {
     api(enforcedPlatform(libs.netty.bom))
     api(libs.reactor.netty)
 
+    // 字节码生成引擎，供客户端内部动态类型增强使用，不向消费方暴露
+    implementation(libs.byte.buddy)
+
     // Gradle 9 不再自带 platform launcher；BOM 复用既有 junit-jupiter 版本，不引入第二个版本号
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
