@@ -52,3 +52,5 @@ build
 docs/superpowers
 rest-inspect-out5
 .mcp.json
+
+turboweb-example
