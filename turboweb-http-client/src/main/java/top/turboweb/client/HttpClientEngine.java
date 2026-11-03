@@ -11,8 +11,11 @@ import top.turboweb.http.core.HttpRequestMessage;
  * <p>聚合请求与流式请求两入口共用一套传输逻辑，
  * {@link #request(HttpRequestMessage)} 由 {@link #stream(HttpRequestMessage, StreamHandler)}
  * 聚合实现：阻塞等待头到达后构造消息、累积分块、终态返回。</p>
+ *
+ * <p>引擎持有传输期资源，随引擎生命周期：连接池与事件循环组由 {@link #close()} 释放，
+ * 关闭后引擎不可再发起请求。</p>
  */
-public interface HttpClientEngine {
+public interface HttpClientEngine extends AutoCloseable {
 
     /**
      * 发起聚合请求：阻塞至传输完成，响应体全量聚合为字节数组；
@@ -32,4 +35,12 @@ public interface HttpClientEngine {
      * @return 取消句柄，可在任意回调内或任意线程取消本流
      */
     StreamHandle stream(HttpRequestMessage<byte[]> request, StreamHandler handler);
+
+    /**
+     * 释放引擎持有的传输资源：连接池与事件循环组随引擎生命周期释放，
+     * 关闭时已发起的请求不强行中断，待其自然收尾。
+     * 本方法幂等，重复调用无副作用；关闭后调用请求入口抛出异常。
+     */
+    @Override
+    void close();
 }
