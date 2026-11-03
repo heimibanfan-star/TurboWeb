@@ -3,10 +3,10 @@ package top.turboweb.client;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelOption;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.ReferenceCountUtil;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -143,9 +143,17 @@ public class ReactiveHttpClientEngine implements HttpClientEngine {
         Flux<ByteBuf> receive = httpClient
                 .request(HttpMethod.valueOf(request.method().name()))
                 .uri(uri)
-                .send((req, outbound) -> hasBody
-                        ? outbound.send(Mono.just(Unpooled.wrappedBuffer(body)))
-                        : outbound.send(Mono.empty()))
+                .send((req, outbound) -> {
+                    // 请求头实体逐条转入网络头容器后整体上线，同名多值按出现顺序保持
+                    HttpHeaders wireHeaders =
+                            new DefaultHttpHeaders();
+                    request.headers().asMap().forEach((name, values) ->
+                            values.forEach(value -> wireHeaders.add(name, value)));
+                    req.headers(wireHeaders);
+                    return hasBody
+                            ? outbound.send(Mono.just(Unpooled.wrappedBuffer(body)))
+                            : outbound.send(Mono.empty());
+                })
                 .responseConnection((response, connection) -> {
                     handler.onHeaders(statusLineOf(response), toHeaders(response.responseHeaders()));
                     return connection.inbound().receive();
@@ -153,15 +161,12 @@ public class ReactiveHttpClientEngine implements HttpClientEngine {
 
         Disposable disposable = receive.subscribe(
                 buf -> {
-                    try {
-                        if (!cancelled.get()) {
-                            byte[] chunk = new byte[buf.readableBytes()];
-                            buf.readBytes(chunk);
-                            handler.onData(chunk);
-                        }
-                    } finally {
-                        ReferenceCountUtil.release(buf);
+                    if (!cancelled.get()) {
+                        byte[] chunk = new byte[buf.readableBytes()];
+                        buf.readBytes(chunk);
+                        handler.onData(chunk);
                     }
+                    // 分块缓冲的释放在传输侧统一收口，此处只读取不释放
                 },
                 error -> {
                     if (terminal.compareAndSet(false, true)) {

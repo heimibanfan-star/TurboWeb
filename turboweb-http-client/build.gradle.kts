@@ -5,6 +5,11 @@
  */
 
 // 插件与统一约定（java-library/maven-publish/jacoco、发布与测试机制）由根 build.gradle.kts 的 subprojects 块授予
+plugins {
+    // 变异测试：版本由根构建脚本的 plugins 块统一声明，此处按坐标启用
+    id("info.solidsoft.pitest")
+}
+
 dependencies {
     // JsonConverter 构造参数即 JsonSerializer 接口（默认实现 JacksonJsonSerializer），由 turboweb-serializer 提供，用 api 暴露
     api(project(":turboweb-serializer"))
@@ -14,6 +19,32 @@ dependencies {
     // netty-bom 以强制约束模式导入：BOM 版本在冲突裁决中优先，传递侧 netty 一律锁定本仓统一版本
     api(enforcedPlatform(libs.netty.bom))
     api(libs.reactor.netty)
+
+    // Gradle 9 不再自带 platform launcher；BOM 复用既有 junit-jupiter 版本，不引入第二个版本号
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.logback.classic)
 }
 
 description = "turboweb-http-client"
+
+// PITest 按先例在各自构建脚本自启（根脚本只对 http-server 集中授予）：
+// PITest 的通配符会跨包匹配，单星写法会把 deprecated 参考包圈进变异分母，
+// 故显式列出新实现各类；变异门槛暂不钉线，先跑基线
+configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
+    pitestVersion.set("1.30.0")
+    junit5PluginVersion.set("1.2.3")
+    // 本仓存在顶满 30s 的定时敏感用例，默认 1.2 倍超时窗会把慢用例误判为超时，放宽
+    timeoutFactor.set(4.toBigDecimal())
+    targetClasses.set(listOf(
+            "top.turboweb.client.HttpClientEngine",
+            "top.turboweb.client.StreamHandle",
+            "top.turboweb.client.StreamHandler",
+            "top.turboweb.client.ReactiveClientConfig",
+            "top.turboweb.client.ReactiveHttpClientEngine",
+            "top.turboweb.client.ClientTransportException"))
+    // targetTests 缺省继承 targetClasses；targetClasses 显式列类后测试类名不再匹配，
+    // minion 会把测试全部过滤为 0，故按测试类所在包显式指定
+    targetTests.set(listOf("top.turboweb.client.*"))
+}
