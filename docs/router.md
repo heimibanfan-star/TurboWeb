@@ -15,10 +15,10 @@ TurboWeb 只提供注解声明式路由。控制器类上的 `@Route` 声明类�
 ```java
 package demo;
 
-import top.turboweb.rest.annotation.binder.PathParam;
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Post;
-import top.turboweb.rest.annotation.router.Route;
+import top.turboweb.http.core.annotation.binder.PathParam;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Post;
+import top.turboweb.http.core.annotation.router.Route;
 
 @Route("/user")
 public class UserController {
@@ -58,7 +58,7 @@ public class UserController {
 RestRouteRegister routeRegister = new RestRouteRegister();
 routeRegister.registerRoute(new UserController());
 
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .build();
 ```
@@ -214,7 +214,7 @@ public class UserController {
 
 ## 8. 构建期会拒绝的写法
 
-以下问题都在 `HttpRequestApplication.Builder#build()` 生成路由表时暴露，不会等到请求进来才报错：
+以下问题都在 `HttpServerRuntime.Builder#build()` 生成路由表时暴露，不会等到请求进来才报错：
 
 | 写法 | 结果 |
 | --- | --- |
@@ -238,6 +238,6 @@ RestRouteRegister routeRegister = new RestRouteRegister("/api");
 
 `null` 与空串表示不加前缀。前缀内部含连续斜杠（如 `/api//v1`）不会在构造时报错，而是在构建路由表时按非法路径拒绝。
 
-路由表在 `newRouteHandlerManager(jsonSerializer)` 时生成，`HttpRequestApplication.Builder#build()` 内部会调用它。生成之后登记表即冻结：继续登记控制器、替换参数解析器、指定校验器都会抛 `IllegalStateException`。因此控制器和各项配置必须在 `build()` 之前全部加完。
+路由表在 `newRouteHandlerManager(jsonSerializer)` 时生成，`HttpServerRuntime.Builder#build()` 内部会调用它。生成之后登记表即冻结：继续登记控制器、替换参数解析器、指定校验器都会抛 `IllegalStateException`。因此控制器和各项配置必须在 `build()` 之前全部加完。
 
 [首页](../README.md) | [快速入门](./quickstart.md) | [请求体系](./request.md)

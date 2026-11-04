@@ -1,6 +1,6 @@
 # 定制：序列化与实体校验
 
-请求侧与响应侧的 JSON 编解码统一收在 `top.turboweb.serializer.JsonSerializer` 后面，Bean 形参的校验统一收在 `top.turboweb.validation.BeanValidator` 后面。控制器返回对象、`HttpResult` 的非字符串正文、流中的对象元素，以及 `@BeanQuery`、`@BeanForm`、`@BeanJson` 的参数绑定都经过序列化器；带校验开关的 Bean 形参在绑定之后、调用控制器之前经过校验器。默认实现分别是基于 Jackson 的 `JacksonJsonSerializer` 与基于 Hibernate Validator 的 `HibernateBeanValidator`。
+请求侧与响应侧的 JSON 编解码统一收在 `top.turboweb.serializer.JsonSerializer` 后面，Bean 形参的校验统一收在 `top.turboweb.validation.BeanValidator` 后面。控制器返回对象、`HttpResult` 的对象数据、流中的对象元素，以及 `@BeanQuery`、`@BeanForm`、`@BeanJson` 的参数绑定都经过序列化器；带校验开关的 Bean 形参在绑定之后、调用控制器之前经过校验器。默认实现分别是基于 Jackson 的 `JacksonJsonSerializer` 与基于 Hibernate Validator 的 `HibernateBeanValidator`。
 
 替换这两个实例，就能统一改变读写 JSON 的口径与校验行为，而不用逐个修改控制器。本文说明它们接管哪些路径、接口契约、默认实现的配置，以及替换方式。这里只针对 HTTP 服务端应用，客户端模块的 JSON 转换不由这个入口配置。
 
@@ -8,8 +8,8 @@
 
 | 场景 | 调用的方法 |
 | --- | --- |
-| 控制器返回普通对象，由 JSON 兜底转化器处理 | `beanToJson` |
-| `HttpResult` 的 `data` 不是 `String` | `beanToJson` |
+| 控制器返回普通对象，经 JSON 装配为响应消息 | `beanToJson` |
+| `HttpResult` 的 `data` 是其他对象（非 `String`、`byte[]`、`null`、`Publisher`） | `beanToJson` |
 | `Publisher` 流中的对象元素 | `beanToJson` |
 | `@BeanQuery`、`@BeanForm` 绑定 bean | `mapToBean` |
 | `@BeanJson` 绑定 bean | `jsonToBean` |
@@ -17,9 +17,9 @@
 几点边界：
 
 - 响应正文由序列化器产出字符串，再按 `HttpConfig` 的缺省字符集编码。序列化器不接触字符集，也不应把字符集写进结果。
-- `String`、`HttpFileResult`、`HttpResponse`、`null` 都不经序列化器；流中的 `String`、`Number`、`byte[]`、`ByteBuffer`、`ByteBuf` 元素直接编码，只有其他对象才交给序列化器。
+- `String`、`byte[]`、`null` 与响应消息都不经序列化器；流中的 `String`、`byte[]` 元素直接编码，只有其他对象才交给序列化器。
 - 路径、查询、表单、请求头、Cookie 的简单类型转换走固定转换表，不受序列化器影响。
-- 构建期只装配一个实例：`HttpRequestApplication.Builder#build()` 把建造者的序列化器交给结果转化器管理器；挂了路由登记表时也交给它生产路由处理器管理器。响应侧与参数绑定侧共用同一个对象，`jsonSerializer(...)` 与 `routeRegister(...)` 的调用顺序不影响结果。
+- 构建期只装配一个实例：`HttpServerRuntime.Builder#build()` 把建造者的序列化器交给结果转化处理器；挂了路由登记表时也交给它生产路由处理器管理器。响应侧与参数绑定侧共用同一个对象，`jsonSerializer(...)` 与 `routeRegister(...)` 的调用顺序不影响结果。
 
 序列化过程抛出的运行时异常会离开转化或绑定环节，交由异常处理器处置，默认返回 500。需要换状态码或响应体时注册异常处理器即可。
 
@@ -91,7 +91,7 @@ JacksonJsonSerializer serializer = new JacksonJsonSerializer(mapper -> {
 注册到应用：
 
 ```java
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .jsonSerializer(serializer)
         .routeRegister(routeRegister)
         .build();
@@ -232,7 +232,7 @@ public final class CustomJsonSerializer implements JsonSerializer {
 注册方式与上一节相同：
 
 ```java
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .jsonSerializer(new CustomJsonSerializer())
         .routeRegister(routeRegister)
         .build();
@@ -242,14 +242,13 @@ HttpRequestApplication application = new HttpRequestApplication.Builder()
 
 ## 5. 生效范围与注册
 
-`HttpRequestApplication.Builder#jsonSerializer(JsonSerializer)` 接收一个实例，传 `null` 在调用时抛 `NullPointerException`。
+`HttpServerRuntime.Builder#jsonSerializer(JsonSerializer)` 接收一个实例，传 `null` 在调用时抛 `NullPointerException`。
 
-- 装配发生在 `build()`：结果转化器管理器与路由处理器管理器都从建造者取这同一个实例，之后无法替换。要换序列化器，重新构建应用。
+- 装配发生在 `build()`：结果转化处理器与路由处理器管理器都从建造者取这同一个实例，之后无法替换。要换序列化器，重新构建运行时。
 - 序列化器全应用共享，实现必须线程安全。`ObjectMapper` 配置完成后可以并发使用，但不要在运行期继续改它的配置。
-- 只影响当前应用，不同应用可以用不同的序列化器。
-- 自定义结果转化器由调用方自行构造，应用不会把序列化器注入进去；需要序列化时在构造器里传入。自定义参数解析器的绑定器则会在每次调用时收到应用序列化器与路由登记表上的校验器。
 - 缺省字符集由 `HttpConfig` 单独配置。序列化器只产出字符串，不负责编码。
-- `HttpResult` 的 `data` 为 `null` 时同样交给序列化器，Jackson 的结果是字符串 `null`。替换实现若返回空串或抛异常，响应行为会随之改变。
+- `HttpResult` 的 `data` 为 `null` 时不经序列化器，直接按空响应体装配。要返回字面量 `null` 的 JSON，返回字符串 `"null"`。
+- 自定义参数解析器的绑定器会在每次调用时收到应用序列化器与路由登记表上的校验器。
 
 ## 6. Bean 校验
 
@@ -385,7 +384,7 @@ RestRouteRegister routeRegister = new RestRouteRegister()
         .beanValidator(new ProjectBeanValidator())
         .registerRoute(new UserController());
 
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .build();
 ```
@@ -393,7 +392,7 @@ HttpRequestApplication application = new HttpRequestApplication.Builder()
 注册规则：
 
 - 校验器属于路由登记表，作用于该登记表生产出的全部路由；
-- 必须在生产之前调用，生产由 `HttpRequestApplication.Builder#build()` 触发，之后再调用抛 `IllegalStateException`；
+- 必须在生产之前调用，生产由 `HttpServerRuntime.Builder#build()` 触发，之后再调用抛 `IllegalStateException`；
 - 传 `null` 抛 `NullPointerException`；
 - 一个应用只装配一个路由登记表，要换校验器就重建登记表与应用；
 - 校验器随路由处理器常驻，实现必须线程安全，不要保存请求级状态。

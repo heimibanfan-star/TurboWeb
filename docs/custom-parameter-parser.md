@@ -9,7 +9,7 @@
 | 装配期 | `ParameterParser#parse(Parameter)` | 每个形参调用一次，发生在路由表生产时 | 判断认不认领这个形参；认领就返回绑定器，不认领返回 `null` |
 | 请求期 | `Binder#bindParameter(...)` | 每次请求、调用控制器之前 | 从上下文取数、转换类型，返回实参 |
 
-装配发生在 `RestRouteRegister#newRouteHandlerManager`，也就是 `HttpRequestApplication.Builder#build()` 的时候。解析器按表中的顺序逐个尝试，第一个返回非 `null` 的生效；全部返回 `null` 时，该形参绑成 `null`，原始类型形参会因为拆箱失败按 500 处理。
+装配发生在 `RestRouteRegister#newRouteHandlerManager`，也就是 `HttpServerRuntime.Builder#build()` 的时候。解析器按表中的顺序逐个尝试，第一个返回非 `null` 的生效；全部返回 `null` 时，该形参绑成 `null`，原始类型形参会因为拆箱失败按 500 处理。
 
 内置解析器与尝试顺序：
 
@@ -119,8 +119,8 @@ public class EnumParameterParser extends AbstractParameterParser {
 ```java
 package demo;
 
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Route;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Route;
 
 @Route("/order")
 public class OrderController {
@@ -143,7 +143,7 @@ RestRouteRegister routeRegister = new RestRouteRegister()
         .registerParameterParserLast(new EnumParameterParser())
         .registerRoute(new OrderController());
 
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .build();
 ```
@@ -172,7 +172,7 @@ curl "http://localhost:8080/order/list?status=PAID"
 
 - 同一个 class 不能注册两次，重复注册抛 `IllegalStateException`；
 - 目标解析器不在表里时抛 `IllegalArgumentException`；
-- 路由登记表一经生产就冻结，之后再调用上述方法抛 `IllegalStateException`。换句话说，所有调整都要在 `HttpRequestApplication.Builder#build()` 之前完成；
+- 路由登记表一经生产就冻结，之后再调用上述方法抛 `IllegalStateException`。换句话说，所有调整都要在 `HttpServerRuntime.Builder#build()` 之前完成；
 - 解析器的剔除、定位都按 class 比较，不同实例只要类不同就互不干扰。
 
 ## 3. 复杂定制：内容解析器与参数解析器配合
@@ -180,7 +180,7 @@ curl "http://localhost:8080/order/list?status=PAID"
 请求体在路由匹配之前就已经解析好了。链路是：
 
 1. 请求进入编排器，`HttpContentParserManager` 按 `Content-Type` 选一个 `HttpContentParser`；
-2. 内容解析器把请求体解析成 `HttpContent`，放进请求消息；
+2. 内容解析器把请求体解析成内容对象（具体类型由解析器自定义），放进请求消息；
 3. 路由命中后，参数解析器的绑定器从 `ctx.message().content()` 取这个内容对象，转成形参。
 
 所以新请求体格式需要两半：内容解析器负责“体变成什么”，参数解析器负责“怎么取出来”。
@@ -192,7 +192,7 @@ public interface HttpContentParser {
 
     Set<ContentType> contentTypes();
 
-    HttpContent parse(FullHttpRequest request, Charset defaultCharset);
+    Object parse(FullHttpRequest request, Charset defaultCharset);
 }
 ```
 
@@ -206,36 +206,26 @@ public interface HttpContentParser {
 - 先查内置解析器，内置只有表单（`application/x-www-form-urlencoded`、`multipart/form-data`）与 JSON（`application/json`）；
 - 内置没命中再查自定义表；
 - 自定义解析器不能声明内置类型，也不能与其他自定义解析器重复声明同一类型，冲突在管理器构造时抛 `IllegalArgumentException`；
-- 请求头没有 `Content-Type`、或类型无人认领时，内容对象是 `HttpUnknowContent`，它只带类型，没有请求体；参数解析器拿不到原始字节；
-- `HEAD` 请求没有请求体，不进入内容解析器，内容恒为未声明类型的 `HttpUnknowContent`。
+- 请求头没有 `Content-Type`、或类型无人认领时，不解析体，请求消息是 `VoidRequestMessage`，`content()` 返回 `null`；参数解析器拿不到原始字节；
+- `HEAD` 请求没有请求体，不进入内容解析器，消息同样是 `VoidRequestMessage`。
 
 下面以 `text/csv` 为例，写完整的两半。
 
 ```java
 package demo;
 
-import top.turboweb.rest.core.ContentType;
-import top.turboweb.rest.core.HttpContent;
-
 import java.util.List;
 
-public final class CsvContent implements HttpContent {
+public final class CsvContent {
 
-    private final ContentType contentType;
     private final List<List<String>> rows;
 
-    public CsvContent(ContentType contentType, List<List<String>> rows) {
-        this.contentType = contentType;
+    public CsvContent(List<List<String>> rows) {
         this.rows = rows;
     }
 
     public List<List<String>> rows() {
         return rows;
-    }
-
-    @Override
-    public ContentType contentType() {
-        return contentType;
     }
 }
 ```
@@ -244,10 +234,9 @@ public final class CsvContent implements HttpContent {
 package demo;
 
 import io.netty.handler.codec.http.FullHttpRequest;
-import top.turboweb.http.orchestrator.parser.HttpRequestHelper;
+import top.turboweb.http.core.ContentType;
 import top.turboweb.http.orchestrator.parser.HttpContentParser;
-import top.turboweb.rest.core.ContentType;
-import top.turboweb.rest.core.HttpContent;
+import top.turboweb.http.orchestrator.parser.HttpRequestHelper;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -263,14 +252,14 @@ public final class CsvContentParser implements HttpContentParser {
     }
 
     @Override
-    public HttpContent parse(FullHttpRequest request, Charset defaultCharset) {
+    public Object parse(FullHttpRequest request, Charset defaultCharset) {
         Charset charset = HttpRequestHelper.getRequestCharset(request, defaultCharset);
         String body = request.content().toString(charset);
         List<List<String>> rows = body.lines()
                 .filter(line -> !line.isBlank())
                 .map(line -> List.of(line.split(",", -1)))
                 .toList();
-        return new CsvContent(ContentType.create("text/csv", charset), rows);
+        return new CsvContent(rows);
     }
 }
 ```
@@ -285,7 +274,6 @@ import top.turboweb.http.exception.RequestParseException;
 import top.turboweb.http.router.parameter.AbstractParameterParser;
 import top.turboweb.http.router.parameter.ParameterParser;
 import top.turboweb.http.router.parameter.RequestParameter;
-import top.turboweb.rest.core.HttpContent;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
 
@@ -304,7 +292,7 @@ public class CsvBodyParameterParser extends AbstractParameterParser {
 
     private static final ParameterParser.Binder BINDER =
             (ctx, requestParameter, beanValidator, jsonSerializer) -> {
-                HttpContent content = ctx.message().content();
+                Object content = ctx.message().content();
                 if (!(content instanceof CsvContent csv)) {
                     throw new RequestParseException("contentType is not text/csv");
                 }
@@ -329,14 +317,14 @@ public String importOrders(@CsvBody CsvContent csv) {
 
 **_注册_**
 
-内容解析器和参数解析器一样在构建前注册，两者各自登记到应用与路由登记表：
+内容解析器和参数解析器一样在构建前注册，前者登记到运行时，后者登记到路由登记表：
 
 ```java
 RestRouteRegister routeRegister = new RestRouteRegister()
         .registerParameterParserLast(new CsvBodyParameterParser())
         .registerRoute(new OrderController());
 
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .contentParsers(new CsvContentParser())
         .routeRegister(routeRegister)
         .build();
@@ -354,22 +342,21 @@ curl -X POST http://localhost:8080/order/import \
 - `contentParsers` 是可变参数，可以一次传多个解析器；一个解析器也可以在 `contentTypes()` 里声明多个 MIME 类型；
 - 声明的类型与内置类型（表单两种、`application/json`）冲突，或两个自定义解析器声明同一类型，在 `build()` 时抛 `IllegalArgumentException`；
 - 注册只在 `build()` 之前有效，构建后再调用不会进入已装配的管理器；
-- 请求头没有 `Content-Type`、或类型无人认领时，内容对象是 `HttpUnknowContent`，参数解析器拿不到原始字节。
+- 请求头没有 `Content-Type`、或类型无人认领时，不解析体，请求消息是 `VoidRequestMessage`，`content()` 返回 `null`，参数解析器拿不到原始字节。
 
 **_另一条路：复用内置内容解析器_**
 
-如果只是想在已有的表单或 JSON 体里再做一层解析，不需要新的 MIME 类型，就不必写内容解析器。参数解析器可以直接从内置的 `HttpFormContent`、`HttpJsonContent` 取数。例如表单里放一个 JSON 字段：
+如果只是想在已有的表单或 JSON 体里再做一层解析，不需要新的 MIME 类型，就不必写内容解析器。参数解析器可以直接从内置解析产出的 `FormRequestMessage`、`JsonRequestMessage` 内容对象取数。例如表单里放一个 JSON 字段：
 
 ```java
 package demo;
 
 import top.turboweb.http.context.HttpContext;
-import top.turboweb.http.context.HttpFormContent;
 import top.turboweb.http.exception.RequestParseException;
+import top.turboweb.http.request.FormRequestMessage;
 import top.turboweb.http.router.parameter.AbstractParameterParser;
 import top.turboweb.http.router.parameter.ParameterParser;
 import top.turboweb.http.router.parameter.RequestParameter;
-import top.turboweb.rest.core.HttpContent;
 import top.turboweb.serializer.JsonSerializer;
 import top.turboweb.validation.BeanValidator;
 
@@ -393,8 +380,8 @@ public class FormJsonParameterParser extends AbstractParameterParser {
         @Override
         public Object bindParameter(HttpContext ctx, RequestParameter requestParameter,
                                     BeanValidator beanValidator, JsonSerializer jsonSerializer) {
-            HttpContent content = ctx.message().content();
-            if (!(content instanceof HttpFormContent form)) {
+            Object content = ctx.message().content();
+            if (!(content instanceof FormRequestMessage.FormData form)) {
                 throw new RequestParseException(
                         "contentType is not application/x-www-form-urlencoded or multipart/form-data");
             }
@@ -440,8 +427,8 @@ curl -X POST http://localhost:8080/checkout \
 - 绑定结果为 `null` 时形参就是 `null`；原始类型形参随后拆箱失败，按 500 处理。需要必填时在绑定器里自行判断并抛异常。
 - 参数错误用 `RouteHandlerException` 的 `ParamDecodeError` 或 `MissingParamError`，对应 400；`RequestParseException` 与类型转换异常按 500 处理。要换状态码，注册异常处理器。
 - 新标量类型不要试图改 `ParameterHandleHelper`，它是静态表，没有注册入口，在自定义绑定器里转换即可。
-- 内容解析器必须在 `parse` 内读完请求体，不能缓存 `FullHttpRequest`；持有资源的 `HttpContent` 实现 `AutoCloseable`。
+- 内容解析器必须在 `parse` 内读完请求体，不能缓存 `FullHttpRequest`；持有资源的内容对象实现 `AutoCloseable`。
 - 参数解析器在应用构建前注册。构建完成后再改登记表会抛 `IllegalStateException`。
-- 内容解析器同样在构建前经 `HttpRequestApplication.Builder#contentParsers` 注册；类型冲突在构建时抛出，不会静默替换。
+- 内容解析器同样在构建前经 `HttpServerRuntime.Builder#contentParsers` 注册；类型冲突在构建时抛出，不会静默替换。
 
 [首页](../README.md) | [请求体系](./request.md) | [路由体系](./router.md)

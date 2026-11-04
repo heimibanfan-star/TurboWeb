@@ -2,29 +2,33 @@
 
 TurboWeb 的可调参数分两个对象存放：
 
-- `ServerConfig`：服务器层参数，决定监听线程、连接上限、协议与请求体大小，构造 `BootStrapWebServer` 时传入；
-- `HttpConfig`：HTTP 应用层参数，决定请求执行方式、会话回收、调度限流、磁盘 IO 线程池与缺省字符集，构建 `HttpRequestApplication` 时传入。
+- `ServerConfig`：服务器层参数，决定监听线程、连接上限、协议、请求体大小与连接空闲回收，构造 `BootStrapWebServer` 时传入；
+- `HttpConfig`：HTTP 应用层参数，决定单连接在途响应上限、会话回收、调度限流与缺省字符集，通过 `HttpServerRuntime.builder().config(...)` 传入。
 
 两个配置都是不可变对象，用建造者组装，链式方法名与参数同名。取值非法时在调用链式方法的那一刻就抛 `IllegalArgumentException`，不会拖到启动时才报错。
 
-Session 管理器、JSON 序列化器、中间件、异常处理器、结果转化器、响应写出器、内容解析器、CORS 属于组件对象，不放在这两个配置里，各有 `HttpRequestApplication.Builder` 上的注册方法。
+Session 管理器、JSON 序列化器、中间件、异常处理器、内容解析器、CORS、任务卸载执行器属于组件对象，不放在这两个配置里，各有 `HttpServerRuntime.Builder` 上的注册方法。
 
 ## 变更说明
 
-- 旧的 `BootStrapTurboWebServer.create().configServer(...)` 已下线。原来集中在 `configServer(..)` 里的参数被拆开：连接与线程相关的进 `ServerConfig`，请求处理相关的进 `HttpConfig`。
-- 原“三级限流保护体系”一章已删除。最大连接数仍然是 `ServerConfig.maxConnect`，调度并发限流仍然是 `HttpConfig` 的四个参数，本文按配置项本身说明，不再按“三级”组织。
-- 参数对象的建造者在设置时校验，`build()` 只负责打包，不会因为漏配某个参数而失败；唯一的例外是开启调度限流却没有给正数的并发上限，问题会在应用构建时暴露。
+2.6.x 的参数面有增有删：
+
+- `serializePerConnection` 下架：同连接响应定序改由写出管线固定承担，不再是可选开关；单连接在途响应的深度改由新参数 `maxInFlightResponses` 控制（默认 8），见 1.1。
+- 磁盘 IO 线程池三参数（`diskOpeThreadCoreQueue`、`diskOpeThreadCacheQueue`、`diskOpeThreadMaxThreadNum`）下架：2.6 没有独立磁盘 IO 池，流式写出走任务卸载执行器，要接管时注册自定义 `MicroTaskExecutor`。
+- `ServerConfig` 新增 `idleCloseTime`：连接空闲回收阈值，见 3.4。
+- 调度限流四参数保留，语义不变；限流的承载从旧调度器换成了微任务执行器的虚拟线程实现。
+- 应用装配入口由 `HttpRequestApplication.Builder` 改为 `HttpServerRuntime.builder()`，配置通过 `config(...)` 整体传入。
 
 ## 1. 应用级参数：HttpConfig
 
 ```java
-import top.turboweb.http.server.application.HttpRequestApplication;
+import top.turboweb.http.server.HttpServerRuntime;
 import top.turboweb.http.server.config.HttpConfig;
 
 import java.nio.charset.StandardCharsets;
 
 HttpConfig config = HttpConfig.builder()
-        .serializePerConnection(false)
+        .maxInFlightResponses(8)
         .sessionCheckTime(60_000)
         .sessionMaxNotUseTime(1_800_000)
         .sessionCheckThreshold(256)
@@ -32,13 +36,10 @@ HttpConfig config = HttpConfig.builder()
         .httpSchedulerLimitCount(2_000)
         .httpSchedulerLimitCacheThread(2_000)
         .httpSchedulerLimitTimeout(500)
-        .diskOpeThreadCoreQueue(6)
-        .diskOpeThreadCacheQueue(4096)
-        .diskOpeThreadMaxThreadNum(16)
         .defaultCharset(StandardCharsets.UTF_8)
         .build();
 
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .config(config)
         .build();
@@ -48,33 +49,30 @@ HttpRequestApplication application = new HttpRequestApplication.Builder()
 
 | 方法 | 默认值 | 约束 | 作用 |
 | --- | --- | --- | --- |
-| `serializePerConnection` | `false` | 无 | 同一连接上的请求是否排队执行 |
+| `maxInFlightResponses` | `8` | 大于 `0` | 单条连接在途响应的深度上限 |
 | `showRequestLog` | `true` | 无 | 请求日志开关，当前版本未接入 |
 | `sessionCheckTime` | `300000` | 不小于 `1000` | 会话回收检查间隔，毫秒 |
 | `sessionMaxNotUseTime` | `-1` | 无 | 会话最大空闲时长，毫秒 |
 | `sessionCheckThreshold` | `256` | 不小于 `1` | 会话数达到该值才执行回收 |
 | `enableHttpSchedulerLimit` | `false` | 无 | 是否限制同时执行的请求数 |
-| `httpSchedulerLimitCount` | `10000` | 不小于 `0`，开启限流时须大于 `0` | 同时执行的请求上限 |
+| `httpSchedulerLimitCount` | `10000` | 不小于 `0` | 同时执行的请求上限 |
 | `httpSchedulerLimitCacheThread` | `2000` | 不小于 `0` | 超限后允许排队等待的请求数 |
 | `httpSchedulerLimitTimeout` | `500` | 不小于 `0` | 排队等待的超时时间，毫秒 |
-| `diskOpeThreadCacheQueue` | `4096` | 不小于 `1` | 磁盘 IO 缓冲队列容量 |
-| `diskOpeThreadCoreQueue` | `6` | 不小于 `1` | 磁盘 IO 核心队列容量 |
-| `diskOpeThreadMaxThreadNum` | CPU 核心数 × 2 | 不小于 `1` | 磁盘 IO 线程上限 |
 | `defaultCharset` | `UTF-8` | 非 `null` | 缺省字符集 |
 
-### 1.1 请求串行化
+### 1.1 单连接在途响应上限
 
-默认关闭，同一条 HTTP/1.1 连接上的多个请求会并发处理，谁先处理完谁先响应。
+同一连接上的请求并发处理，响应由写出管线按序列定序写出：请求还没轮到写出时，它就处于“在途”状态。`maxInFlightResponses` 限制单条连接在途响应的深度，默认 8。
 
 ```java
 HttpConfig.builder()
-        .serializePerConnection(true)
+        .maxInFlightResponses(16)
         .build();
 ```
 
-开启后每条连接多一个串行处理器：上一条请求的响应写完，才放行下一条。处理期间到达的请求进入连接内的缓冲队列，缓冲上限 8 条，超出时直接关闭该连接。串行化只作用于单条连接，不同连接之间互不影响。
+深度超限时，框架认为这条连接的客户端消费过慢，直接关闭连接并释放积压请求，而不是无限缓冲。慢客户端因此不会拖垮服务器，但会断线重连；对吞吐与内存都敏感的场景可适当调大。
 
-需要严格按请求顺序响应（例如依赖 HTTP/1.1 管线化的客户端）时开启；常规业务保持默认。
+这个上限与调度限流（1.4）互补：一个约束单条连接的积压，一个约束全服务同时执行的请求量。两道闸门与通道可写性节流的完整机制见[背压与事件卸载](./backpressure-offload.md)。
 
 ### 1.2 请求日志
 
@@ -109,38 +107,17 @@ HttpConfig.builder()
 
 关闭时，每个请求直接在一个新建虚拟线程里执行，不排队也不拒绝。
 
-开启后：
+开启后，请求经受限的微任务执行器提交：
 
 - 许可还有剩余，请求直接执行；
-- 许可用完，排队名额未满，请求在虚拟线程里等待，最多等 `httpSchedulerLimitTimeout` 毫秒；
-- 等到许可就执行，等不到或者排队名额已满，返回 429，正文为 `too many request`。
+- 许可用完，排队名额未满，请求在虚拟线程里挂起等待，最多等 `httpSchedulerLimitTimeout` 毫秒；
+- 等到许可就执行，等不到或者排队名额已满，请求提交不被受理，编排器直接写出 429，正文为 `too many request`。
 
-`httpSchedulerLimitCount` 是同时执行的数量，不是每秒请求数。开启限流时必须大于 0，否则应用构建失败。排队名额或超时设为 0 时不允许排队，资源不足的请求立刻得到 429。
+`httpSchedulerLimitCount` 是同时执行的数量，不是每秒请求数。排队名额或超时设为 0 时不允许排队，资源不足的请求立刻得到 429。
 
-需要按 QPS 限速时，在中间件里按时间窗口自己计数，这套参数不提供速率控制。
+需要按 QPS 限速时，在中间件里按时间窗口自己计数，这套参数不提供速率控制。事件卸载与自定义执行器的接管写法见[背压与事件卸载](./backpressure-offload.md)。
 
-### 1.5 磁盘 IO 线程池
-
-文件流式响应在写出的过程中分块读取磁盘，读取任务跑在这个池里，不占用 Netty 的 IO 线程。
-
-```java
-HttpConfig.builder()
-        .diskOpeThreadCoreQueue(6)
-        .diskOpeThreadCacheQueue(4096)
-        .diskOpeThreadMaxThreadNum(16)
-        .build();
-```
-
-池子按这个顺序扩容：
-
-1. 从 1 个线程起步，任务先进核心队列（`diskOpeThreadCoreQueue`）；
-2. 核心队列满了就加线程，直到 `diskOpeThreadMaxThreadNum`；
-3. 线程到上限后，任务进缓冲队列（`diskOpeThreadCacheQueue`）；
-4. 两个队列都满时拒绝该任务。
-
-核心线程空闲 5 分钟后回收，空闲期间线程数可以回落到 0。大文件下载较多的服务可以适当调大线程上限和缓冲队列；普通服务用默认值即可。
-
-### 1.6 缺省字符集
+### 1.5 缺省字符集
 
 `defaultCharset` 的默认值是 UTF-8，在四个地方生效：
 
@@ -153,10 +130,11 @@ HttpConfig.builder()
 
 ## 2. 跨域配置：HttpCorsConfig
 
-CORS 由 `HttpCorsConfig` 描述，通过应用建造者的 `corsConfig(...)` 传入：
+CORS 由 `HttpCorsConfig` 描述，通过运行时建造者的 `corsConfig(...)` 传入：
 
 ```java
 import top.turboweb.http.orchestrator.HttpCorsConfig;
+import top.turboweb.http.server.HttpServerRuntime;
 
 import java.util.List;
 
@@ -169,7 +147,7 @@ HttpCorsConfig cors = HttpCorsConfig.builder()
         .maxAge(600)
         .build();
 
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .config(config)
         .corsConfig(cors)
@@ -201,6 +179,7 @@ ServerConfig serverConfig = ServerConfig.builder()
         .ioThreadNum(2)
         .cpuNum(8)
         .maxContentLength(1024 * 1024 * 20)
+        .idleCloseTime(60_000)
         .build();
 
 BootStrapWebServer server = new BootStrapWebServer(serverConfig);
@@ -217,6 +196,7 @@ BootStrapWebServer server = new BootStrapWebServer(serverConfig);
 | `maxContentLength` | `10485760`（10 MB） | 不小于 `1024` | 聚合后的请求体上限，字节 |
 | `enableHttp2` | `false` | 无 | 是否启用 HTTP/2 |
 | `http2Settings` | 见下文 | 非 `null` | HTTP/2 帧与流参数 |
+| `idleCloseTime` | `60000` | 不小于 `0` | 连接空闲回收阈值，毫秒，`0` 表示不启用 |
 
 ### 3.1 连接数上限
 
@@ -236,7 +216,19 @@ BootStrapWebServer server = new BootStrapWebServer(serverConfig);
 
 上传大文件的服务要按实际文件大小调高，同时注意它也是单请求占用的直接内存上限。
 
-### 3.4 SSL 与 HTTP/2
+### 3.4 连接空闲回收
+
+`idleCloseTime` 是连接空闲回收阈值，默认 60000 毫秒（60 秒）。一条连接持续该时长没有收发数据，框架自动关闭它，防止客户端异常消失后连接与虚拟线程被白白占用。
+
+```java
+ServerConfig.builder()
+        .idleCloseTime(120_000) // 空闲 2 分钟回收
+        .build();
+```
+
+设为 `0` 表示不启用空闲回收。WebSocket、SSE 这类长生命周期连接在协议升级或推送启动时自动豁免回收，不会被误杀；只在它们真正空闲时才按阈值处理。
+
+### 3.5 SSL 与 HTTP/2
 
 `sslContext` 为 `null` 时不启用 HTTPS。传入由证书构建的 `SslContext` 即启用：
 
@@ -262,10 +254,10 @@ ServerConfig serverConfig = ServerConfig.builder()
 
 ## 4. 配置生效时机
 
-- `ServerConfig` 在服务器第一次 `start` 时消费：线程组、服务端通道、连接限流器都在此时按配置创建，之后再改配置对象不会影响已启动的服务器。
-- `HttpConfig` 在 `HttpRequestApplication.Builder#build()` 时消费：会话回收参数、调度限流的虚拟线程资源、磁盘 IO 线程池都在这时创建。`Builder#build()` 只能调用一次，重复调用抛 `IllegalStateException`。
-- 应用必须在 `BootStrapWebServer.start` 之前注册，启动后注册抛 `IllegalStateException`。
-- 服务器关闭时按注册顺序关闭全部应用，应用内部的磁盘 IO 线程池与会话回收线程随之停止。
+- `ServerConfig` 在服务器第一次 `start` 时消费：线程组、服务端通道、连接限流器与空闲回收都在此时按配置创建，之后再改配置对象不会影响已启动的服务器。
+- `HttpConfig` 在 `HttpServerRuntime.Builder#build()` 时消费：会话回收参数、调度限流的虚拟线程资源都在这时创建。
+- 运行时必须在 `BootStrapWebServer.start` 之前注册，启动后注册抛 `IllegalStateException`。
+- 服务器关闭时按注册顺序关闭全部运行时，会话回收线程与中间件等资源随之释放。
 
 ## 5. 常用组合
 
@@ -299,20 +291,18 @@ HttpConfig.builder()
 
 并发上限按下游能承受的量设定，排队名额不宜过大，超时设短一些，把压力尽早以 429 返回。
 
-**_大文件下载服务_**
+**_慢客户端较多的推送服务_**
 
 ```java
 ServerConfig.builder()
-        .maxContentLength(1024 * 1024 * 50)
+        .idleCloseTime(120_000)
         .build();
 
 HttpConfig.builder()
-        .diskOpeThreadCoreQueue(16)
-        .diskOpeThreadCacheQueue(8192)
-        .diskOpeThreadMaxThreadNum(32)
+        .maxInFlightResponses(16)
         .build();
 ```
 
-磁盘 IO 线程服务于文件传输的分块读取，按磁盘的并发能力调整。
+空闲回收阈值放宽，给慢客户端留足重连窗口；单连接在途响应上限调大，允许同一连接上更多请求排队而不被断开。
 
 [首页](../README.md) | [快速入门](./quickstart.md) | [定制：参数解析器](./custom-parameter-parser.md)

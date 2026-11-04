@@ -4,15 +4,16 @@
 
 ## 变更说明
 
-- 注册入口由 `BootStrapTurboWebServer.create().http().middleware(...)` 改为 `HttpRequestApplication.Builder#middleware(...)`，参数改为可变参数。
-- 路由管理器不再作为普通中间件手工注册。设置 `routeRegister` 之后，框架在构建期把路由调用节点追加到链尾；不设置时不追加，链在执行完业务中间件后结束。
+- 注册入口为 `HttpServerRuntime.builder().middleware(...)`，参数是可变参数。
+- 路由管理器不再作为普通中间件手工注册。设置 `routeRegister` 之后，框架在构建期把路由调用中间件（`RouteInvokeMiddleware`）追加到链尾；不设置时不追加，链在执行完业务中间件后结束。
 - 同一个中间件类只能注册一次，重复注册由构建期检查，`build()` 抛 `IllegalStateException`。
-- 请求对象的读取入口由 `ctx.getRequest()` 改为 `ctx.message()`。
-- 构建期除 `init` 外新增 `destroy`，应用关闭时统一回调中间件释放资源。
+- 请求对象的读取入口是 `ctx.message()`；响应头实体经 `headers()` 读取，路径经 `requestLine().target().path()` 读取。
+- `init` 的签名是 `init(ResourceProvider)`，装配期注入资源提供者，不再传入链头；链结构在装配期固定，中间件不再暴露改链入口。
+- 应用关闭时统一回调中间件的 `destroy` 释放资源。
 
 ## 1. 编写与注册中间件
 
-继承 `Middleware`，实现 `invoke`。返回值就是本次请求的处理结果，按与控制器的返回值相同的方式转化并写出。
+继承 `Middleware`，实现 `invoke`。返回值就是本次请求的处理结果，按与控制器的返回值相同的方式装配并写出。
 
 ```java
 package demo;
@@ -29,16 +30,16 @@ public class HelloMiddleware extends Middleware {
 }
 ```
 
-在装配应用时注册，`build()` 之前完成：
+在装配运行时注册，`build()` 之前完成：
 
 ```java
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .middleware(new HelloMiddleware())
         .build();
 
 BootStrapWebServer server = new BootStrapWebServer();
-server.registerApplicationLast(application);
+server.registerRuntimeLast(runtime);
 server.start(8080);
 ```
 
@@ -60,7 +61,7 @@ server.start(8080);
 构建期按注册顺序把中间件串成一条链，链头是框架内部使用的哨兵节点；挂了路由登记表时，路由调用节点追加在链尾：
 
 ```text
-SentinelMiddleware -> AuthMiddleware -> AccessLogMiddleware -> RouteHandlerInvokeMiddleware
+NoopMiddleware -> AuthMiddleware -> AccessLogMiddleware -> RouteInvokeMiddleware
 ```
 
 每个中间件通过 `next(ctx)` 调用下一个环节，返回值是后续链路的处理结果：
@@ -101,7 +102,7 @@ one after
 
 链尾没有路由节点时（没有设置 `routeRegister`），`next(ctx)` 返回 `null`，最终得到 200 空响应。
 
-中间件的返回值走结果转化链，规则与控制器一致：返回 `String` 是 200 的 `text/html`，返回普通对象是 JSON，返回 `HttpResult` 按其中的状态码写出，返回 `HttpResponse` 原样写出。详见[响应体系](./response.md)。
+中间件的返回值走结果转化装配，规则与控制器一致：返回 `String` 是 200 的 `text/html`，返回普通对象是 JSON，返回 `HttpResult` 按其中的状态码写出，返回响应消息原样写出。详见[响应体系](./response.md)。
 
 ## 3. 短路请求
 
@@ -114,7 +115,7 @@ public class AuthMiddleware extends Middleware {
 
     @Override
     public Object invoke(HttpContext ctx) {
-        String authorization = ctx.message().header("Authorization");
+        String authorization = ctx.message().headers().get("Authorization");
         if (!"123456".equals(authorization)) {
             return HttpResult.create(401, "unauthorized");
         }
@@ -136,7 +137,7 @@ curl -i -H "Authorization: 123456" http://localhost:8080/user
 # User
 ```
 
-状态码只能经 `HttpResult` 或自行构造的 `HttpResponse` 设置，直接返回字符串固定为 200。
+状态码只能经 `HttpResult` 或自行构造的响应消息设置，直接返回字符串固定为 200。
 
 短路响应与正常响应走同一条收尾：CORS 头照常写入；中间件通过 `ctx.cookies()` 设置的 Cookie 与本次新建会话的 `JSESSIONID` 也会写进响应。中间件抛出异常时，异常交给异常处理器，处理方式见[异常处理器](./exceptionhandler.md)。
 
@@ -153,11 +154,11 @@ curl -i -H "Authorization: 123456" http://localhost:8080/user
 
 中间件是同步代码，运行在虚拟线程上，写阻塞式 I/O（数据库、外部 HTTP 调用）没有问题，虚拟线程会在阻塞时让出载体线程。不要为了“异步”把逻辑另起线程后立即返回，那样请求的结果与响应写出会脱节。
 
-## 5. 初始化、锁定与销毁
+## 5. 初始化与销毁
 
-`init(Middleware chain)` 在链装配完成之后、锁定之前调用，每个中间件调用一次，用来创建线程池、加载配置等长期资源。参数 `chain` 是链头节点，不是“下一个中间件”；需要访问下一环节时用 `getNext()`。
+`init(ResourceProvider resourceProvider)` 在链装配完成之后调用，每个中间件调用一次，用来创建线程池、加载配置等长期资源。参数是框架的资源提供者，只读查询视图，按名称取用内置资源（任务卸载执行器等），需要框架资源时从它获取。
 
-链结构在 `build()` 时已经确定，不建议在 `init` 里改 `next` 指针。初始化完成后所有节点被锁定，之后再调用 `setNext(...)` 只会打印一条警告，不会生效。
+链结构在 `build()` 时已经固定，运行期不能增删节点。
 
 应用关闭时会按链头到链尾的顺序调用每个中间件的 `destroy()`，默认空实现。中间件在 `init` 里创建了需要关闭的资源时才覆写它：
 
@@ -167,7 +168,7 @@ public class MetricsMiddleware extends Middleware {
     private ScheduledExecutorService reporter;
 
     @Override
-    public void init(Middleware chain) {
+    public void init(ResourceProvider resourceProvider) {
         reporter = Executors.newSingleThreadScheduledExecutor();
         reporter.scheduleWithFixedDelay(this::flush, 1, 1, TimeUnit.MINUTES);
     }
@@ -202,7 +203,7 @@ public class AccessLogMiddleware extends Middleware {
     public Object invoke(HttpContext ctx) {
         long start = System.nanoTime();
         String method = ctx.message().method().name();
-        String path = ctx.message().url().url(true);
+        String path = ctx.message().requestLine().target().path();
         try {
             return next(ctx);
         } finally {
@@ -213,7 +214,7 @@ public class AccessLogMiddleware extends Middleware {
 }
 ```
 
-`url(true)` 只取路径，不带查询串与片段。`finally` 保证控制器抛异常时也能记录到本次请求的耗时。
+`path()` 返回剥离查询串与片段后的路径。`finally` 保证控制器抛异常时也能记录到本次请求的耗时。
 
 ```bash
 curl http://localhost:8080/user
@@ -232,7 +233,7 @@ public class RoleBranchMiddleware extends BranchMiddleware {
 
     @Override
     protected String getBranchKey(HttpContext ctx) {
-        String role = ctx.message().header("X-Role");
+        String role = ctx.message().headers().get("X-Role");
         return role == null ? "user" : role;
     }
 }
@@ -246,7 +247,7 @@ branch.addMiddleware("admin", new AdminAuditMiddleware())
       .addMiddleware("admin", new AdminSqlLogMiddleware())
       .addMiddleware("user", new UserAuditMiddleware());
 
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .middleware(branch)
         .build();

@@ -73,7 +73,7 @@ public static void main(String[] args) {
         @Override
         protected String getBranchKey(HttpContext ctx) {
             // 通过 Authorization 头部判断分支
-            return ctx.getRequest().headers().get(HttpHeaderNames.AUTHORIZATION);
+            return ctx.message().headers().get("Authorization");
         }
     };
 
@@ -101,13 +101,15 @@ public static void main(String[] args) {
     };
 
     // 启动服务器
-    BootStrapTurboWebServer.create()
-            .http()
+    HttpServerRuntime runtime = HttpServerRuntime.builder()
             .middleware(beforeBranch)
             .middleware(branchMiddleware)
             .middleware(afterBranch)
-            .and()
-            .start();
+            .build();
+
+    BootStrapWebServer server = new BootStrapWebServer();
+    server.registerRuntimeLast(runtime);
+    server.start(8080);
 }
 ```
 
@@ -159,17 +161,16 @@ BranchMiddleware 在内部维护两层结构：
 2. **执行分支链路**
     调用 `middlewareChains.get(branchKey).invoke(ctx)` 执行该分支的第一个中间件。
 3. **分支结束后合并回主链**
-    每个分支尾部自动接上 `MergeMiddleware`，继续执行主链后续中间件。
+    分支尾部自动接回主链，继续执行主链后续中间件。
 
 ## 生命周期与初始化
 
-BranchMiddleware 在服务器启动阶段完成分支链组装。
-每个分支的中间件依次通过 `init()` 初始化，并最终锁定链结构以防运行时修改。
+BranchMiddleware 在应用装配阶段完成分支链组装。
+每个分支的中间件依次通过 `init(ResourceProvider)` 初始化，并最终锁定链结构以防运行时修改。
 
 在执行阶段：
 
-- 若请求分支不存在，抛出 `TurboRouterException`；
-- 若分支链中断（`setNext()` 未连接），未连接部分不会初始化；
+- 请求的分支不存在时，抛出 `RouteHandlerException`（错误码 `RouterNotMatch`），默认得到 404，也可以由异常处理器接管；
 - 所有分支共享同一个主链上下文，但互不干扰。
 
 ## 使用场景

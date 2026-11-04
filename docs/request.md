@@ -14,7 +14,7 @@
 重构后取参只保留注解一种写法，各段数据各有固定来源：
 
 - 路径参数与查询参数在路由命中后统一装配为 `RequestParameter`，解码完成后交给参数绑定器，不再经上下文取数；
-- 请求体按 `Content-Type` 解析为 `HttpFormContent` 或 `HttpJsonContent`，绑定器认具体内容类取数；
+- 请求体按 `Content-Type` 解析为 `FormRequestMessage`、`JsonRequestMessage` 或 `VoidRequestMessage`，绑定器认具体内容类取数；
 - 上下文的查询族与实体装载族方法全部下线，只保留请求消息、Session、Cookie、连接会话等请求级状态。
 
 随这次收敛一起变化的行为：
@@ -56,9 +56,9 @@
 ```java
 package demo;
 
-import top.turboweb.rest.annotation.binder.PathParam;
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Route;
+import top.turboweb.http.core.annotation.binder.PathParam;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Route;
 
 @Route("/order")
 public class OrderController {
@@ -77,7 +77,7 @@ curl http://localhost:8080/order/1001
 
 路径参数在路由命中时已经确定存在，不会有缺参的情况。值无法转换为声明类型时（例如 `Long` 形参收到 `abc`）抛运行时异常，默认按 500 处理。
 
-路径参数按 `URLDecoder` 解码：百分号转义会被还原，加号 `+` 也会被还原成空格。需要传递字面加号时，发送 `%2B`。
+路径参数在路由装配期按 `HttpConfig` 的缺省字符集做百分号解码，百分号转义会被还原，加号 `+` 保持字面值。需要传递字面加号时无需转义。
 
 ## 3. 查询参数
 
@@ -185,10 +185,10 @@ curl -X POST http://localhost:8080/user/signup \
 ```java
 package demo;
 
-import top.turboweb.rest.annotation.binder.FormParam;
-import top.turboweb.rest.annotation.router.Post;
-import top.turboweb.rest.annotation.router.Route;
-import top.turboweb.rest.core.MultipartFile;
+import top.turboweb.http.core.MultipartFile;
+import top.turboweb.http.core.annotation.binder.FormParam;
+import top.turboweb.http.core.annotation.router.Post;
+import top.turboweb.http.core.annotation.router.Route;
 
 import java.io.IOException;
 import java.util.List;
@@ -356,14 +356,14 @@ public String create(@BeanForm(value = true, groups = Groups.Add.class) UserForm
 ```java
 public class ValidationExceptionHandler {
 
-    public HttpResult<String> handle(BeanValidationException e) {
+    public HttpResult handle(BeanValidationException e) {
         return HttpResult.create(400, String.join("; ", e.failMessages()));
     }
 }
 ```
 
 ```java
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .exceptionHandlers(new ValidationExceptionHandler())
         .routeRegister(routeRegister)
         .build();
@@ -392,12 +392,11 @@ RestRouteRegister routeRegister = new RestRouteRegister()
 | `HttpCookies` | 当前请求的 Cookie 集合 |
 | `SseEmitter` | SSE 发射器，按本次请求构造 |
 | `HttpConnection` | 当前连接会话 |
-| `Channel` | 当前连接的 Netty 通道 |
 
 ```java
 @Get("/context")
 public String context(HttpContext ctx, HttpSession session, HttpCookies cookies) {
-    session.setAttr("lastPath", ctx.message().url().url(true));
+    session.setAttr("lastPath", ctx.message().requestLine().target().path());
     return cookies.getCookie("uid");
 }
 ```
@@ -406,22 +405,23 @@ public String context(HttpContext ctx, HttpSession session, HttpCookies cookies)
 
 ## 13. 请求体与字符集
 
-请求体在进入控制器之前已按 `Content-Type` 解析：
+请求体在进入控制器之前已按 `Content-Type` 解析为请求消息的内容对象，经 `ctx.message().content()` 取用：
 
 | `Content-Type` | 内容类 | 可读取 |
 | --- | --- | --- |
-| `application/x-www-form-urlencoded`、`multipart/form-data` | `HttpFormContent` | `formParams()`、`formFiles()` |
-| `application/json` | `HttpJsonContent` | `jsonString()` |
-| 其他或未声明 | `HttpUnknowContent` | 仅 `contentType()` |
+| `application/x-www-form-urlencoded` | `FormRequestMessage.FormData` | `formParams()`（字段名到值列表） |
+| `multipart/form-data` | `FormRequestMessage.MultipartFormData` | `formParams()` 与 `formFiles()`（字段名到 `MultipartFile` 列表） |
+| `application/json` | `String`（`JsonRequestMessage` 携带） | `jsonString()` |
+| 其他或未声明 | 无（`VoidRequestMessage`） | `content()` 恒为 `null` |
 
-其他 `Content-Type` 可以通过自定义内容解析器接入，写法见[定制：参数解析器](./custom-parameter-parser.md)第 3 节。
+自定义内容解析器产出的内容对象随 `HttpRequestMessage` 携带，`content()` 的类型由解析器决定。接入写法见[定制：参数解析器](./custom-parameter-parser.md)第 3 节。
 
 需要绕开注解直接读体时，经 `ctx.message().content()` 转型取数：
 
 ```java
 @Post("/raw")
 public String raw(HttpContext ctx) {
-    HttpJsonContent json = (HttpJsonContent) ctx.message().content();
+    JsonRequestMessage json = (JsonRequestMessage) ctx.message();
     return json.jsonString();
 }
 ```

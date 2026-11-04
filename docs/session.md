@@ -8,9 +8,9 @@ TurboWeb 的会话入口是 `HttpContext#httpSession()`，底层由可替换的 
 
 ## 变更说明
 
-- 会话管理器改由 `HttpRequestApplication.Builder#sessionManager(...)` 替换，旧的 `BootStrapTurboWebServer...replaceSessionManager(...)` 已不存在。
-- 回收参数从服务器全局配置移到 `HttpConfig`，通过应用的 `.config(HttpConfig.builder()...)` 设置。
-- `HttpSession` 的属性读写接口保持不变；新增 `sessionSafeScope`，供自定义管理器与垃圾回收互斥。
+- 会话管理器改由 `HttpServerRuntime.Builder#sessionManager(...)` 替换，旧的 `BootStrapTurboWebServer...replaceSessionManager(...)` 已不存在。
+- 回收参数在 `HttpConfig` 上，通过运行时的 `.config(...)` 整体传入。
+- `HttpSession` 的属性读写接口保持不变；`sessionSafeScope` 供自定义管理器与垃圾回收互斥。
 
 ## 1. 读写会话
 
@@ -126,7 +126,7 @@ public String login(HttpContext ctx) {
 
 ## 4. 配置回收参数
 
-三个参数都在 `HttpConfig` 上，通过应用的 `.config(...)` 传入：
+三个参数都在 `HttpConfig` 上，通过运行时的 `.config(...)` 整体传入：
 
 ```java
 HttpConfig config = HttpConfig.builder()
@@ -135,7 +135,7 @@ HttpConfig config = HttpConfig.builder()
         .sessionCheckThreshold(256)      // 触发检查的会话数量阈值
         .build();
 
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .config(config)
         .build();
@@ -164,7 +164,7 @@ HttpRequestApplication application = new HttpRequestApplication.Builder()
 ```java
 import top.turboweb.http.session.BackHoleSessionManager;
 
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .sessionManager(new BackHoleSessionManager())
         .build();
@@ -245,7 +245,7 @@ public class MySessionManager implements SessionManager {
 ```
 
 ```java
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .sessionManager(new MySessionManager())
         .build();

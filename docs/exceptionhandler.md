@@ -54,11 +54,11 @@ import top.turboweb.http.response.HttpResult;
 
 public class GlobalExceptionHandler {
 
-    public HttpResult<String> validationFailed(BeanValidationException e) {
+    public HttpResult validationFailed(BeanValidationException e) {
         return HttpResult.create(400, String.join("; ", e.failMessages()));
     }
 
-    public HttpResult<String> routeNotFound(RouteHandlerException e) {
+    public HttpResult routeNotFound(RouteHandlerException e) {
         return HttpResult.create(e.getCode().getHttpStatus().code(), "route not found");
     }
 }
@@ -67,7 +67,7 @@ public class GlobalExceptionHandler {
 在 `build()` 之前登记：
 
 ```java
-HttpRequestApplication application = new HttpRequestApplication.Builder()
+HttpServerRuntime runtime = HttpServerRuntime.builder()
         .routeRegister(routeRegister)
         .exceptionHandlers(new GlobalExceptionHandler())
         .build();
@@ -100,20 +100,20 @@ HttpRequestApplication application = new HttpRequestApplication.Builder()
 
 ## 4. 处理方法的返回值
 
-处理方法的返回值走与控制器方法相同的转化链，规则见[响应体系](./response.md)。常用的几类：
+处理方法的返回值按与控制器方法相同的规则装配为响应消息，规则见[响应体系](./response.md)。常用的几类：
 
 | 返回值 | 写出结果 |
 | --- | --- |
 | `String` | 200，`text/html` |
 | `HttpResult` | 状态码与响应头按结果 |
 | 普通对象 | 200，`application/json` |
-| `HttpResponse` | 原样写出 |
+| 响应消息 | 原样写出 |
 | `null`，或方法声明为 `void` | 200，空正文 |
 
-状态码只能经 `HttpResult` 或自行构造的 `HttpResponse` 设置，返回 `String` 或普通对象固定为 200。
+状态码只能经 `HttpResult` 或自行构造的响应消息设置，返回 `String` 或普通对象固定为 200。
 
 ```java
-public HttpResult<Map<String, Object>> businessError(BusinessException e) {
+public HttpResult businessError(BusinessException e) {
     return HttpResult.create(409, Map.of("code", e.code(), "message", e.getMessage()));
 }
 ```
@@ -178,7 +178,7 @@ public class UserController {
 ```java
 public class ValidationExceptionHandler {
 
-    public HttpResult<String> handle(BeanValidationException e) {
+    public HttpResult handle(BeanValidationException e) {
         return HttpResult.create(400, String.join("; ", e.failMessages()));
     }
 }
@@ -235,7 +235,7 @@ public class OrderController {
 ```java
 public class OrderExceptionHandler {
 
-    public HttpResult<Map<String, Object>> orderNotFound(OrderNotFoundException e) {
+    public HttpResult orderNotFound(OrderNotFoundException e) {
         return HttpResult.create(404, Map.of(
                 "message", e.getMessage(),
                 "orderId", e.orderId()));
@@ -258,7 +258,7 @@ curl -i http://localhost:8080/order/0
 ```java
 public class FallbackExceptionHandler {
 
-    public HttpResult<Map<String, String>> fallback(Throwable e) {
+    public HttpResult fallback(Throwable e) {
         return HttpResult.create(500, Map.of("message", "internal error"));
     }
 }

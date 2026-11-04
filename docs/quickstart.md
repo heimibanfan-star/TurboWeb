@@ -33,8 +33,8 @@ Maven：
 ```java
 package demo;
 
-import top.turboweb.rest.annotation.router.Get;
-import top.turboweb.rest.annotation.router.Route;
+import top.turboweb.http.core.annotation.router.Get;
+import top.turboweb.http.core.annotation.router.Route;
 
 @Route("/hello")
 public class HelloController {
@@ -61,7 +61,7 @@ package demo;
 
 import top.turboweb.http.router.RestRouteRegister;
 import top.turboweb.http.server.BootStrapWebServer;
-import top.turboweb.http.server.application.HttpRequestApplication;
+import top.turboweb.http.server.HttpServerRuntime;
 
 public class Main {
 
@@ -70,14 +70,14 @@ public class Main {
         RestRouteRegister routeRegister = new RestRouteRegister();
         routeRegister.registerRoute(new HelloController());
 
-        // 2. 装配 HTTP 应用
-        HttpRequestApplication application = new HttpRequestApplication.Builder()
+        // 2. 装配 HTTP 运行时
+        HttpServerRuntime runtime = HttpServerRuntime.builder()
                 .routeRegister(routeRegister)
                 .build();
 
-        // 3. 注册应用并启动
+        // 3. 注册运行时并启动
         BootStrapWebServer server = new BootStrapWebServer();
-        server.registerApplicationLast(application);
+        server.registerRuntimeLast(runtime);
         server.start(8080);
     }
 }
@@ -86,8 +86,8 @@ public class Main {
 三个对象各管一件事：
 
 - `RestRouteRegister`：收集控制器和各项扩展配置。`registerRoute(instance)` 以实例的类扫描路由注解。需要统一前缀时用 `new RestRouteRegister("/api")`，上例的路径会变成 `/api/hello`。
-- `HttpRequestApplication`：一个 HTTP 应用，负责每条新连接的处理器装配。中间件、异常处理器、Session 管理器、JSON 序列化器、CORS、结果转化器、响应写出器以及 `HttpConfig` 都在它的 `Builder` 上配置。
-- `BootStrapWebServer`：服务器本体，负责监听端口、管理连接与线程资源。应用必须在 `start` 之前注册。
+- `HttpServerRuntime`：一个 HTTP 运行时，负责每条新连接的处理器装配。中间件、内容解析器、参数解析器、JSON 序列化器、Bean 校验器、异常处理器、Session 管理器、CORS、任务卸载执行器以及 `HttpConfig` 都在它的 `builder()` 上配置。
+- `BootStrapWebServer`：服务器本体，负责监听端口、管理连接与线程资源。运行时必须在 `start` 之前注册。
 
 ## 4. 验证
 
@@ -133,11 +133,11 @@ BootStrapWebServer server = new BootStrapWebServer(config);
 
 默认 IO 线程数为 1。IO 线程只处理网络事件，业务逻辑跑在虚拟线程上，常规 HTTP 服务不必调大。
 
-HTTP 层参数（字符集、Session 回收、请求体串行化、磁盘 IO 线程池等）走 `HttpConfig`，配置方式见[框架参数调整](./config.md)。
+HTTP 层参数（字符集、单连接在途响应上限、Session 回收等）走 `HttpConfig`，配置方式见[框架参数调整](./config.md)。
 
 **_关闭服务器_**
 
-`BootStrapWebServer` 实现了 `AutoCloseable`。`close()` 会先关闭监听通道，再停掉 boss/worker 线程组，最后按注册顺序关闭全部应用，释放中间件与线程池等资源。
+`BootStrapWebServer` 实现了 `AutoCloseable`。`close()` 会先关闭监听通道，再停掉 boss/worker 线程组，最后按注册顺序关闭全部运行时，释放中间件与线程池等资源。
 
 ```java
 Runtime.getRuntime().addShutdownHook(new Thread(server::close));
