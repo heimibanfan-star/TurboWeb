@@ -627,7 +627,7 @@ class ParamInfoParsersTest {
 
         HttpConnection connectSession = proxy(HttpConnection.class);
         assertSame(connectSession, p.parse(parameter("internConnectSession"))
-                .bindParameter(stub.returning("getConnectSession", connectSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
+                .bindParameter(stub.returning("httpConnection", connectSession).ctx(), NO_PARAMS, NOOP, NOOP_SERIALIZER));
 
     }
 

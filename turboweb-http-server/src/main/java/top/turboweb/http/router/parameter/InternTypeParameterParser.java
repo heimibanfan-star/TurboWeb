@@ -25,8 +25,8 @@ public class InternTypeParameterParser extends AbstractParameterParser{
     // SseEmitter自动绑定:发射器不持有连接,就地构造,缓冲容量取统一值32
     private static final ParameterParser.Binder SSE_EMITTER_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) ->
             new SseEmitter(SSE_MAX_MESSAGE_CACHE);
-    // 连接会话绑定
-    private static final ParameterParser.Binder CONNECT_SESSION_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ctx.getConnectSession();
+    // HttpConnection自动绑定
+    private static final ParameterParser.Binder HTTP_CONNECTION_BINDER = (ctx, requestParameter, beanValidator, jsonSerializer) -> ctx.httpConnection();
 
     @Override
     protected ParameterParser.Binder doParse(Parameter parameter) {
@@ -45,7 +45,7 @@ public class InternTypeParameterParser extends AbstractParameterParser{
             return SSE_EMITTER_BINDER;
         }
         if (HttpConnection.class == type) {
-            return CONNECT_SESSION_BINDER;
+            return HTTP_CONNECTION_BINDER;
         }
         return null;
     }

@@ -101,7 +101,7 @@ class FullHttpContextTest {
         try {
             FullHttpContext ctx = context(req, session);
             assertSame(session, ctx.httpSession());
-            assertSame(CONNECT_SESSION, ctx.getConnectSession());
+            assertSame(CONNECT_SESSION, ctx.httpConnection());
         } finally {
             Requests.release(req);
         }

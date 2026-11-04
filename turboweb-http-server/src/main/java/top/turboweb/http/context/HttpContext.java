@@ -68,11 +68,11 @@ public interface HttpContext {
 	HttpRequestMessage<?> message();
 
 	/**
-	 * 获取连接会话。
+	 * 获取当前请求关联的连接。
 	 *
 	 * @return 当前请求关联的 {@link HttpConnection} 对象。
 	 */
-	HttpConnection getConnectSession();
+	HttpConnection httpConnection();
 
 	/**
 	 * 获取当前 HTTP 会话对象。

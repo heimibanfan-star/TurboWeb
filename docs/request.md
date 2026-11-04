@@ -401,7 +401,7 @@ public String context(HttpContext ctx, HttpSession session, HttpCookies cookies)
 }
 ```
 
-注入按形参声明类型精确匹配，不做子类匹配。`HttpContext` 上保留 `message()`、`httpSession()`、`cookies()`、`getConnectSession()`、`defaultCharset()`、`attachment()`，不再提供取参方法。
+注入按形参声明类型精确匹配，不做子类匹配。`HttpContext` 上保留 `message()`、`httpSession()`、`cookies()`、`httpConnection()`、`defaultCharset()`、`attachment()`，不再提供取参方法。
 
 ## 13. 请求体与字符集
 

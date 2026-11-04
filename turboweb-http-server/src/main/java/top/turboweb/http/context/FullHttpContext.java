@@ -92,7 +92,7 @@ public final class FullHttpContext implements HttpContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public HttpConnection getConnectSession() {
+	public HttpConnection httpConnection() {
 		return this.connectSession;
 	}
 
