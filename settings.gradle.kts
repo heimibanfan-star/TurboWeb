@@ -6,7 +6,6 @@
 
 rootProject.name = "turboweb"
 include(":turboweb-websocket")
-include(":turboweb-http-client")
 include(":turboweb-http-server")
 
 include("turboweb-struct")
