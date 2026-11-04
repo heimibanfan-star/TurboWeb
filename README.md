@@ -1,27 +1,3 @@
-<br/><br/>
-
-
-<p align="center">
- <img src="./docs/image/logo.png" alt=""/>
-</p>
-
-<div align="center">
-
-![Gitee Stars](https://gitee.com/turboweb/turboweb/badge/star.svg?theme=dark)
-![Forks](https://gitee.com/turboweb/turboweb/badge/fork.svg?theme=dark)
-![License](https://img.shields.io/badge/License-Apache--2.0-red)
-
-</div>
-
-<br/><br/><br/>
-
-> 你还在纠结“同步代码写得爽”还是“异步框架性能强”？
->
-> **别选了，全都要！**
->
-> **TurboWeb** —— 用同步的姿势，干掉异步的活儿！
-
-
 ## TurboWeb是什么？
 
 **TurboWeb** 是一个现代、高性能、无废话的 Java Web 框架，底层基于 Netty，核心依托 **JDK 21 虚拟线程（Loom）**，为高并发场景而生。它不仅运行得飞快，还写得极爽——
@@ -131,8 +107,3 @@ SSE 原生集成，无需第三方依赖即可构建推送类应用，底层生�
 [定制：响应写出策略](./docs/custom-response-writing.md)
 
 [定制：序列化与实体校验](./docs/custom-serializer-validation.md)
-
-
-## 联系我们
-
-QQ 群：154319949
