@@ -23,6 +23,7 @@ import java.util.Objects;
  * 数据按类型装配：Publisher 转为流式响应消息，状态行与响应头取自 HttpResult，
  * 调用方已声明 Content-Type 时保留其声明，未声明时补 text/html 且 charset 段取缺省字符集；
  * String 与 null 数据按 text/html 装配为字节消息，null 为空体；
+ * byte[] 数据原样作为响应体，缺省内容类型为 application/octet-stream；
  * 其余数据经 json序列化器按 application/json 装配为字节消息。
  * 调用方头先整体写入，调用方已声明 Content-Type 的字节消息保留其声明不覆盖，
  * 仅在缺失时按数据类型补缺省声明，内容长度恒以框架按实际响应体算出的值为准。
@@ -75,6 +76,7 @@ public final class ResultToMessageHandler {
     /**
      * 把 HttpResult 值对象装配为响应消息：数据为 Publisher 时转流式响应消息，
      * String 与 null 数据按 text/html 装配为字节消息（null 为空体），
+     * byte[] 数据原样作为响应体装配为字节消息，
      * 其余数据经 json序列化器按 application/json 装配为字节消息。
      *
      * @param httpResult 响应值对象
@@ -86,19 +88,22 @@ public final class ResultToMessageHandler {
         if (data instanceof Publisher<?> publisher) {
             return toStreamMessage(httpResult, publisher, charset);
         }
-        String content;
+        byte[] body;
         String defaultContentType;
         if (data instanceof String stringData) {
-            content = stringData;
+            body = stringData.getBytes(charset);
             defaultContentType = "text/html;charset=" + charset.name();
+        } else if (data instanceof byte[] byteData) {
+            body = byteData;
+            defaultContentType = "application/octet-stream";
         } else if (data == null) {
-            content = "";
+            body = new byte[0];
             defaultContentType = "text/html;charset=" + charset.name();
         } else {
-            content = jsonSerializer.beanToJson(data);
+            String content = jsonSerializer.beanToJson(data);
+            body = content == null ? new byte[0] : content.getBytes(charset);
             defaultContentType = "application/json;charset=" + charset.name();
         }
-        byte[] body = content == null ? new byte[0] : content.getBytes(charset);
         ByteResponseMessage message = new ByteResponseMessage(httpResult.statusLine(), body);
         copyCallerHeaders(httpResult, message);
         // 调用方已声明内容类型时保留其声明，仅在缺失时按数据类型补缺省声明
